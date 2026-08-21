@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-BR-002  
 > **Document Order:** 02 / 20  
-> **Status:** Draft — Synchronized through System Architecture  
+> **Status:** Draft — Synchronized through Confirmed Security Decisions  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `project_doc/01_PRD.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
@@ -26,7 +26,8 @@ Dokumen bekerja bersama:
 - `06_Validation_Rules.md` — validitas field/input/action;
 - `07_UI_UX_Specification.md` — presentation dan interaction detail;
 - `08_Tech_Stack_Specification.md` — technology implementation baseline;
-- `09_System_Architecture.md` — component boundaries, concurrency, audit separation, queue/export/signing architecture.
+- `09_System_Architecture.md` — component boundaries, concurrency, audit separation, queue/export/signing architecture;
+- `10_Security_Rules.md` — authentication/session, authorization hardening, malware scanning, permanent audit security, secrets, signing-key custody, dan public PDF verification.
 
 Normative language:
 
@@ -127,6 +128,15 @@ User impersonation/login-as-user tidak termasuk scope.
 `08_Tech_Stack_Specification.md` mengunci **Spatie Laravel Permission 8.x** sebagai role/permission primitive, dengan Laravel Policies/Gates dan custom ownership/Unit/Approval scope logic untuk authorization domain NSCMF.
 
 Business authorization tetap mengikuti `04_RBAC_Permission_Matrix.md`; package MUST NOT mengganti semantics RBAC, scope, state, atau protected invariants.
+
+### BR-USER-008 — Confirmed Authentication Security Boundary
+Current product policy MUST remain password-only for MVP: minimum password length **6 characters**, no mandatory character-composition rule, dan no MFA. Login throttling/progressive delay, session controls, password hashing, dan related implementation controls mengikuti `10_Security_Rules.md`.
+
+### BR-USER-009 — Administrative Credential Flow
+Admin-created/reset credential MUST use a temporary password and force the target user to replace it before normal application use. Sensitive role/permission/password-reset administrative actions require password re-authentication of the acting user.
+
+### BR-USER-010 — Security Change Session Revocation
+Password reset, role change, permission change, disablement, atau equivalent access-changing identity action MUST revoke all active sessions of the affected target user according to `10_Security_Rules.md`.
 
 ---
 
@@ -328,10 +338,10 @@ Current MVP validation:
 - allowed baseline: PDF, XLS/XLSX, DOC/DOCX, PNG, JPG/JPEG, TXT, CSV;
 - executable/script/macro-enabled formats outside allowlist MUST be rejected.
 
-Storage and malware scanning architecture remain downstream concerns.
+Attachment storage MUST remain private. Uploaded file MUST pass the security malware-scanning boundary defined in `10_Security_Rules.md`; only explicit ClamAV `CLEAN` may make an attachment normally usable. Malware detected, scanner error, timeout, atau unavailable scanner MUST NOT be treated as clean.
 
 ### BR-ATT-005 — Upgrade/Emergency Reminder
-Missing attachment on Change Upgrade/Emergency produces non-blocking Warning, not a blocking error.
+Missing attachment on Change Upgrade/Emergency produces non-blocking Warning, not a blocking error. This business warning does not bypass attachment security scanning when a file is actually uploaded.
 
 ---
 
@@ -626,13 +636,19 @@ Generated XLSX/PDF artifact tersedia privately untuk authorized re-download sela
 = 7 × 24 hours
 ```
 
-Setelah expiry, artifact binary MUST dibersihkan otomatis oleh scheduled cleanup. Expiry export artifact MUST NOT menghapus NSCMF source record/business audit.
+Setelah expiry, artifact binary MUST dibersihkan otomatis oleh scheduled cleanup. Expiry export artifact MUST NOT menghapus NSCMF source record, authoritative audit evidence, atau issuance/verification metadata yang dibutuhkan untuk historical PDF validation.
 
 ### BR-EXP-016 — Re-Export After Expiry
 Setelah artifact expired/deleted, eligible user MAY membuat export request baru. New export menghasilkan artifact baru dari snapshot/version yang bound pada request baru.
 
-### BR-EXP-017 — Signing Security Detail Deferred
-Certificate/private-key/provider/trust/rotation/revocation implementation adalah security concern yang dikunci di `10_Security_Rules.md`; requirement bahwa Approved PDF harus cryptographically signed bukan lagi TBD.
+### BR-EXP-017 — Signing Security
+Certificate/private-key custody and validation behavior mengikuti `10_Security_Rules.md`. Signing identity diprovision manual pada server/environment, private key MUST NOT berada di GitHub/source/deployment artifact, dan missing/unusable required signing identity adalah critical readiness/configuration failure. Requirement bahwa Approved PDF harus cryptographically signed bukan TBD.
+
+### BR-EXP-018 — Public PDF Verification
+System MUST menyediakan narrow public no-login validation capability untuk NSCMF-issued Approved PDF. Validator MUST verify cryptographic issuer/signature, exact final SHA-256, issuance metadata, dan current/superseded approval context, tanpa menjadikan private NSCMF record sebagai public portal.
+
+### BR-EXP-019 — Superseded Is Not Modified
+Genuine exact issued PDF yang pernah valid tetapi kemudian related record di-Reopen/Revert atau digantikan newer Approved issuance MUST dapat dibedakan sebagai genuine-but-superseded, bukan otomatis dianggap modified/forged.
 
 ---
 
@@ -678,19 +694,26 @@ Normal user MUST NOT edit historical audit.
 ### BR-AUD-007 — Separate Access Audit
 Record view/protected-resource access evidence MUST be represented through a logically separate **Access Audit** concern, not inserted as routine rows in the business timeline.
 
-### BR-AUD-008 — Three Concerns Must Remain Separate
+### BR-AUD-008 — Audit Concerns Must Remain Separate
 System MUST distinguish:
 
 ```text
 Business Audit  → business data/workflow changed
 Access Audit    → protected record/resource accessed
+Security Audit  → authentication/credential/authorization/security events
 Technical Logs  → software/runtime behavior
 ```
 
-Technical logs MUST NOT substitute authoritative Business Audit or Access Audit.
+Technical logs MUST NOT substitute authoritative Business Audit, Access Audit, atau Security Audit.
 
-### BR-AUD-009 — Access Audit Retention/Visibility
-Exact Access Audit retention, privileged visibility, and strict failure policy remain Security/ERD decisions. Separation from Business Timeline is confirmed.
+### BR-AUD-009 — No Time-Based Authoritative Audit Purge
+Confirmed final policy: Business Audit, Access Audit, dan authoritative Security Audit MUST NOT be automatically purged because of age. Tidak ada 12-month, 24-month, atau age-based expiry untuk authoritative audit evidence.
+
+### BR-AUD-010 — Export Cleanup Is Different
+Seven-day generated export-binary cleanup MUST NOT delete related Business/Access/Security Audit evidence or historical issuance metadata.
+
+### BR-AUD-011 — Privileged Audit Visibility
+Business Timeline remains visible according to normal record visibility. Raw/privileged Access Audit and Security Audit visibility is a protected security concern governed by `04_RBAC_Permission_Matrix.md` + `10_Security_Rules.md`; visibility of audit evidence MUST NOT be used to rewrite business permission scope.
 
 ---
 
@@ -785,6 +808,9 @@ Lock MUST NOT ditahan selama browser interaction, attachment upload, renderer ex
 ### BR-INT-007 — Editable Optimistic Concurrency
 Draft/Revision dan narrow Result persistence MUST menggunakan optimistic version conflict detection. Stale client MUST NOT silently overwrite newer persisted data.
 
+### BR-INT-008 — Security Gates Do Not Create Business States
+Authentication/session expiry, re-auth requirement, malware-scan state, signing readiness, public PDF validation result, dan other technical/security conditions MUST NOT be introduced as persistent NSCMF business states.
+
 ---
 
 ## 25. Mandatory High-Level State Machine
@@ -828,6 +854,9 @@ Emergency follows the same Review + Approval sequence.
 | Initial setup | Wizard |
 | Roles | Template/manual; ongoing delegated admin allowed except protected settings |
 | Multi-role | Allowed |
+| Authentication | Password-only; minimum 6 chars; no composition rule; no MFA |
+| Credential admin | Temporary password + forced change; sensitive admin requires password re-auth |
+| Session | 30m idle; 8h absolute; max 2 active sessions/account; target session revocation on access-changing identity actions |
 | Form family | Activation = provisioning; Change = maintenance/existing environment |
 | Numbering | Auto/manual per form; provisional current format defined in Validation Rules |
 | Canonical states | `DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL`, `REJECTED`, `APPROVED`, `CANCELLED` |
@@ -841,18 +870,22 @@ Emergency follows the same Review + Approval sequence.
 | Emergency | No bypass |
 | Change Service Impact | Multi-select; Other requires description |
 | Change Result | Requester/owner narrow edit in `PENDING_REVIEW`; minimum one complete Result row before Forward; no extra state |
-| Attachment | Optional; 10 files max, 20 MB/file, current allowlist |
+| Attachment | Optional; 10 files max, 20 MB/file, current allowlist + private ClamAV CLEAN gate |
 | Return/Reject | Mandatory reason |
 | Archive/Unarchive | Independent flag; mandatory reason; only Approved/Rejected/Cancelled archive-eligible |
 | Timeline | Business timeline focuses on business mutation/workflow/lifecycle actions |
 | Access Audit | Separate from Business Timeline |
+| Authoritative Audit | Business/Access/Security Audit have no age-based automatic purge |
 | Business Audit | Detailed old/new + actor + timestamp + context |
 | Export | View implies export; user chooses XLSX/PDF; exact official-template fidelity |
 | Export execution | All single/bulk generation asynchronous |
 | Export snapshot | Deterministic logical record snapshot/version |
 | XLSX | Editable local output, no PDF-signing flow |
 | Approved PDF | Cryptographic signature required; logical signer System/Organization |
-| Export retention | Private READY artifact 168 hours / 7 days, then scheduled cleanup |
+| Signing custody | Manually provisioned server-side; private key never GitHub/source/deployment; missing identity critical readiness failure |
+| Public PDF validation | Signature + exact SHA-256 + issuance/currentness; current/superseded/modified/unknown semantics |
+| TSA | Not required for current MVP |
+| Export binary retention | Private READY artifact 168 hours / 7 days, then scheduled cleanup; authoritative audit/issuance evidence remains |
 | Workflow concurrency | Short transaction + row-level lock/current-state revalidation |
 | Draft/Result concurrency | Optimistic version conflict detection |
 | Impersonation | Not required |
@@ -866,16 +899,16 @@ Intentionally deferred:
 
 - exact Unit/Division template entries;
 - official NSCMF numbering SOP/sample that may replace/confirm provisional rules;
-- business/access audit retention and privileged visibility policy;
 - notification provider/timing;
 - additional export formats/bulk packaging beyond XLSX/PDF;
-- malware scanning/storage security implementation;
-- PDF signing certificate/private-key/provider/trust/rotation/revocation implementation;
-- performance/availability/general data-retention targets.
+- performance/availability targets;
+- backup/restore/DR/RPO/RTO;
+- exact production deployment topology/provider;
+- exact production certificate format/provider/CA if external trust outside the confirmed NSCMF issuer/validator model is later required.
 
-Concrete PDF renderer remains technology qualification-gated by `08`; **exact template fidelity, Approved-PDF signing requirement, export retention, and concurrency architecture are not TBD**.
+Concrete PDF renderer remains technology qualification-gated by `08`; **exact template fidelity, Approved-PDF signing requirement, security policy, audit preservation, ClamAV gate, export binary retention, and concurrency architecture are not TBD**.
 
-Resolved Validation/Architecture Rules MUST NOT be treated as TBD unless an explicit requirement change occurs.
+Resolved Validation/Architecture/Security Rules MUST NOT be treated as TBD unless an explicit requirement change occurs.
 
 ---
 
@@ -919,7 +952,7 @@ Developer/AI agent MUST NOT:
 34. menerima PDF yang berbeda dari approved template representation hanya karena renderer yang dipilih tidak mampu mempertahankan fidelity;
 35. menambahkan tenant/multi-organization layer tanpa approved requirement;
 36. memasukkan routine View ke business timeline sehingga operational history dipenuhi access noise;
-37. memakai technical logs sebagai authoritative Business/Access Audit;
+37. memakai technical logs sebagai authoritative Business/Access/Security Audit;
 38. menjalankan export rendering/signing synchronously di workflow/HTTP transaction;
 39. membiarkan queued export silently memakai record version yang berbeda dari requested snapshot;
 40. memberi unsigned Approved PDF sebagai fallback ketika mandatory signing gagal;
@@ -927,9 +960,15 @@ Developer/AI agent MUST NOT:
 42. mewajibkan personal certificate tiap Approver tanpa requirement;
 43. menyimpan generated export binary permanen secara default;
 44. melayani expired artifact setelah 168-hour window;
-45. menghapus NSCMF source record karena temporary export artifact expired;
+45. menghapus NSCMF source record atau authoritative audit/issuance evidence karena temporary export artifact expired;
 46. menjalankan workflow transition tanpa row-level current-state revalidation;
-47. silently overwrite Draft/Result yang lebih baru dari stale client.
+47. silently overwrite Draft/Result yang lebih baru dari stale client;
+48. menambahkan mandatory password composition atau MFA tanpa approved requirement change;
+49. menganggap malware scanner failure sebagai `CLEAN`;
+50. menghapus authoritative audit evidence hanya karena umur;
+51. memasukkan production signing private key ke GitHub/source/deployment artifact;
+52. mengoperasikan Approved-PDF export seolah signing identity sehat ketika key/certificate required missing/unusable;
+53. menganggap genuine superseded PDF sebagai modified hanya karena workflow record kemudian Reopen/Revert.
 
 ---
 
@@ -937,6 +976,6 @@ Developer/AI agent MUST NOT:
 
 `05_State_Status_Flow.md` tetap lifecycle source of truth authoritative. `06_Validation_Rules.md` mengunci validation. `07_UI_UX_Specification.md` mengunci presentation/interaction. `08_Tech_Stack_Specification.md` mengunci technology baseline. `09_System_Architecture.md` mengunci component topology, hybrid concurrency, audit separation, queue/export retention, dan Approved-PDF signing architecture.
 
-Dokumen proyek berikutnya:
+Security decisions di atas sudah dikonfirmasi dan tidak lagi merupakan open business decisions; implementation detail authoritative-nya dikunci pada:
 
-**`10_Security_Rules.md`** — mengunci password/session/security controls, attachment security, sensitive audit access, private artifact delivery, dan certificate/private-key security untuk organization/system PDF signing.
+**`10_Security_Rules.md`** — password/session/security controls, ClamAV attachment security, permanent authoritative audit evidence, private artifact delivery, signing-key custody/readiness, dan public Approved-PDF verification.
