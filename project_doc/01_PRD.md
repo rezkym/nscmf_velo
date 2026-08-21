@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-PRD-001  
 > **Document Order:** 01 / 20  
-> **Status:** Draft — Synchronized through Validation Rules  
+> **Status:** Draft — Synchronized through Tech Stack Specification  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Primary Business Reference:** NSCMF Form 3.0 (Excel)  
 > **Product Flow Reference:** NSCMF FigJam proposal  
@@ -47,7 +47,7 @@ Urutan dokumentasi proyek:
 
 NSCMF Digital Form & Workflow System adalah aplikasi web internal untuk mengganti proses NSCMF yang berbasis file Excel menjadi record digital yang terstruktur, traceable, dapat direview, di-approve, dicari kembali, diaudit, diarsipkan tanpa delete, dan diekspor.
 
-Aplikasi mempertahankan makna bisnis NSCMF Form 3.0 tetapi tidak wajib menyalin layout spreadsheet secara pixel-perfect.
+Aplikasi web mempertahankan makna bisnis NSCMF Form 3.0 tetapi UI operasional tidak wajib menyalin layout spreadsheet secara pixel-perfect. **Khusus output XLSX/PDF, official NSCMF XLSX template menjadi visual/export source of truth dan hasil export harus mempertahankan template tersebut secara exact; sistem hanya mengisi/mengganti field serta native control state yang dipetakan.**
 
 Dua form family utama:
 
@@ -93,7 +93,7 @@ Produk harus:
 4. mendukung revision tanpa kehilangan history;
 5. menyimpan record terpusat;
 6. menyediakan History dan detail record;
-7. menyediakan single/bulk export;
+7. menyediakan single/bulk export dengan exact-template XLSX/PDF fidelity;
 8. mencatat viewer/modifier/workflow actor sesuai audit requirement;
 9. mencegah hard delete NSCMF;
 10. menyediakan role/scope configuration yang dapat disesuaikan organisasi.
@@ -125,6 +125,9 @@ Role mapping, Unit/Division mapping, dan scope dapat disesuaikan tanpa melemahka
 
 ### 5.6 No Silent Assumptions
 Hal yang belum diputuskan harus tetap TBD. Rule sementara yang sengaja dipakai untuk MVP harus dinyatakan sebagai **PROVISIONAL**, bukan disajikan sebagai SOP resmi perusahaan.
+
+### 5.7 Export Template Fidelity
+UI web MAY mengoptimalkan spreadsheet menjadi interface yang lebih usable, tetapi exported XLSX/PDF MUST mempertahankan official XLSX template representation secara exact. Product MUST NOT menurunkan fidelity requirement hanya karena renderer/library tertentu lebih mudah digunakan.
 
 ---
 
@@ -196,7 +199,7 @@ MVP mencakup:
 28. Detailed audit/change history.
 29. History + detail + timeline.
 30. Scoped visibility.
-31. Single/bulk export; PDF minimum confirmed format.
+31. Single/bulk export; generated XLSX/PDF MUST preserve official NSCMF XLSX template exactly while filling/replacing mapped fields/control states.
 32. Archive/Unarchive sebagai administrative lifecycle tanpa hard delete.
 33. No hard delete NSCMF.
 34. Emergency Change tetap Review + Approval.
@@ -204,6 +207,8 @@ MVP mencakup:
 36. Narrow Change Result capture oleh Requester/owner pada `PENDING_REVIEW` melalui `nscmf.change.result.edit` tanpa membuka general submitted form editing.
 37. Service Impact Change bersifat multi-select dan `Other` membutuhkan description.
 38. Validation dibedakan antara Draft persistence dan workflow gate; incomplete Draft tetap dapat disimpan.
+39. Technology baseline menggunakan Laravel 13 + PHP 8.5 + Vue 3 + TypeScript + Inertia 3 + shadcn-vue + MySQL 8.4 LTS sesuai `08_Tech_Stack_Specification.md`.
+40. Testing infrastructure (Pest + Vitest + Playwright + static-analysis/quality gates) disiapkan sejak project bootstrap.
 
 Notification hook adalah future capability dan bukan MVP blocker.
 
@@ -225,7 +230,9 @@ MVP tidak ditujukan untuk:
 - exported file sebagai source of truth;
 - multi-level approval chain pada requirement saat ini;
 - state `UNDER_REVIEW`, `REOPENED`, `ARCHIVED`, `EXECUTION_PENDING`, atau `RESULT_PENDING` sebagai business status current design;
-- freehand/cryptographic e-signature technology tanpa requirement baru.
+- freehand/cryptographic e-signature technology tanpa requirement baru;
+- redesigning the official NSCMF XLSX layout for export;
+- accepting approximate PDF layout when exact template fidelity is required.
 
 ---
 
@@ -406,7 +413,9 @@ System tidak boleh memilih hanya berdasarkan keyword `Upgrade`.
 **FR-HIS-001** Visibility mengikuti ownership/scope/RBAC.  
 **FR-HIS-002** Legitimate viewer dapat melihat timeline siapa melakukan apa.  
 **FR-EXP-001** View implies export; bulk export check per record.  
-**FR-EXP-002** PDF minimum confirmed format.  
+**FR-EXP-002** Official XLSX template adalah visual/export source of truth. Generated XLSX/PDF MUST preserve template exactly dan hanya mengisi/mengganti mapped fields/native control states.  
+**FR-EXP-003** PDF MUST dirender dari filled XLSX/template representation, bukan separate HTML redesign.  
+**FR-EXP-004** Renderer MUST lulus golden exact-fidelity acceptance sebelum digunakan production.  
 **FR-ARC-001** No hard delete NSCMF.  
 **FR-ARC-002** Archive hanya pada `APPROVED`, `REJECTED`, `CANCELLED`.  
 **FR-ARC-003** Archive adalah independent flag; business status tidak berubah.  
@@ -488,8 +497,10 @@ Exact lifecycle detail is authoritative in `05_State_Status_Flow.md`.
 **NFR-004 Desktop-First** — primary target internal desktop browser.  
 **NFR-005 Traceability** — critical activity dapat ditelusuri.  
 **NFR-006 Maintainability** — MVP tidak dibuat lebih kompleks dari kebutuhan.  
-**NFR-007 Performance Target** — TBD.  
-**NFR-008 Availability / Retention** — TBD.
+**NFR-007 Testability** — backend/frontend/E2E/export testing infrastructure tersedia sejak bootstrap.  
+**NFR-008 Export Fidelity** — exact-template XLSX/PDF fidelity wajib diuji melalui structural/golden regression tests.  
+**NFR-009 Performance Target** — TBD.  
+**NFR-010 Availability / Retention** — TBD.
 
 ---
 
@@ -510,10 +521,11 @@ Stakeholder dapat:
 11. menjalankan Return/Reject dengan required reason;
 12. Reopen/Revert sesuai authority, mandatory reason, dan destination yang valid;
 13. melihat History/timeline sesuai scope;
-14. export visible record;
+14. export visible record ke XLSX/PDF yang mempertahankan official template secara exact dan hanya mengisi mapped fields/control states;
 15. Archive/Unarchive dengan mandatory reason tanpa menghapus history atau mengganti business status;
 16. memastikan no hard delete dan stale action tidak menghasilkan conflicting transition;
-17. menerapkan current field/attachment/numbering validation sesuai `06_Validation_Rules.md`.
+17. menerapkan current field/attachment/numbering validation sesuai `06_Validation_Rules.md`;
+18. menjalankan automated backend/frontend/E2E/export regression tests sebagai quality gate.
 
 ---
 
@@ -537,8 +549,13 @@ Stakeholder dapat:
 - optional attachment with current 10-file / 20-MB-per-file limit and allowlist;
 - mandatory reasons for Return/Reject/Reopen/Archive/Unarchive; Cancel reason optional;
 - view implies export;
+- generated XLSX/PDF must exactly preserve official XLSX template representation;
+- native template controls must be preserved rather than redrawn/replaced;
+- PDF renderer is acceptance-gated by exact-fidelity golden tests;
 - Emergency no bypass;
-- stale action revalidation.
+- stale action revalidation;
+- final stack baseline in `08`: Laravel 13/PHP 8.5/Vue 3/TypeScript/Inertia 3/shadcn-vue/MySQL 8.4 LTS;
+- testing stack established from bootstrap: Pest + Vitest + Playwright plus quality gates.
 
 ### Provisional
 
@@ -555,13 +572,14 @@ These are current implementation rules but MUST NOT be presented as official VEL
 
 - exact Unit/Division default template entries;
 - official company NSCMF numbering SOP/sample that may replace provisional numbering;
-- search/filter requirement final details beyond current baseline direction;
-- export format selain PDF / bulk packaging;
+- search/filter requirement final detail if additional criteria are needed;
+- additional export format and bulk packaging beyond confirmed XLSX/PDF fidelity requirement;
 - notification implementation/provider;
 - audit retention/export audit;
 - performance/SLA/retention targets;
 - malware scanning/storage architecture;
-- e-signature technology if ever required.
+- e-signature technology if ever required;
+- exact deployment topology/provider.
 
 ---
 
@@ -585,7 +603,8 @@ Notification bukan dependency core workflow.
 - `05_State_Status_Flow.md` → authoritative lifecycle/state machine.
 - `06_Validation_Rules.md` → field/action validity.
 - `07_UI_UX_Specification.md` → presentation/interaction detail.
-- downstream technical docs → implementation detail.
+- `08_Tech_Stack_Specification.md` → technology selection/technology guardrails.
+- downstream technical docs → architecture/security/data/API/environment/deployment implementation detail.
 
 Jika requirement berubah, dokumen terkait harus disinkronkan; perubahan tidak boleh hanya hidup di code.
 
@@ -596,14 +615,14 @@ Jika requirement berubah, dokumen terkait harus disinkronkan; perubahan tidak bo
 - [ ] Exact default Unit/Division template data.
 - [ ] Official NSCMF numbering SOP/sample to replace or confirm provisional rule.
 - [ ] Search/filter requirement final detail if additional criteria are needed.
-- [ ] Additional export format dan bulk packaging.
+- [ ] Additional export format dan bulk packaging beyond exact XLSX/PDF requirement.
 - [ ] Audit retention dan export/download audit policy.
 - [ ] Notification implementation.
 - [ ] Performance/availability/retention targets.
 - [ ] Malware scanning/storage architecture.
 - [ ] E-signature technology only if business later requires it.
 
-Resolved validation items MUST NOT be returned to TBD without an explicit requirement change.
+Resolved Validation/Tech Stack decisions MUST NOT be returned to TBD without an explicit requirement change.
 
 ---
 
@@ -618,8 +637,10 @@ Completed/current draft set:
 04_RBAC_Permission_Matrix.md
 05_State_Status_Flow.md
 06_Validation_Rules.md
+07_UI_UX_Specification.md
+08_Tech_Stack_Specification.md
 ```
 
 Dokumen berikutnya:
 
-**`07_UI_UX_Specification.md`** — menerjemahkan product, workflow, permission, state, dan validation rules menjadi screens, navigation, components, interaction states, responsive behavior, dan visual design system.
+**`09_System_Architecture.md`** — menerjemahkan confirmed stack dan business requirements menjadi component architecture, boundaries, data/storage/queue/export interactions, dan concurrency topology tanpa mengubah upstream rules.
