@@ -4,9 +4,9 @@
 
 > **Document ID:** NSCMF-RBAC-004  
 > **Document Order:** 04 / 20  
-> **Status:** Draft — Synchronized through Validation Rules  
+> **Status:** Draft — Synchronized through Tech Stack Specification  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`  
 > **Last Updated:** 2026-08-21
 
 ---
@@ -30,7 +30,16 @@ Dokumen menjadi source of truth untuk:
 
 Business Rules menentukan invariant. User Flow menentukan urutan interaction. State Flow menentukan lifecycle yang valid. Validation Rules menentukan apakah input/action valid. RBAC menentukan apakah actor tertentu berhak melakukan action pada current record/state.
 
-Permission di sini implementation-agnostic. Package seperti `spatie/laravel-permission` hanya kandidat sampai `08_Tech_Stack_Specification.md`.
+Technology implementation boundary telah dikunci pada `08_Tech_Stack_Specification.md`:
+
+```text
+Spatie Laravel Permission 8.x
++ Laravel Policies / Gates
++ custom ownership / Unit / Approval scope logic
++ domain state / invariant checks
+```
+
+Spatie menangani role/permission primitives, **bukan seluruh business authorization model**.
 
 ---
 
@@ -94,6 +103,9 @@ Tidak ada user impersonation/login-as-user.
 
 ### RBAC-PRINCIPLE-008 — Narrow Permission Stays Narrow
 Permission yang dibuat untuk field subset seperti `nscmf.change.result.edit` MUST NOT ditafsirkan sebagai general form edit capability.
+
+### RBAC-PRINCIPLE-009 — Package Does Not Override Domain Scope
+Spatie role/permission success MUST NOT bypass ownership, Unit/Division scope, Approval Scope, state, archive treatment, or protected invariants.
 
 ---
 
@@ -824,33 +836,41 @@ Does not include hard-delete NSCMF, protected-account deletion/downgrade/disable
 
 ---
 
-# PART O — DOWNSTREAM OPEN ITEMS
+# PART O — IMPLEMENTATION BOUNDARY / DOWNSTREAM ITEMS
 
-## 39. Items Intentionally Deferred
+## 39. Authorization Technology Mapping
 
-### UI / UX
+Confirmed by `08_Tech_Stack_Specification.md`:
 
-- exact screen/layout/component behavior is defined in `07_UI_UX_Specification.md`;
-- exact visual presentation of permission-aware navigation/actions;
-- exact stale-action and validation feedback interaction.
+```text
+Spatie Laravel Permission 8.x
+→ role / permission primitives
 
-### Data Model
+Laravel Policies / Gates
+→ resource authorization boundary
+
+Custom domain scope/query logic
+→ ownership / Unit / Reviewer / Approval visibility
+
+Domain/application services
+→ state / archive / validation / workflow invariant enforcement
+```
+
+Spatie `teams` MUST NOT silently replace Unit/Division or Approval Scope semantics.
+
+### Still Deferred to Data / Architecture / Security
 
 - scope storage representation;
 - reviewer contributor/viewer model;
 - final `approved_by` versus event history;
 - archive flag field representation;
-- workflow iteration/version model.
-
-### Tech / Security
-
-- final authorization package;
-- middleware/policy architecture;
+- workflow iteration/version model;
+- middleware/policy organization;
 - transaction/locking/version strategy;
 - sensitive permission change audit;
 - session/password reset controls.
 
-Validation decisions regarding Result actor, Result fields, first Submit/Resubmit, mandatory reasons, attachment, numbering, and Service Impact are **no longer TBD** and follow `06_Validation_Rules.md`.
+Validation decisions regarding Result actor, Result fields, first Submit/Resubmit, mandatory reasons, attachment, numbering, dan Service Impact are **no longer TBD** and follow `06_Validation_Rules.md`.
 
 ---
 
@@ -884,12 +904,13 @@ Validation decisions regarding Result actor, Result fields, first Submit/Resubmi
 - [ ] Core System Settings remain Superadmin-only.
 - [ ] No impersonation or NSCMF hard-delete capability.
 - [ ] Server-side state revalidation rejects stale conflicting workflow actions.
+- [ ] Spatie role/permission success alone cannot bypass ownership/scope/state rules.
 
 ---
 
 # PART Q — TRACEABILITY / NEXT DOCUMENT
 
-## 41. Relationship to State and Validation Flow
+## 41. Relationship to State, Validation, and Tech Stack
 
 `05_State_Status_Flow.md` is authoritative for:
 
@@ -909,14 +930,22 @@ Validation decisions regarding Result actor, Result fields, first Submit/Resubmi
 - Service Impact cardinality;
 - narrow Result field edit constraints.
 
-This RBAC document is authoritative for actor permission/scope eligibility on those operations.
+`08_Tech_Stack_Specification.md` is authoritative for authorization implementation technology:
+
+- Spatie Laravel Permission 8.x;
+- Laravel Policies/Gates;
+- custom domain scope and invariant enforcement.
+
+This RBAC document remains authoritative for actor permission/scope eligibility and business authorization semantics.
 
 ---
 
 ## 42. Next Document
 
+Current fixed project order has completed through `08_Tech_Stack_Specification.md`.
+
 The next project document is:
 
-**`07_UI_UX_Specification.md`**
+**`09_System_Architecture.md`**
 
-It must translate permission-aware navigation, state-aware actions, Result-only editing, reason dialogs, validation feedback, and record visibility into explicit interface behavior.
+It must map RBAC enforcement into Laravel application boundaries, policy/domain service interaction, persistence, transaction, queue/export, and other components without changing this permission model.
