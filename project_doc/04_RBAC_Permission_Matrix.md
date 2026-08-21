@@ -4,9 +4,9 @@
 
 > **Document ID:** NSCMF-RBAC-004  
 > **Document Order:** 04 / 20  
-> **Status:** Draft — Synchronized through Tech Stack Specification  
+> **Status:** Draft — Synchronized through System Architecture  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`  
 > **Last Updated:** 2026-08-21
 
 ---
@@ -40,6 +40,8 @@ Spatie Laravel Permission 8.x
 ```
 
 Spatie menangani role/permission primitives, **bukan seluruh business authorization model**.
+
+`09_System_Architecture.md` mengunci bahwa routine record/resource access evidence berada pada **Access Audit** terpisah, sedangkan `nscmf.timeline.view` mengacu pada **Business Timeline** yang berisi business mutation/workflow/lifecycle evidence.
 
 ---
 
@@ -177,10 +179,12 @@ Disabled normal account tidak dapat login. Protected Superadmin tidak dapat disa
 | `nscmf.attachment.manage` | Manage attachment pada editable/authorized context |
 | `nscmf.export` | Export visible record |
 | `nscmf.export.bulk` | Bulk export visible records |
-| `nscmf.timeline.view` | View timeline pada visible record |
+| `nscmf.timeline.view` | View Business Timeline pada visible record |
 
-### RBAC-CORE-001 — View Implies Timeline
-Legitimate viewer MUST dapat melihat timeline record tersebut.
+### RBAC-CORE-001 — View Implies Business Timeline
+Legitimate viewer MUST dapat melihat **Business Timeline** record tersebut.
+
+Routine view/download/access evidence sendiri mengikuti separate Access Audit architecture dan tidak wajib muncul sebagai Business Timeline row.
 
 ### RBAC-CORE-002 — Export Requires View
 Export tidak dapat digunakan untuk inaccessible record.
@@ -225,8 +229,8 @@ Satu NSCMF MAY memiliki beberapa Reviewer contributors sepanjang lifecycle.
 ### RBAC-REV-004 — Tracking Is Not Ownership Lock
 `assigned`, `modified by`, `reviewed by`, viewer/contributor metadata tidak boleh menjadi exclusive authorization lock.
 
-### RBAC-REV-005 — Viewer Logging
-Reviewer view MAY/MUST dicatat sesuai audit requirement tanpa state transition.
+### RBAC-REV-005 — Reviewer Access Logging
+Reviewer view/access MAY/MUST dicatat sesuai Access Audit requirement tanpa state transition. Routine access evidence MUST NOT diperlakukan sebagai business workflow action pada normal Business Timeline.
 
 ### RBAC-REV-006 — Change Result Is Not Reviewer Ownership
 Change Result capture tidak otomatis menjadi Reviewer permission. Default actor adalah Requester/owner melalui `nscmf.change.result.edit`. Reviewer tetap memvalidasi Result melalui Forward gate.
@@ -260,8 +264,8 @@ Satu successful final Approve cukup membuat record `APPROVED`.
 ### RBAC-APR-005 — Approved By
 `Approved By` = actor yang berhasil melakukan transition `PENDING_APPROVAL -> APPROVED`.
 
-### RBAC-APR-006 — Activity History
-Approver lain dapat muncul pada timeline sebagai viewer/return/reject actor dari iteration sebelumnya.
+### RBAC-APR-006 — Activity Evidence
+Approver workflow/lifecycle actions dari iteration sebelumnya MAY muncul pada Business Timeline. Routine Approver view/access evidence berada pada separate Access Audit dan tidak membuat viewer menjadi owner/assignee.
 
 ### RBAC-APR-007 — No Duplicate Final Approval
 Setelah state `APPROVED`, stale Approve kedua MUST ditolak.
@@ -469,7 +473,7 @@ Legend:
 | View own NSCMF | ✅ | ✅ | Scope | Scope |
 | View scoped NSCMF | ✅ | — | ✅ Unit/Division | ✅ Approval Scope |
 | View all NSCMF | 🔒 | — | — | — |
-| View timeline on visible record | ✅ | ✅ | ✅ | ✅ |
+| View Business Timeline on visible record | ✅ | ✅ | ✅ | ✅ |
 | Manage attachment while authorized | ✅ | ✅ | — | — |
 | Review `PENDING_REVIEW` | ✅ | — | ✅ Scope | — |
 | Forward to Approval | ✅ | — | ✅ Scope | — |
@@ -537,7 +541,7 @@ Normal Requester general edit remains unavailable in `PENDING_REVIEW`; Result pe
 | Forward | `nscmf.review.forward` | matching scope + `PENDING_REVIEW` + Forward validation |
 | Return | `nscmf.review.return` | matching scope + `PENDING_REVIEW` + mandatory reason |
 | Reject | `nscmf.review.reject` | matching scope + `PENDING_REVIEW` + mandatory reason |
-| Timeline | implicit from valid view | matching visibility |
+| Business Timeline | implicit from valid view | matching visibility |
 | Export | `nscmf.export` | visible record |
 
 For Change, Forward additionally requires Result-of-Changes gate to pass.
@@ -553,7 +557,7 @@ For Change, Forward additionally requires Result-of-Changes gate to pass.
 | Return Reviewer | `nscmf.approval.return_reviewer` | matching scope + `PENDING_APPROVAL` + mandatory reason |
 | Return Requester | `nscmf.approval.return_requester` | matching scope + `PENDING_APPROVAL` + mandatory reason |
 | Reject | `nscmf.approval.reject` | matching scope + `PENDING_APPROVAL` + mandatory reason |
-| Timeline | implicit from valid view | matching visibility |
+| Business Timeline | implicit from valid view | matching visibility |
 | Export | `nscmf.export` | visible record |
 
 ---
@@ -632,7 +636,7 @@ Shared visibility
 +
 Non-exclusive state-action eligibility
 +
-Multi-actor audit trail
+Multi-actor business audit trail
 ```
 
 No permanent single Reviewer assignment.
@@ -651,11 +655,15 @@ Single successful final approval actor
 
 # PART J — AUDIT VISIBILITY
 
-## 31. Timeline Visibility
+## 31. Business Timeline Visibility
 
-Legitimate viewer can see timeline including creator, viewer where applicable, modifier, submit/resubmit, result capture, review, return, reject, approve, reopen, archive/unarchive, timestamp, dan required reason/comment.
+Legitimate record viewer can see **Business Timeline** sesuai record visibility. Timeline dapat memuat creator, modifier, submit/resubmit, Result capture, review/forward, return, reject, approve, reopen, archive/unarchive, timestamp, dan required reason/comment yang relevan.
 
-No normal role may mutate historical audit events.
+Routine record `View`, attachment access/download, export request/download evidence **tidak menjadi routine Business Timeline row**. Evidence tersebut berada pada separate Access Audit concern menurut `09_System_Architecture.md`.
+
+Exact permission/role untuk melihat raw/privileged Access Audit selain normal Business Timeline belum ditentukan di RBAC ini; Security Rules dapat menambah protected access-audit visibility control tanpa mengubah `nscmf.timeline.view` semantics.
+
+No normal role may mutate historical Business Audit/Timeline events.
 
 ---
 
@@ -748,9 +756,11 @@ Backend SHOULD/MUST conceptually evaluate:
 8. input/action validation passes?
 9. destination allowed?
 10. field subset restriction satisfied for narrow edit?
-11. execute atomically.
-12. write audit/workflow event.
+11. execute atomically / with architecture-appropriate concurrency control.
+12. write required Business Audit/workflow evidence.
 ```
+
+Routine access logging follows separate Access Audit path and MUST NOT be mistaken for workflow mutation.
 
 Any failed prerequisite → DENY.
 
@@ -856,21 +866,39 @@ Domain/application services
 → state / archive / validation / workflow invariant enforcement
 ```
 
-Spatie `teams` MUST NOT silently replace Unit/Division or Approval Scope semantics.
+Spatie `teams` MUST NOT silently replace Unit/Division atau Approval Scope semantics.
 
-### Still Deferred to Data / Architecture / Security
+Confirmed by `09_System_Architecture.md`:
 
-- scope storage representation;
-- reviewer contributor/viewer model;
-- final `approved_by` versus event history;
-- archive flag field representation;
-- workflow iteration/version model;
-- middleware/policy organization;
-- transaction/locking/version strategy;
-- sensitive permission change audit;
+```text
+workflow/lifecycle transition
+→ short DB transaction + row-level current-state lock
+
+Draft/Revision/Result persistence
+→ optimistic version conflict detection
+
+routine access evidence
+→ separate Access Audit
+
+Business Timeline
+→ business mutation/workflow/lifecycle evidence
+```
+
+### Still Deferred to Data / Security / Code Organization
+
+- exact scope storage representation;
+- reviewer contributor + Access Audit physical data model;
+- final `approved_by` versus event-history field representation;
+- archive flag physical representation;
+- workflow iteration/version column/table representation;
+- middleware/policy class organization;
+- sensitive permission-change audit policy;
+- Access Audit privileged visibility/retention policy;
 - session/password reset controls.
 
 Validation decisions regarding Result actor, Result fields, first Submit/Resubmit, mandatory reasons, attachment, numbering, dan Service Impact are **no longer TBD** and follow `06_Validation_Rules.md`.
+
+Hybrid concurrency and Business Timeline/Access Audit separation are **no longer TBD** and follow `09_System_Architecture.md`.
 
 ---
 
@@ -882,7 +910,7 @@ Validation decisions regarding Result actor, Result fields, first Submit/Resubmi
 - [ ] Requester receives default narrow `nscmf.change.result.edit` for own Change `PENDING_REVIEW`.
 - [ ] Result-only permission cannot modify unrelated submitted fields.
 - [ ] Reviewer only acts on matching scope + `PENDING_REVIEW`.
-- [ ] Reviewer A does not lock Reviewer B/C.
+- [ ] Reviewer A does not create an exclusive lock/ownership that removes Reviewer B/C eligibility.
 - [ ] Multiple Reviewer contributors are retained.
 - [ ] Approver only acts on matching scope + `PENDING_APPROVAL`.
 - [ ] Approver may cover multiple units.
@@ -896,7 +924,8 @@ Validation decisions regarding Result actor, Result fields, first Submit/Resubmi
 - [ ] Archive only works on `APPROVED`/`REJECTED`/`CANCELLED` and requires reason.
 - [ ] Unarchive uses lifecycle permission, requires reason, and preserves business status.
 - [ ] Archived `APPROVED`/`REJECTED` must Unarchive before Reopen.
-- [ ] Legitimate viewer can see timeline and export.
+- [ ] Legitimate record viewer can see Business Timeline and export.
+- [ ] Routine View/access evidence does not pollute Business Timeline and is represented through separate Access Audit architecture.
 - [ ] Inaccessible record cannot be exported through API/ID manipulation.
 - [ ] Protected Superadmin remains protected/global.
 - [ ] Delegated administrators cannot bypass protected invariants.
@@ -905,12 +934,13 @@ Validation decisions regarding Result actor, Result fields, first Submit/Resubmi
 - [ ] No impersonation or NSCMF hard-delete capability.
 - [ ] Server-side state revalidation rejects stale conflicting workflow actions.
 - [ ] Spatie role/permission success alone cannot bypass ownership/scope/state rules.
+- [ ] Optimistic concurrency does not grant extra edit permission or allow stale Draft/Result overwrite.
 
 ---
 
 # PART Q — TRACEABILITY / NEXT DOCUMENT
 
-## 41. Relationship to State, Validation, and Tech Stack
+## 41. Relationship to State, Validation, Tech Stack, and Architecture
 
 `05_State_Status_Flow.md` is authoritative for:
 
@@ -936,16 +966,23 @@ Validation decisions regarding Result actor, Result fields, first Submit/Resubmi
 - Laravel Policies/Gates;
 - custom domain scope and invariant enforcement.
 
+`09_System_Architecture.md` is authoritative for:
+
+- hybrid concurrency execution model;
+- Business Audit vs Access Audit separation;
+- application/module interaction boundaries;
+- asynchronous export/storage execution topology.
+
 This RBAC document remains authoritative for actor permission/scope eligibility and business authorization semantics.
 
 ---
 
 ## 42. Next Document
 
-Current fixed project order has completed through `08_Tech_Stack_Specification.md`.
+Current fixed project order has completed through `09_System_Architecture.md`.
 
 The next project document is:
 
-**`09_System_Architecture.md`**
+**`10_Security_Rules.md`**
 
-It must map RBAC enforcement into Laravel application boundaries, policy/domain service interaction, persistence, transaction, queue/export, and other components without changing this permission model.
+It must secure the authorization and audit boundaries defined here, including authentication/session hardening, sensitive permission changes, Access Audit visibility/retention, attachment/export access, and PDF-signing credential protection without changing this permission model.
