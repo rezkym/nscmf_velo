@@ -4,9 +4,9 @@
 
 > **Document ID:** NSCMF-UIUX-007  
 > **Document Order:** 07 / 20  
-> **Status:** Draft — Confirmed UX Direction + Synchronized Tech Implementation Boundary  
+> **Status:** Draft — Confirmed UX Direction + Synchronized through System Architecture  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `08_Tech_Stack_Specification.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Visual/Flow Reference:** NSCMF FigJam proposal  
 > **UI Implementation Reference:** Vue 3 + TypeScript + Inertia 3 + shadcn-vue + Tailwind CSS 4  
@@ -30,18 +30,20 @@ Dokumen menerjemahkan product scope, business rules, user flow, permission, stat
 - state-aware action presentation;
 - permission-aware UI;
 - validation/error/warning UX;
-- autosave feedback;
+- autosave + optimistic-conflict feedback;
 - attachment interaction;
 - Review/Approval queues;
-- History/timeline/archive treatment;
-- exact-template export interaction;
+- Business Timeline/archive treatment;
+- exact-template queued export interaction;
+- export status/re-download/expiry behavior;
+- Approved-PDF signing feedback;
 - responsive behavior;
 - accessibility expectations;
 - loading/empty/error/stale states.
 
-UI/UX MUST NOT mengubah business rule, permission, validation, lifecycle, atau exact-export requirement yang telah dikunci pada dokumen authoritative lain.
+UI/UX MUST NOT mengubah business rule, permission, validation, lifecycle, audit separation, concurrency, atau exact-export requirement yang telah dikunci pada dokumen authoritative lain.
 
-Technology implementation mengikuti `08_Tech_Stack_Specification.md`; component/library default MUST menyesuaikan UX spec ini, bukan sebaliknya.
+Technology implementation mengikuti `08_Tech_Stack_Specification.md`; system execution/concurrency/export architecture mengikuti `09_System_Architecture.md`. Component/library default MUST menyesuaikan UX spec ini, bukan sebaliknya.
 
 ---
 
@@ -135,7 +137,7 @@ Examples:
 
 This principle applies to **interactive web UI only**.
 
-Export has a separate, stricter business requirement from `01`, `02`, `03`, and `08`:
+Export has a separate, stricter business requirement from `01`, `02`, `03`, `08`, dan `09`:
 
 > Generated XLSX and PDF MUST preserve the official NSCMF XLSX template representation exactly. Only mapped business fields and native control states are filled/replaced.
 
@@ -213,7 +215,7 @@ Reject/destructive UI MUST use semantic destructive treatment, not primary blue 
 Approved/success confirmation SHOULD use semantic green.
 
 ### Warning
-Revision-required, caution, non-blocking validation, or atypical configuration SHOULD use amber/yellow semantic treatment.
+Revision-required, caution, non-blocking validation, atau atypical configuration SHOULD use amber/yellow semantic treatment.
 
 ---
 
@@ -233,8 +235,6 @@ MUST:
 ---
 
 ## 12. Confirmed UI Framework / Component Technology
-
-`08_Tech_Stack_Specification.md` has resolved the former technology boundary.
 
 Final UI implementation baseline:
 
@@ -283,7 +283,7 @@ Rules:
 - MUST NOT add React as a second frontend runtime merely to use canonical shadcn/ui;
 - MUST NOT change business interaction to fit a component default;
 - generated/copied shadcn-vue components MAY be customized to the confirmed NSCMF design tokens and behavior;
-- backend remains authoritative for permissions, validation, and workflow state.
+- backend remains authoritative for permissions, validation, workflow state, concurrency, dan export eligibility.
 
 ---
 
@@ -388,6 +388,8 @@ Rules:
 
 Multi-role user sees union of relevant navigation items without role switching unless a future requirement adds explicit mode switching.
 
+Current product is single-organization; UI MUST NOT introduce organization/tenant switcher.
+
 ---
 
 ## 18. Active Navigation
@@ -440,10 +442,11 @@ MVP UI includes at minimum:
 16. Timeline;
 17. Attachments;
 18. Archived view/filter;
-19. User Administration;
-20. Role/Permission Administration;
-21. Unit/Division & Scope Administration;
-22. Core Settings for protected Superadmin where applicable.
+19. Export status/download surface;
+20. User Administration;
+21. Role/Permission Administration;
+22. Unit/Division & Scope Administration;
+23. Core Settings for protected Superadmin where applicable.
 
 ---
 
@@ -502,6 +505,8 @@ Summarize Reviewer/Approver scope and key workflow settings; MUST NOT introduce 
 Review summary before finish.
 
 Back navigation SHOULD preserve completed data unless business validation requires re-entry.
+
+No tenant/organization-selection step is required for current single-organization model.
 
 ---
 
@@ -777,9 +782,12 @@ Editable Draft/Revision SHOULD display unobtrusive persistence status:
 Saving…
 Saved just now
 Save failed — retry
+Changes changed elsewhere — review latest version
 ```
 
 Do not show a toast for every successful autosave.
+
+A backend optimistic-version conflict MUST NOT be rendered as `Saved` or generic success.
 
 ---
 
@@ -789,15 +797,17 @@ Do not show a toast for every successful autosave.
 
 Successful manual save MAY show brief confirmation, but should not interrupt work with modal.
 
-Save failure MUST be obvious and MUST NOT falsely display `Saved`.
+Save failure/version conflict MUST be obvious and MUST NOT falsely display `Saved`.
 
 ---
 
 ## 40. Navigation With Pending Save
 
-If a save request is still in progress, UI SHOULD avoid silently losing user changes. Exact implementation may use save completion, guarded navigation, or retry behavior in technical design.
+If a save request is still in progress, UI SHOULD avoid silently losing user changes. Exact implementation may use save completion, guarded navigation, or retry behavior.
 
 Do not promise persistence before backend success.
+
+When backend reports optimistic-version conflict, UI SHOULD provide an explicit path to refresh/review the latest persisted version rather than automatically overwriting it.
 
 ---
 
@@ -1036,9 +1046,12 @@ When CTA opened:
   - Status;
 - max 5 rows;
 - allow add/remove rows up to capacity;
-- save Result changes without changing business state.
+- save Result changes without changing business state;
+- use optimistic-version conflict handling equivalent to Draft persistence.
 
 UI MUST NOT expose enabled controls for Service Impact, Plan/KPI, Target Date, Rollback, or unrelated submitted fields.
+
+If server reports version conflict, Result UI MUST NOT silently overwrite newer Result data.
 
 ---
 
@@ -1109,6 +1122,8 @@ In Review/Approval/History, attachments display read-only with view/download beh
 
 `PENDING_REVIEW` Result-only edit MUST NOT expose attachment mutation under current requirement.
 
+Attachment view/download MAY create separate Access Audit evidence; it MUST NOT create a business workflow state/action row.
+
 ---
 
 # PART N — REVIEW QUEUE & REVIEW DETAIL
@@ -1166,6 +1181,8 @@ Sticky Action Bar/Panel:
 ```
 
 For Change, Result readiness/error is visible before Forward.
+
+Opening Review Detail does not change state or create exclusive ownership. Access evidence is handled separately from Business Timeline.
 
 ---
 
@@ -1411,12 +1428,12 @@ If tabs impair mobile accessibility, sections may stack, but conceptual separati
 
 ---
 
-## 81. Timeline
+## 81. Business Timeline
 
-Chronological activity feed SHOULD show:
+Chronological Business Timeline SHOULD show:
 
 - actor;
-- action/event;
+- persisted business/workflow/lifecycle action/event;
 - timestamp;
 - source/result state where relevant;
 - reason/comment where present/required;
@@ -1424,20 +1441,33 @@ Chronological activity feed SHOULD show:
 
 Multiple Reviewers/Approvers may appear; timeline MUST NOT imply first viewer owns record.
 
+Routine `View`, attachment download, export request/download access evidence MUST NOT be injected as routine Business Timeline rows. Those belong to separate Access Audit concern. Whether/where privileged users can inspect Access Audit is defined by downstream Security/UI authorization requirement.
+
 ---
 
 ## 82. Sign-Off Presentation
 
-Digital UI SHOULD present system-derived sign-off evidence:
+Digital UI SHOULD present system-derived business sign-off evidence:
 
 - Requested By;
 - Reviewed By/current iteration Forward actor;
 - Approved By/final Approver;
 - timestamps.
 
-Signature input MUST NOT be shown as required freehand field because current requirement uses authenticated workflow action as evidence.
+Freehand/manual signature input MUST NOT be shown as required workflow identity because authenticated workflow action is authoritative business evidence.
 
-If later business requires formal e-signature, specification must be revised.
+### Approved PDF Cryptographic Signature
+
+Separate from workflow sign-off, exported PDF bound to an `APPROVED` snapshot receives cryptographic signature from **System/Organization** according to `09`/`10`.
+
+UI SHOULD communicate this distinction clearly:
+
+```text
+Approved By = human workflow actor
+PDF digital signature = organization/system document-integrity signature
+```
+
+UI MUST NOT imply that system/organization certificate changes who approved the NSCMF.
 
 ---
 
@@ -1458,13 +1488,13 @@ Avoid horizontal overload; lower-priority columns may be hidden/adaptive at narr
 
 ---
 
-## 84. Exact-Template Export UX
+## 84. Exact-Template Asynchronous Export UX
 
 Export controls MUST reflect the confirmed export contract, not imply a redesigned report.
 
-### Single Export
+### Single Export Choice
 
-Eligible record detail/list MAY expose explicit choices such as:
+Eligible record detail/list MUST expose explicit supported choices:
 
 - `Export XLSX`;
 - `Export PDF`.
@@ -1472,6 +1502,78 @@ Eligible record detail/list MAY expose explicit choices such as:
 Both outputs use the **official NSCMF XLSX template** as the visual/export source of truth.
 
 User does not edit template layout from the web UI.
+
+### Queued Behavior
+
+All single/bulk export generation is asynchronous.
+
+After user requests export:
+
+- UI SHOULD acknowledge that export is queued;
+- UI MUST NOT block the page until renderer completes;
+- UI obtains status through polling/refresh; WebSocket is not required;
+- export technical status MUST remain visually distinct from NSCMF business status.
+
+Conceptual user-facing states MAY map from technical states:
+
+```text
+Queued
+Processing
+Ready to download
+Failed
+Expired
+```
+
+These MUST NOT appear as new NSCMF workflow badges.
+
+### Ready / Re-Download
+
+When export is READY:
+
+- show explicit download action;
+- show format (`XLSX` / `PDF`);
+- show generated/ready timestamp when useful;
+- show expiration context such as `Available until <date/time>`;
+- authorized user can re-download during the **168-hour / 7-day** validity window.
+
+After expiry:
+
+- disable/remove stale Download action;
+- present `Expired` treatment;
+- provide `Generate new export` when actor remains eligible.
+
+### XLSX Treatment
+
+XLSX UI MAY communicate:
+
+- output follows official template;
+- downloaded local file may be edited outside the application;
+- external edit does not update the application record.
+
+Do not label XLSX as cryptographically signed under current requirement.
+
+### PDF Treatment
+
+PDF UI MUST communicate exact-template generation.
+
+For snapshot `APPROVED`:
+
+- UI SHOULD indicate final PDF is cryptographically signed by System/Organization once READY;
+- human `Approved By` remains separate business sign-off;
+- no QR/visual-stamp requirement is invented here.
+
+For non-Approved snapshot:
+
+- UI MUST NOT falsely label the PDF as organization-signed.
+
+### Approved-PDF Signing Failure
+
+If mandatory signing fails:
+
+- export is shown as Failed;
+- UI MUST NOT offer the unsigned intermediate PDF as equivalent fallback;
+- NSCMF remains Approved;
+- provide retry path when appropriate.
 
 ### Bulk Export
 
@@ -1481,10 +1583,12 @@ On export:
 
 - backend validates each record;
 - inaccessible record cannot leak;
-- export MAY be queued/background-generated;
+- generation is queued/background;
 - UI SHOULD display processing/success/failure state;
-- each file must follow the same exact-template rule as single export;
+- each file follows exact-template/snapshot/signing/retention rules;
 - if some selection becomes stale/inaccessible, UI should report operation failure without leaking unauthorized details.
+
+Exact bulk packaging remains downstream TBD.
 
 ### Fidelity Failure
 
@@ -1494,7 +1598,7 @@ If XLSX/template integrity validation or PDF renderer fidelity fails:
 - show clear retry/failure feedback;
 - MUST NOT silently substitute an HTML-generated PDF with different layout.
 
-Additional formats and bulk packaging remain downstream TBD; exact XLSX/PDF behavior is already confirmed.
+Additional formats beyond XLSX/PDF remain downstream TBD.
 
 ---
 
@@ -1569,6 +1673,8 @@ Do not replace entire shell with spinner when only table/content is loading.
 
 Disable duplicate destructive/workflow submission while request in progress.
 
+Queued export SHOULD use persistent status UI rather than indefinite blocking spinner.
+
 ---
 
 ## 90. Empty State
@@ -1577,7 +1683,8 @@ Empty state SHOULD explain context:
 
 - `No records pending review`;
 - `No archived records found`;
-- `No attachments`.
+- `No attachments`;
+- `No generated exports yet` where an export-status surface exists.
 
 Provide relevant CTA only when actor can perform it.
 
@@ -1593,7 +1700,7 @@ Backend response remains authoritative.
 
 ---
 
-## 92. Stale State UX
+## 92. Stale Workflow State UX
 
 If backend rejects stale action because another Reviewer/Approver already changed state:
 
@@ -1612,7 +1719,7 @@ The page has been refreshed to show the latest state.
 
 ---
 
-## 93. Network / Save Failure
+## 93. Network / Save / Optimistic-Conflict Failure
 
 On failed Draft/Result persistence:
 
@@ -1620,6 +1727,13 @@ On failed Draft/Result persistence:
 - do not report saved timestamp falsely;
 - provide retry path;
 - avoid losing currently typed value in UI where technically feasible.
+
+If backend reports version conflict:
+
+- distinguish it from ordinary network failure;
+- explain that a newer persisted version exists;
+- do not automatically overwrite it;
+- offer refresh/review-latest behavior according to API contract.
 
 ---
 
@@ -1655,6 +1769,7 @@ Recommended behavior:
 - tables may use prioritized columns + detail row/card fallback;
 - timeline/record viewing remains usable;
 - basic workflow action MAY remain available if dialog/content fits safely;
+- export status/download remains usable;
 - heavy form entry is supported responsively where possible but is not primary optimization target.
 
 Do not remove required confirmation/reason controls merely because viewport is small.
@@ -1698,7 +1813,8 @@ Motion SHOULD be subtle and functional:
 - menu/dialog transitions;
 - expand/collapse;
 - save feedback;
-- state update.
+- state update;
+- export-status update.
 
 Avoid decorative looping animation.
 
@@ -1712,9 +1828,11 @@ Use transient toast for completed non-critical operations such as:
 
 - manual Save Draft success;
 - Result saved;
-- export queued/generated if applicable.
+- export request queued.
 
-Do not rely on toast as the only place for blocking validation/export errors.
+A READY export SHOULD also have a durable status/download affordance; toast alone is insufficient because artifact remains downloadable for seven days.
+
+Do not rely on toast as the only place for blocking validation/export/signing errors.
 
 ---
 
@@ -1748,10 +1866,11 @@ Do not rely on toast as the only place for blocking validation/export errors.
 | Progress / Steps | setup wizard |
 | File Uploader | attachments |
 | Section Navigator | long NSCMF forms |
-| Timeline Item | audit/workflow activity |
-| Export Status / Job Feedback | queued exact-template export state |
+| Timeline Item | business audit/workflow activity |
+| Export Status / Job Feedback | queued/processing/ready/failed/expired exact-template export |
+| Expiry Indicator | generated export 7-day download window |
 
-Implementation baseline is now confirmed by `08` as **Vue 3 + TypeScript + Inertia 3 + shadcn-vue + Tailwind CSS 4**, with Lucide-family icons.
+Implementation baseline is **Vue 3 + TypeScript + Inertia 3 + shadcn-vue + Tailwind CSS 4**, with Lucide-family icons.
 
 ---
 
@@ -1771,6 +1890,8 @@ Implementation baseline is now confirmed by `08` as **Vue 3 + TypeScript + Inert
 
 UI hiding/disabled state is convenience only; server enforces authority.
 
+Export availability is separately governed by record visibility/export permission and is not equivalent to editability.
+
 ---
 
 ## 104. Reviewer UI
@@ -1778,7 +1899,7 @@ UI hiding/disabled state is convenience only; server enforces authority.
 At `PENDING_REVIEW` and matching scope:
 
 - Form Detail read-only;
-- Timeline accessible;
+- Business Timeline accessible;
 - Attachments read-only;
 - Return available;
 - Reject available;
@@ -1834,7 +1955,9 @@ Use explicit verbs:
 - `Archive`;
 - `Unarchive`;
 - `Export XLSX`;
-- `Export PDF`.
+- `Export PDF`;
+- `Download`;
+- `Generate new export` for expired artifact where eligible.
 
 Avoid generic `Process`, `Execute`, `OK`, or ambiguous labels for workflow-changing actions.
 
@@ -1848,7 +1971,9 @@ Copy SHOULD say:
 - what user needs to do;
 - where relevant, why action cannot continue.
 
-For export failure, distinguish record-validation/access failure from technical renderer/fidelity failure without exposing sensitive internals.
+For export failure, distinguish record/access failure from technical renderer/fidelity/signing failure without exposing sensitive internals.
+
+For optimistic conflict, explain that a newer version exists instead of describing it as an ordinary validation error.
 
 Avoid exposing backend field names such as database column identifiers to normal users.
 
@@ -1875,21 +2000,32 @@ UI implementation MUST NOT:
 13. treat warning as blocking error;
 14. make Upgrade/Emergency attachment mandatory;
 15. show Request/Review/Approved sign-off as manually typed workflow identity;
-16. invent freehand/e-signature requirement;
-17. present Cancelled as Reopen-able;
-18. allow Archive button on active-work state;
-19. hide timeline from a legitimate record viewer;
-20. show inaccessible records through filter/search/count leakage;
-21. rely on hidden buttons as security;
-22. overuse brand colors on every surface;
-23. render all dashboard cards with saturated backgrounds;
-24. use red for normal primary actions or blue for destructive Reject solely for brand consistency;
-25. switch the confirmed Vue/Inertia runtime to React without specification change;
-26. introduce canonical React shadcn/ui as a second runtime instead of shadcn-vue;
-27. let shadcn-vue default styling override confirmed NSCMF brand/semantic hierarchy;
-28. provide HTML/Blade/Vue PDF as a fallback that differs from official XLSX template;
-29. label a fidelity-failed/renderer-failed export as successfully generated;
-30. expose internal renderer/storage paths in export error UI.
+16. invent required freehand/manual signature input;
+17. ignore confirmed cryptographic signing requirement for Approved PDF output;
+18. imply organization/system cryptographic signer is the human `Approved By`;
+19. present Cancelled as Reopen-able;
+20. allow Archive button on active-work state;
+21. inject routine View/access events into normal Business Timeline;
+22. hide business timeline from a legitimate record viewer;
+23. show inaccessible records through filter/search/count leakage;
+24. rely on hidden buttons as security;
+25. overuse brand colors on every surface;
+26. render all dashboard cards with saturated backgrounds;
+27. use red for normal primary actions or blue for destructive Reject solely for brand consistency;
+28. switch the confirmed Vue/Inertia runtime to React without specification change;
+29. introduce canonical React shadcn/ui as a second runtime instead of shadcn-vue;
+30. let shadcn-vue default styling override confirmed NSCMF brand/semantic hierarchy;
+31. provide HTML/Blade/Vue PDF as a fallback that differs from official XLSX template;
+32. label a fidelity-failed/renderer-failed/signing-failed export as successfully generated;
+33. offer unsigned Approved PDF when mandatory signing fails;
+34. present XLSX as digitally signed under the PDF signing requirement;
+35. make user wait synchronously for renderer/signing in a blocking page request;
+36. present `QUEUED/PROCESSING/READY/FAILED/EXPIRED` as NSCMF business statuses;
+37. hide seven-day expiry so user assumes generated artifact is permanent;
+38. falsely show `Saved` after optimistic-version conflict;
+39. silently overwrite a newer Draft/Result version;
+40. expose internal renderer/storage/signing-key paths in export error UI;
+41. add tenant/organization switcher to current single-organization product.
 
 ---
 
@@ -1901,6 +2037,7 @@ UI implementation MUST NOT:
 - [ ] Multi-role user sees additive relevant menus.
 - [ ] Hidden menu does not replace backend authorization.
 - [ ] Current location is visually clear.
+- [ ] No tenant switcher exists for current single-organization model.
 
 ## 111. Visual System
 
@@ -1917,6 +2054,8 @@ UI implementation MUST NOT:
 - [ ] Draft can save incomplete business fields.
 - [ ] Autosave shows Saving/Saved/Failed state.
 - [ ] Manual Save Draft remains available in editable state.
+- [ ] Optimistic-version conflict is not reported as Saved.
+- [ ] Conflict UI does not silently overwrite newer data.
 - [ ] Required fields have clear indicator.
 - [ ] Conditional fields appear/activate when relevant.
 - [ ] Submit failure shows inline errors + useful summary.
@@ -1945,6 +2084,7 @@ UI implementation MUST NOT:
 - [ ] Result-only UI cannot edit planning fields.
 - [ ] Max 5 rows but UI does not imply all are required.
 - [ ] Reviewer can identify Result readiness before Forward.
+- [ ] Result save handles optimistic version conflict without silent overwrite.
 
 ## 116. Review / Approval
 
@@ -1955,10 +2095,12 @@ UI implementation MUST NOT:
 - [ ] Return/Reject dialogs require reason.
 - [ ] Approve is clear primary final action.
 - [ ] Stale action feedback refreshes current state.
+- [ ] Opening a record does not imply exclusive ownership.
 
-## 117. History / Archive
+## 117. History / Archive / Audit Presentation
 
-- [ ] Record detail exposes Form Detail, Timeline, Attachments.
+- [ ] Record detail exposes Form Detail, Business Timeline, Attachments.
+- [ ] Business Timeline does not fill with routine View/access rows.
 - [ ] Archived is separate from business status.
 - [ ] Archived records are not mixed into default active view.
 - [ ] Archive/Unarchive require reason.
@@ -1970,18 +2112,26 @@ UI implementation MUST NOT:
 - [ ] Allowed file types are communicated.
 - [ ] Invalid file gives specific failure reason.
 - [ ] Remove action only available in editable attachment state.
+- [ ] Storage path is not exposed as authorization mechanism.
 
 ## 119. Responsive / Accessibility / Export
 
 - [ ] Desktop full workflow is optimized.
 - [ ] Tablet remains operational.
-- [ ] Mobile can view record/timeline and basic controls responsively.
+- [ ] Mobile can view record/timeline/export status and basic controls responsively.
 - [ ] Keyboard/focus/labels are usable.
 - [ ] No critical meaning depends on color alone.
-- [ ] Export UI clearly exposes XLSX/PDF without implying a separate redesigned report.
-- [ ] Queued export state is understandable.
-- [ ] Export/fidelity failure is not reported as success.
-- [ ] UI never offers approximate HTML PDF fallback against the exact-template requirement.
+- [ ] Export UI explicitly exposes XLSX and PDF choices.
+- [ ] All export requests enter non-blocking queued flow.
+- [ ] Queued/Processing/Ready/Failed/Expired are not shown as NSCMF business states.
+- [ ] READY artifact shows download and expiry context.
+- [ ] User can re-download before 168-hour expiry.
+- [ ] Expired artifact offers new export when eligible.
+- [ ] Approved PDF READY state identifies cryptographic organization/system signing.
+- [ ] Unsigned Approved PDF is not offered when signing fails.
+- [ ] XLSX is not falsely labelled digitally signed.
+- [ ] Export/fidelity/signing failure is not reported as success.
+- [ ] UI never offers approximate HTML PDF fallback against exact-template requirement.
 
 ---
 
@@ -1997,7 +2147,8 @@ It SHOULD reflect:
 - current scope;
 - remaining TBDs;
 - confirmed high-level technology architecture;
-- exact-template export direction at high level.
+- exact-template export direction;
+- asynchronous export + signing/retention at a high level where space allows.
 
 FigJam is not required to contain every field-level UI rule in this document.
 
@@ -2016,7 +2167,8 @@ When actual application screens/wireframes are created, they SHOULD use this doc
 - validation;
 - status badges;
 - Result-only flow;
-- export interaction;
+- Business Timeline treatment;
+- export format/status/expiry interaction;
 - responsive layouts.
 
 Actual screen creation is separate from updating existing FigJam flow/system documentation.
@@ -2037,7 +2189,7 @@ Actual screen creation is separate from updating existing FigJam flow/system doc
 | Validation | `06_Validation_Rules.md` |
 | **Presentation/interaction** | **`07_UI_UX_Specification.md`** |
 | Technology implementation | `08_Tech_Stack_Specification.md` |
-| Component/system topology | `09_System_Architecture.md` |
+| Component/system topology, concurrency, queue/export/signing execution | `09_System_Architecture.md` |
 
 UI cannot override upstream authority.
 
@@ -2057,7 +2209,9 @@ The following may be refined without changing core UX principles:
 - official Unit/Division options when provided;
 - official numbering UI copy once company SOP is provided;
 - additional export format controls if later confirmed;
-- exact progress/polling UX for queued export, subject to System Architecture/API.
+- exact polling interval/status-refresh implementation for queued export;
+- exact privileged Access Audit viewing UI if Security Rules later require it;
+- exact visual appearance of PDF certificate/signature indicator in the web UI, without inventing a QR or freehand signature requirement.
 
 No longer TBD in UI implementation:
 
@@ -2068,6 +2222,12 @@ shadcn-vue
 Tailwind CSS 4
 Lucide-family icon direction
 exact-template XLSX/PDF export contract
+XLSX/PDF user choice
+asynchronous export
+168-hour export artifact validity
+Approved-PDF cryptographic signing requirement
+Business Timeline vs Access Audit separation
+optimistic conflict behavior requirement
 ```
 
 These details MUST NOT be guessed into business rules.
@@ -2076,22 +2236,10 @@ These details MUST NOT be guessed into business rules.
 
 ## 124. Next Document
 
-`08_Tech_Stack_Specification.md` has resolved the frontend/backend/runtime/component/testing baseline.
+`08_Tech_Stack_Specification.md` has resolved the frontend/backend/runtime/component/testing baseline. `09_System_Architecture.md` has resolved logical component boundaries, hybrid concurrency, audit separation, asynchronous export, artifact retention, and Approved-PDF signing architecture.
 
 Next document in fixed project order:
 
-**`09_System_Architecture.md`**
+**`10_Security_Rules.md`**
 
-It must translate the confirmed stack and UX into component boundaries and interactions, including:
-
-- Browser / Vue-Inertia flow;
-- Laravel application/domain boundaries;
-- auth/RBAC enforcement;
-- MySQL persistence;
-- queue/export processing;
-- private attachment storage;
-- exact-template XLSX patching subsystem;
-- qualified PDF renderer boundary;
-- audit subsystem;
-- concurrency/transaction boundary;
-- Docker-compatible topology without premature distributed infrastructure.
+It must define security controls that affect UI behavior where relevant, especially authentication/session hardening, authorization failures, attachment security, Access Audit visibility, private export delivery, and certificate/private-key security for organization/system PDF signing.
