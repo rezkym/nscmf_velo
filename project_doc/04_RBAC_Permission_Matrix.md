@@ -4,9 +4,9 @@
 
 > **Document ID:** NSCMF-RBAC-004  
 > **Document Order:** 04 / 20  
-> **Status:** Draft — Synchronized through State / Status Flow  
+> **Status:** Draft — Synchronized through Validation Rules  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`  
 > **Last Updated:** 2026-08-21
 
 ---
@@ -28,7 +28,7 @@ Dokumen menjadi source of truth untuk:
 - protected Superadmin restrictions;
 - authorization guardrails.
 
-Business Rules menentukan invariant. User Flow menentukan urutan interaction. State Flow menentukan lifecycle yang valid. RBAC menentukan apakah actor tertentu berhak melakukan action pada current state.
+Business Rules menentukan invariant. User Flow menentukan urutan interaction. State Flow menentukan lifecycle yang valid. Validation Rules menentukan apakah input/action valid. RBAC menentukan apakah actor tertentu berhak melakukan action pada current record/state.
 
 Permission di sini implementation-agnostic. Package seperti `spatie/laravel-permission` hanya kandidat sampai `08_Tech_Stack_Specification.md`.
 
@@ -43,13 +43,15 @@ Permission
 +
 Record Visibility
 +
-Scope
+Scope / Ownership
 +
 Current Business State
 +
 Archive Treatment
 +
 Business Rules
++
+Validation Rules
 +
 Protected Invariants
 ```
@@ -60,6 +62,7 @@ Contoh:
 
 - `nscmf.approve` tetapi record bukan `PENDING_APPROVAL` → DENY;
 - `nscmf.review.forward` tetapi record bukan `PENDING_REVIEW` → DENY;
+- `nscmf.change.result.edit` tetapi actor bukan owner/visible authorized actor atau record bukan Change `PENDING_REVIEW` → DENY;
 - `nscmf.reopen` tetapi record archived → DENY sampai Unarchive;
 - `nscmf.archive` tetapi record `DRAFT` → DENY;
 - global Superadmin visibility tetap tidak memberi hard-delete NSCMF.
@@ -72,7 +75,7 @@ Contoh:
 Action yang tidak diberikan atau tidak memenuhi scope/state MUST ditolak.
 
 ### RBAC-PRINCIPLE-002 — Server-Side Enforcement
-Permission, visibility, scope, archive flag, current state, dan validation MUST diverifikasi backend.
+Permission, visibility, ownership/scope, archive flag, current state, dan validation MUST diverifikasi backend.
 
 ### RBAC-PRINCIPLE-003 — Multi-Role Allowed
 Satu user MAY memiliki beberapa role.
@@ -88,6 +91,9 @@ Custom role MAY memperoleh kombinasi permission granular selama tidak melanggar 
 
 ### RBAC-PRINCIPLE-007 — No Impersonation
 Tidak ada user impersonation/login-as-user.
+
+### RBAC-PRINCIPLE-008 — Narrow Permission Stays Narrow
+Permission yang dibuat untuk field subset seperti `nscmf.change.result.edit` MUST NOT ditafsirkan sebagai general form edit capability.
 
 ---
 
@@ -153,6 +159,7 @@ Disabled normal account tidak dapat login. Protected Superadmin tidak dapat disa
 | `nscmf.draft.edit` | Edit eligible `DRAFT` / `REVISION_REQUIRED` own record |
 | `nscmf.submit` | Submit `DRAFT` atau Resubmit `REVISION_REQUIRED` |
 | `nscmf.cancel` | Cancel own `DRAFT` sebelum first Submit |
+| `nscmf.change.result.edit` | Narrow edit untuk `NSCMF - Change / Result of Changes` pada eligible `PENDING_REVIEW` record |
 | `nscmf.view` | View record yang lolos visibility |
 | `nscmf.view.history` | Access History berdasarkan visibility |
 | `nscmf.attachment.manage` | Manage attachment pada editable/authorized context |
@@ -168,6 +175,20 @@ Export tidak dapat digunakan untuk inaccessible record.
 
 ### RBAC-CORE-003 — State-Neutral View
 View/opening record tidak mengubah business state atau membuat exclusive assignee.
+
+### RBAC-CORE-004 — Result Permission Eligibility
+Default `nscmf.change.result.edit` behavior:
+
+```text
+actor has nscmf.change.result.edit
++ record family = CHANGE
++ business_status = PENDING_REVIEW
++ actor owns record OR has explicitly configured valid visibility for delegated custom use
++ record not archived
+= may edit Result-of-Changes fields only
+```
+
+Default Requester role menggunakan own-record scope. General submitted fields tetap locked.
 
 ---
 
@@ -195,10 +216,11 @@ Satu NSCMF MAY memiliki beberapa Reviewer contributors sepanjang lifecycle.
 ### RBAC-REV-005 — Viewer Logging
 Reviewer view MAY/MUST dicatat sesuai audit requirement tanpa state transition.
 
-### RBAC-REV-006 — Change Result Capture During Review
-`NSCMF - Change` membutuhkan narrow Result-of-Changes capture di `PENDING_REVIEW` sebelum Forward ketika applicable.
+### RBAC-REV-006 — Change Result Is Not Reviewer Ownership
+Change Result capture tidak otomatis menjadi Reviewer permission. Default actor adalah Requester/owner melalui `nscmf.change.result.edit`. Reviewer tetap memvalidasi Result melalui Forward gate.
 
-Source workbook tidak menentukan actor pengisi Result secara eksplisit. Karena itu **exact permission/actor untuk Result capture tetap TBD dan MUST NOT ditebak pada tahap ini**. Downstream Validation/UI refinement harus memastikan capability tersebut hanya membuka Result-related fields, bukan general submitted form editing.
+### RBAC-REV-007 — Review Reasons
+Return dan Reject membutuhkan mandatory reason menurut `06_Validation_Rules.md`. Reason requirement bukan permission baru.
 
 ---
 
@@ -231,6 +253,9 @@ Approver lain dapat muncul pada timeline sebagai viewer/return/reject actor dari
 
 ### RBAC-APR-007 — No Duplicate Final Approval
 Setelah state `APPROVED`, stale Approve kedua MUST ditolak.
+
+### RBAC-APR-008 — Approval Reasons
+Return to Reviewer, Return to Requester, dan Reject membutuhkan mandatory reason menurut Validation Rules. Approve comment Optional.
 
 ---
 
@@ -271,6 +296,7 @@ Archive hanya valid jika:
 ```text
 business_status in {APPROVED, REJECTED, CANCELLED}
 AND is_archived = false
+AND mandatory reason
 ```
 
 Archive dilarang pada `DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL`.
@@ -282,6 +308,7 @@ Unarchive menggunakan `nscmf.archive` pada current conceptual permission model:
 nscmf.archive
 + valid visibility
 + is_archived = true
++ mandatory reason
 ```
 
 Unarchive tidak mengubah `business_status`.
@@ -364,6 +391,8 @@ Current requirement tidak mendelegasikan permission ini.
 
 Requester default = own records. Additional roles extend visibility additively.
 
+For `nscmf.change.result.edit`, default Requester eligibility tetap own record only.
+
 ## 17. Reviewer Scope
 
 ```text
@@ -411,6 +440,7 @@ Legend:
 - ✅ default permission;
 - 🔒 protected/inherent;
 - Scope = required matching scope;
+- Own = own-record condition;
 - — not default but MAY be custom-granted if rule allows;
 - ❌ capability unavailable.
 
@@ -421,6 +451,7 @@ Legend:
 | Edit own `DRAFT` | ✅ | ✅ | — | — |
 | Edit own `REVISION_REQUIRED` | ✅ | ✅ | — | — |
 | Autosave / Save editable record | ✅ | ✅ | — | — |
+| Edit Change Result in `PENDING_REVIEW` | ✅ | ✅ Own | — | — |
 | Cancel own `DRAFT` | ✅ | ✅ | — | — |
 | Submit/Resubmit own eligible record | ✅ | ✅ | — | — |
 | View own NSCMF | ✅ | ✅ | Scope | Scope |
@@ -444,7 +475,7 @@ Legend:
 
 `Reopen` and `Archive/Unarchive` MAY be custom-granted explicitly to non-Superadmin roles.
 
-Exact default role for Change Result capture during `PENDING_REVIEW` is deliberately not assigned yet.
+`nscmf.change.result.edit` MAY also be custom-granted, but field/state/family/visibility restrictions remain mandatory.
 
 ---
 
@@ -472,15 +503,16 @@ All administration capability except Core System Settings MAY be delegated by ex
 | Action | Permission | State / Condition |
 |---|---|---|
 | Create | `nscmf.create` | authenticated eligible user |
-| Edit | `nscmf.draft.edit` | own + `DRAFT` or `REVISION_REQUIRED` |
+| Edit general form | `nscmf.draft.edit` | own + `DRAFT` or `REVISION_REQUIRED` |
 | Autosave / Save | `nscmf.draft.edit` | own + editable state |
+| Update Change Result | `nscmf.change.result.edit` | own visible Change + `PENDING_REVIEW` + only Result fields |
 | Cancel | `nscmf.cancel` | own + `DRAFT` + never submitted |
 | Submit | `nscmf.submit` | own + `DRAFT` + validation passes |
 | Resubmit | `nscmf.submit` | own + `REVISION_REQUIRED` + validation passes |
 | View | `nscmf.view` | own or additional scoped visibility |
 | Export | `nscmf.export` | visible record |
 
-Normal Requester edit is unavailable in `PENDING_REVIEW`, except narrow Change Result mechanism once its exact actor/permission is defined.
+Normal Requester general edit remains unavailable in `PENDING_REVIEW`; Result permission is the only current narrow exception.
 
 ---
 
@@ -491,12 +523,12 @@ Normal Requester edit is unavailable in `PENDING_REVIEW`, except narrow Change R
 | View review candidate | `nscmf.view` | matching Unit/Division + `PENDING_REVIEW` |
 | Review activity | `nscmf.review` | matching scope + `PENDING_REVIEW` |
 | Forward | `nscmf.review.forward` | matching scope + `PENDING_REVIEW` + Forward validation |
-| Return | `nscmf.review.return` | matching scope + `PENDING_REVIEW` |
-| Reject | `nscmf.review.reject` | matching scope + `PENDING_REVIEW` |
+| Return | `nscmf.review.return` | matching scope + `PENDING_REVIEW` + mandatory reason |
+| Reject | `nscmf.review.reject` | matching scope + `PENDING_REVIEW` + mandatory reason |
 | Timeline | implicit from valid view | matching visibility |
 | Export | `nscmf.export` | visible record |
 
-For Change, Forward additionally requires applicable Result-of-Changes gate to pass.
+For Change, Forward additionally requires Result-of-Changes gate to pass.
 
 ---
 
@@ -506,9 +538,9 @@ For Change, Forward additionally requires applicable Result-of-Changes gate to p
 |---|---|---|
 | View candidate | `nscmf.view` | matching Approval Scope + `PENDING_APPROVAL` |
 | Approve | `nscmf.approve` | matching scope + `PENDING_APPROVAL` |
-| Return Reviewer | `nscmf.approval.return_reviewer` | matching scope + `PENDING_APPROVAL` |
-| Return Requester | `nscmf.approval.return_requester` | matching scope + `PENDING_APPROVAL` |
-| Reject | `nscmf.approval.reject` | matching scope + `PENDING_APPROVAL` |
+| Return Reviewer | `nscmf.approval.return_reviewer` | matching scope + `PENDING_APPROVAL` + mandatory reason |
+| Return Requester | `nscmf.approval.return_requester` | matching scope + `PENDING_APPROVAL` + mandatory reason |
+| Reject | `nscmf.approval.reject` | matching scope + `PENDING_APPROVAL` + mandatory reason |
 | Timeline | implicit from valid view | matching visibility |
 | Export | `nscmf.export` | visible record |
 
@@ -542,6 +574,7 @@ nscmf.archive
 + visible record
 + status in {APPROVED, REJECTED, CANCELLED}
 + is_archived = false
++ mandatory reason
 ```
 
 Unarchive:
@@ -550,6 +583,7 @@ Unarchive:
 nscmf.archive
 + visible record
 + is_archived = true
++ mandatory reason
 ```
 
 Both are administrative lifecycle actions and do not alter `business_status`.
@@ -561,13 +595,13 @@ Both are administrative lifecycle actions and do not alter `business_status`.
 ## 27. Effective Permission Examples
 
 ### Requester + Reviewer
-Own record actions + Review access within Reviewer Scope. No automatic Approval.
+Own record actions + Result capture on own eligible Change + Review access within Reviewer Scope. No automatic Approval.
 
 ### Reviewer + Approver
 May Review records only in Reviewer Scope and Approve records only in separate Approval Scope; scopes need not be identical.
 
 ### Custom NOC Lead
-May receive mixed `review`, `approve`, `reopen`, `archive`, `export` permissions with matching scopes, without user administration.
+May receive mixed `review`, `approve`, `reopen`, `archive`, `export`, and optionally `change.result.edit` permissions with matching visibility/scope, without user administration.
 
 ---
 
@@ -607,7 +641,7 @@ Single successful final approval actor
 
 ## 31. Timeline Visibility
 
-Legitimate viewer can see timeline including creator, viewer where applicable, modifier, submit/resubmit, review, return, reject, approve, reopen, archive/unarchive, timestamp, and required reason/comment.
+Legitimate viewer can see timeline including creator, viewer where applicable, modifier, submit/resubmit, result capture, review, return, reject, approve, reopen, archive/unarchive, timestamp, dan required reason/comment.
 
 No normal role may mutate historical audit events.
 
@@ -656,7 +690,13 @@ nscmf.export
 nscmf.export.bulk
 ```
 
-State/scope rules continue to apply.
+Optional custom-grant where business ownership allows:
+
+```text
+nscmf.change.result.edit
+```
+
+State/family/visibility restrictions continue to apply.
 
 ---
 
@@ -674,6 +714,7 @@ State/scope rules continue to apply.
 | Bypass Approval | Unavailable |
 | Reopen directly to Approval | Unavailable |
 | Archive active-work state | Unavailable |
+| General edit through Result-only permission | Unavailable |
 | Core system settings for normal role | Not delegated |
 
 ---
@@ -689,13 +730,14 @@ Backend SHOULD/MUST conceptually evaluate:
 2. protected invariant satisfied?
 3. required permission?
 4. record visibility?
-5. matching scope where required?
+5. ownership / matching scope where required?
 6. archive flag compatible with action?
 7. current business state eligible?
 8. input/action validation passes?
 9. destination allowed?
-10. execute atomically.
-11. write audit/workflow event.
+10. field subset restriction satisfied for narrow edit?
+11. execute atomically.
+12. write audit/workflow event.
 ```
 
 Any failed prerequisite → DENY.
@@ -715,13 +757,14 @@ nscmf.view.history
 nscmf.draft.edit
 nscmf.submit
 nscmf.cancel
+nscmf.change.result.edit
 nscmf.attachment.manage
 nscmf.timeline.view
 nscmf.export
 nscmf.export.bulk
 ```
 
-Default scope: own records.
+Default scope: own records. `nscmf.change.result.edit` only applies to own Change `PENDING_REVIEW` Result fields.
 
 ---
 
@@ -769,7 +812,7 @@ Default scope: assigned Approval Scope; may span Unit/Division(s).
 
 Protected Superadmin default:
 
-- all normal NSCMF permissions;
+- all normal NSCMF permissions, including `nscmf.change.result.edit`;
 - global visibility;
 - `nscmf.reopen`;
 - `nscmf.archive` (Archive + Unarchive);
@@ -785,14 +828,11 @@ Does not include hard-delete NSCMF, protected-account deletion/downgrade/disable
 
 ## 39. Items Intentionally Deferred
 
-### Validation / UI
+### UI / UX
 
-- exact actor/permission for Change Result capture in `PENDING_REVIEW`;
-- exact Result fields required before Forward;
-- first Submit / Resubmit validation;
-- mandatory reasons besides Reopen;
-- attachment and numbering validation;
-- Service Impact cardinality.
+- exact screen/layout/component behavior is defined in `07_UI_UX_Specification.md`;
+- exact visual presentation of permission-aware navigation/actions;
+- exact stale-action and validation feedback interaction.
 
 ### Data Model
 
@@ -810,7 +850,7 @@ Does not include hard-delete NSCMF, protected-account deletion/downgrade/disable
 - sensitive permission change audit;
 - session/password reset controls.
 
-Canonical state names, Reopen sources/destinations, Archive eligible states, and Unarchive behavior are **no longer TBD**; they are authoritative in `05_State_Status_Flow.md`.
+Validation decisions regarding Result actor, Result fields, first Submit/Resubmit, mandatory reasons, attachment, numbering, and Service Impact are **no longer TBD** and follow `06_Validation_Rules.md`.
 
 ---
 
@@ -819,6 +859,8 @@ Canonical state names, Reopen sources/destinations, Archive eligible states, and
 ## 40. Acceptance Criteria
 
 - [ ] Requester default visibility = own records.
+- [ ] Requester receives default narrow `nscmf.change.result.edit` for own Change `PENDING_REVIEW`.
+- [ ] Result-only permission cannot modify unrelated submitted fields.
 - [ ] Reviewer only acts on matching scope + `PENDING_REVIEW`.
 - [ ] Reviewer A does not lock Reviewer B/C.
 - [ ] Multiple Reviewer contributors are retained.
@@ -827,11 +869,12 @@ Canonical state names, Reopen sources/destinations, Archive eligible states, and
 - [ ] Approval is non-exclusive.
 - [ ] One valid final Approve creates `APPROVED` and final `Approved By`.
 - [ ] Stale second Approve is denied.
+- [ ] Return/Reject actions fail without required reason even if permission exists.
 - [ ] `nscmf.reopen` can be delegated but only works on visible unarchived `REJECTED`/`APPROVED`.
 - [ ] Reopen target is only `REVISION_REQUIRED`/`PENDING_REVIEW`.
 - [ ] `nscmf.archive` can be delegated.
-- [ ] Archive only works on `APPROVED`/`REJECTED`/`CANCELLED`.
-- [ ] Unarchive uses lifecycle permission and preserves business status.
+- [ ] Archive only works on `APPROVED`/`REJECTED`/`CANCELLED` and requires reason.
+- [ ] Unarchive uses lifecycle permission, requires reason, and preserves business status.
 - [ ] Archived `APPROVED`/`REJECTED` must Unarchive before Reopen.
 - [ ] Legitimate viewer can see timeline and export.
 - [ ] Inaccessible record cannot be exported through API/ID manipulation.
@@ -846,7 +889,7 @@ Canonical state names, Reopen sources/destinations, Archive eligible states, and
 
 # PART Q — TRACEABILITY / NEXT DOCUMENT
 
-## 41. Relationship to State Flow
+## 41. Relationship to State and Validation Flow
 
 `05_State_Status_Flow.md` is authoritative for:
 
@@ -857,7 +900,16 @@ Canonical state names, Reopen sources/destinations, Archive eligible states, and
 - Archive/Unarchive state treatment;
 - concurrency/current-state requirements.
 
-This RBAC document is authoritative for actor permission/scope eligibility on those transitions.
+`06_Validation_Rules.md` is authoritative for:
+
+- field/action validity;
+- mandatory reasons;
+- Result gate;
+- attachment/numbering validation;
+- Service Impact cardinality;
+- narrow Result field edit constraints.
+
+This RBAC document is authoritative for actor permission/scope eligibility on those operations.
 
 ---
 
@@ -865,6 +917,6 @@ This RBAC document is authoritative for actor permission/scope eligibility on th
 
 The next project document is:
 
-**`06_Validation_Rules.md`**
+**`07_UI_UX_Specification.md`**
 
-It will lock first Submit, Resubmit, Forward, Change Result gate, conditional fields, reason requirements, numbering, Service Impact cardinality, attachment constraints, and field-level editability required by the canonical state machine.
+It must translate permission-aware navigation, state-aware actions, Result-only editing, reason dialogs, validation feedback, and record visibility into explicit interface behavior.
