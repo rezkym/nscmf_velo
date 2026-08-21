@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-BR-002  
 > **Document Order:** 02 / 20  
-> **Status:** Draft — Synchronized through Validation Rules  
+> **Status:** Draft — Synchronized through Tech Stack Specification  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `project_doc/01_PRD.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
@@ -24,7 +24,8 @@ Dokumen bekerja bersama:
 - `04_RBAC_Permission_Matrix.md` — siapa boleh melakukan apa;
 - `05_State_Status_Flow.md` — authoritative state machine;
 - `06_Validation_Rules.md` — validitas field/input/action;
-- `07_UI_UX_Specification.md` — presentation dan interaction detail.
+- `07_UI_UX_Specification.md` — presentation dan interaction detail;
+- `08_Tech_Stack_Specification.md` — technology implementation baseline.
 
 Normative language:
 
@@ -116,8 +117,10 @@ Current business decision tidak mewajibkan `Requester != Reviewer != Approver`. 
 ### BR-USER-006 — No Impersonation
 User impersonation/login-as-user tidak termasuk scope.
 
-### BR-USER-007 — Authorization Package Deferred
-Package seperti `spatie/laravel-permission` hanyalah kandidat hingga `08_Tech_Stack_Specification.md`.
+### BR-USER-007 — Authorization Technology Boundary
+`08_Tech_Stack_Specification.md` mengunci **Spatie Laravel Permission 8.x** sebagai role/permission primitive, dengan Laravel Policies/Gates dan custom ownership/Unit/Approval scope logic untuk authorization domain NSCMF.
+
+Business authorization tetap mengikuti `04_RBAC_Permission_Matrix.md`; package MUST NOT mengganti semantics RBAC, scope, state, atau protected invariants.
 
 ---
 
@@ -552,8 +555,23 @@ Bulk export MUST check setiap selected record.
 ### BR-EXP-004
 Export tidak mengubah business state.
 
-### BR-EXP-005
-PDF adalah minimum confirmed format. Additional formats/bulk packaging remain downstream decisions.
+### BR-EXP-005 — Exact Template Fidelity
+Official NSCMF XLSX template adalah visual/export source of truth.
+
+Generated XLSX dan generated PDF MUST mempertahankan template resmi secara exact: struktur/layout/formatting/control yang sudah ada tidak didesain ulang. Sistem hanya mengisi atau mengganti business fields dan native control states yang memang dipetakan untuk record tersebut.
+
+PDF MUST berasal dari filled spreadsheet/template representation, bukan dari HTML/Vue/Blade redesign.
+
+### BR-EXP-006 — Template Preservation
+Export implementation MUST preserve template features yang tidak sedang diisi, termasuk formatting, merged cells, row/column dimensions, drawing/media, print settings, dan native Form Controls.
+
+Native checkbox/control MUST NOT diganti dengan text symbol/image hanya karena lebih mudah secara teknis.
+
+### BR-EXP-007 — Renderer Fidelity Gate
+Concrete PDF renderer hanya boleh digunakan production jika lulus approved golden fidelity test terhadap official XLSX/template output. Perbedaan visual yang tidak diizinkan MUST diperlakukan sebagai export failure/renderer qualification failure, bukan alasan untuk menurunkan business requirement.
+
+### BR-EXP-008
+Additional export format/bulk packaging selain current XLSX/PDF behavior remain downstream decisions.
 
 ---
 
@@ -743,7 +761,7 @@ Emergency follows the same Review + Approval sequence.
 | Archive/Unarchive | Independent flag; mandatory reason; only Approved/Rejected/Cancelled archive-eligible |
 | Timeline | Legitimate viewer can see activity |
 | Audit | Detailed old/new + actor + timestamp + context |
-| Export | View implies export |
+| Export | View implies export; XLSX/PDF must preserve official XLSX template exactly |
 | Concurrency | Server rechecks current state; stale actions rejected |
 | Impersonation | Not required |
 | Notification | Future, not priority |
@@ -758,11 +776,13 @@ Intentionally deferred:
 - official NSCMF numbering SOP/sample that may replace/confirm provisional rules;
 - audit retention/export audit;
 - notification provider/timing;
-- export additional format/bulk packaging;
+- additional export format/bulk packaging;
 - technical transaction/version/locking strategy;
 - malware scanning/storage implementation;
 - e-signature technology if later required;
 - performance/availability/retention targets.
+
+Concrete PDF renderer is technology qualification-gated by `08`; **exact template fidelity itself is not TBD**.
 
 Resolved Validation Rules MUST NOT be treated as TBD unless an explicit requirement change occurs.
 
@@ -793,7 +813,7 @@ Developer/AI agent MUST NOT:
 19. mempresentasikan provisional numbering sebagai official company SOP;
 20. menjadikan Telegram/WhatsApp blocker;
 21. menambahkan impersonation;
-22. menganggap Spatie sudah final;
+22. mengubah authorization semantics hanya karena package implementation;
 23. membuat `SUBMITTED`, `UNDER_REVIEW`, `REVIEWED`, `REOPENED`, atau `ARCHIVED` sebagai persistent state;
 24. mengizinkan Reopen ke `DRAFT` atau `PENDING_APPROVAL`;
 25. Archive active-work states;
@@ -802,14 +822,17 @@ Developer/AI agent MUST NOT:
 28. membuat Service Impact single-select;
 29. membuka seluruh form pada `PENDING_REVIEW` hanya untuk Result capture;
 30. menghilangkan mandatory reason pada Return/Reject/Reopen/Archive/Unarchive;
-31. mewajibkan seluruh lima Result rows.
+31. mewajibkan seluruh lima Result rows;
+32. membuat PDF dari desain HTML yang berbeda dari official XLSX template;
+33. mengganti native template checkbox/control dengan symbol/image demi kemudahan export;
+34. menerima PDF yang berbeda dari approved template representation hanya karena renderer yang dipilih tidak mampu mempertahankan fidelity.
 
 ---
 
 ## 29. Current Documentation Status
 
-`05_State_Status_Flow.md` tetap lifecycle source of truth authoritative. `06_Validation_Rules.md` telah mengunci validation yang sebelumnya deferred.
+`05_State_Status_Flow.md` tetap lifecycle source of truth authoritative. `06_Validation_Rules.md` mengunci validation. `07_UI_UX_Specification.md` mengunci presentation/interaction. `08_Tech_Stack_Specification.md` mengunci technology baseline termasuk exact-template export implementation direction.
 
 Dokumen proyek berikutnya:
 
-**`07_UI_UX_Specification.md`** — menerjemahkan rules tersebut menjadi presentation, screen hierarchy, components, interaction behavior, validation feedback, dan responsive UX.
+**`09_System_Architecture.md`** — menerjemahkan seluruh requirement dan stack menjadi component/topology architecture tanpa mengubah business rules.
