@@ -4,9 +4,9 @@
 
 > **Document ID:** NSCMF-UF-003  
 > **Document Order:** 03 / 20  
-> **Status:** Draft — Synchronized with confirmed Business Rules and RBAC decisions  
+> **Status:** Draft — Synchronized through State / Status Flow  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `04_RBAC_Permission_Matrix.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Last Updated:** 2026-08-21
 
@@ -16,27 +16,37 @@
 
 Dokumen ini mendefinisikan **apa yang dilakukan user dari awal sampai akhir** ketika menggunakan NSCMF Digital Form & Workflow System.
 
-PRD menjawab *apa yang dibangun*. Business Rules menjawab *aturan apa yang tidak boleh dilanggar*. RBAC menjawab *siapa boleh melakukan apa*. User Flow menjawab:
+- PRD → apa yang dibangun;
+- Business Rules → invariant bisnis;
+- RBAC → siapa boleh melakukan apa;
+- State Flow → authoritative lifecycle;
+- User Flow → urutan interaksi user dan respons sistem.
 
-> **User masuk dari mana, melakukan action apa, sistem merespons bagaimana, lalu user bergerak ke tahap mana berikutnya?**
+Canonical business states mengikuti `05_State_Status_Flow.md`:
 
-Nama state teknis final akan dikunci pada `05_State_Status_Flow.md`.
+```text
+DRAFT
+PENDING_REVIEW
+REVISION_REQUIRED
+PENDING_APPROVAL
+REJECTED
+APPROVED
+CANCELLED
+```
 
 ---
 
 ## 2. Actors
 
-Actor konseptual:
-
 - **Protected Superadmin** — seeded administrator dan global visibility;
 - **Requester** — membuat/mengajukan NSCMF;
 - **Reviewer** — review berdasarkan Unit/Division scope;
 - **Approver** — final approval berdasarkan Approval Scope;
-- **Delegated Administrator** — actor non-Superadmin dengan explicit administrative permission;
-- **Custom Role Actor** — actor dengan kombinasi permission granular;
-- **System** — authentication, persistence, validation, audit, workflow, export, authorization.
+- **Delegated Administrator** — non-Superadmin dengan explicit admin permissions;
+- **Custom Role Actor** — granular permission combination;
+- **System** — authentication, authorization, persistence, validation, audit, workflow, export.
 
-Satu user MAY memiliki beberapa role sekaligus.
+Satu user MAY memiliki beberapa role.
 
 ---
 
@@ -58,20 +68,21 @@ Dashboard
   │     ↓
   │   Fill Form
   │     ↓
-  │   Draft + Autosave + Save Draft
-  │     ↓
-  │   Submit
-  │     ↓
-  │   Shared Reviewer Pool (scope-based)
-  │     ├── Return → Requester Revision → Resubmit → Review again
-  │     ├── Reject → Rejected
-  │     └── Forward → Approval
+  │   DRAFT
+  │     ├── Autosave / Save Draft
+  │     ├── Cancel → CANCELLED
+  │     └── Submit → PENDING_REVIEW
   │                    ↓
-  │                Shared Approver Pool (scope-based)
-  │                    ├── Return to Reviewer
-  │                    ├── Return to Requester → Revision → Review again
-  │                    ├── Reject → Rejected
-  │                    └── One eligible Approver approves → Approved
+  │              Shared Reviewer Pool
+  │                ├── Return → REVISION_REQUIRED → Resubmit → PENDING_REVIEW
+  │                ├── Reject → REJECTED
+  │                └── Forward → PENDING_APPROVAL
+  │                                ↓
+  │                          Shared Approver Pool
+  │                            ├── Return Reviewer → PENDING_REVIEW
+  │                            ├── Return Requester → REVISION_REQUIRED → Resubmit → PENDING_REVIEW
+  │                            ├── Reject → REJECTED
+  │                            └── one valid Approve → APPROVED
   │
   └── History
         ├── View Record
@@ -83,11 +94,18 @@ Dashboard
 Exceptional lifecycle:
 
 ```text
-Rejected ── authorized nscmf.reopen ──> selected valid destination
-Approved ── authorized nscmf.reopen ──> selected valid destination
-Eligible Record ── authorized nscmf.archive ──> Archived treatment
-Cancelled ── terminal, no reopen
+REJECTED / APPROVED
+  -- authorized Reopen(reason, destination) --> REVISION_REQUIRED or PENDING_REVIEW
+
+APPROVED / REJECTED / CANCELLED
+  -- authorized Archive --> same business status + is_archived=true
+  -- authorized Unarchive --> same business status + is_archived=false
+
+CANCELLED
+  -- no Reopen --> permanent terminal
 ```
+
+`REOPENED` dan `ARCHIVED` adalah events/treatments, bukan persistent business status.
 
 ---
 
@@ -95,131 +113,81 @@ Cancelled ── terminal, no reopen
 
 ## 4. UF-SETUP-001 — Seeded Superadmin First Login
 
-### Preconditions
-
-- aplikasi baru;
-- protected Superadmin sudah dibuat melalui seeding;
-- first-time setup belum selesai.
-
-### Flow
-
 1. Protected Superadmin membuka Login.
-2. Superadmin memasukkan credential valid.
+2. Memasukkan credential valid.
 3. System mengautentikasi account.
-4. System mendeteksi initial setup belum selesai.
-5. Superadmin diarahkan ke **Setup Wizard**.
-
-Protected Superadmin tidak dapat dihapus, disable, soft-delete, atau downgrade.
+4. Jika initial setup belum selesai, System mengarahkan ke Setup Wizard.
+5. Protected Superadmin tidak dapat delete/disable/downgrade.
 
 ---
 
 ## 5. UF-SETUP-002 — Configure Roles
 
-1. Wizard menampilkan pilihan:
-   - `Use Role Template`;
-   - `Manual Role Configuration`.
-2. Jika Template dipilih, system menyiapkan minimum:
-   - Superadmin;
-   - Requester;
-   - Reviewer;
-   - Approver.
-3. Jika Manual dipilih, Superadmin mengonfigurasi role/permission sesuai boundary Business Rules/RBAC.
-4. Protected Superadmin tetap mandatory.
-5. Setelah setup selesai, eligible role/permission masih dapat dikelola melalui administration flow sesuai permission.
+Wizard menampilkan:
+
+- `Use Role Template`;
+- `Manual Role Configuration`.
+
+Template minimum: Superadmin, Requester, Reviewer, Approver. Eligible role/permission masih dapat dikelola kemudian sesuai RBAC, kecuali protected invariants.
 
 ---
 
 ## 6. UF-SETUP-003 — Configure Unit / Division
 
-1. Wizard menampilkan:
-   - predefined Unit/Division template/mapping; atau
-   - manual configuration.
-2. Superadmin memilih salah satu pendekatan.
-3. System menyimpan struktur organisasi yang dipilih.
-4. Exact predefined entries masih TBD dan tidak boleh ditebak oleh implementation agent.
+Wizard menyediakan predefined template/mapping atau manual configuration. Exact predefined entries tetap TBD.
 
 ---
 
 ## 7. UF-SETUP-004 — Configure Scope
 
-1. Superadmin menghubungkan user dengan Unit/Division yang relevan.
-2. Reviewer memperoleh Reviewer Scope berdasarkan Unit/Division.
+1. User dipetakan ke Unit/Division yang relevan.
+2. Reviewer memperoleh Reviewer Scope.
 3. Approver memperoleh Approval Scope.
-4. Satu Approver MAY memiliki scope beberapa Unit/Division.
-5. Scope dapat diubah kemudian oleh actor yang memiliki permission administrasi yang sesuai.
+4. Approver MAY mencakup beberapa Unit/Division.
+5. Scope dapat dikelola kemudian oleh authorized administrator.
 
 ---
 
 ## 8. UF-SETUP-005 — Complete Wizard
 
-1. System menampilkan summary konfigurasi.
-2. Superadmin mengonfirmasi.
-3. Setup ditandai selesai.
-4. Superadmin masuk ke Dashboard.
-5. Core system settings tetap Superadmin-only.
-6. User/role/unit administration selanjutnya MAY didelegasikan melalui permission granular.
+System menampilkan summary, Superadmin mengonfirmasi, setup ditandai selesai, lalu masuk Dashboard. Core system settings tetap protected Superadmin-only.
 
 ---
 
-# PART C — LOGIN, DASHBOARD, USER ADMINISTRATION
+# PART C — LOGIN, DASHBOARD, ADMINISTRATION
 
 ## 9. UF-AUTH-001 — Normal Login
 
 1. User membuka Login.
 2. User mengisi credential.
-3. System memverifikasi account aktif dan credential valid.
-4. Jika gagal, access ditolak tanpa mengungkap informasi sensitif yang tidak diperlukan.
-5. Jika berhasil, authenticated session dibuat.
-6. User diarahkan ke Dashboard.
-
-Tidak ada self-registration.
+3. System memverifikasi account aktif + credential.
+4. Jika valid, session dibuat dan user masuk Dashboard.
+5. Tidak ada self-registration.
 
 ---
 
 ## 10. UF-DASH-001 — Dashboard
 
-Dashboard minimal menyediakan entry point yang relevant terhadap permission user:
+Dashboard minimal menyediakan entry point sesuai permission:
 
 - `Create New Form`;
 - `History`;
-- review/approval access jika actor eligible;
-- administration/settings jika actor memiliki permission.
-
-Dashboard metrics/recent activity detail mengikuti UI/UX specification dan tidak boleh mengubah core workflow.
+- Review/Approval queue bila eligible;
+- Administration/Settings bila eligible.
 
 ---
 
 ## 11. UF-ADMIN-001 — Manage Users
 
-Actor dengan user-management permission MAY:
+Actor dengan user-management permission MAY create/edit normal user, assign/remove role, assign/move Unit/Division, configure eligible scope, reset credential, enable/disable normal user.
 
-1. membuka User Administration;
-2. melihat eligible user;
-3. create/edit normal user;
-4. assign/remove role;
-5. assign/move Unit/Division;
-6. configure eligible scope;
-7. reset credential/password sesuai security flow;
-8. enable/disable normal user.
-
-System MUST menolak action yang mencoba disable/downgrade/delete protected Superadmin.
-
-Tidak ada user impersonation.
+System MUST menolak action yang melanggar protected Superadmin invariant. Tidak ada impersonation.
 
 ---
 
 ## 12. UF-ADMIN-002 — Manage Role / Permission / Organization
 
-Actor dengan permission yang sesuai MAY:
-
-- create/update eligible custom role;
-- assign permission;
-- manage Unit/Division;
-- map user;
-- configure Reviewer Scope;
-- configure Approval Scope.
-
-Core system settings tetap protected Superadmin-only.
+Authorized actor MAY mengelola eligible custom role, permissions, Unit/Division, user mapping, Reviewer Scope, dan Approval Scope. Core system settings tetap protected Superadmin-only.
 
 ---
 
@@ -227,162 +195,102 @@ Core system settings tetap protected Superadmin-only.
 
 ## 13. UF-CREATE-001 — Start New NSCMF
 
-### Flow
-
-1. Requester memilih `Create New Form`.
+1. User memilih `Create New Form`.
 2. System memverifikasi `nscmf.create` atau equivalent permission.
-3. UI meminta Form Family:
+3. User memilih family:
    - `NSCMF - Activation`;
    - `NSCMF - Change`.
-4. Requester memilih family.
-5. System menampilkan subtype sesuai family.
+4. User memilih subtype.
 
-### Activation Subtype
+Activation subtypes:
 
 - Activation;
 - Upgrade / Downgrade;
 - Deactivation.
 
-### Change Subtype
+Change subtypes:
 
 - Maintenance;
 - Upgrade;
 - Emergency.
 
-`Upgrade` tidak boleh diklasifikasikan otomatis hanya dari keyword.
+Keyword `Upgrade` tidak boleh menentukan family secara otomatis.
 
 ---
 
 ## 14. UF-CREATE-002 — Choose Numbering Mode
 
-Setelah family/subtype dipilih:
-
-1. UI menampilkan:
-   - `Automatic Number Generation`;
-   - `Manual Number Entry`.
-2. Requester memilih mode untuk **record tersebut**.
-3. Automatic → system menyiapkan number berdasarkan rule final.
-4. Manual → requester mengisi number dan system melakukan validation final.
-
-Automatic numbering format masih TBD.
+User memilih `Automatic Number Generation` atau `Manual Number Entry` untuk record tersebut. Format/validation final mengikuti downstream Validation Rules.
 
 ---
 
-## 15. UF-CREATE-003 — Fill Activation Form
+## 15. UF-CREATE-003 — Fill Activation
 
-Activation form mengikuti business meaning workbook dan dikelompokkan secara web-friendly, termasuk konsep:
-
-- Request Type;
-- Service Information;
-- Network / NOC Configuration;
-- bandwidth/routing/DNS/IP information;
-- onsite/customer/POP information;
-- attachment input;
-- sign-off context.
-
-Exact field validation berada di `06_Validation_Rules.md`.
+UI merepresentasikan business meaning workbook, termasuk Service Information, Network/NOC data, bandwidth/routing/DNS/IP, onsite/customer/POP, attachment, dan sign-off context.
 
 ---
 
-## 16. UF-CREATE-004 — Fill Change Form
+## 16. UF-CREATE-004 — Fill Change
 
-Change UI harus menjaga semantics workbook:
+UI menjaga semantics workbook:
 
-### Purpose of Changes
+- `(A) Purpose of Changes` = section;
+- Facing Challenges = input content;
+- Maintenance Purpose = input content;
+- Identified Problem = narrative input;
+- Service Impact = selectable values NOC15/NOC23/NOC361/Regional/POP/Customer/Other;
+- Improvement Plan, KPI, execution date, monitoring, rollback, announcement;
+- `(B) Result of Changes` = distinct data section.
 
-- `(A) Purpose of Changes` = section, bukan pilihan;
-- `Facing Challenges (Upgrade / Emergency)` = input content;
-- `Maintenance Purpose` = input content;
-- `Identified Problem (Please elaborate)` = input content.
-
-### Service Impact
-
-Service Impact menyediakan selectable values:
-
-- NOC15;
-- NOC23;
-- NOC361;
-- Regional;
-- POP;
-- Customer;
-- Other.
-
-Single-select vs multi-select masih TBD hingga Validation/UI specification final.
-
-### Other Change Inputs
-
-Form juga merepresentasikan:
-
-- Maintenance/Improvement Plan;
-- Target KPI;
-- Target date of execution;
-- Monitoring period;
-- Rollback scenario;
-- Maintenance Announcement;
-- Result of Changes section.
-
-Kapan `Result of Changes` wajib diisi masih TBD.
+`Result of Changes` tidak membuat state baru. Final result tidak otomatis diwajibkan hanya karena user melakukan first Submit. Applicable result harus selesai sebelum Reviewer dapat Forward ke Approval.
 
 ---
 
 # PART E — DRAFT, AUTOSAVE, CANCEL
 
-## 17. UF-DRAFT-001 — Autosave
+## 17. UF-DRAFT-001 — Draft Creation and Autosave
 
-1. Requester mulai mengisi editable Draft.
-2. System melakukan autosave pada interval/trigger yang akan ditentukan UI/technical specification.
-3. Setiap persisted change tercatat pada audit:
-   - actor;
-   - timestamp;
-   - changed element;
-   - old value;
-   - new value;
-   - event context.
-4. Autosave tidak berarti record siap Submit.
+1. New record berada pada `DRAFT`.
+2. Requester mengisi form.
+3. System autosave berdasarkan trigger/interval downstream.
+4. Persisted changes diaudit.
+5. Autosave tidak berarti record siap Submit.
 
 ---
 
 ## 18. UF-DRAFT-002 — Manual Save Draft
 
 1. Requester memilih `Save Draft`.
-2. System menyimpan latest editable data.
+2. Latest editable data dipersist.
 3. Draft boleh incomplete.
 4. Persisted changes diaudit.
-5. Requester dapat lanjut, keluar, atau kembali kemudian.
+5. State tetap `DRAFT`.
 
 ---
 
 ## 19. UF-DRAFT-003 — Resume Draft
 
-1. Requester membuka History/Own Records.
-2. Requester membuka own Draft.
-3. System memverifikasi ownership/permission/state.
-4. Form terbuka editable.
-5. Autosave dan Save Draft aktif kembali.
+Requester membuka own Draft dari History/Own Records. System memverifikasi ownership/permission/state, lalu form kembali editable.
 
 ---
 
 ## 20. UF-DRAFT-004 — Cancel Draft
 
-### Preconditions
+Preconditions:
 
 - own record;
-- masih Draft;
+- `DRAFT`;
 - belum pernah Submit.
 
-### Flow
+Flow:
 
-1. Requester memilih `Cancel Request`.
+1. Requester memilih Cancel.
 2. UI meminta confirmation.
-3. Mandatory Cancel reason masih TBD.
-4. User mengonfirmasi.
-5. System mencatat Cancel event.
-6. Record tetap di History.
-7. Record menjadi permanently Cancelled.
-8. Cancelled **tidak dapat Reopen**.
-9. Untuk kebutuhan baru, user membuat NSCMF baru.
-
-Setelah Submit, Cancel action tidak tersedia dan backend menolak direct request.
+3. Reason requirement mengikuti Validation Rules.
+4. System mencatat event.
+5. State menjadi `CANCELLED`.
+6. Record tetap History.
+7. `CANCELLED` tidak dapat Reopen.
 
 ---
 
@@ -390,568 +298,512 @@ Setelah Submit, Cancel action tidak tersedia dan backend menolak direct request.
 
 ## 21. UF-SUBMIT-001 — Submit for Review
 
-### Preconditions
+Preconditions: permission + ownership/access + submission validation.
 
-- Requester memiliki permission;
-- record editable dan bukan terminal;
-- submission validation lulus.
-
-### Flow
-
-1. Requester memilih `Submit`.
-2. System menjalankan submission validation.
-3. Jika gagal:
-   - record tetap Draft;
-   - UI menunjukkan error yang relevan.
+1. Requester memilih Submit.
+2. System menjalankan validation.
+3. Jika gagal, state tetap `DRAFT`.
 4. Jika berhasil:
    - latest data dipersist;
-   - submission event dicatat;
-   - Requester normal editing dikunci;
-   - record masuk Review flow.
-5. Requester **tidak memilih satu Reviewer tertentu**.
-6. Record menjadi visible kepada seluruh eligible Reviewer dengan matching Unit/Division scope.
-7. Future notification hook MAY dipanggil, tetapi bukan blocker MVP.
+   - event Submit dicatat;
+   - state `DRAFT -> PENDING_REVIEW`;
+   - normal Requester editing locked;
+   - semua eligible Reviewer matching scope memperoleh visibility.
+5. Requester tidak memilih Reviewer tertentu.
+
+`SUBMITTED` adalah event, bukan persistent state.
 
 ---
 
 # PART G — REVIEWER FLOW
 
-## 22. UF-REVIEW-001 — Reviewer Opens Review Queue
+## 22. UF-REVIEW-001 — Open Review Queue
 
 1. Reviewer membuka Review/History/Queue.
-2. System menampilkan relevant records berdasarkan Unit/Division scope dan current workflow state.
+2. System menampilkan `PENDING_REVIEW` yang relevant berdasarkan Unit/Division scope.
 3. Reviewer membuka record.
-4. System melakukan server-side permission/scope/state check.
-5. View event dicatat sebagai viewer activity.
-6. Membuka record **tidak** menjadikan Reviewer exclusive owner.
-7. Eligible Reviewer lain tetap dapat membuka record.
+4. Backend memvalidasi permission/scope/current state.
+5. View event dapat dicatat.
+6. **State tetap `PENDING_REVIEW`.**
+7. Reviewer tidak menjadi exclusive owner; Reviewer lain tetap eligible.
 
 ---
 
 ## 23. UF-REVIEW-002 — Multiple Reviewer Participation
 
-Reviewer model bersifat collaborative/non-exclusive.
-
 Contoh valid:
 
 ```text
 Reviewer A → View
-Reviewer A → Review action
-Reviewer B → View
-Reviewer B → Review action / Return
-Reviewer A → View revision
-Reviewer C → Forward to Approval
+Reviewer B → review activity
+Reviewer C → Forward
 ```
 
-System MUST mempertahankan seluruh actor pada timeline.
-
-`assigned`, `modified by`, atau contributor context MAY memiliki lebih dari satu Reviewer sepanjang lifecycle record.
+System mempertahankan semua actor/timestamp. Contributor metadata tidak menjadi exclusive authorization lock.
 
 ---
 
 ## 24. UF-REVIEW-003 — Reviewer Actions
 
-Eligible Reviewer MAY memilih:
+Dari `PENDING_REVIEW`, eligible Reviewer MAY:
 
-- `Forward / Complete Review`;
+- `Forward to Approval`;
 - `Return for Revision`;
 - `Reject`.
 
-Setiap action melalui permission, scope, state, dan validation check sebelum dipersist.
+Setiap action melalui permission + scope + state + validation check.
 
 ---
 
 ## 25. UF-REVIEW-004 — Forward to Approval
 
-1. Reviewer memilih `Forward to Approval`.
-2. System memvalidasi action.
-3. Jika valid:
-   - review event dan actor/timestamp dicatat;
-   - record masuk Approval flow.
-4. **Semua eligible Approver dengan matching Approval Scope** dapat melihat approval candidate.
-5. Approval candidate tidak di-assign eksklusif kepada satu Approver.
+1. Reviewer memilih Forward.
+2. System memvalidasi current state dan action requirements.
+3. Untuk Change, applicable `Result of Changes` gate MUST terpenuhi.
+4. Jika valid, state:
+
+```text
+PENDING_REVIEW -> PENDING_APPROVAL
+```
+
+5. Review event/actor/timestamp dicatat.
+6. Semua eligible Approver matching Approval Scope melihat candidate.
+7. Candidate tidak di-assign exclusive.
 
 ---
 
 ## 26. UF-REVIEW-005 — Return for Revision
 
-1. Reviewer memilih `Return for Revision`.
-2. Comment/reason behavior mengikuti Validation/UI rule final.
-3. System mencatat Return event.
+1. Reviewer memilih Return.
+2. System mencatat event.
+3. State:
+
+```text
+PENDING_REVIEW -> REVISION_REQUIRED
+```
+
 4. Requester editing diaktifkan.
-5. Requester memperbaiki record.
-6. Setiap persisted revision diaudit old/new.
-7. Requester `Resubmit`.
-8. Record kembali ke Review.
-9. Same Reviewer context SHOULD dipertahankan untuk continuity.
-10. Reviewer lain dalam scope tetap visible dan eligible.
-11. Siklus MAY berulang berkali-kali.
+5. Requester memperbaiki record; persisted changes diaudit.
+6. Requester Resubmit.
+7. State:
+
+```text
+REVISION_REQUIRED -> PENDING_REVIEW
+```
+
+8. Same Reviewer context SHOULD retained; other scoped Reviewer tetap eligible.
+9. Loop MAY repeat tanpa fixed maximum.
 
 ---
 
 ## 27. UF-REVIEW-006 — Reviewer Reject
 
-1. Reviewer memilih `Reject`.
-2. System memvalidasi permission/scope/state.
-3. Mandatory Reject reason masih TBD.
+1. Reviewer memilih Reject.
+2. System memvalidasi permission/scope/current state.
+3. State:
+
+```text
+PENDING_REVIEW -> REJECTED
+```
+
 4. Reject event dicatat.
-5. Requester tidak dapat normal edit/resubmit.
-6. Record tetap di History.
-7. Recovery hanya melalui authorized Reopen.
+5. Normal Requester edit/resubmit berhenti.
+6. Recovery hanya authorized Reopen.
+
+---
+
+## 28. UF-REVIEW-007 — Change Result Capture During Review
+
+Untuk Change yang Result-nya belum tersedia pada first Submit:
+
+1. record tetap `PENDING_REVIEW`;
+2. system MAY/SHALL expose narrow Result-of-Changes editing hanya kepada actor yang explicit authorized sesuai rule downstream;
+3. hanya Result-related fields yang dibuka; planning/submitted fields tidak otomatis editable;
+4. persisted Result changes diaudit;
+5. state tetap `PENDING_REVIEW`;
+6. jika applicable result belum lengkap, Forward ke Approval ditolak.
+
+Exact actor/permission masih TBD untuk `06_Validation_Rules.md` + RBAC/UI refinement karena template tidak menentukan siapa pengisinya.
 
 ---
 
 # PART H — APPROVER FLOW
 
-## 28. UF-APPROVAL-001 — Shared Approval Queue
+## 29. UF-APPROVAL-001 — Shared Approval Queue
 
-1. Approver membuka Approval/History area.
-2. System menampilkan approval candidates dalam matching Approval Scope.
-3. Satu Approver MAY memiliki scope beberapa Unit/Division.
-4. Semua Approver dengan matching scope dan permission dapat melihat candidate yang sama.
-5. Approver A membuka candidate tidak mengunci Approver B/C.
-6. View/activity dapat dicatat di timeline.
-
-Approver model:
-
-```text
-Shared eligibility within scope
-+
-Non-exclusive access
-+
-Single final approval actor
-```
+1. Approver membuka Approval area.
+2. System menampilkan `PENDING_APPROVAL` yang matching Approval Scope.
+3. Semua eligible Approver dapat melihat candidate yang sama.
+4. Opening/view tidak mengubah state dan tidak mengunci actor lain.
 
 ---
 
-## 29. UF-APPROVAL-002 — Approve
+## 30. UF-APPROVAL-002 — Approve
 
-1. Eligible Approver memilih `Approve`.
-2. System memvalidasi:
-   - permission;
-   - Approval Scope;
-   - Review prerequisite;
-   - current state;
-   - validation.
+1. Eligible Approver memilih Approve.
+2. Backend memvalidasi permission, scope, current state, review prerequisite, dan relevant validation.
 3. Jika valid:
-   - Approval event dicatat;
-   - final approver identity/timestamp dicatat;
-   - record menjadi Approved.
-4. **Satu final approval dari satu eligible Approver sudah cukup.**
-5. `Approved By` = actor yang berhasil mengeksekusi final Approve action.
-6. Eligible Approver lain tidak perlu memberikan approval tambahan.
-7. Approver lain tidak dapat menghasilkan approval kedua pada workflow iteration yang sudah Approved.
-8. Record tetap tersedia di History dan normal editing terkunci.
-
-Example:
 
 ```text
-Approver A → View
-Approver B → View
-Approver C → Approve
-
-Approved By = Approver C
+PENDING_APPROVAL -> APPROVED
 ```
 
-Emergency Change mengikuti Approval flow yang sama.
+4. Approval event, final actor, timestamp dicatat.
+5. Satu final approval cukup.
+6. `Approved By` = successful transition actor.
+7. Approver lain tidak dapat menghasilkan approval kedua untuk iteration yang sama.
 
 ---
 
-## 30. UF-APPROVAL-003 — Return to Reviewer
-
-1. Eligible Approver memilih `Return to Reviewer`.
-2. System memvalidasi dan mencatat actor/timestamp/origin/destination.
-3. Record kembali ke Review flow.
-4. Eligible Reviewer dapat melakukan Review kembali.
-5. Setelah Forward, record kembali menjadi visible kepada eligible Approver.
-
----
-
-## 31. UF-APPROVAL-004 — Return to Requester
-
-1. Eligible Approver memilih `Return to Requester`.
-2. Return event dicatat.
-3. Requester editing diaktifkan.
-4. Requester melakukan revision.
-5. Revision changes diaudit.
-6. Requester `Resubmit`.
-7. **Record wajib masuk Review lagi.**
-8. Reviewer mereview revision terbaru.
-9. Hanya setelah Reviewer Forward, record kembali ke Approval.
-
-Forbidden shortcut:
+## 31. UF-APPROVAL-003 — Return to Reviewer
 
 ```text
-Approver → Requester → Resubmit → langsung Approval
+PENDING_APPROVAL -> PENDING_REVIEW
+```
+
+Requester general editing tidak otomatis terbuka. Eligible Reviewer kembali memproses record.
+
+---
+
+## 32. UF-APPROVAL-004 — Return to Requester
+
+1. Approver Return to Requester.
+2. State:
+
+```text
+PENDING_APPROVAL -> REVISION_REQUIRED
+```
+
+3. Requester revisi + Resubmit.
+4. Resubmit selalu:
+
+```text
+REVISION_REQUIRED -> PENDING_REVIEW
+```
+
+5. Reviewer harus Forward kembali sebelum candidate kembali `PENDING_APPROVAL`.
+
+Forbidden:
+
+```text
+REVISION_REQUIRED -> PENDING_APPROVAL
 ```
 
 ---
 
-## 32. UF-APPROVAL-005 — Approver Reject
+## 33. UF-APPROVAL-005 — Approver Reject
 
-1. Eligible Approver memilih `Reject`.
-2. System melakukan permission/scope/state validation.
-3. Reject event dicatat.
-4. Record tetap di History.
-5. Requester tidak dapat normal edit/resubmit.
-6. Recovery hanya melalui authorized Reopen.
+```text
+PENDING_APPROVAL -> REJECTED
+```
+
+Reject event dicatat. Normal flow berhenti sampai authorized Reopen.
 
 ---
 
 # PART I — REOPEN / REVERT
 
-## 33. UF-REOPEN-001 — Reopen Rejected Record
+## 34. UF-REOPEN-001 — Reopen Rejected
 
-### Preconditions
+Preconditions:
 
-- record Rejected;
-- actor adalah protected Superadmin **atau** memiliki explicit `nscmf.reopen`;
-- actor memiliki valid record visibility/scope;
-- current state eligible untuk Reopen.
+- `REJECTED`;
+- not archived;
+- protected Superadmin atau explicit `nscmf.reopen`;
+- valid record visibility/scope.
 
-### Flow
+Flow:
 
-1. Authorized actor membuka Rejected record.
-2. Actor memilih `Reopen`.
-3. System meminta **mandatory reason**.
-4. System menampilkan valid destination choices sesuai State Flow.
-5. Actor memilih destination.
-6. System melakukan authorization/state validation ulang.
-7. Jika valid, system mencatat:
-   - actor;
-   - timestamp;
-   - reason;
-   - previous Rejected state;
-   - selected destination;
-   - previous rejection history.
-8. Record bergerak ke destination.
-9. Previous rejection tetap berada di timeline.
+1. Actor memilih Reopen.
+2. System meminta mandatory reason.
+3. UI menampilkan hanya valid destinations:
+   - `REVISION_REQUIRED`;
+   - `PENDING_REVIEW`.
+4. Actor memilih destination.
+5. Backend revalidates permission/scope/archive flag/current state/destination.
+6. Jika valid, state langsung berpindah ke selected destination.
+7. Reopen event + reason + previous rejection evidence dicatat.
+
+Tidak ada persistent `REOPENED` state.
 
 ---
 
-## 34. UF-REOPEN-002 — Reopen Approved Record
+## 35. UF-REOPEN-002 — Reopen/Revert Approved
 
-### Preconditions
+Flow sama dengan Rejected, tetapi source state `APPROVED`.
 
-- record Approved;
-- actor adalah protected Superadmin **atau** memiliki explicit `nscmf.reopen`;
-- actor memiliki valid record visibility/scope;
-- state eligible untuk Reopen.
+Valid destinations hanya:
 
-### Flow
+- `REVISION_REQUIRED`;
+- `PENDING_REVIEW`.
 
-1. Authorized actor membuka Approved record.
-2. Actor memilih `Reopen / Revert`.
-3. System meminta **mandatory reason**.
-4. System menampilkan valid destination choices.
-5. Actor memilih destination.
-6. System melakukan authorization/state validation ulang.
-7. System mencatat:
-   - actor;
-   - timestamp;
-   - reason;
-   - previous Approved state;
-   - selected destination;
-   - previous approval evidence.
-8. Record bergerak ke selected destination.
-9. Previous Approval tetap berada di timeline.
-
-Default role template memberikan Reopen kepada Superadmin, tetapi RBAC MAY mendelegasikan `nscmf.reopen` kepada role lain.
+Tidak boleh ke `DRAFT` atau `PENDING_APPROVAL`. Previous Approval tetap timeline/history.
 
 ---
 
 # PART J — HISTORY, TIMELINE, EXPORT
 
-## 35. UF-HISTORY-001 — Open History
+## 36. UF-HISTORY-001 — Open History
 
-1. User membuka `History`.
-2. System menghitung effective visibility berdasarkan role, ownership, scope, dan additional custom permissions.
-3. System hanya menampilkan record yang boleh dilihat user.
-
-Default visibility:
+System menghitung effective visibility:
 
 | Actor | Visibility |
 |---|---|
 | Requester | Own records |
-| Reviewer | Matching Unit/Division scope |
-| Approver | Matching Approval Scope, dapat multi-unit |
+| Reviewer | Matching Unit/Division |
+| Approver | Matching Approval Scope |
 | Protected Superadmin | All NSCMF |
-| Custom Role | Permission + configured scope |
-
-Multi-role visibility bersifat additive.
+| Custom/multi-role | permission + configured scope union |
 
 ---
 
-## 36. UF-HISTORY-002 — View Detail and Timeline
+## 37. UF-HISTORY-002 — View Detail and Timeline
 
-1. User membuka visible record.
-2. System melakukan authorization check.
-3. User melihat form detail dan relevant attachment.
-4. User juga dapat melihat timeline **siapa melakukan apa** pada record.
-5. Timeline dapat mencakup viewer, modifier, reviewer, approver, return, revision, reject, reopen, archive, dan timestamp sesuai audit data.
-6. Timeline adalah read-only historical evidence untuk normal users.
+User yang legitimate melihat form detail, relevant attachments, current business status, archive treatment, dan timeline siapa melakukan apa. Timeline read-only untuk normal user.
 
 ---
 
-## 37. UF-EXPORT-001 — Single Export
+## 38. UF-EXPORT-001 — Single Export
 
-1. User membuka record yang visible.
-2. User memilih Export.
-3. System memverifikasi record visibility.
-4. Jika valid, export dibuat dari current stored record.
-5. PDF adalah minimum required format.
-6. Additional format mengikuti specification final.
-7. Export tidak mengubah workflow state.
-
-View access secara business memberikan export eligibility.
+1. User memilih visible record.
+2. System memverifikasi visibility.
+3. Export dibuat dari stored record.
+4. PDF minimum required format.
+5. Export tidak mengubah state.
 
 ---
 
-## 38. UF-EXPORT-002 — Bulk Export
+## 39. UF-EXPORT-002 — Bulk Export
 
-1. User membuka History.
-2. User memilih beberapa record yang visible.
-3. User memilih Bulk Export.
-4. System melakukan visibility check per record.
-5. Inaccessible record MUST NOT bocor melalui bulk operation.
-6. Packaging output final masih ditentukan kemudian.
+System melakukan visibility check per selected record. Inaccessible record MUST NOT bocor melalui bulk operation. Packaging final downstream.
 
 ---
 
-# PART K — ARCHIVE
+# PART K — ARCHIVE / UNARCHIVE
 
-## 39. UF-ARCHIVE-001 — Archive Record
+## 40. UF-ARCHIVE-001 — Archive Record
 
-### Preconditions
+Preconditions:
 
-- actor adalah protected Superadmin atau memiliki `nscmf.archive`;
-- actor memiliki valid record visibility;
-- record berada pada archive-eligible state menurut State Flow final.
+- protected Superadmin atau explicit `nscmf.archive`;
+- valid record visibility;
+- state in `APPROVED`, `REJECTED`, `CANCELLED`;
+- `is_archived=false`.
 
-### Flow
+Flow:
 
-1. Authorized actor membuka record.
-2. Actor memilih `Archive`.
-3. Mandatory Archive reason masih TBD.
-4. System melakukan authorization/state check.
-5. Jika valid:
-   - Archive event dicatat;
-   - record dikeluarkan dari default active view;
-   - business data/status/history tidak dihapus.
-6. Archived record tetap dapat dilihat oleh legitimate actor berdasarkan normal scope:
-   - Superadmin → all;
-   - Requester → own;
-   - Reviewer → scoped;
-   - Approver → scoped;
-   - custom role → effective permission/scope.
+1. Actor memilih Archive.
+2. System memvalidasi permission/visibility/state.
+3. Jika valid:
 
-Unarchive behavior masih TBD.
+```text
+business_status = unchanged
+is_archived = true
+```
+
+4. Archive event dicatat.
+5. Record keluar dari default active view.
+6. Normal scoped visibility tetap berlaku di archived/history view.
+7. Archived record tidak dapat Reopen/business-transition sampai Unarchive.
+
+Active states (`DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL`) tidak dapat Archive.
 
 ---
 
-# PART L — NOTIFICATION HOOKS
+## 41. UF-ARCHIVE-002 — Unarchive Record
 
-## 40. UF-NOTIF-001 — Future Notification
+Preconditions:
 
-Future system MAY memiliki notification hooks pada event:
+- `nscmf.archive`;
+- valid visibility;
+- `is_archived=true`.
 
-- Submit;
-- Return for Revision;
-- Reject;
-- Forward to Approval;
-- Approve;
-- Reopen.
+Flow:
 
-Telegram dan WhatsApp/Baileys adalah candidate integration, bukan current priority atau final commitment.
+1. Actor memilih Unarchive.
+2. System memvalidasi action.
+3. Result:
 
-Core workflow MUST tetap berfungsi tanpa notification integration.
+```text
+business_status = unchanged
+is_archived = false
+```
+
+4. Unarchive event dicatat.
+5. `APPROVED`/`REJECTED` baru dapat Reopen setelah Unarchive.
+6. `CANCELLED` tetap permanent terminal walaupun Unarchive.
+
+---
+
+# PART L — NOTIFICATION
+
+## 42. UF-NOTIF-001 — Future Notification
+
+Future hooks MAY berada pada Submit, Return, Reject, Forward, Approve, Reopen. Telegram/WhatsApp-Baileys adalah candidates, bukan current blocker.
 
 ---
 
 # PART M — LOGOUT
 
-## 41. UF-AUTH-002 — Logout
+## 43. UF-AUTH-002 — Logout
 
-1. Authenticated user memilih Logout.
-2. System mengakhiri session sesuai security specification.
-3. User kembali ke Login.
-4. Persisted Draft tetap tersimpan.
+User Logout → session berakhir → kembali Login. Persisted Draft tetap tersimpan.
 
 ---
 
-# PART N — ERROR / AUTHORIZATION FLOWS
+# PART N — ERROR / AUTHORIZATION / CONCURRENCY
 
-## 42. UF-ERROR-001 — Unauthorized Direct Access
+## 44. UF-ERROR-001 — Unauthorized Direct Access
 
-Jika user mencoba membuka record melalui direct URL/ID yang tidak visible:
-
-1. backend melakukan authorization check;
-2. access ditolak;
-3. record data tidak dikirim kepada frontend.
+Backend menolak direct URL/ID/API access jika visibility tidak valid dan MUST NOT mengirim record data ke frontend.
 
 ---
 
-## 43. UF-ERROR-002 — Stale Action / Concurrent Action
+## 45. UF-ERROR-002 — Stale Reviewer Action
 
-Karena Reviewer dan Approver bersifat non-exclusive, lebih dari satu actor dapat membuka record yang sama.
-
-Sebelum workflow-changing action dipersist, system MUST memeriksa current state kembali.
-
-Contoh:
+Example:
 
 ```text
-Approver A dan B membuka candidate yang sama.
-Approver A berhasil Approve terlebih dahulu.
-Approver B kemudian mencoba Approve dari screen yang stale.
-
-→ backend melihat record sudah Approved
-→ approval kedua ditolak
-→ UI diminta refresh/current state
+Reviewer A dan B membuka PENDING_REVIEW.
+A Forward -> PENDING_APPROVAL.
+B dari screen lama mencoba Reject sebagai Reviewer.
 ```
 
-Technical transaction/locking strategy akan ditentukan pada architecture/database/API specification.
+Backend melihat current state bukan lagi `PENDING_REVIEW`, menolak stale action B, dan UI harus refresh/current state.
+
+---
+
+## 46. UF-ERROR-003 — Stale Approver Action
+
+```text
+Approver A dan B membuka PENDING_APPROVAL.
+A Approve -> APPROVED.
+B kemudian mencoba Approve/Reject/Return dari stale screen.
+```
+
+Backend menolak action B. Hanya A final `Approved By` untuk iteration tersebut.
+
+Technical locking/transaction mechanism ditentukan downstream.
 
 ---
 
 # PART O — USER FLOW SUMMARY BY ACTOR
 
-## 44. Requester
+## 47. Requester
 
 ```text
 Login
 → Dashboard
 → Create Form
-→ Activation/Change
-→ Subtype
-→ Auto/Manual Number
-→ Fill
-→ Autosave / Save Draft
-→ (Cancel while Draft OR Submit)
-→ wait Review
-→ if Returned: Revise → Resubmit → Review again
+→ DRAFT
+→ Autosave/Save
+→ Cancel OR Submit
+→ PENDING_REVIEW
+→ if Returned: REVISION_REQUIRED → edit → Resubmit → PENDING_REVIEW
 → if Rejected: normal flow stops
 → if Approved: read-only/history/export
 ```
 
 ---
 
-## 45. Reviewer
+## 48. Reviewer
 
 ```text
-Login
-→ Review Queue
-→ Open scoped record (viewer logged)
-→ Review
+Open PENDING_REVIEW queue
+→ View (no state change)
 → Forward OR Return OR Reject
-→ if returned/resubmitted: same reviewer context + shared Reviewer eligibility
 ```
 
-Reviewer is non-exclusive and multiple Reviewers may contribute.
+Reviewer non-exclusive; multiple contributors allowed.
 
 ---
 
-## 46. Approver
+## 49. Approver
 
 ```text
-Login
-→ Approval Queue
-→ Open scoped candidate
-→ Approve OR Return to Reviewer OR Return to Requester OR Reject
+Open PENDING_APPROVAL queue
+→ View (no state change)
+→ Approve OR Return Reviewer OR Return Requester OR Reject
 ```
 
-Approver is non-exclusive.
-
-**One eligible Approver's final approval is sufficient.**
+Approver non-exclusive; one successful final Approve sufficient.
 
 ---
 
-## 47. Authorized Reopen / Archive Actor
+## 50. Authorized Lifecycle Actor
 
 ```text
 Visible eligible record
-→ permission check
-→ Reopen (mandatory reason + target) OR Archive
+→ permission/state/archive check
+→ Reopen(reason + valid destination)
+OR Archive / Unarchive
 → audit event
-→ state/lifecycle treatment
 ```
 
-Default Superadmin memiliki permission tersebut. Custom/default role lain MAY mendapatkannya sesuai RBAC.
+Default Superadmin memiliki permissions; role lain MAY mendapatkannya explicitly.
 
 ---
 
 # PART P — CONFIRMED FLOW DECISIONS
 
-## 48. Confirmed Decisions
+## 51. Confirmed Decisions
 
-| Area | Flow Decision |
+| Area | Decision |
 |---|---|
 | Setup | Wizard |
-| Role setup | Template / Manual |
-| Unit setup | Template/mapping / Manual |
-| User role | Multi-role allowed |
-| Form selection | Family → subtype → numbering → fields |
-| Numbering | Auto/manual per record |
-| Draft | Autosave + manual Save Draft |
-| Draft changes | Fully audited |
-| Cancel | Draft-only, permanent |
-| Reviewer selection | No manual selection by Requester |
-| Reviewer eligibility | Shared/non-exclusive within scope |
-| Reviewer contributor | Multiple contributors allowed |
-| Viewer log | Reviewer view can be logged |
-| Revision | Unlimited cycles |
-| Reviewer resubmit | Same reviewer context retained, others still eligible |
-| Approval eligibility | Shared/non-exclusive within scope |
-| Final approval | One eligible Approver is sufficient |
-| Approved By | Final Approve actor |
-| Approval return to Requester | Must pass Review again |
-| Reject | Closed normal flow; recover via authorized Reopen |
-| Reopen | Superadmin or explicit `nscmf.reopen`; mandatory reason; target selected |
-| Archive | Superadmin or explicit `nscmf.archive` |
-| Archived visibility | Follows normal scope; Superadmin global |
-| Timeline | All legitimate viewers can see who did what |
+| Multi-role | Allowed |
+| Family selection | family → subtype → numbering → fields |
+| Draft | `DRAFT`, autosave + Save Draft |
+| Cancel | `DRAFT -> CANCELLED`, permanent |
+| Submit | `DRAFT -> PENDING_REVIEW` |
+| Submitted | Event, not persistent state |
+| Under Review | Not used |
+| Reviewer View | No state change |
+| Reviewer eligibility | Shared/non-exclusive |
+| Revision | `REVISION_REQUIRED`, unlimited |
+| Resubmit | Always `PENDING_REVIEW` |
+| Forward | `PENDING_REVIEW -> PENDING_APPROVAL` |
+| Approver eligibility | Shared/non-exclusive |
+| Final approval | One eligible Approver sufficient |
+| Approved By | Successful final actor |
+| Return Reviewer | `PENDING_APPROVAL -> PENDING_REVIEW` |
+| Return Requester | `PENDING_APPROVAL -> REVISION_REQUIRED -> PENDING_REVIEW` |
+| Reject | `REJECTED`, recoverable by Reopen |
+| Reopen | Action/event; `REJECTED`/`APPROVED` → Review or Revision only |
+| Reopen to Draft/Approval | Forbidden |
+| Archive | Independent flag; only Approved/Rejected/Cancelled |
+| Unarchive | Allowed with permission; status unchanged |
+| Change Result | Completed before Forward/Approval; no new state |
+| Timeline | Legitimate viewer sees activity |
 | Export | View implies export |
-| Notification | Future/draft only |
-| Emergency | No workflow bypass |
+| Emergency | Same Review + Approval flow |
+| Concurrency | Stale state-changing action rejected server-side |
 
 ---
 
 # PART Q — OPEN ITEMS
 
-## 49. Explicit TBDs
-
-User Flow sengaja belum menebak:
+## 52. Explicit Downstream TBDs
 
 - exact Unit/Division template entries;
-- automatic number format;
-- Service Impact single vs multi-select;
-- exact point when Result of Changes becomes required;
+- automatic number format/uniqueness;
+- Service Impact cardinality;
+- exact mandatory/conditional fields;
+- exact actor/permission for Change Result capture during `PENDING_REVIEW`;
 - mandatory reasons selain Reopen;
-- exact valid Reopen destinations;
-- unarchive flow;
-- search/filter UI details;
+- search/filter UI;
 - export packaging/additional format;
+- audit retention/export audit;
+- attachment constraints;
 - notification provider/timing;
-- final workflow state names.
+- technical transaction/version mechanism.
 
 ---
 
-## 50. Next Document
+## 53. Current Documentation Progress
 
-Dokumen berikutnya adalah:
+`05_State_Status_Flow.md` telah mengunci lifecycle authoritative.
 
-**`05_State_Status_Flow.md`**
+Dokumen berikutnya:
 
-State Flow harus mengubah seluruh semantic flow pada dokumen ini menjadi state machine authoritative, terutama:
-
-- Draft;
-- Submitted / Awaiting Review;
-- review states;
-- returned/revision states;
-- Awaiting Approval;
-- Approved;
-- Rejected;
-- Reopened destinations;
-- Cancelled terminal state;
-- Archive treatment;
-- valid transition actor/permission;
-- concurrency behavior untuk shared Reviewer dan Approver pools.
+**`06_Validation_Rules.md`**.
