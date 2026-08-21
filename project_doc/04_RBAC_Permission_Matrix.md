@@ -4,9 +4,9 @@
 
 > **Document ID:** NSCMF-RBAC-004  
 > **Document Order:** 04 / 20  
-> **Status:** Draft — Confirmed RBAC Model + Explicit TBDs  
+> **Status:** Draft — Synchronized through State / Status Flow  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`  
 > **Last Updated:** 2026-08-21
 
 ---
@@ -15,85 +15,79 @@
 
 Dokumen ini mendefinisikan **siapa boleh melakukan apa** pada NSCMF Digital Form & Workflow System.
 
-Dokumen ini menjadi source of truth untuk:
+Dokumen menjadi source of truth untuk:
 
-- role template;
+- default role template;
 - permission catalog;
 - record visibility;
-- unit/division scope;
-- approval scope;
+- Unit/Division Reviewer Scope;
+- Approval Scope;
 - multi-role behavior;
 - custom role behavior;
 - delegated administration;
 - protected Superadmin restrictions;
 - authorization guardrails.
 
-Business Rules menentukan batas bisnis. User Flow menentukan urutan interaksi. RBAC menentukan apakah actor tertentu **berhak menjalankan action** terhadap resource tertentu.
+Business Rules menentukan invariant. User Flow menentukan urutan interaction. State Flow menentukan lifecycle yang valid. RBAC menentukan apakah actor tertentu berhak melakukan action pada current state.
 
-Permission pada dokumen ini bersifat **konseptual dan implementation-agnostic**. Nama permission dapat diterapkan menggunakan authorization package/framework yang dipilih kemudian pada `08_Tech_Stack_Specification.md`. Package seperti `spatie/laravel-permission` adalah kandidat yang sesuai, tetapi belum menjadi keputusan teknis final pada dokumen ini.
+Permission di sini implementation-agnostic. Package seperti `spatie/laravel-permission` hanya kandidat sampai `08_Tech_Stack_Specification.md`.
 
 ---
 
 ## 2. Core Authorization Model
-
-Authorization aplikasi menggunakan kombinasi:
 
 ```text
 Effective Access
 =
 Permission
 +
-Record Scope
+Record Visibility
 +
-Current Workflow State
+Scope
++
+Current Business State
++
+Archive Treatment
 +
 Business Rules
 +
-Protected System Invariants
+Protected Invariants
 ```
 
-Memiliki permission **tidak selalu cukup** untuk menjalankan action.
+Permission saja tidak cukup.
 
 Contoh:
 
-- user memiliki `nscmf.approve`, tetapi record berada di luar Approval Scope → **DENY**;
-- user memiliki `nscmf.review`, tetapi record belum berada pada tahap yang dapat direview → **DENY**;
-- user memiliki `nscmf.archive`, tetapi action melanggar state rule yang nantinya ditentukan → **DENY**;
-- Superadmin memiliki global visibility, tetapi tetap tidak boleh hard-delete NSCMF → **DENY** karena no-hard-delete adalah invariant.
+- `nscmf.approve` tetapi record bukan `PENDING_APPROVAL` → DENY;
+- `nscmf.review.forward` tetapi record bukan `PENDING_REVIEW` → DENY;
+- `nscmf.reopen` tetapi record archived → DENY sampai Unarchive;
+- `nscmf.archive` tetapi record `DRAFT` → DENY;
+- global Superadmin visibility tetap tidak memberi hard-delete NSCMF.
 
 ---
 
 ## 3. Authorization Principles
 
 ### RBAC-PRINCIPLE-001 — Deny by Default
-
-Action yang tidak diberikan melalui permission atau protected Superadmin capability MUST dianggap tidak diizinkan.
+Action yang tidak diberikan atau tidak memenuhi scope/state MUST ditolak.
 
 ### RBAC-PRINCIPLE-002 — Server-Side Enforcement
+Permission, visibility, scope, archive flag, current state, dan validation MUST diverifikasi backend.
 
-Semua permission dan scope MUST diverifikasi pada backend. Menyembunyikan tombol pada UI saja tidak dianggap authorization.
-
-### RBAC-PRINCIPLE-003 — Multi-Role Is Allowed
-
-Satu user MAY memiliki lebih dari satu role.
+### RBAC-PRINCIPLE-003 — Multi-Role Allowed
+Satu user MAY memiliki beberapa role.
 
 ### RBAC-PRINCIPLE-004 — Permission Union
+Effective permission multi-role pada dasarnya union seluruh role, tetap tunduk state/scope/invariants.
 
-Untuk multi-role user, effective permission pada dasarnya adalah union dari permission seluruh role yang dimiliki user, tetap tunduk pada scope, state, dan business invariant.
+### RBAC-PRINCIPLE-005 — Scope Independent From Role Name
+Reviewer/Approver role tidak otomatis global.
 
-### RBAC-PRINCIPLE-005 — Scope Is Independent From Role Name
-
-Role name tidak otomatis memberikan global access. Reviewer dan Approver tetap memerlukan scope.
-
-### RBAC-PRINCIPLE-006 — Custom Roles Are Supported
-
-Superadmin dapat menggunakan role template atau membuat role secara manual. Role custom MAY memperoleh kombinasi permission granular selama tidak melanggar protected invariant.
+### RBAC-PRINCIPLE-006 — Custom Roles Supported
+Custom role MAY memperoleh kombinasi permission granular selama tidak melanggar protected invariant.
 
 ### RBAC-PRINCIPLE-007 — No Impersonation
-
-Aplikasi tidak menyediakan permission untuk login/impersonate sebagai user lain.
-
-Fitur impersonation tidak termasuk requirement saat ini.
+Tidak ada user impersonation/login-as-user.
 
 ---
 
@@ -101,91 +95,53 @@ Fitur impersonation tidak termasuk requirement saat ini.
 
 ## 4. Default Roles
 
-Initial setup menyediakan template minimum berikut:
-
-| Role | Purpose | Default Scope Model |
+| Role | Purpose | Default Scope |
 |---|---|---|
 | `Superadmin` | Protected authority tertinggi | Global |
-| `Requester` | Membuat dan mengajukan NSCMF | Own records |
-| `Reviewer` | Melakukan review | Assigned Unit/Division |
-| `Approver` | Final approval | Assigned Approval Scope, dapat mencakup beberapa Unit/Division |
+| `Requester` | Membuat/mengajukan NSCMF | Own records |
+| `Reviewer` | Review | Assigned Unit/Division(s) |
+| `Approver` | Final approval | Assigned Approval Scope; may span units |
 
-Role template adalah **default starting point**, bukan batas bahwa aplikasi hanya boleh memiliki empat role.
+Role template adalah starting point, bukan batas custom roles.
 
 ---
 
 ## 5. Protected Superadmin
 
-### RBAC-SUPER-001 — Seeded Protected Role
+Protected Superadmin:
 
-Setidaknya satu protected Superadmin account MUST dibuat saat seeding awal.
+- seeded saat initial setup;
+- global NSCMF visibility, termasuk archived;
+- default memiliki normal NSCMF/admin permissions;
+- tidak dapat disable/delete/downgrade/lose protected role;
+- tidak memiliki NSCMF hard-delete capability karena capability tersebut tidak tersedia.
 
-### RBAC-SUPER-002 — Global NSCMF Visibility
-
-Superadmin dapat melihat seluruh NSCMF termasuk active, rejected, cancelled, approved, reopened, dan archived records.
-
-### RBAC-SUPER-003 — Default Administrative Authority
-
-Superadmin secara default memiliki seluruh administrative permissions yang relevan.
-
-### RBAC-SUPER-004 — Cannot Be Downgraded
-
-Protected Superadmin role tidak dapat dilepas dari protected account.
-
-### RBAC-SUPER-005 — Cannot Be Disabled
-
-Protected Superadmin account tidak dapat dinonaktifkan/soft-delete melalui normal application flow.
-
-### RBAC-SUPER-006 — Cannot Be Deleted
-
-Protected Superadmin account tidak dapat di-hard-delete.
-
-### RBAC-SUPER-007 — No NSCMF Hard Delete Capability
-
-Superadmin **tidak pernah** memperoleh permission untuk hard-delete NSCMF karena action tersebut tidak tersedia dalam business model.
-
-### RBAC-SUPER-008 — Delegation Does Not Remove Protection
-
-User lain MAY diberi administrative permissions, tetapi permission tersebut tidak dapat digunakan untuk menghapus, downgrade, disable, atau mengambil alih protection protected Superadmin.
+Delegated administrator tidak dapat melewati protection ini.
 
 ---
 
 # PART B — PERMISSION CATALOG
 
-## 6. Permission Naming Convention
+## 6. Naming Convention
 
-Permission konseptual menggunakan namespace:
+Conceptual naming:
 
 ```text
 <domain>.<action>[.<qualifier>]
 ```
 
-Contoh:
-
-```text
-nscmf.create
-nscmf.review
-nscmf.approve
-users.manage
-roles.manage
-```
-
-Nama final di source code MAY sedikit berbeda selama mapping ke specification ini terdokumentasi.
+Code naming MAY berbeda sedikit selama mapping terdokumentasi.
 
 ---
 
-## 7. Authentication / Session Permissions
-
-Authentication dasar tidak perlu diperlakukan sebagai role-specific permission setelah account aktif.
+## 7. Authentication / Session
 
 | Permission | Purpose |
 |---|---|
-| `session.login` | Login menggunakan account valid |
-| `session.logout` | Mengakhiri session sendiri |
+| `session.login` | Login account valid |
+| `session.logout` | Logout own session |
 
-Account disabled MUST NOT dapat login terlepas dari role yang masih tersimpan pada data user tersebut.
-
-Protected Superadmin tidak boleh berada pada disabled state.
+Disabled normal account tidak dapat login. Protected Superadmin tidak dapat disabled.
 
 ---
 
@@ -194,142 +150,87 @@ Protected Superadmin tidak boleh berada pada disabled state.
 | Permission | Description |
 |---|---|
 | `nscmf.create` | Membuat record NSCMF baru |
-| `nscmf.draft.edit` | Mengedit Draft yang berada dalam eligible ownership/scope |
-| `nscmf.submit` | Submit record yang eligible |
-| `nscmf.cancel` | Cancel own Draft sebelum submission |
-| `nscmf.view` | Membuka record yang lolos visibility scope |
-| `nscmf.view.history` | Mengakses History berdasarkan visibility scope |
-| `nscmf.attachment.manage` | Menambah/mengubah/menghapus attachment pada state editable |
-| `nscmf.export` | Export record yang boleh dilihat |
-| `nscmf.export.bulk` | Bulk export record yang boleh dilihat |
-| `nscmf.timeline.view` | Melihat timeline/audit activity dari record yang boleh dilihat |
+| `nscmf.draft.edit` | Edit eligible `DRAFT` / `REVISION_REQUIRED` own record |
+| `nscmf.submit` | Submit `DRAFT` atau Resubmit `REVISION_REQUIRED` |
+| `nscmf.cancel` | Cancel own `DRAFT` sebelum first Submit |
+| `nscmf.view` | View record yang lolos visibility |
+| `nscmf.view.history` | Access History berdasarkan visibility |
+| `nscmf.attachment.manage` | Manage attachment pada editable/authorized context |
+| `nscmf.export` | Export visible record |
+| `nscmf.export.bulk` | Bulk export visible records |
+| `nscmf.timeline.view` | View timeline pada visible record |
 
-### RBAC-CORE-001 — View Implies Timeline Visibility
-
-Semua user yang dapat melihat sebuah NSCMF MUST dapat melihat timeline aktivitas record tersebut untuk mengetahui siapa melakukan apa.
-
-Karena itu `nscmf.timeline.view` secara business behavior melekat pada valid record visibility dan tidak boleh dipakai untuk menyembunyikan timeline dari legitimate viewer.
+### RBAC-CORE-001 — View Implies Timeline
+Legitimate viewer MUST dapat melihat timeline record tersebut.
 
 ### RBAC-CORE-002 — Export Requires View
+Export tidak dapat digunakan untuk inaccessible record.
 
-`nscmf.export` atau `nscmf.export.bulk` tidak dapat digunakan untuk record yang tidak boleh dilihat user.
+### RBAC-CORE-003 — State-Neutral View
+View/opening record tidak mengubah business state atau membuat exclusive assignee.
 
 ---
 
 ## 9. Review Permissions
 
-| Permission | Description |
-|---|---|
-| `nscmf.review` | Melakukan review terhadap record eligible dalam Reviewer Scope |
-| `nscmf.review.forward` | Menyelesaikan review dan meneruskan ke Approval |
-| `nscmf.review.return` | Return record kepada Requester untuk revision |
-| `nscmf.review.reject` | Reject record pada tahap Review |
+| Permission | Description | Eligible State |
+|---|---|---|
+| `nscmf.review` | Melakukan review activity | `PENDING_REVIEW` |
+| `nscmf.review.forward` | Forward ke Approval | `PENDING_REVIEW` |
+| `nscmf.review.return` | Return ke Requester | `PENDING_REVIEW` |
+| `nscmf.review.reject` | Reject pada Review | `PENDING_REVIEW` |
 
-### RBAC-REV-001 — Reviewer Scope Required
+### RBAC-REV-001 — Scope Required
+Reviewer action membutuhkan matching Unit/Division scope.
 
-Permission review selalu membutuhkan Reviewer Scope yang mencakup record target.
+### RBAC-REV-002 — Non-Exclusive Reviewer
+Reviewer A tidak mengunci Reviewer B/C yang juga eligible.
 
-### RBAC-REV-002 — Reviewer Is Non-Exclusive
+### RBAC-REV-003 — Multiple Contributors
+Satu NSCMF MAY memiliki beberapa Reviewer contributors sepanjang lifecycle.
 
-Record **tidak di-lock secara eksklusif kepada satu Reviewer**.
-
-Semua Reviewer yang:
-
-1. memiliki permission yang diperlukan; dan
-2. memiliki Unit/Division scope yang mencakup record
-
-MAY membuka dan melakukan review action sesuai current state.
-
-### RBAC-REV-003 — Multiple Reviewer Contributors Are Allowed
-
-Satu NSCMF MAY memiliki aktivitas review/modification dari lebih dari satu Reviewer sepanjang lifecycle-nya.
-
-Contoh:
-
-```text
-Reviewer A → membuka dan review
-Reviewer B → review / modification action
-Reviewer A → melihat revision
-Reviewer C → forward
-```
-
-Semua actor tersebut tetap tercatat pada timeline/audit history.
-
-### RBAC-REV-004 — Assigned / Modified By Is Tracking, Not Exclusive Ownership
-
-Konsep `assigned`, `modified by`, atau reviewer contributor tidak boleh digunakan sebagai exclusive lock.
-
-Satu record MAY memiliki lebih dari satu Reviewer yang tercatat sebagai contributor.
+### RBAC-REV-004 — Tracking Is Not Ownership Lock
+`assigned`, `modified by`, `reviewed by`, viewer/contributor metadata tidak boleh menjadi exclusive authorization lock.
 
 ### RBAC-REV-005 — Viewer Logging
+Reviewer view MAY/MUST dicatat sesuai audit requirement tanpa state transition.
 
-Ketika Reviewer membuka record yang dapat dilihatnya, sistem MUST dapat mencatat viewer activity sesuai audit requirement yang sudah disepakati untuk workflow ini.
+### RBAC-REV-006 — Change Result Capture During Review
+`NSCMF - Change` membutuhkan narrow Result-of-Changes capture di `PENDING_REVIEW` sebelum Forward ketika applicable.
 
-Viewer activity tidak otomatis menjadikan Reviewer tersebut exclusive assignee.
+Source workbook tidak menentukan actor pengisi Result secara eksplisit. Karena itu **exact permission/actor untuk Result capture tetap TBD dan MUST NOT ditebak pada tahap ini**. Downstream Validation/UI refinement harus memastikan capability tersebut hanya membuka Result-related fields, bukan general submitted form editing.
 
 ---
 
 ## 10. Approval Permissions
 
-| Permission | Description |
-|---|---|
-| `nscmf.approve` | Memberikan final approval pada record eligible |
-| `nscmf.approval.return_reviewer` | Mengembalikan record ke Review |
-| `nscmf.approval.return_requester` | Mengembalikan record ke Requester untuk revision |
-| `nscmf.approval.reject` | Reject record pada tahap Approval |
+| Permission | Description | Eligible State |
+|---|---|---|
+| `nscmf.approve` | Final Approve | `PENDING_APPROVAL` |
+| `nscmf.approval.return_reviewer` | Return ke Review | `PENDING_APPROVAL` |
+| `nscmf.approval.return_requester` | Return ke Requester revision | `PENDING_APPROVAL` |
+| `nscmf.approval.reject` | Reject pada Approval | `PENDING_APPROVAL` |
 
-### RBAC-APR-001 — Approval Scope Required
+### RBAC-APR-001 — Scope Required
+Approver action membutuhkan matching Approval Scope.
 
-Approver action hanya valid apabila actor memiliki Approval Scope yang mencakup record target.
+### RBAC-APR-002 — Multi-Unit Scope
+Satu Approver MAY mencakup beberapa Unit/Division.
 
-### RBAC-APR-002 — Approval Scope May Cover Multiple Units
-
-Satu Approver MAY memiliki scope yang mencakup lebih dari satu Unit/Division.
-
-Contoh:
-
-```text
-Approver A scope:
-- NOC
-- Domestic
-- Regional
-```
-
-### RBAC-APR-003 — Approver Is Non-Exclusive
-
-Approver tidak di-assign secara eksklusif.
-
-Semua Approver yang memiliki permission dan matching scope MAY melihat serta mengambil action pada record yang eligible.
+### RBAC-APR-003 — Non-Exclusive Approver
+Semua eligible Approver dalam scope dapat melihat/bertindak selama state valid.
 
 ### RBAC-APR-004 — Single Final Approval
+Satu successful final Approve cukup membuat record `APPROVED`.
 
-**Satu final approval dari satu eligible Approver sudah cukup untuk membuat NSCMF menjadi Approved.**
+### RBAC-APR-005 — Approved By
+`Approved By` = actor yang berhasil melakukan transition `PENDING_APPROVAL -> APPROVED`.
 
-Aplikasi tidak mewajibkan seluruh eligible Approver memberikan approval.
+### RBAC-APR-006 — Activity History
+Approver lain dapat muncul pada timeline sebagai viewer/return/reject actor dari iteration sebelumnya.
 
-### RBAC-APR-005 — Approved By Is the Final Actor
-
-`Approved By` merepresentasikan actor yang berhasil mengeksekusi final approval tersebut.
-
-Contoh:
-
-```text
-Approver A → View
-Approver B → View
-Approver C → Approve
-
-Final Approved By = Approver C
-```
-
-### RBAC-APR-006 — Multiple Approver Activity May Exist in Timeline
-
-Walaupun final Approved By hanya satu actor, timeline MAY memiliki aktivitas dari beberapa eligible Approver, misalnya view, return, atau reject pada iteration sebelumnya.
-
-### RBAC-APR-007 — First Valid Final Approval Completes Approval
-
-Setelah satu eligible Approver berhasil menghasilkan final Approved state, Approver lain tidak boleh menghasilkan approval kedua untuk workflow iteration yang sama.
-
-Action berikutnya harus tunduk pada current state yang sudah berubah.
+### RBAC-APR-007 — No Duplicate Final Approval
+Setelah state `APPROVED`, stale Approve kedua MUST ditolak.
 
 ---
 
@@ -337,128 +238,93 @@ Action berikutnya harus tunduk pada current state yang sudah berubah.
 
 | Permission | Description |
 |---|---|
-| `nscmf.reopen` | Reopen/Revert eligible terminal/protected record sesuai Business Rules |
-| `nscmf.archive` | Archive NSCMF tanpa hard delete |
+| `nscmf.reopen` | Reopen/Revert eligible `REJECTED` / `APPROVED` record |
+| `nscmf.archive` | Archive **dan Unarchive** eligible NSCMF lifecycle treatment |
 
-### RBAC-LIFE-001 — Superadmin Has Reopen Permission by Default
+### RBAC-LIFE-001 — Reopen Default
+Protected Superadmin memiliki `nscmf.reopen` default.
 
-Protected Superadmin memiliki `nscmf.reopen` secara default.
-
-### RBAC-LIFE-002 — Reopen May Be Delegated
-
-Custom/default role lain MAY memperoleh `nscmf.reopen` jika permission tersebut secara eksplisit diberikan.
-
-Memiliki permission ini tetap tidak mengizinkan actor melewati mandatory reason, target-state selection, audit, dan workflow restriction.
+### RBAC-LIFE-002 — Reopen Delegable
+Role lain MAY memperoleh explicit `nscmf.reopen`.
 
 ### RBAC-LIFE-003 — Reopen Is Not Global View
+`nscmf.reopen` tidak otomatis memberikan `nscmf.view.all`.
 
-User dengan `nscmf.reopen` hanya dapat melakukan reopen terhadap record yang secara authorization dapat ia akses, kecuali role tersebut juga memiliki global visibility.
+### RBAC-LIFE-004 — Reopen State Rules
+Reopen hanya valid jika:
 
-### RBAC-LIFE-004 — Archive May Be Delegated
+```text
+business_status in {REJECTED, APPROVED}
+AND is_archived = false
+AND mandatory reason
+AND destination in {REVISION_REQUIRED, PENDING_REVIEW}
+```
 
-`nscmf.archive` MAY diberikan kepada role selain Superadmin.
+Reopen tidak boleh menuju `DRAFT` atau `PENDING_APPROVAL`.
 
-### RBAC-LIFE-005 — Archive Is Not Delete
+### RBAC-LIFE-005 — Archive Delegable
+`nscmf.archive` MAY diberikan ke role selain Superadmin.
 
-Tidak ada permission `nscmf.delete` atau `nscmf.force_delete` untuk NSCMF.
+### RBAC-LIFE-006 — Archive State Rules
+Archive hanya valid jika:
 
-### RBAC-LIFE-006 — Archived Visibility
+```text
+business_status in {APPROVED, REJECTED, CANCELLED}
+AND is_archived = false
+```
 
-Archived record mengikuti visibility normal:
+Archive dilarang pada `DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL`.
 
-- Superadmin → seluruh archived NSCMF;
-- Requester → archived own record yang masih termasuk visibility-nya;
-- Reviewer → archived record dalam Unit/Division scope;
-- Approver → archived record dalam Approval Scope;
-- custom role → mengikuti effective view permission + scope.
+### RBAC-LIFE-007 — Unarchive Uses Lifecycle Permission
+Unarchive menggunakan `nscmf.archive` pada current conceptual permission model:
 
-Archive tidak menjadi cara untuk menyembunyikan record dari actor yang secara normal masih memiliki legitimate access.
+```text
+nscmf.archive
++ valid visibility
++ is_archived = true
+```
+
+Unarchive tidak mengubah `business_status`.
+
+### RBAC-LIFE-008 — Archived Workflow Lock
+Archived record tidak menerima normal business workflow-changing action. Untuk `APPROVED`/`REJECTED`, Unarchive diperlukan sebelum Reopen.
+
+### RBAC-LIFE-009 — No Delete Permission
+Tidak ada `nscmf.delete` / `nscmf.force_delete`.
 
 ---
 
-# PART C — USER, ROLE, UNIT, AND SETTINGS ADMINISTRATION
+# PART C — USER / ROLE / ORGANIZATION / SETTINGS ADMINISTRATION
 
 ## 12. User Management Permissions
 
 | Permission | Description |
 |---|---|
-| `users.view` | Melihat daftar/detail user |
-| `users.create` | Membuat user baru |
-| `users.update` | Mengubah profil/account metadata user |
-| `users.enable` | Mengaktifkan kembali eligible account |
-| `users.disable` | Menonaktifkan eligible account |
-| `users.reset_password` | Memulai/reset password user sesuai security flow |
-| `users.assign_roles` | Assign/remove role user |
-| `users.assign_units` | Memindahkan atau mengubah Unit/Division membership user |
-| `users.assign_scopes` | Mengatur Reviewer/Approval scope user jika model implementation memerlukan direct user scope assignment |
+| `users.view` | View user |
+| `users.create` | Create user |
+| `users.update` | Update eligible user |
+| `users.enable` | Enable eligible user |
+| `users.disable` | Disable eligible normal user |
+| `users.reset_password` | Reset credential according to security flow |
+| `users.assign_roles` | Assign/remove roles |
+| `users.assign_units` | Assign/move Unit/Division |
+| `users.assign_scopes` | Configure eligible reviewer/approval scope |
 
-### RBAC-USER-001 — Delegated User Administration Is Allowed
-
-Superadmin memiliki user management secara default, tetapi user lain MAY memperoleh permission user management jika diberikan secara eksplisit.
-
-### RBAC-USER-002 — Protected Superadmin Cannot Be Modified Through Delegated Admin
-
-User dengan `users.update`, `users.disable`, atau `users.assign_roles` MUST NOT dapat:
-
-- disable protected Superadmin;
-- menghapus protected Superadmin role;
-- downgrade protected Superadmin;
-- hard-delete protected Superadmin.
-
-### RBAC-USER-003 — No User Impersonation Permission
-
-Tidak ada permission `users.impersonate` pada scope proyek saat ini.
+User administration MAY didelegasikan, tetapi protected Superadmin invariants tetap berlaku.
 
 ---
 
-## 13. Role and Permission Administration
+## 13. Role / Permission Administration
 
 | Permission | Description |
 |---|---|
-| `roles.view` | Melihat role dan permission mapping |
-| `roles.create` | Membuat custom role |
-| `roles.update` | Mengubah eligible custom/template role |
-| `roles.archive` | Menonaktifkan/archive eligible role jika diizinkan model final |
-| `permissions.assign` | Mengatur permission yang dimiliki role |
+| `roles.view` | View role mapping |
+| `roles.create` | Create custom role |
+| `roles.update` | Update eligible role |
+| `roles.archive` | Archive eligible role jika model final mengizinkan |
+| `permissions.assign` | Assign permission to role |
 
-### RBAC-ROLE-001 — Superadmin Has Role Administration by Default
-
-Superadmin dapat mengelola role dan permission.
-
-### RBAC-ROLE-002 — Role Administration May Be Delegated
-
-Role lain MAY mengelola role/permission apabila memperoleh permission administrasi yang sesuai.
-
-### RBAC-ROLE-003 — Protected Superadmin Role Cannot Be Removed
-
-Delegated role management tidak dapat menghapus, archive, atau membuat protected Superadmin kehilangan protection-nya.
-
-### RBAC-ROLE-004 — Custom Role May Use Granular Permission Combination
-
-Custom role MAY memiliki kombinasi capability granular.
-
-Contoh valid:
-
-```text
-Role: NOC Lead
-Permissions:
-- nscmf.view
-- nscmf.review
-- nscmf.review.forward
-- nscmf.review.return
-- nscmf.approve
-- nscmf.reopen
-- nscmf.export
-
-No permission:
-- users.create
-- roles.update
-- system.settings.manage
-```
-
-### RBAC-ROLE-005 — Permission Delegation Cannot Create System Invariant Bypass
-
-Walaupun sebuah role memiliki banyak permission, role tersebut tetap tidak dapat memperoleh kemampuan yang tidak tersedia dalam business model, seperti hard-delete NSCMF.
+Role administration MAY didelegasikan. Protected Superadmin role tidak dapat dihapus/archive/downgrade.
 
 ---
 
@@ -466,51 +332,29 @@ Walaupun sebuah role memiliki banyak permission, role tersebut tetap tidak dapat
 
 | Permission | Description |
 |---|---|
-| `org_units.view` | Melihat Unit/Division configuration |
-| `org_units.create` | Membuat Unit/Division |
-| `org_units.update` | Mengubah Unit/Division |
+| `org_units.view` | View Unit/Division |
+| `org_units.create` | Create Unit/Division |
+| `org_units.update` | Update Unit/Division |
 | `org_units.archive` | Archive eligible Unit/Division |
-| `org_units.assign_users` | Mapping user ke Unit/Division |
-| `org_units.assign_reviewer_scope` | Mengatur Unit/Division yang dapat direview actor |
-| `org_units.assign_approver_scope` | Mengatur Unit/Division/scope yang dapat di-approve actor |
+| `org_units.assign_users` | Map users |
+| `org_units.assign_reviewer_scope` | Configure Reviewer Scope |
+| `org_units.assign_approver_scope` | Configure Approval Scope |
 
-### RBAC-ORG-001 — Organization Administration May Be Delegated
-
-Superadmin memiliki permission ini secara default, tetapi role/user lain MAY memperoleh permission apabila diberikan secara eksplisit.
-
-### RBAC-ORG-002 — Template and Manual Organization Setup
-
-Initial setup MAY menggunakan template/mapping Unit/Division atau manual configuration sesuai User Flow.
-
-Pengelolaan setelah initial setup mengikuti permission catalog pada section ini.
+These MAY be delegated through explicit permission.
 
 ---
 
-## 15. System Settings Permissions
+## 15. System Settings
 
-### RBAC-SETTINGS-001 — System Settings Are Superadmin-Only
+Core system settings tetap protected Superadmin-only, termasuk initial setup mode, global numbering configuration, notification integration settings, dan other protected settings.
 
-Core system settings berikut hanya dapat dikonfigurasi oleh protected Superadmin:
-
-- initial role setup mode (`Template` / `Manual`);
-- initial Unit/Division setup mode (`Template` / `Manual`);
-- global numbering configuration;
-- draft notification integration settings;
-- protected system-level configuration lain yang nantinya dikategorikan sebagai System Settings.
-
-Gunakan conceptual permission:
+Conceptual permission:
 
 ```text
 system.settings.manage
 ```
 
-Permission tersebut **tidak boleh didelegasikan** kepada normal custom role pada requirement saat ini.
-
-### RBAC-SETTINGS-002 — Ongoing Role Management Is Different From System Settings
-
-`roles.manage` / role-permission administration dapat didelegasikan sesuai explicit permission.
-
-Hal tersebut berbeda dengan mengubah **initial/protected system setup mode** yang tetap Superadmin-only.
+Current requirement tidak mendelegasikan permission ini.
 
 ---
 
@@ -518,139 +362,89 @@ Hal tersebut berbeda dengan mengubah **initial/protected system setup mode** yan
 
 ## 16. Requester Scope
 
-### RBAC-SCOPE-REQ-001 — Own Records
-
-Requester secara default hanya dapat melihat record yang dimilikinya/dibuat dalam requester ownership context.
-
-### RBAC-SCOPE-REQ-002 — Additional Roles Extend Visibility
-
-Jika Requester juga memiliki Reviewer atau Approver role, effective visibility bertambah sesuai scope role lainnya.
-
-Contoh:
-
-```text
-User X:
-- Requester
-- Reviewer (Unit NOC)
-
-Can see:
-- own NSCMF
-- NSCMF dalam Reviewer Scope NOC
-```
-
----
+Requester default = own records. Additional roles extend visibility additively.
 
 ## 17. Reviewer Scope
 
-Reviewer Scope berbasis Unit/Division.
-
 ```text
-Reviewer Permission
-+
-Matching Unit/Division
-=
-Eligible Review Access
+review permission
++ matching assigned Unit/Division(s)
++ PENDING_REVIEW
+= eligible review action
 ```
 
-### RBAC-SCOPE-REV-001 — Multiple Reviewer Units Are Allowed
-
-Reviewer MAY diberi satu atau beberapa Unit/Division scope apabila konfigurasi organisasi membutuhkannya.
-
-### RBAC-SCOPE-REV-002 — No Implicit Global Reviewer Scope
-
-Reviewer tanpa matching Unit/Division tidak dapat review record hanya karena memiliki role Reviewer.
-
----
+Reviewer MAY have multiple units. No implicit global Reviewer scope.
 
 ## 18. Approver Scope
 
-Approver MAY memiliki satu atau beberapa Approval Scope.
+```text
+approval permission
++ matching Approval Scope
++ PENDING_APPROVAL
+= eligible approval action
+```
 
-Scope dapat mencakup beberapa Unit/Division sekaligus.
+Scope MAY span multiple Unit/Division(s). No implicit global Approver scope.
 
-### RBAC-SCOPE-APR-001 — Multi-Unit Approval
-
-Satu Approver MAY berwenang melakukan approval untuk lebih dari satu Unit/Division.
-
-### RBAC-SCOPE-APR-002 — No Implicit Global Approver Scope
-
-Approver tanpa matching scope tidak dapat approve record hanya karena memiliki role Approver.
-
-### RBAC-SCOPE-APR-003 — Scope Representation Is Deferred
-
-Apakah Approval Scope nantinya direpresentasikan sebagai:
-
-- daftar Unit/Division;
-- organizational group;
-- custom scope object;
-- kombinasi beberapa attribute
-
-akan difinalisasi pada ERD/System Architecture setelah requirement scope stabil.
-
-Business behavior yang wajib hanyalah: **Approver dapat memiliki scope lebih dari satu unit dan action harus dibatasi oleh scope tersebut.**
-
----
+Exact data representation of scope is deferred to ERD/Architecture.
 
 ## 19. Global Scope
 
-### RBAC-SCOPE-GLOBAL-001 — Protected Superadmin Global Scope
+Protected Superadmin global.
 
-Protected Superadmin memiliki global NSCMF visibility.
-
-### RBAC-SCOPE-GLOBAL-002 — Custom Global View Permission
-
-Apabila di kemudian hari business owner ingin role selain Superadmin memiliki global visibility tanpa full Superadmin authority, gunakan explicit permission konseptual:
+Optional conceptual future/custom permission:
 
 ```text
 nscmf.view.all
 ```
 
-Permission ini **belum menjadi default pada role template**.
-
-Jika diberikan, role tetap tidak otomatis memperoleh administrative, reopen, archive, review, atau approval permission.
+If granted, it only affects visibility, not automatic Review/Approve/Reopen/Archive/admin capability.
 
 ---
 
 # PART E — DEFAULT ROLE PERMISSION MATRIX
 
-## 20. Core NSCMF Matrix
+## 20. Core Matrix
 
 Legend:
 
-- ✅ = diberikan secara default
-- 🔒 = diberikan dan protected/inherent
-- Scope = hanya berlaku dalam scope yang valid
-- — = tidak diberikan secara default, tetapi MAY diberikan melalui custom configuration jika rule memperbolehkan
+- ✅ default permission;
+- 🔒 protected/inherent;
+- Scope = required matching scope;
+- — not default but MAY be custom-granted if rule allows;
+- ❌ capability unavailable.
 
 | Capability | Superadmin | Requester | Reviewer | Approver |
 |---|---:|---:|---:|---:|
 | Login / Logout | ✅ | ✅ | ✅ | ✅ |
 | Create NSCMF | ✅ | ✅ | — | — |
-| Edit own Draft | ✅ | ✅ | — | — |
-| Autosave own Draft | ✅ | ✅ | — | — |
-| Save Draft | ✅ | ✅ | — | — |
-| Cancel own Draft | ✅ | ✅ | — | — |
-| Submit own eligible NSCMF | ✅ | ✅ | — | — |
+| Edit own `DRAFT` | ✅ | ✅ | — | — |
+| Edit own `REVISION_REQUIRED` | ✅ | ✅ | — | — |
+| Autosave / Save editable record | ✅ | ✅ | — | — |
+| Cancel own `DRAFT` | ✅ | ✅ | — | — |
+| Submit/Resubmit own eligible record | ✅ | ✅ | — | — |
 | View own NSCMF | ✅ | ✅ | Scope | Scope |
 | View scoped NSCMF | ✅ | — | ✅ Unit/Division | ✅ Approval Scope |
 | View all NSCMF | 🔒 | — | — | — |
-| View timeline on visible NSCMF | ✅ | ✅ | ✅ | ✅ |
-| Manage attachment while editable | ✅ | ✅ | — | — |
-| Review | ✅ | — | ✅ Scope | — |
+| View timeline on visible record | ✅ | ✅ | ✅ | ✅ |
+| Manage attachment while authorized | ✅ | ✅ | — | — |
+| Review `PENDING_REVIEW` | ✅ | — | ✅ Scope | — |
 | Forward to Approval | ✅ | — | ✅ Scope | — |
-| Return from Review to Requester | ✅ | — | ✅ Scope | — |
+| Return Review to Requester | ✅ | — | ✅ Scope | — |
 | Reject at Review | ✅ | — | ✅ Scope | — |
-| Approve | ✅ | — | — | ✅ Scope |
+| Approve `PENDING_APPROVAL` | ✅ | — | — | ✅ Scope |
 | Return Approval to Reviewer | ✅ | — | — | ✅ Scope |
 | Return Approval to Requester | ✅ | — | — | ✅ Scope |
 | Reject at Approval | ✅ | — | — | ✅ Scope |
-| Reopen/Revert | ✅ | — | — | — |
-| Archive | ✅ | — | — | — |
+| Reopen/Revert Approved/Rejected | ✅ | — | — | — |
+| Archive/Unarchive eligible record | ✅ | — | — | — |
 | Single Export visible record | ✅ | ✅ | ✅ | ✅ |
 | Bulk Export visible records | ✅ | ✅ | ✅ | ✅ |
 | Hard Delete NSCMF | ❌ | ❌ | ❌ | ❌ |
 
-> `Reopen` dan `Archive` tidak diberikan secara default kepada Requester/Reviewer/Approver, tetapi MAY diberikan kepada custom/default role melalui explicit permission sesuai Business Rules.
+`Reopen` and `Archive/Unarchive` MAY be custom-granted explicitly to non-Superadmin roles.
+
+Exact default role for Change Result capture during `PENDING_REVIEW` is deliberately not assigned yet.
 
 ---
 
@@ -658,22 +452,16 @@ Legend:
 
 | Capability | Superadmin | Requester | Reviewer | Approver |
 |---|---:|---:|---:|---:|
-| View Users | ✅ | — | — | — |
-| Create User | ✅ | — | — | — |
-| Edit User | ✅ | — | — | — |
-| Enable/Disable eligible User | ✅ | — | — | — |
+| View/Create/Edit eligible Users | ✅ | — | — | — |
+| Enable/Disable eligible Users | ✅ | — | — | — |
 | Reset Password | ✅ | — | — | — |
-| Assign/Remove Roles | ✅ | — | — | — |
-| Assign User Unit/Division | ✅ | — | — | — |
-| Manage Roles | ✅ | — | — | — |
-| Manage Permissions | ✅ | — | — | — |
+| Assign Roles/Units/Scopes | ✅ | — | — | — |
+| Manage Roles/Permissions | ✅ | — | — | — |
 | Manage Unit/Division | ✅ | — | — | — |
-| Configure Reviewer Scope | ✅ | — | — | — |
-| Configure Approver Scope | ✅ | — | — | — |
 | Manage Core System Settings | 🔒 | — | — | — |
 | Impersonate User | ❌ | ❌ | ❌ | ❌ |
 
-> Semua administration capability selain **Core System Settings** MAY diberikan ke role lain melalui explicit permissions. Tabel hanya menunjukkan default template.
+All administration capability except Core System Settings MAY be delegated by explicit permissions.
 
 ---
 
@@ -681,114 +469,90 @@ Legend:
 
 ## 22. Requester Actions
 
-| Action | Required Permission | Required Scope/Condition |
+| Action | Permission | State / Condition |
 |---|---|---|
-| Create | `nscmf.create` | Authenticated eligible user |
-| Edit Draft | `nscmf.draft.edit` | Own + editable state |
-| Save Draft | `nscmf.draft.edit` | Own + editable state |
-| Autosave | `nscmf.draft.edit` | Own + editable state |
-| Cancel | `nscmf.cancel` | Own + still Draft / not submitted |
-| Submit | `nscmf.submit` | Own + validation passes |
-| Edit returned record | `nscmf.draft.edit` or equivalent revision edit permission | Own + returned to Requester |
-| Resubmit | `nscmf.submit` | Own + revision validation passes |
-| View | `nscmf.view` | Own or extra scope from another role |
-| Export | `nscmf.export` | Must be allowed to view record |
+| Create | `nscmf.create` | authenticated eligible user |
+| Edit | `nscmf.draft.edit` | own + `DRAFT` or `REVISION_REQUIRED` |
+| Autosave / Save | `nscmf.draft.edit` | own + editable state |
+| Cancel | `nscmf.cancel` | own + `DRAFT` + never submitted |
+| Submit | `nscmf.submit` | own + `DRAFT` + validation passes |
+| Resubmit | `nscmf.submit` | own + `REVISION_REQUIRED` + validation passes |
+| View | `nscmf.view` | own or additional scoped visibility |
+| Export | `nscmf.export` | visible record |
+
+Normal Requester edit is unavailable in `PENDING_REVIEW`, except narrow Change Result mechanism once its exact actor/permission is defined.
 
 ---
 
 ## 23. Reviewer Actions
 
-| Action | Required Permission | Required Scope/Condition |
+| Action | Permission | State / Condition |
 |---|---|---|
-| View review candidate | `nscmf.view` | Matching Unit/Division |
-| Review | `nscmf.review` | Matching Unit/Division + eligible state |
-| Forward | `nscmf.review.forward` | Matching Unit/Division + eligible state |
-| Return to Requester | `nscmf.review.return` | Matching Unit/Division + eligible state |
-| Reject | `nscmf.review.reject` | Matching Unit/Division + eligible state |
-| View Timeline | implicit from valid view | Matching Unit/Division |
-| Export | `nscmf.export` | Matching Unit/Division / valid visibility |
+| View review candidate | `nscmf.view` | matching Unit/Division + `PENDING_REVIEW` |
+| Review activity | `nscmf.review` | matching scope + `PENDING_REVIEW` |
+| Forward | `nscmf.review.forward` | matching scope + `PENDING_REVIEW` + Forward validation |
+| Return | `nscmf.review.return` | matching scope + `PENDING_REVIEW` |
+| Reject | `nscmf.review.reject` | matching scope + `PENDING_REVIEW` |
+| Timeline | implicit from valid view | matching visibility |
+| Export | `nscmf.export` | visible record |
 
-Reviewer A melakukan review **tidak mencabut hak Reviewer B** yang juga eligible.
+For Change, Forward additionally requires applicable Result-of-Changes gate to pass.
 
 ---
 
 ## 24. Approver Actions
 
-| Action | Required Permission | Required Scope/Condition |
+| Action | Permission | State / Condition |
 |---|---|---|
-| View approval candidate | `nscmf.view` | Matching Approval Scope |
-| Approve | `nscmf.approve` | Matching Approval Scope + eligible state |
-| Return to Reviewer | `nscmf.approval.return_reviewer` | Matching Approval Scope + eligible state |
-| Return to Requester | `nscmf.approval.return_requester` | Matching Approval Scope + eligible state |
-| Reject | `nscmf.approval.reject` | Matching Approval Scope + eligible state |
-| View Timeline | implicit from valid view | Matching Approval Scope |
-| Export | `nscmf.export` | Matching Approval Scope / valid visibility |
-
-Approver A membuka record **tidak mengunci** record dari Approver B/C.
-
-Satu actor yang berhasil mengeksekusi `Approve` menjadi final `Approved By` untuk workflow iteration tersebut.
+| View candidate | `nscmf.view` | matching Approval Scope + `PENDING_APPROVAL` |
+| Approve | `nscmf.approve` | matching scope + `PENDING_APPROVAL` |
+| Return Reviewer | `nscmf.approval.return_reviewer` | matching scope + `PENDING_APPROVAL` |
+| Return Requester | `nscmf.approval.return_requester` | matching scope + `PENDING_APPROVAL` |
+| Reject | `nscmf.approval.reject` | matching scope + `PENDING_APPROVAL` |
+| Timeline | implicit from valid view | matching visibility |
+| Export | `nscmf.export` | visible record |
 
 ---
 
-# PART G — REOPEN / ARCHIVE MATRIX
+# PART G — REOPEN / ARCHIVE DECISION MATRIX
 
 ## 25. Reopen
 
-Reopen membutuhkan:
+Required:
 
 ```text
 nscmf.reopen
-+
-valid record visibility
-+
-reopen-eligible current state
-+
-mandatory reason
-+
-selected destination
++ visible record
++ business_status in {REJECTED, APPROVED}
++ is_archived = false
++ mandatory reason
++ destination in {REVISION_REQUIRED, PENDING_REVIEW}
 ```
 
-### RBAC-REOPEN-001
-
-Protected Superadmin memperoleh permission ini secara default.
-
-### RBAC-REOPEN-002
-
-Role lain MAY memperoleh permission ini secara eksplisit.
-
-### RBAC-REOPEN-003
-
-Permission `nscmf.reopen` tidak otomatis memberikan `nscmf.view.all`.
-
-### RBAC-REOPEN-004
-
-Actor yang melakukan Reopen harus tercatat di audit log bersama reason dan destination.
+Protected Superadmin gets it by default; other roles MAY receive it explicitly.
 
 ---
 
-## 26. Archive
+## 26. Archive / Unarchive
 
-Archive membutuhkan:
+Archive:
 
 ```text
 nscmf.archive
-+
-valid record visibility
-+
-archive-eligible state
++ visible record
++ status in {APPROVED, REJECTED, CANCELLED}
++ is_archived = false
 ```
 
-### RBAC-ARCH-001
+Unarchive:
 
-Superadmin memiliki permission Archive secara default.
+```text
+nscmf.archive
++ visible record
++ is_archived = true
+```
 
-### RBAC-ARCH-002
-
-Role lain MAY memperoleh `nscmf.archive` secara eksplisit.
-
-### RBAC-ARCH-003
-
-Archive tidak memberikan hak menghapus audit history atau business record.
+Both are administrative lifecycle actions and do not alter `business_status`.
 
 ---
 
@@ -796,133 +560,46 @@ Archive tidak memberikan hak menghapus audit history atau business record.
 
 ## 27. Effective Permission Examples
 
-### Example 1 — Requester + Reviewer
+### Requester + Reviewer
+Own record actions + Review access within Reviewer Scope. No automatic Approval.
 
-```text
-Roles:
-- Requester
-- Reviewer
-Reviewer Scope:
-- NOC
-```
+### Reviewer + Approver
+May Review records only in Reviewer Scope and Approve records only in separate Approval Scope; scopes need not be identical.
 
-User dapat:
-
-- membuat own NSCMF;
-- melihat own NSCMF;
-- melihat/review NSCMF lain dalam NOC scope;
-- export seluruh record yang dapat dilihat.
-
-User tidak otomatis dapat approve.
-
-### Example 2 — Reviewer + Approver
-
-```text
-Roles:
-- Reviewer
-- Approver
-Reviewer Scope:
-- NOC
-Approval Scope:
-- NOC, Domestic
-```
-
-User dapat:
-
-- review NOC record;
-- approve NOC dan Domestic record jika state eligible;
-- tidak review Domestic record jika Domestic tidak termasuk Reviewer Scope.
-
-### Example 3 — Custom NOC Lead
-
-```text
-Permissions:
-- nscmf.view
-- nscmf.review
-- nscmf.review.forward
-- nscmf.review.return
-- nscmf.approve
-- nscmf.reopen
-- nscmf.export
-
-Scope:
-Reviewer = NOC
-Approver = NOC
-```
-
-User dapat melakukan review, approve, dan reopen NOC record sesuai state/business rules, tetapi tidak dapat manage users apabila tidak memiliki user administration permission.
+### Custom NOC Lead
+May receive mixed `review`, `approve`, `reopen`, `archive`, `export` permissions with matching scopes, without user administration.
 
 ---
 
 ## 28. Same Person Across Workflow Stages
 
-Current business model tidak mewajibkan separation of duty.
-
-Dengan permission dan scope yang benar, user MAY menjadi lebih dari satu actor type pada record yang sama.
-
-Namun setiap action tetap harus dicatat sebagai action terpisah dengan actor dan timestamp.
-
-RBAC MUST NOT menggabungkan action history hanya karena actor-nya sama.
+No mandatory segregation of duties. Same user MAY perform different stage actions if permission/scope/current state allow. Each action remains separate audit evidence.
 
 ---
 
-# PART I — REVIEWER AND APPROVER COLLABORATION
+# PART I — COLLABORATION MODEL
 
-## 29. Reviewer Collaboration Model
-
-Reviewer model adalah:
+## 29. Reviewer Collaboration
 
 ```text
 Shared visibility
 +
-Non-exclusive action eligibility
+Non-exclusive state-action eligibility
 +
 Multi-actor audit trail
 ```
 
-Bukan:
+No permanent single Reviewer assignment.
 
-```text
-One record = permanently assigned to one reviewer
-```
-
-Sistem MAY menampilkan metadata seperti:
-
-- viewed by;
-- reviewed by;
-- modified by;
-- last reviewer action;
-- reviewer contributors.
-
-Namun metadata tersebut tidak boleh menjadi exclusive authorization lock kecuali business rule baru dibuat di masa depan.
-
----
-
-## 30. Approver Collaboration Model
-
-Approver model adalah:
+## 30. Approver Collaboration
 
 ```text
 Shared eligibility within scope
 +
 Non-exclusive access
 +
-Single final approval actor
+Single successful final approval actor
 ```
-
-Contoh:
-
-```text
-Approver A → viewed
-Approver B → returned to reviewer
-Reviewer C → completed re-review
-Approver A → viewed again
-Approver C → approved
-
-Final Approved By = Approver C
-```
-
-Timeline tetap menyimpan seluruh actor/action sebelumnya.
 
 ---
 
@@ -930,33 +607,9 @@ Timeline tetap menyimpan seluruh actor/action sebelumnya.
 
 ## 31. Timeline Visibility
 
-Semua legitimate viewer dapat melihat timeline record yang boleh mereka lihat.
+Legitimate viewer can see timeline including creator, viewer where applicable, modifier, submit/resubmit, review, return, reject, approve, reopen, archive/unarchive, timestamp, and required reason/comment.
 
-Timeline harus mampu menunjukkan secara manusiawi setidaknya:
-
-- siapa membuat record;
-- siapa melihat jika viewer logging diterapkan pada action tersebut;
-- siapa mengubah field;
-- siapa submit;
-- siapa review;
-- siapa return;
-- siapa resubmit;
-- siapa reject;
-- siapa approve;
-- siapa reopen;
-- siapa archive;
-- timestamp terkait;
-- reason/catatan ketika rule mensyaratkannya.
-
-### RBAC-AUDIT-001 — No Separate Hidden Timeline for Normal Viewer
-
-Requester, Reviewer, Approver, Superadmin, dan custom role yang validly dapat melihat record juga dapat melihat workflow timeline record tersebut.
-
-### RBAC-AUDIT-002 — Audit Storage Mutation Is Not Granted
-
-Melihat audit log tidak memberikan permission untuk mengedit atau menghapus audit data.
-
-Tidak ada normal role yang boleh memodifikasi historical audit event.
+No normal role may mutate historical audit events.
 
 ---
 
@@ -964,9 +617,7 @@ Tidak ada normal role yang boleh memodifikasi historical audit event.
 
 ## 32. Custom Role Rules
 
-Custom role dapat dibentuk secara granular.
-
-Contoh permission sets:
+Examples:
 
 ### Read-Only Auditor
 
@@ -975,8 +626,6 @@ nscmf.view
 nscmf.timeline.view
 nscmf.export
 ```
-
-Scope harus tetap didefinisikan.
 
 ### NOC Reviewer
 
@@ -1007,42 +656,25 @@ nscmf.export
 nscmf.export.bulk
 ```
 
-### Delegated User Administrator
-
-```text
-users.view
-users.create
-users.update
-users.enable
-users.disable
-users.reset_password
-users.assign_roles
-users.assign_units
-```
-
-Tetap tidak dapat mengubah protected Superadmin invariant.
+State/scope rules continue to apply.
 
 ---
 
 # PART L — PROTECTED / NON-DELEGABLE CAPABILITIES
 
-## 33. Capabilities That Must Remain Protected
-
-Berikut tidak boleh diberikan sebagai normal permission:
+## 33. Protected Capabilities
 
 | Capability | Rule |
 |---|---|
-| Hard-delete NSCMF | Tidak tersedia |
-| Hard-delete protected Superadmin | Tidak tersedia |
-| Disable protected Superadmin | Tidak tersedia |
-| Remove protected Superadmin role | Tidak tersedia |
-| Downgrade protected Superadmin | Tidak tersedia |
-| User impersonation | Tidak termasuk product scope |
-| Bypass audit logging | Tidak tersedia |
-| Bypass mandatory Review | Tidak tersedia |
-| Bypass mandatory Approval | Tidak tersedia |
-| Disable audit invariant | Tidak tersedia |
-| Core system settings for non-Superadmin | Tidak didelegasikan pada requirement saat ini |
+| Hard-delete NSCMF | Unavailable |
+| Delete/disable/downgrade protected Superadmin | Unavailable |
+| User impersonation | Out of scope |
+| Bypass audit | Unavailable |
+| Bypass Review | Unavailable |
+| Bypass Approval | Unavailable |
+| Reopen directly to Approval | Unavailable |
+| Archive active-work state | Unavailable |
+| Core system settings for normal role | Not delegated |
 
 ---
 
@@ -1050,21 +682,23 @@ Berikut tidak boleh diberikan sebagai normal permission:
 
 ## 34. Decision Evaluation
 
-Backend sebaiknya mengevaluasi action menggunakan urutan konseptual berikut:
+Backend SHOULD/MUST conceptually evaluate:
 
 ```text
-1. Is account active/authenticated?
-2. Is protected invariant satisfied?
-3. Does actor have required permission?
-4. Can actor see/access target record?
-5. Does actor scope match target record?
-6. Is action valid for current workflow state?
-7. Does input pass required validation?
-8. Execute business action atomically.
-9. Write audit/workflow event.
+1. authenticated + active account?
+2. protected invariant satisfied?
+3. required permission?
+4. record visibility?
+5. matching scope where required?
+6. archive flag compatible with action?
+7. current business state eligible?
+8. input/action validation passes?
+9. destination allowed?
+10. execute atomically.
+11. write audit/workflow event.
 ```
 
-Jika salah satu prerequisite gagal, action MUST ditolak.
+Any failed prerequisite → DENY.
 
 ---
 
@@ -1087,11 +721,7 @@ nscmf.export
 nscmf.export.bulk
 ```
 
-Scope:
-
-```text
-Own records
-```
+Default scope: own records.
 
 ---
 
@@ -1111,11 +741,7 @@ nscmf.export
 nscmf.export.bulk
 ```
 
-Scope:
-
-```text
-Assigned Unit/Division(s)
-```
+Default scope: assigned Unit/Division(s).
 
 ---
 
@@ -1135,74 +761,56 @@ nscmf.export
 nscmf.export.bulk
 ```
 
-Scope:
-
-```text
-Assigned Approval Scope
-May include multiple Unit/Division(s)
-```
+Default scope: assigned Approval Scope; may span Unit/Division(s).
 
 ---
 
 ## 38. Superadmin Bundle
 
-Protected Superadmin secara default memiliki:
+Protected Superadmin default:
 
 - all normal NSCMF permissions;
-- global NSCMF visibility;
+- global visibility;
 - `nscmf.reopen`;
-- `nscmf.archive`;
-- all eligible user administration permissions;
-- all role/permission administration permissions;
-- all Unit/Division administration permissions;
+- `nscmf.archive` (Archive + Unarchive);
+- eligible user/role/permission/org administration;
 - `system.settings.manage`;
-- protected Superadmin invariant.
+- protected invariants.
 
-Tidak termasuk:
-
-- NSCMF hard delete;
-- protected account deletion/downgrade/disable;
-- user impersonation.
+Does not include hard-delete NSCMF, protected-account deletion/downgrade/disable, or impersonation.
 
 ---
 
-# PART O — OPEN DECISIONS FOR DOWNSTREAM DOCUMENTS
+# PART O — DOWNSTREAM OPEN ITEMS
 
 ## 39. Items Intentionally Deferred
 
-RBAC model sudah cukup untuk permission behavior, tetapi beberapa detail implementation/state masih harus ditentukan kemudian:
+### Validation / UI
 
-### State / Status Flow
-
-- [ ] Exact state names untuk every workflow stage.
-- [ ] Exact eligible states untuk Archive.
-- [ ] Exact eligible terminal states untuk Reopen.
-- [ ] Exact state transition setelah Reopen destination dipilih.
-
-### Validation
-
-- [ ] Mandatory reason untuk Reject/Return/Archive apabila belum dikunci pada Business Rules.
-- [ ] Attachment validation.
-- [ ] Number validation.
+- exact actor/permission for Change Result capture in `PENDING_REVIEW`;
+- exact Result fields required before Forward;
+- first Submit / Resubmit validation;
+- mandatory reasons besides Reopen;
+- attachment and numbering validation;
+- Service Impact cardinality.
 
 ### Data Model
 
-- [ ] Apakah scope disimpan pada role, user, organization membership, pivot table, atau kombinasi.
-- [ ] Model reviewer contributor / viewer activity.
-- [ ] Model final `approved_by` versus approval event history.
+- scope storage representation;
+- reviewer contributor/viewer model;
+- final `approved_by` versus event history;
+- archive flag field representation;
+- workflow iteration/version model.
 
-### Tech Stack
+### Tech / Security
 
-- [ ] Final authorization package.
-- [ ] Apakah `spatie/laravel-permission` digunakan.
-- [ ] Middleware/policy/gate architecture.
+- final authorization package;
+- middleware/policy architecture;
+- transaction/locking/version strategy;
+- sensitive permission change audit;
+- session/password reset controls.
 
-### Security
-
-- [ ] Sensitive permission change audit policy.
-- [ ] Password reset implementation.
-- [ ] Session controls.
-- [ ] Administrative action re-authentication jika diperlukan.
+Canonical state names, Reopen sources/destinations, Archive eligible states, and Unarchive behavior are **no longer TBD**; they are authoritative in `05_State_Status_Flow.md`.
 
 ---
 
@@ -1210,83 +818,53 @@ RBAC model sudah cukup untuk permission behavior, tetapi beberapa detail impleme
 
 ## 40. Acceptance Criteria
 
-RBAC dianggap memenuhi specification apabila setidaknya seluruh kondisi berikut dapat diverifikasi:
-
-- [ ] Requester hanya melihat own record kecuali memiliki role/scope tambahan.
-- [ ] Reviewer dapat melihat seluruh record dalam assigned Unit/Division scope.
-- [ ] Reviewer A tidak menyebabkan record terkunci dari Reviewer B yang juga eligible.
-- [ ] Multiple Reviewer dapat tercatat sebagai contributor pada record yang sama.
-- [ ] Approver dapat memiliki beberapa Unit/Division dalam Approval Scope.
-- [ ] Semua eligible Approver dapat melihat approval candidate yang sama.
-- [ ] Approval tidak di-assign eksklusif kepada satu Approver.
-- [ ] Satu eligible Approver yang berhasil Approve cukup menghasilkan final Approved state.
-- [ ] Final `Approved By` menunjukkan actor final approval.
-- [ ] Approver lain tidak dapat memberikan approval kedua pada workflow iteration yang sudah Approved.
-- [ ] Semua legitimate record viewer dapat melihat timeline aktivitas.
-- [ ] Semua legitimate record viewer dapat export record tersebut.
-- [ ] User tanpa record visibility tidak dapat export melalui direct API/ID manipulation.
-- [ ] Superadmin melihat seluruh active dan archived NSCMF.
-- [ ] Archived record user biasa tetap mengikuti visibility scope normal.
-- [ ] `nscmf.reopen` dapat diberikan kepada role selain Superadmin.
-- [ ] `nscmf.archive` dapat diberikan kepada role selain Superadmin.
-- [ ] Delegated role/user/unit administrator bekerja hanya bila permission diberikan.
-- [ ] Protected Superadmin tidak dapat disable, delete, atau downgrade oleh delegated administrator.
-- [ ] Custom role dapat memperoleh granular mixed permissions.
-- [ ] System Settings tetap Superadmin-only.
-- [ ] Tidak tersedia user impersonation.
-- [ ] Tidak tersedia NSCMF hard-delete permission.
-- [ ] Permission check dilakukan server-side.
+- [ ] Requester default visibility = own records.
+- [ ] Reviewer only acts on matching scope + `PENDING_REVIEW`.
+- [ ] Reviewer A does not lock Reviewer B/C.
+- [ ] Multiple Reviewer contributors are retained.
+- [ ] Approver only acts on matching scope + `PENDING_APPROVAL`.
+- [ ] Approver may cover multiple units.
+- [ ] Approval is non-exclusive.
+- [ ] One valid final Approve creates `APPROVED` and final `Approved By`.
+- [ ] Stale second Approve is denied.
+- [ ] `nscmf.reopen` can be delegated but only works on visible unarchived `REJECTED`/`APPROVED`.
+- [ ] Reopen target is only `REVISION_REQUIRED`/`PENDING_REVIEW`.
+- [ ] `nscmf.archive` can be delegated.
+- [ ] Archive only works on `APPROVED`/`REJECTED`/`CANCELLED`.
+- [ ] Unarchive uses lifecycle permission and preserves business status.
+- [ ] Archived `APPROVED`/`REJECTED` must Unarchive before Reopen.
+- [ ] Legitimate viewer can see timeline and export.
+- [ ] Inaccessible record cannot be exported through API/ID manipulation.
+- [ ] Protected Superadmin remains protected/global.
+- [ ] Delegated administrators cannot bypass protected invariants.
+- [ ] Custom granular roles work within state/scope boundaries.
+- [ ] Core System Settings remain Superadmin-only.
+- [ ] No impersonation or NSCMF hard-delete capability.
+- [ ] Server-side state revalidation rejects stale conflicting workflow actions.
 
 ---
 
-# PART Q — TRACEABILITY
+# PART Q — TRACEABILITY / NEXT DOCUMENT
 
-## 41. Relationship to Prior Documents
+## 41. Relationship to State Flow
 
-| Decision | Source |
-|---|---|
-| Template + manual role setup | Business Rules / User Flow |
-| Multi-role allowed | Business Rules |
-| Requester visibility = own | Business Rules |
-| Reviewer visibility = Unit/Division | Business Rules |
-| Approver can cover multiple units | Confirmed RBAC refinement |
-| Reviewer non-exclusive | Confirmed User Flow refinement |
-| Multiple reviewer contributors | Confirmed RBAC refinement |
-| Approver non-exclusive | Confirmed RBAC refinement |
-| Single final Approver | Confirmed from existing sign-off model + business confirmation |
-| View implies timeline visibility | Confirmed RBAC refinement |
-| View implies export | Business Rules |
-| Reopen permission can be delegated | Confirmed RBAC refinement |
-| Archive permission can be delegated | Confirmed RBAC refinement |
-| System Settings = Superadmin-only | Confirmed RBAC refinement |
-| No impersonation | Confirmed RBAC refinement |
-| Custom granular roles | Confirmed RBAC refinement |
+`05_State_Status_Flow.md` is authoritative for:
+
+- canonical state identifiers;
+- allowed transitions;
+- Reopen destinations;
+- terminal/recoverable classification;
+- Archive/Unarchive state treatment;
+- concurrency/current-state requirements.
+
+This RBAC document is authoritative for actor permission/scope eligibility on those transitions.
 
 ---
 
 ## 42. Next Document
 
-Dokumen berikutnya adalah:
+The next project document is:
 
-**`05_State_Status_Flow.md`**
+**`06_Validation_Rules.md`**
 
-Dokumen tersebut harus mengubah semantic workflow yang sudah diketahui menjadi state machine authoritative, termasuk minimal:
-
-- Draft;
-- Submitted / Awaiting Review;
-- Review processing;
-- Returned for Revision;
-- Reviewed / Awaiting Approval;
-- Returned from Approval;
-- Rejected;
-- Approved;
-- Reopened;
-- Cancelled;
-- Archived behavior;
-- valid action dari setiap state;
-- siapa actor yang dapat menghasilkan transition;
-- terminal vs recoverable state;
-- revision loops;
-- selected Reopen destination.
-
-Nama state final belum boleh di-hardcode ke implementation sampai `05_State_Status_Flow.md` disetujui.
+It will lock first Submit, Resubmit, Forward, Change Result gate, conditional fields, reason requirements, numbering, Service Impact cardinality, attachment constraints, and field-level editability required by the canonical state machine.
