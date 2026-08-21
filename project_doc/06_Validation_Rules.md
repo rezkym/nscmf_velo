@@ -4,9 +4,9 @@
 
 > **Document ID:** NSCMF-VAL-006  
 > **Document Order:** 06 / 20  
-> **Status:** Draft — Confirmed Validation Baseline + Explicit Provisional Rules  
+> **Status:** Draft — Confirmed Validation Baseline + Security-Synchronized Attachment Gate  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `10_Security_Rules.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Last Updated:** 2026-08-21
 
@@ -31,6 +31,8 @@ Validation Rules menjawab:
 - perbedaan blocking error dan non-blocking warning.
 
 Dokumen ini **tidak mengubah canonical state machine** dari `05_State_Status_Flow.md` dan **tidak mengubah permission model** dari `04_RBAC_Permission_Matrix.md`. Jika validation membutuhkan capability baru, capability tersebut harus disinkronkan ke RBAC.
+
+Security boundary: attachment count/type/size/extension validation dalam dokumen ini diperlukan tetapi **belum cukup** untuk membuat uploaded file usable. Setelah structural validation, `10_Security_Rules.md` mewajibkan private quarantine + ClamAV malware scan; hanya explicit `CLEAN` yang boleh membuat attachment tersedia. `INFECTED`, scan error, timeout, atau scanner unavailable adalah blocking security failure dan bukan Warning.
 
 ---
 
@@ -62,6 +64,8 @@ Validation severity:
 |---|---|
 | **Error** | Action MUST ditolak sampai error diperbaiki. |
 | **Warning** | User diberi informasi, tetapi action MAY dilanjutkan. |
+
+Malware/security gate failure MUST be treated as an Error/fail-closed condition for the uploaded file and MUST NOT be downgraded into a normal business Warning.
 
 ---
 
@@ -101,6 +105,8 @@ Autosave dan `Save Draft` MUST bersifat permissive.
 - safe payload structure;
 - attachment count/size/type jika attachment sedang ditambah;
 - impossible structural values yang tidak dapat disimpan oleh schema final.
+
+Jika attachment di-upload, structural validation success tidak berarti attachment sudah usable; security scan gate tetap berlaku separately.
 
 ### Must Not Require
 
@@ -196,7 +202,7 @@ Unless overridden by field-specific rule:
 - whitespace-only input dianggap empty;
 - leading/trailing whitespace diabaikan untuk validation dan SHOULD di-trim saat persistence final;
 - internal spaces dan Unicode text diperbolehkan;
-- raw HTML/script MUST NOT dieksekusi; rendering safety ditentukan lebih lanjut pada Security/UI specification;
+- raw HTML/script MUST NOT dieksekusi; rendering safety follows Security/UI specification;
 - control characters yang tidak diperlukan MUST ditolak;
 - line break diperbolehkan pada narrative fields.
 
@@ -930,6 +936,8 @@ Therefore:
 - absence of attachment MUST NOT block Submit, Resubmit, Forward, or Approval;
 - if subtype is Upgrade or Emergency and no attachment exists, system SHOULD display a **non-blocking warning/reminder**.
 
+If an attachment is uploaded, its ClamAV security gate is always blocking until explicit `CLEAN`; the optionality of attachment does not make unsafe/unknown files usable.
+
 ---
 
 # PART F — CHANGE RESULT OF CHANGES
@@ -1046,6 +1054,8 @@ Attachment input exists but attachment remains Optional.
 
 Missing attachment alone MUST NOT generate blocking error.
 
+Optionality applies to the presence of an attachment, **not** to the safety of a file once uploaded.
+
 ---
 
 ## 50. File Count and Size
@@ -1076,7 +1086,7 @@ Allowed extension baseline:
 .csv
 ```
 
-Backend SHOULD validate both extension and detected MIME/content type where technically feasible.
+Backend MUST validate extension against the allowlist and SHOULD cross-check detected MIME/content type and expected file signature/structure where technically reliable.
 
 File extension outside allowlist = Error.
 
@@ -1097,14 +1107,33 @@ Macro-enabled or executable/script formats are not part of current allowed MVP s
 
 ---
 
-## 52. Filename
+## 52. Filename and Storage Identity
 
-- non-empty filename;
+- non-empty original filename;
 - max 255 characters;
 - path separators/path traversal sequences MUST NOT be trusted as storage path;
-- same display filename MAY exist more than once if storage uses unique internal identifiers, but UI SHOULD make duplicates understandable.
+- same display filename MAY exist more than once if storage uses unique internal identifiers, but UI SHOULD make duplicates understandable;
+- security/storage implementation SHOULD use system-generated opaque internal object name rather than trusting original filename as filesystem path.
 
-Malware scanning/storage architecture remains Security/Architecture responsibility and is not silently assumed by this validation document.
+### 52.1 Malware Scan Gate — Confirmed
+
+Structural file validation is followed by `10_Security_Rules.md` malware security:
+
+```text
+untrusted upload
+→ private quarantine/temp
+→ ClamAV / clamd
+   ├─ CLEAN → eligible to promote/store as normal private attachment
+   └─ INFECTED / ERROR / TIMEOUT / UNAVAILABLE → fail closed; not usable
+```
+
+Rules:
+
+- only explicit `CLEAN` passes;
+- `INFECTED` MUST be rejected/quarantined and not exposed for normal download;
+- scanner error/timeout/unavailable MUST NOT be converted to clean/success;
+- UI/API MUST NOT report a scan-failed file as successfully attached;
+- malware scan status itself is not a new NSCMF business state.
 
 ---
 
@@ -1112,8 +1141,8 @@ Malware scanning/storage architecture remains Security/Architecture responsibili
 
 Default attachment mutation follows editable context:
 
-- `DRAFT` → allowed with permission;
-- `REVISION_REQUIRED` → allowed with permission;
+- `DRAFT` → allowed with permission + security gate;
+- `REVISION_REQUIRED` → allowed with permission + security gate;
 - `PENDING_REVIEW` → not generally editable by Requester under the narrow Result permission;
 - `PENDING_APPROVAL` / `REJECTED` / `APPROVED` / `CANCELLED` → locked through normal workflow.
 
@@ -1280,9 +1309,9 @@ The source workbook has Signature cells, but current requirements do not define 
 Therefore:
 
 - Signature is not a manually editable validation field for MVP workflow completion;
-- authenticated workflow action + actor/timestamp is the authoritative sign-off evidence;
-- exact visual signature rendering in PDF/Excel remains an Export/UI/Security design concern;
-- implementation MUST NOT invent cryptographic/e-signature claims without a new approved requirement.
+- authenticated workflow action + actor/timestamp is the authoritative human sign-off evidence;
+- cryptographic Approved-PDF signer is the **System/Organization**, distinct from human `Approved By`, according to `10_Security_Rules.md`;
+- implementation MUST NOT turn source signature cells into a requirement for personal cryptographic certificate/freehand input from each Approver.
 
 ---
 
@@ -1353,7 +1382,7 @@ Legend:
 | Monitoring period | R | positive duration |
 | Rollback scenario | R | nonblank |
 | Maintenance Announcement | R | exactly one source option |
-| Attachment | O | warning only for Upgrade/Emergency when absent |
+| Attachment | O | warning only for Upgrade/Emergency when absent; any uploaded file requires ClamAV CLEAN before usable |
 | Result of Changes | O at first Submit | no row required yet; started row must be complete |
 | Request/Review/Approved sign-off | S | workflow-generated |
 
@@ -1386,7 +1415,7 @@ Validation errors SHOULD:
 - identify field/group;
 - explain requirement in user-readable language;
 - avoid exposing sensitive backend/internal details;
-- distinguish missing value vs invalid format vs unauthorized action vs stale state.
+- distinguish missing value vs invalid format vs unauthorized action vs stale state vs security-gate failure.
 
 Examples:
 
@@ -1397,6 +1426,7 @@ Other Impact Description is required when Service Impact = Other.
 VLAN ID must be between 1 and 4094.
 Result row 2 requires Result Summary, Performance Information, and Status.
 This record has changed state. Refresh before taking this action.
+Attachment could not pass the required security scan.
 ```
 
 ---
@@ -1412,6 +1442,8 @@ Confirmed warning candidates:
 
 User MAY continue after acknowledging/seeing warning unless a future Business Rule makes it blocking.
 
+Malware scan failure is **not** one of these warnings; it is a security failure for the uploaded file.
+
 ---
 
 ## 70. Validation Response Is Not Authorization
@@ -1426,6 +1458,7 @@ Authorization
 + Current State
 + Archive Rule
 + Validation
++ Security Preconditions
 + Concurrency Check
 = valid business action
 ```
@@ -1457,7 +1490,9 @@ If validation fails:
 - business state MUST remain unchanged;
 - no false success event may be written;
 - invalid final sign-off MUST NOT be generated;
-- transaction strategy will be defined downstream.
+- transaction strategy follows Architecture/API implementation.
+
+Security scan failure for an attachment is isolated from NSCMF business-state transition unless the relevant action explicitly depends on the attachment; the failed file itself must never be falsely promoted to usable.
 
 ---
 
@@ -1487,16 +1522,16 @@ The following remain downstream/TBD, not silently solved here:
 - exact default Unit/Division master data;
 - exact UI widget/component representation;
 - controlled master lists for POP/Regional/upstream/equipment if provided later;
-- antivirus/malware scanning architecture;
-- attachment storage provider/path;
+- exact attachment storage provider/path;
 - electronic/freehand signature technology, if ever required;
 - database column types/precision;
 - API error schema;
-- transaction/locking implementation;
-- audit retention;
-- export/download audit policy;
+- transaction/locking implementation details already constrained by `09`;
+- exact audit physical data model;
 - additional export formats and packaging;
 - official company NSCMF numbering SOP/sample.
+
+Malware scanner technology/behavior and no-age-based authoritative audit preservation are **not TBD**; they follow `10_Security_Rules.md`.
 
 ---
 
@@ -1524,8 +1559,11 @@ Implementation MUST NOT:
 16. mutate Request No after first successful Submit through normal workflow;
 17. allow Return/Reject/Reopen/Archive/Unarchive without mandatory reason where this document requires one;
 18. reject historical/reopened Change solely because an unchanged Target Execution Date has naturally passed;
-19. bypass state/permission checks because field validation passes;
-20. invent e-signature assurance not defined by requirements.
+19. bypass state/permission/security checks because field validation passes;
+20. invent personal/freehand e-signature assurance not defined by requirements;
+21. expose uploaded attachment as successful/usable before explicit ClamAV CLEAN;
+22. treat `INFECTED`, scanner error, timeout, or unavailable scanner as clean;
+23. turn malware scan progress/result into a persistent NSCMF business state.
 
 ---
 
@@ -1606,6 +1644,10 @@ Implementation MUST NOT:
 - [ ] Zero-byte files rejected.
 - [ ] Extension outside allowlist rejected.
 - [ ] Script/executable/macro-enabled file types in current blocked examples cannot pass allowlist validation.
+- [ ] Structurally valid file is not usable before ClamAV result.
+- [ ] Explicit `CLEAN` can pass the security gate.
+- [ ] Malware detection blocks/rejects the file.
+- [ ] Scanner error/timeout/unavailable fails closed and does not report success.
 
 ---
 
@@ -1625,7 +1667,7 @@ Implementation MUST NOT:
 
 # PART Q — TRACEABILITY AND NEXT DOCUMENT
 
-## 83. Relationship to Prior Documents
+## 83. Relationship to Prior / Downstream Documents
 
 | Concern | Authoritative Source |
 |---|---|
@@ -1636,45 +1678,31 @@ Implementation MUST NOT:
 | State machine | `05_State_Status_Flow.md` |
 | **Input/action validation** | **`06_Validation_Rules.md`** |
 | Presentation/interaction design | `07_UI_UX_Specification.md` |
+| Technology selection | `08_Tech_Stack_Specification.md` |
+| Logical architecture | `09_System_Architecture.md` |
+| Security controls / malware gate | `10_Security_Rules.md` |
 
-Where earlier docs deliberately said a validation detail was TBD, this document now resolves it unless explicitly marked PROVISIONAL/TBD here.
+Where earlier docs deliberately said a validation detail was TBD, this document resolves it unless explicitly marked PROVISIONAL/TBD here. Security controls may add a blocking gate but MUST NOT rewrite this document's business field semantics.
 
 ---
 
-## 84. Required Synchronization to Prior Documents
+## 84. Security Synchronization Note
 
-Following confirmed Validation decisions must be reflected when prior docs are next synchronized:
+Confirmed security decisions that interact with validation:
 
-- Change Service Impact = multi-select;
-- default Result-of-Changes editor = Requester/owner using conceptual `nscmf.change.result.edit` in `PENDING_REVIEW`;
-- workflow reason requirements;
-- Archive/Unarchive reason mandatory;
-- current attachment limits/allowlist;
-- provisional numbering format/uniqueness/immutability;
-- Result rows minimum 1 complete row before Forward, not all five;
-- Change Target Execution Date validation behavior.
+- attachment optionality remains unchanged;
+- allowlist/count/size remain this document's validation authority;
+- uploaded file availability requires ClamAV `CLEAN` from `10`;
+- public PDF validator accepts PDF only and applies its own temporary-upload security gate;
+- password policy is not a business-form field rule and is authoritative in `10`;
+- no-age-based audit policy is not a field validation rule and is authoritative in `10`.
 
-These are not optional implementation guesses after approval of this document.
+These concerns MUST remain separated so that attachment optionality is never confused with unsafe-file permissiveness.
 
 ---
 
 ## 85. Next Document
 
-Next document in fixed project order:
+The fixed project sequence has progressed beyond this validation document. Validation remains authoritative for the rules above; security detail is now finalized in:
 
-**`07_UI_UX_Specification.md`**
-
-UI/UX Specification should translate the confirmed rules into screens/components, especially:
-
-- required/conditional field indicators;
-- Draft validation experience;
-- error vs warning presentation;
-- family/subtype-dependent sections;
-- Service Impact multi-select + Other description;
-- Result-only editing during `PENDING_REVIEW`;
-- reason dialogs;
-- attachment uploader limits;
-- state-aware action buttons;
-- stale-state refresh behavior;
-- automatic/manual Request No UX;
-- sign-off/timeline presentation.
+**`10_Security_Rules.md`**.
