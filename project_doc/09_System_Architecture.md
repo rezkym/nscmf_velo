@@ -4,9 +4,9 @@
 
 > **Document ID:** NSCMF-ARCH-009  
 > **Document Order:** 09 / 20  
-> **Status:** Draft — Confirmed Architecture Baseline  
+> **Status:** Draft — Confirmed Architecture Baseline + Security Synchronization  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `10_Security_Rules.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Organization Model:** Single organization / single application installation  
 > **Engineering Capacity Baseline:** 50 application users  
@@ -16,32 +16,29 @@
 
 ## 1. Purpose
 
-Dokumen ini menjadi **source of truth untuk logical system architecture, component boundaries, interaction topology, synchronous/asynchronous execution boundaries, transaction/concurrency model, audit separation, attachment flow, dan export subsystem architecture** NSCMF Digital Form & Workflow System.
+Dokumen ini menjadi **source of truth untuk logical system architecture, component boundaries, interaction topology, synchronous/asynchronous execution boundaries, transaction/concurrency model, audit separation, attachment flow, dan export/signing/verification subsystem architecture** NSCMF Digital Form & Workflow System.
 
-Dokumen ini menerjemahkan technology selection pada `08_Tech_Stack_Specification.md` menjadi bentuk sistem yang dapat diimplementasikan tanpa mengubah product/business decisions pada `01–07`.
+Dokumen menerjemahkan technology selection `08_Tech_Stack_Specification.md` menjadi bentuk sistem yang dapat diimplementasikan tanpa mengubah product/business decisions pada `01–07`. Confirmed security-control behavior berasal dari `10_Security_Rules.md`; `09` hanya menentukan bagaimana control tersebut ditempatkan pada logical architecture.
 
-Dokumen ini mengunci antara lain:
+Dokumen mengunci antara lain:
 
-- single-organization architecture;
-- modular monolith boundary;
-- Browser ↔ Laravel/Inertia/Vue interaction topology;
-- application/domain module responsibilities;
-- MySQL source-of-truth responsibilities;
-- private attachment storage boundary;
-- business audit vs access audit vs technical logging;
-- hybrid concurrency strategy;
-- workflow transaction boundary;
-- Draft/Result optimistic concurrency path;
-- asynchronous export architecture;
-- exact-template XLSX generation pipeline;
-- qualified PDF renderer boundary;
-- cryptographic PDF signing boundary;
-- seven-day temporary export retention;
-- scheduled artifact cleanup;
-- failure isolation and idempotency expectations;
+- single-organization modular monolith;
+- Browser ↔ Laravel/Inertia/Vue topology;
+- MySQL source-of-truth responsibility;
+- private attachment storage + malware-scan boundary;
+- Business Audit vs Access Audit vs Security Audit vs Technical Logs;
+- hybrid concurrency;
+- asynchronous exact XLSX/PDF export;
+- deterministic export snapshot binding;
+- qualified spreadsheet renderer;
+- Approved-PDF signing boundary;
+- public PDF verification boundary;
+- seven-day temporary export binary retention;
+- permanent age-retention treatment of authoritative audits;
+- failure isolation/idempotency;
 - component dependency guardrails.
 
-Dokumen ini **tidak** menentukan final database tables/columns, API payloads, exact folder structure, environment variables, password/session policy, certificate/private-key implementation, production cloud/server topology, atau deployment provider. Hal tersebut berada pada dokumen downstream sesuai authority matrix.
+Dokumen ini tidak menentukan exact tables/columns, API payloads, exact folder structure, environment variable names, exact server paths, certificate file format/provider, atau final physical deployment topology.
 
 ---
 
@@ -49,71 +46,67 @@ Dokumen ini **tidak** menentukan final database tables/columns, API payloads, ex
 
 - **MUST** — wajib.
 - **MUST NOT** — dilarang.
-- **SHOULD** — direkomendasikan kuat sebagai default.
+- **SHOULD** — strong default.
 - **MAY** — diperbolehkan.
-- **AUTHORITATIVE** — komponen/data tersebut adalah source of truth untuk concern yang disebutkan.
-- **QUALIFIED** — komponen hanya boleh digunakan pada production setelah acceptance/golden qualification yang diwajibkan.
-- **TBD** — belum final dan tidak boleh ditebak implementation.
+- **AUTHORITATIVE** — source of truth untuk concern tersebut.
+- **QUALIFIED** — component hanya production-eligible setelah required qualification.
+- **FAIL CLOSED** — failure/uncertainty menghasilkan deny/unavailable, bukan permissive fallback.
 
 ---
 
 # PART A — ARCHITECTURAL DRIVERS
 
-## 3. Confirmed Drivers from `01–08`
+## 3. Confirmed Drivers
 
-Architecture MUST mendukung requirement yang telah dikunci sebelumnya:
+Architecture MUST support:
 
-1. aplikasi web internal;
-2. **single organization** / satu instalasi aplikasi;
-3. standalone username + password authentication;
-4. no self-registration;
+1. single organization / single installation;
+2. standalone username + password;
+3. no self-registration;
+4. password policy min 6, no composition rule, no MFA;
 5. protected Superadmin;
 6. multi-role granular RBAC;
-7. Requester ownership + Reviewer Unit/Division Scope + Approver Approval Scope;
-8. server-side authoritative authorization/validation/state enforcement;
-9. Activation dan Change forms;
-10. Draft autosave + manual Save Draft;
-11. shared/non-exclusive Reviewer pool;
-12. shared/non-exclusive Approver pool;
-13. one successful eligible final Approver sufficient;
-14. revision/reject/reopen/archive lifecycle sesuai `05`;
-15. narrow Change Result capture pada `PENDING_REVIEW`;
-16. detailed business audit;
-17. viewer/access evidence terpisah dari business timeline;
-18. optional private attachments;
-19. History/search/filter melalui MySQL;
-20. user dapat memilih **Export XLSX** atau **Export PDF**;
-21. XLSX/PDF export mempertahankan official workbook secara exact;
-22. XLSX export tidak memerlukan cryptographic digital signature;
-23. hanya PDF dari snapshot `APPROVED` yang cryptographically signed;
-24. intended signer identity = **system/organization**, bukan personal certificate Approver;
-25. certificate/private-key implementation final diputuskan di `10_Security_Rules.md`;
-26. seluruh export diproses asynchronous melalui Database Queue;
-27. generated export artifact dapat di-download ulang selama **168 jam / 7 hari**;
-28. expired export artifact dibersihkan otomatis oleh scheduled cleanup;
-29. actual user count sekitar 10, engineering baseline 50 users;
-30. Docker/container diperbolehkan;
-31. no WebSocket/realtime requirement pada MVP;
-32. testing dan export golden qualification merupakan first-class requirement.
+7. ownership + Unit/Division Reviewer Scope + Approval Scope;
+8. server-side authorization/state/validation/security enforcement;
+9. Activation + Change;
+10. Draft autosave/manual save;
+11. shared Reviewer/Approver pools;
+12. one successful eligible final Approver sufficient;
+13. exact canonical state machine from `05`;
+14. narrow Change Result capture;
+15. Business/Access/Security Audit separation;
+16. authoritative audits have no age-based purge;
+17. private optional attachments with ClamAV CLEAN gate;
+18. MySQL History/search;
+19. exact XLSX/PDF template export;
+20. asynchronous export through DB Queue;
+21. deterministic snapshot/version binding;
+22. Approved PDF signed by System/Organization;
+23. signing identity manually provisioned server-side and required for normal-ready signing capability;
+24. public PDF validator using signature + exact SHA-256 + issuance/currentness;
+25. 168-hour/7-day generated binary retention;
+26. no TSA requirement current MVP;
+27. ~10 expected users, 50-user engineering baseline;
+28. Docker allowed;
+29. no WebSocket/Redis/search-engine requirement for MVP;
+30. testing/export/security regression is first-class.
 
 ---
 
 ## 4. Architectural Priorities
 
-Jika terdapat trade-off implementasi, prioritas architecture adalah:
+Priority order:
 
 1. business correctness;
-2. authorization correctness;
+2. authorization/security correctness;
 3. workflow/state consistency;
 4. auditability/traceability;
 5. no data loss;
 6. exact export fidelity;
-7. predictable failure behavior;
+7. predictable fail-closed behavior;
 8. maintainability;
-9. simplicity sesuai scale;
-10. performance optimization berdasarkan evidence, bukan premature complexity.
-
-Architecture MUST NOT mengorbankan correctness hanya untuk mengurangi satu database query atau menghindari transaction/validation yang diperlukan.
+9. simplicity proportional to scale;
+10. evidence-based performance optimization.
 
 ---
 
@@ -121,59 +114,42 @@ Architecture MUST NOT mengorbankan correctness hanya untuk mengurangi satu datab
 
 ## 5. Modular Monolith
 
-Confirmed architecture style:
-
 ```text
-Modular Laravel Monolith
+Modular Laravel 13 Monolith
 + Inertia 3
 + Vue 3 / TypeScript
 + MySQL 8.4 LTS
 + Database Queue Worker
++ Scheduler
 + Private Storage
-+ Isolated Export/Renderer Boundary
++ ClamAV / clamd boundary
++ Exact Export / Renderer / Signing / Verification boundaries
 ```
 
-Aplikasi **bukan microservices architecture**.
-
-Logical modules dipisahkan melalui code boundaries dan explicit responsibilities, tetapi berada dalam satu Laravel application/runtime contract.
-
-MUST NOT membuat network service boundary hanya agar setiap module terlihat “microservice-like”.
+Logical module separation does not mean microservices or separate physical servers.
 
 ---
 
-## 6. Single-Organization Model
+## 6. Single Organization
 
-System merupakan satu application installation untuk satu organization.
-
-Consequences:
-
-- tidak ada tenant switcher;
-- tidak ada tenant middleware;
-- tidak ada tenant-specific hostname requirement;
-- tidak perlu `tenant_id` pada setiap business entity hanya untuk artificial tenancy;
-- Unit/Division adalah **organizational scope di dalam organization yang sama**, bukan tenant;
-- Approval Scope adalah domain authorization scope, bukan tenant boundary.
-
-Jika future requirement membutuhkan multiple independent organizations pada satu installation, architecture MUST direview sebagai explicit change; implementation MUST NOT pre-build hidden multi-tenancy sekarang.
+No tenant switcher, tenant middleware, tenant hostnames, or artificial `tenant_id` everywhere. Unit/Division and Approval Scope are internal authorization scopes, not tenants.
 
 ---
 
-## 7. Deployment-Agnostic Logical Architecture
+## 7. Deployment-Agnostic Logical Components
 
-`09` mendefinisikan logical components, bukan jumlah final container/server.
-
-Contoh komponen logical seperti:
+Logical components MAY be colocated or separated physically later:
 
 - Web/Application Runtime;
 - Queue Worker;
 - Scheduler;
 - MySQL;
-- Private Object Storage;
+- Private Storage;
+- ClamAV/clamd;
 - Spreadsheet Renderer;
+- protected signing identity storage/mount.
 
-MAY pada development berada dalam Docker Compose dan pada production ditempatkan berbeda sesuai `20_Deployment_Architecture.md`.
-
-Logical separation tidak berarti masing-masing harus menjadi server terpisah.
+Final physical placement belongs to `20_Deployment_Architecture.md`.
 
 ---
 
@@ -182,66 +158,66 @@ Logical separation tidak berarti masing-masing harus menjadi server terpisah.
 ## 8. High-Level Context
 
 ```text
-+------------------------+
-| Internal User Browser  |
-| Vue 3 + Inertia UI     |
-+-----------+------------+
-            |
-            | HTTPS / application requests
-            v
-+---------------------------------------------------+
-| Laravel 13 Application                            |
-|---------------------------------------------------|
-| Authentication / Authorization / Scope            |
-| NSCMF Domain / Validation / Workflow              |
-| Business Audit / Access Audit                     |
-| History / Attachment / Export Orchestration       |
-+---------+------------------+----------------------+
-          |                  |                 |
-          | SQL              | private I/O     | queue jobs
-          v                  v                 v
-+----------------+   +----------------+   +------------------+
-| MySQL 8.4 LTS  |   | Private Storage|   | Database Queue   |
-| Source of Truth|   | Attachments +  |   | + Queue Worker   |
-|                |   | Export Artifacts|  +--------+---------+
-+----------------+   +----------------+            |
-                                                   v
-                                      +------------------------+
-                                      | Exact Export Subsystem |
-                                      | OOXML Template Patcher |
-                                      | Spreadsheet Renderer   |
-                                      | PDF Signing Service    |
-                                      +------------------------+
++------------------------------+
+| Internal User Browser        |
+| Vue 3 + Inertia UI           |
++--------------+---------------+
+               | HTTPS
+               v
++----------------------------------------------------------------+
+| Laravel 13 Application                                         |
+|----------------------------------------------------------------|
+| Identity / Session / Authorization                             |
+| NSCMF Domain / Validation / Workflow                           |
+| Business Audit / Access Audit / Security Audit                 |
+| History / Attachment / Export / Public PDF Verification        |
++---------+---------------------+-------------------+--------------+
+          | SQL                 | private I/O       | queue jobs
+          v                     v                   v
++----------------+    +-------------------+   +-------------------+
+| MySQL 8.4 LTS  |    | Private Storage   |   | Database Queue    |
+| source of truth|    | attachment/export |   | + Queue Worker    |
++----------------+    +---------+---------+   +---------+---------+
+                               |                       |
+                               | scan                  | export
+                               v                       v
+                       +---------------+    +-------------------------+
+                       | ClamAV/clamd  |    | Exact Export Subsystem  |
+                       | private only  |    | OOXML Patcher           |
+                       +---------------+    | Spreadsheet Renderer    |
+                                            | PdfSigningService       |
+                                            +-------------------------+
+
+Public visitor
+→ public rate-limited PDF verification route
+→ temporary private upload
+→ ClamAV CLEAN
+→ PdfVerificationService
+→ signature + exact SHA-256 + issuance/currentness
 ```
 
-Scheduled cleanup runs through Laravel Scheduler/cron-compatible execution and removes expired temporary export artifacts.
+Scheduler cleans expired generated export binaries; it does **not** age-purge authoritative audits.
 
 ---
 
-## 9. Trust Boundary Summary
+## 9. Trust Boundaries
 
-Conceptual trust boundaries:
+Untrusted:
 
-```text
-Untrusted / user-controlled
-Browser input
-Uploaded file content
-Request IDs / query params
+- browser input/IDs/payloads;
+- filenames/MIME claims/file content;
+- public validator uploads;
+- client-supplied permissions/state/version values.
 
-Trusted application authority
-Laravel authorization
-Domain/application services
-MySQL transactional state
-Authoritative audit writes
+Trusted authority:
 
-Protected external/internal resources
-Private attachment storage
-Official XLSX templates
-Renderer runtime
-PDF signing key/certificate boundary
-```
+- Laravel authorization/domain/security services;
+- MySQL persisted business/security state;
+- protected official template registry;
+- protected signing configuration;
+- explicit ClamAV CLEAN result.
 
-Exact authentication hardening, encryption, secret storage, certificate custody, and network restrictions are specified in `10_Security_Rules.md` and deployment documents.
+Private key never crosses to browser/public validator.
 
 ---
 
@@ -249,63 +225,32 @@ Exact authentication hardening, encryption, secret storage, certificate custody,
 
 ## 10. Presentation Layer
 
-Presentation layer terdiri dari:
+Vue/Inertia presents UI, local state, autosave feedback, tables/dialogs, attachment scan feedback, export status, public validator result.
 
-- Vue 3 pages/components;
-- TypeScript interaction logic;
-- Inertia page props/request flow;
-- shadcn-vue UI components;
-- Tailwind CSS styling.
-
-Responsibilities:
-
-- present data;
-- local form interaction;
-- conditional UI;
-- autosave status UX;
-- table/filter interaction;
-- reason dialogs;
-- export status/progress display;
-- stale-state feedback.
-
-MUST NOT menjadi authoritative layer untuk:
-
-- permission;
-- scope;
-- state transition validity;
-- final field validation;
-- archive eligibility;
-- export access;
-- PDF signing eligibility.
+It is not authoritative for permission, state, malware trust, signature validity, or audit retention.
 
 ---
 
 ## 11. HTTP / Inertia Boundary
 
-Laravel routes/controllers/Form Requests menjadi entry boundary dari Browser ke application layer.
-
-Pattern:
-
 ```text
 Browser
-→ Route
-→ Authentication middleware
-→ Authorization / Policy
-→ Form Request / action validation
-→ Application action/service
-→ transaction/persistence if needed
-→ Inertia response / redirect / structured internal response
+→ Laravel route
+→ authentication/session
+→ Policy/Gate + scope
+→ Form Request / action/security preconditions
+→ Application Action
+→ transaction/persistence or queued side effect
+→ Inertia/structured response
 ```
 
-Controllers SHOULD coordinate request/response only; domain behavior tidak boleh tersebar menjadi controller-heavy logic.
+Public validator uses a dedicated public route but still passes rate limit, file safety, ClamAV, parser/verification boundaries.
 
 ---
 
 ## 12. Application Action Layer
 
-Application action/service layer mengorkestrasi satu business use case.
-
-Conceptual actions:
+Conceptual actions/services include:
 
 ```text
 CreateNscmf
@@ -316,53 +261,31 @@ ReturnForRevision
 RejectNscmf
 ForwardToApproval
 ApproveNscmf
-ReturnToReviewer
-ReturnToRequester
 ReopenNscmf
 ArchiveNscmf
-UnarchiveNscmf
 RequestNscmfExport
+ScanAttachment
+SignApprovedPdf
+VerifyIssuedPdf
+ResetUserCredential
+ChangeUserAccess
 ```
 
-Responsibilities:
-
-- load required domain data;
-- call authorization/scope checks;
-- select validation profile;
-- establish transaction/locking boundary;
-- call domain state transition rules;
-- persist data;
-- write authoritative business audit;
-- return deterministic action result.
-
-Exact class/folder naming later mengikuti `13_Project_Structure.md`.
+Controllers remain thin.
 
 ---
 
 ## 13. Domain Rule Layer
 
-Domain rule layer merepresentasikan invariant yang berasal dari `02`, `04`, `05`, dan `06`.
+Maintains invariants from `02`, `04`, `05`, `06`, while security preconditions from `10` wrap applicable actions.
 
-Examples:
-
-- state transition eligibility;
-- Result Forward gate;
-- Cancel eligibility;
-- Reopen destination restrictions;
-- Archive eligibility;
-- Request No immutability;
-- scope interpretation;
-- protected Superadmin invariants.
-
-Domain rules MUST dapat diuji tanpa bergantung pada Vue UI.
+Security failure MUST NOT create a new NSCMF business state.
 
 ---
 
 ## 14. Persistence Layer
 
-MySQL/Eloquent/Query Builder bertanggung jawab untuk persisted relational state.
-
-Application SHOULD use repository/query abstractions only when they reduce complexity or enforce clear domain boundaries; generic repository layer yang hanya membungkus setiap Eloquent call tanpa value MUST NOT diwajibkan.
+MySQL/Eloquent/Query Builder persist relational state. Generic repository wrappers are not mandatory unless they provide actual boundary value.
 
 ---
 
@@ -372,133 +295,59 @@ Application SHOULD use repository/query abstractions only when they reduce compl
 
 Responsibilities:
 
-- username/password authentication;
-- session creation/destruction;
-- active/disabled account enforcement;
-- protected Superadmin identity integration;
-- admin-triggered credential reset integration.
+- username/password login;
+- login throttling integration;
+- DB-backed sessions;
+- temporary-password forced-change state;
+- 30m idle / 8h absolute / max2 active-session enforcement;
+- logout/session revocation;
+- disabled-account enforcement;
+- protected Superadmin integration;
+- password re-auth proof for sensitive admin actions.
 
-Technology: Laravel/Fortify/session authentication from `08`.
-
-Security policy detail belongs to `10`.
+No MFA module is required for current MVP.
 
 ---
 
-## 16. User / Role / Organization Administration Module
+## 16. User / Role / Organization Administration
 
 Responsibilities:
 
 - users;
 - roles/permissions;
 - Unit/Division;
-- Reviewer Scope;
-- Approval Scope;
-- protected settings exposure according to authorization.
+- Reviewer/Approval scopes;
+- credential reset;
+- protected settings.
 
-Spatie Laravel Permission provides role/permission primitive only. Unit/Division and Approval Scope remain explicit NSCMF domain data.
+Access-changing identity mutation triggers target-session revocation through Identity/Session component.
 
 ---
 
-## 17. Authorization & Scope Module
-
-Authorization is composed from:
+## 17. Authorization & Scope
 
 ```text
 Spatie permission
-+ Laravel Policy/Gate
++ Policy/Gate
 + ownership
-+ Unit/Division Reviewer Scope
++ Unit/Division scope
 + Approval Scope
-+ business status
++ state
 + archive treatment
++ validation
++ security preconditions
 + protected invariants
 ```
 
-The module MUST expose reusable query/action eligibility logic so queue/history/export endpoints do not create separate inconsistent scope rules.
+Reusable scope logic MUST serve record read, queues, History, export, attachments, and audit surfaces consistently.
 
 ---
 
-## 18. NSCMF Core Module
+## 18. NSCMF Core / Form / Workflow Modules
 
-Responsibilities:
+NSCMF Core owns record identity/current status/version/archive treatment. Activation/Change modules own family-specific data/validation. Workflow Module owns allowed transitions exactly from `05`.
 
-- NSCMF record identity;
-- family/subtype;
-- Request No;
-- owner/requester;
-- current business status;
-- archive treatment;
-- form data relationships;
-- current version/concurrency token;
-- references to attachment/audit/export metadata.
-
-Exact schema belongs to `11_ERD_Database_Schema.md`.
-
----
-
-## 19. Activation Form Module
-
-Responsibilities:
-
-- Activation subtype data;
-- Existing/New Service blocks;
-- network/NOC technical data;
-- domain/DNS/hosting/onsite data;
-- Activation-specific validation mapping.
-
-It shares general NSCMF workflow; it MUST NOT create separate state machine.
-
----
-
-## 20. Change Form Module
-
-Responsibilities:
-
-- Change purpose/context;
-- multi-select Service Impact;
-- Improvement Plan/KPI;
-- execution/monitoring/rollback;
-- Result of Changes;
-- Change-specific validation and Forward gate.
-
-It shares general NSCMF workflow; Result capture MUST NOT create artificial execution/result business states.
-
----
-
-## 21. Validation Module
-
-Maps canonical validation profiles from `06`, including:
-
-```text
-DRAFT_PERSIST
-FIRST_SUBMIT
-RESUBMIT
-REVIEW_FORWARD
-APPROVAL_ACTION
-WORKFLOW_RETURN
-WORKFLOW_REJECT
-CANCEL
-REOPEN
-ARCHIVE
-UNARCHIVE
-RESULT_CAPTURE
-```
-
-Validation module SHOULD combine:
-
-- Laravel Form Requests;
-- reusable Rule classes;
-- domain cross-field validators.
-
-MUST avoid one giant validation function with hidden state-dependent branches that are difficult to test.
-
----
-
-## 22. Workflow Module
-
-Workflow Module is authoritative coordinator for business-status transitions.
-
-Canonical statuses remain exactly:
+Persistent states remain only:
 
 ```text
 DRAFT
@@ -510,1724 +359,835 @@ APPROVED
 CANCELLED
 ```
 
-Responsibilities:
-
-- action eligibility;
-- current-state revalidation;
-- transaction/lock coordination;
-- state mutation;
-- workflow iteration context;
-- authoritative workflow audit event;
-- final `Approved By` association.
-
-MUST NOT introduce persistent `SUBMITTED`, `UNDER_REVIEW`, `REVIEWED`, `REOPENED`, `ARCHIVED`, `EXECUTION_PENDING`, or `RESULT_PENDING` state.
+No security/export/scan/session technical state becomes a business status.
 
 ---
 
-## 23. Business Audit Module
+## 19. Business Audit Module
 
-Business Audit is authoritative evidence of **persisted business mutation dan workflow/lifecycle action**.
+Authoritative append-oriented evidence for persisted business mutation/workflow/lifecycle action. Historical evidence is not overwritten.
 
-Includes logically:
-
-- create;
-- Draft/Revision persisted field change;
-- Result capture;
-- numbering change;
-- attachment mutation reference;
-- submit/resubmit;
-- forward;
-- return;
-- reject;
-- approve;
-- reopen;
-- archive/unarchive;
-- relevant administration changes.
-
-Business audit MUST be append-oriented and historical evidence MUST NOT be overwritten by current-state updates.
+No age-based purge.
 
 ---
 
-## 24. Access Audit Module
+## 20. Access Audit Module
 
-Access Audit is **separate from Business Timeline**.
-
-Purpose:
-
-- preserve evidence that an authorized actor accessed a record/resource;
-- avoid polluting operational timeline with frequent `Viewed` rows.
-
-Conceptual access events MAY include:
-
-- record detail viewed;
-- attachment accessed/downloaded;
-- export requested;
-- generated export downloaded.
+Separate from Business Timeline. Captures configured protected-resource access such as detail view, attachment access/download, export request/download, privileged audit view where defined.
 
 Rules:
 
-- access event MUST NOT change NSCMF business state;
-- access event MUST NOT make viewer an assignee/owner;
-- access audit storage is logically separate from business mutation/workflow timeline;
-- normal Form Detail Timeline SHOULD remain focused on business/workflow changes;
-- exact retention, visibility, strict failure behavior, and security administration are finalized by `10_Security_Rules.md` / `11_ERD_Database_Schema.md`.
+- never changes NSCMF business status;
+- never creates assignment/ownership;
+- not inserted as routine Business Timeline rows;
+- no age-based purge;
+- privileged raw visibility follows `audit.access.view`, Protected Superadmin default, plus underlying authorized scope.
 
 ---
 
-## 25. Technical Logging Module
+## 21. Security Audit Module
 
-Laravel/application logs are for:
+Separate authoritative evidence for security events such as login failures/throttling, credential reset, role/permission/access changes, session revocation, malware security outcomes, signing readiness/failure, privileged security access.
 
-- errors/exceptions;
-- queue failures;
-- renderer failures;
-- operational diagnostics;
-- scheduler failures;
-- integration/runtime issues.
+No plaintext password/private key/secret in audit payload. No age-based purge.
 
-Technical logs MUST NOT replace Business Audit or Access Audit.
+Privileged visibility uses `audit.security.view`, Protected Superadmin default.
 
-Architecture therefore maintains three separate concerns:
+---
+
+## 22. Technical Logging Module
+
+Runtime errors/queue/renderer/scheduler/storage diagnostics. Technical logs are not authoritative Business/Access/Security Audit. Their operational retention remains downstream.
+
+---
+
+## 23. History / Query Module
+
+Own/scoped History, Review/Approval queues, archive filters, search/pagination, Business Timeline projection. All filters/counts remain within authorized query scope.
+
+---
+
+## 24. Attachment + Malware Module
+
+Logical flow:
 
 ```text
-Business Audit  → what business data/workflow changed
-Access Audit    → who accessed protected record/resource
-Technical Logs  → how software/runtime behaved
+Browser upload
+→ authenticate/authorize/state check
+→ structural validation from 06
+→ private quarantine/temp
+→ MalwareScanner adapter
+→ ClamAvScanner
+→ clamd private endpoint
+   ├─ CLEAN → promote/persist normal private attachment
+   └─ INFECTED / ERROR / TIMEOUT / UNAVAILABLE → fail closed
 ```
 
----
+Business logic depends on `MalwareScanner`, not a community package. `clamd` MUST NOT be public internet-facing.
 
-## 26. History / Query Module
-
-Responsibilities:
-
-- own/scoped History;
-- Review queue;
-- Approval queue;
-- active/archived filtering;
-- Request No/search filters;
-- pagination/sorting;
-- record detail query;
-- timeline projection from Business Audit.
-
-All query paths MUST reuse authorization/scope rules and MUST NOT expose inaccessible records through row results, counts, filters, or bulk selection.
+Storage/DB partial failure requires compensating cleanup; filesystem write alone never equals successful attachment mutation.
 
 ---
 
-## 27. Attachment Module
+## 25. Export / Signing / Verification Module
 
-Responsibilities:
-
-- validate attachment request against `06`;
-- store private object through Laravel Filesystem/Flysystem;
-- persist storage metadata/reference;
-- authorize read/download;
-- remove/replace references only in allowed editable context;
-- emit relevant business audit mutation.
-
-File binary is not stored as public web asset.
-
----
-
-## 28. Export Module
-
-Export Module is composed of distinct logical components:
+Logical export components:
 
 ```text
 Export Orchestrator
-Export Snapshot / Version Binding
+Snapshot / Version Binding
 Template Registry
 OOXML Template Patcher
 Workbook Integrity Validator
-SpreadsheetPdfRenderer adapter
+SpreadsheetPdfRenderer
 PdfSigningService
+Issuance Metadata Repository
 Export Artifact Repository
-Export Job / Worker
-Export Cleanup Scheduler
+Queue Job / Worker
+Cleanup Scheduler
 ```
 
-This separation prevents renderer, OOXML patching, signing, and HTTP concerns from becoming one large untestable service.
-
----
-
-# PART F — DATA OWNERSHIP / SOURCE OF TRUTH
-
-## 29. Structured Business Data
-
-**MySQL is authoritative source of truth** untuk structured NSCMF business data and current lifecycle state.
-
-Exported XLSX/PDF is output, not source of truth.
-
-If a downloaded XLSX is edited externally, those edits do not mutate application data and cannot be imported back implicitly.
-
----
-
-## 30. Current Status
-
-Current business status is persisted in the NSCMF relational model according to ERD.
-
-Audit events preserve historical transitions, tetapi current-state queries MUST NOT reconstruct current status by guessing from frontend state or downloaded documents.
-
----
-
-## 31. Business Audit
-
-Business Audit store is authoritative historical evidence for persisted business mutations/workflow actions.
-
-It is separate from technical application logs.
-
----
-
-## 32. Access Audit
-
-Access Audit store is authoritative for configured viewer/access evidence.
-
-It is **not** the normal business timeline source.
-
----
-
-## 33. Attachments
-
-Attachment binary lives in private storage.
-
-MySQL stores authoritative metadata/reference needed to associate binary with record and authorization context.
-
-Object existence alone MUST NOT grant access.
-
----
-
-## 34. Official Export Template
-
-Official XLSX template binary + template version/integrity metadata forms the visual/export source of truth.
-
-Application business data remains MySQL source of truth for **what values** are exported.
-
-Conceptual:
+Logical public validation components:
 
 ```text
-MySQL structured data = content truth
-Official XLSX template = presentation/export truth
+Public Verification Endpoint
+Temporary Upload Store
+ClamAV Gate
+PdfVerificationService
+Issuer Public-Certificate Registry
+Issuance/Hash Lookup
+Currentness Resolver
 ```
 
 ---
 
-## 35. Generated Export Artifact
+# PART F — DATA OWNERSHIP
 
-Generated XLSX/PDF is a **temporary derived artifact**.
+## 26. Structured Business Data
 
-It is not authoritative record data and has finite retention of 168 hours.
+MySQL = authoritative content/current-state source. Exported files are derived outputs.
+
+## 27. Official Template
+
+Official versioned XLSX binary = presentation/export source of truth. MySQL determines values; template determines exact export layout.
+
+## 28. Attachments
+
+Binary in private storage; MySQL metadata binds object to record/authorization/security state.
+
+## 29. Generated Export Binary
+
+Temporary derived artifact, 168h/7d retention.
+
+## 30. Issuance / Verification Metadata
+
+For Approved signed PDFs, authoritative metadata required for historical verification MUST survive 7-day binary cleanup. At minimum conceptually includes export/issuance identity, bound record/version, approval iteration, issued timestamp, signer/certificate identity/fingerprint reference, and SHA-256 of final signed PDF bytes.
+
+## 31. Audit Evidence
+
+Business, Access, and Security Audit are authoritative and have **no age-based automatic deletion**. They are not temporary artifacts.
 
 ---
 
 # PART G — SYNCHRONOUS REQUEST PATHS
 
-## 36. Login Path
+## 32. Login
 
 ```text
 Browser
-→ POST Login
-→ Laravel/Fortify
-→ find username
-→ verify password/account eligibility
-→ create DB-backed session
-→ redirect/Inertia Dashboard
+→ login route
+→ throttle/progressive delay
+→ resolve username + active account
+→ verify password
+→ if valid regenerate/create DB session
+→ enforce max2 sessions
+→ temporary-password gate if applicable
+→ Dashboard/application
 ```
 
-Login failure MUST NOT create authenticated session.
-
-Security details such as throttling/lockout belong to `10`.
+No MFA step.
 
 ---
 
-## 37. Read / View Path
+## 33. Record Read
 
 ```text
 Browser
-→ request record
-→ authenticate
-→ Policy + visibility/scope check
-→ query structured record
-→ optionally write separate Access Audit event
-→ return Inertia record detail
+→ auth/session
+→ Policy + scope
+→ scoped query
+→ Access Audit evidence
+→ Inertia detail
 ```
 
-Important:
-
-- viewing does not change business status;
-- viewing does not create exclusive Reviewer/Approver ownership;
-- view/access evidence is not inserted as a normal business timeline state/action row.
+No business state change.
 
 ---
 
-## 38. History / Queue Query Path
+## 34. Sensitive Administration
 
 ```text
-Browser
-→ filter/search request
-→ authenticate
-→ resolve effective permissions/scopes
-→ build scoped MySQL query
-→ paginate/sort
-→ return only visible rows/counts
+Authenticated admin
+→ sensitive action
+→ current-password re-authentication
+→ permission + protected invariant checks
+→ transaction/mutation
+→ Security/Business Audit as appropriate
+→ revoke all target-user sessions when access-changing
 ```
 
-Filtering MUST occur within authorized query scope; application MUST NOT fetch global records then hide unauthorized rows only in Vue.
+Failed re-auth leaves target action unapplied.
 
 ---
 
-# PART H — HYBRID CONCURRENCY MODEL
+# PART H — HYBRID CONCURRENCY
 
-## 39. Confirmed Strategy
-
-Architecture uses **hybrid concurrency**:
+## 35. Strategy
 
 ```text
-Workflow / lifecycle transitions
-→ pessimistic row-level lock inside short DB transaction
+Workflow / lifecycle transition
+→ short DB transaction + row-level pessimistic lock
 
 Draft / Revision / Result persistence
 → optimistic version check
 ```
 
-This balances correctness with normal form-editing usability.
+---
+
+## 36. Workflow Transaction
+
+Within locked transaction re-check actor, permission, scope, archive flag, current state, validation, destination, security preconditions; persist mutation + required Business Audit atomically.
+
+No long scan/render/sign call inside this transaction.
 
 ---
 
-## 40. Workflow Transition Locking
+## 37. Optimistic Persistence
 
-Workflow-changing actions MUST use a transaction and lock current NSCMF row for update before final current-state decision.
-
-Conceptual:
-
-```text
-BEGIN TRANSACTION
-
-SELECT NSCMF ... FOR UPDATE
-
-re-check:
-  authenticated actor
-  permission
-  ownership/scope
-  archive flag
-  current business state
-  validation profile
-  destination/action eligibility
-
-apply state mutation
-write authoritative business audit
-update relevant sign-off/current metadata
-
-COMMIT
-```
-
-If any requirement fails:
-
-```text
-ROLLBACK / no mutation
-```
-
-Exact Eloquent/SQL expression belongs to implementation, but behavior is mandatory.
+Draft/Revision/Result update sends expected version; stale version yields explicit conflict and cannot silently overwrite newer data.
 
 ---
 
-## 41. Why Lock After Initial Authorization Is Not Enough
+# PART I — SIDE EFFECT BOUNDARIES
 
-Frontend/UI state and pre-transaction reads can become stale.
+## 38. After-Commit / Long Work
 
-Therefore final state eligibility MUST be evaluated against the row state inside transaction/lock boundary.
+Notifications, exports, render/sign work, and other long-running side effects occur after business transaction commit or via queue as appropriate.
 
-Example:
-
-```text
-Reviewer A and Reviewer B both open PENDING_REVIEW.
-A obtains lock → Forward → commits PENDING_APPROVAL.
-B later obtains lock → sees PENDING_APPROVAL.
-B's Reviewer Reject is invalid and is denied.
-```
-
-Only A's successful transition is persisted for that action race.
+Malware scanning may be synchronous to the upload request or separately orchestrated, but file remains unavailable until explicit CLEAN and scan does not hold workflow row lock.
 
 ---
 
-## 42. Short-Lived Lock Rule
+# PART J — ATTACHMENT FAILURE ISOLATION
 
-Row lock MUST cover only necessary server-side transaction work.
+## 39. Partial Failure
 
-MUST NOT:
+Pattern:
 
-- hold DB transaction while user is reading a modal;
-- hold row lock during browser interaction;
-- call long-running PDF renderer while transaction open;
-- upload large files while transaction lock is held;
-- wait for queue worker inside workflow transaction.
-
----
-
-## 43. Draft / Revision Optimistic Versioning
-
-Editable Draft/Revision persistence SHOULD/MUST use explicit record version/concurrency token.
-
-Conceptual request:
-
-```text
-record_id
-expected_version = 17
-changed editable payload
-```
-
-Server:
-
-```text
-authorize ownership/editability
-validate DRAFT_PERSIST
-
-UPDATE record
-SET ...,
-    version = version + 1
-WHERE id = ?
-  AND version = 17
-  AND state remains editable
-```
-
-If zero eligible row/update due version mismatch, return stale-write/conflict outcome; MUST NOT silently overwrite newer persisted edits.
-
-Exact schema/HTTP status code belongs to ERD/API Contract.
+1. authorize/validate;
+2. private quarantine write;
+3. ClamAV scan;
+4. on CLEAN, persist/promote metadata/object in a controlled sequence;
+5. compensate/remove orphan if DB/storage persistence fails;
+6. never expose untrusted/orphan object publicly.
 
 ---
 
-## 44. Change Result Optimistic Versioning
+## 40. Download
 
-Narrow `Result of Changes` persistence during `PENDING_REVIEW` uses equivalent optimistic concurrency principle.
-
-Server MUST additionally enforce:
-
-```text
-record family = CHANGE
-state = PENDING_REVIEW
-not archived
-actor eligible for nscmf.change.result.edit
-only Result fields being mutated
-```
-
-A stale Result update MUST NOT overwrite newer Result data or planning data.
-
----
-
-## 45. Autosave Conflict UX Boundary
-
-Backend returns an explicit stale/conflict result.
-
-Vue UI follows `07` stale-state principles and MUST NOT falsely show `Saved` after version conflict.
-
-Exact merge/reload copy is UI/API implementation detail, but architecture requires conflict to be visible and non-destructive.
-
----
-
-# PART I — BUSINESS MUTATION TRANSACTION BOUNDARY
-
-## 46. Atomic Workflow Action
-
-For workflow/lifecycle transition:
-
-```text
-permission/scope/current-state check
-+ business validation
-+ state/current metadata update
-+ authoritative business audit event
-= one atomic DB transaction
-```
-
-The system MUST NOT commit state change and then later discover that required workflow audit insert failed.
-
----
-
-## 47. Business Field Persistence
-
-Draft/Revision/Result field persistence SHOULD write related field-level business audit in the same successful persistence transaction where feasible.
-
-If audit is required for a mutation, successful mutation without required audit evidence is not considered complete.
-
----
-
-## 48. Side Effects After Commit
-
-Slow/non-transactional side effects MUST happen after successful DB commit.
-
-Examples:
-
-- notification future hook;
-- export queue dispatch;
-- renderer execution;
-- non-critical technical logging.
-
-Do not place external filesystem/rendering operation inside a workflow state transaction.
-
----
-
-# PART J — ATTACHMENT ARCHITECTURE
-
-## 49. Upload Path
-
-Conceptual upload flow:
-
-```text
-Browser
-→ Laravel upload endpoint
-→ authenticate + permission/state check
-→ validate count/type/size
-→ write binary to controlled private storage
-→ persist attachment metadata/reference
-→ write business audit mutation
-→ return attachment representation
-```
-
-Because database and object storage do not share one ACID transaction, implementation MUST account for partial failure.
-
----
-
-## 50. Attachment Partial-Failure Handling
-
-Acceptable architecture pattern:
-
-1. authorize/validate before writing;
-2. write binary using opaque generated storage identity;
-3. create DB metadata/audit transaction;
-4. if DB persistence fails, remove/mark orphan object for cleanup;
-5. never expose orphan object publicly.
-
-Equivalent compensating pattern MAY be used if Security/Environment design requires it.
-
-MUST NOT treat successful filesystem write alone as successful attachment mutation.
-
----
-
-## 51. Attachment Download Path
-
-```text
-Browser
-→ attachment request
-→ authenticate
-→ authorize parent NSCMF visibility
-→ resolve attachment metadata
-→ record access audit as configured
-→ stream/provide authorized private download
-```
-
-Object storage location itself is not authorization.
+Only CLEAN-promoted normal attachment is downloadable through parent-record authorization. Private object path is never sufficient authorization.
 
 ---
 
 # PART K — EXPORT ARCHITECTURE
 
-## 52. User-Facing Export Choice
+## 41. Formats
 
-Eligible user chooses one of:
+User chooses XLSX or PDF. Both derive from official XLSX template + bound structured snapshot.
 
-```text
-Export XLSX
-Export PDF
-```
-
-Both formats derive from the same official XLSX template + structured NSCMF snapshot.
-
-### XLSX
-
-- exact filled official template;
-- native controls preserved;
-- no cryptographic PDF-style signature requirement;
-- recipient MAY edit local downloaded copy;
-- local edits do not alter system record.
-
-### PDF
-
-- exact spreadsheet-rendered representation of filled workbook;
-- not generated from HTML redesign;
-- if snapshot state = `APPROVED`, cryptographic PDF signature is mandatory;
-- if snapshot state != `APPROVED`, PDF remains unsigned unless future business rule changes.
+XLSX is not PDF-signed. Approved PDF is mandatory signed. Non-Approved PDF has no mandatory organization signature current rule.
 
 ---
 
-## 53. All Export Is Asynchronous
-
-Single and bulk export generation MUST use Database Queue.
-
-HTTP request MUST NOT wait for OOXML patching + spreadsheet rendering + signing to finish.
-
-Conceptual:
+## 42. Asynchronous Export
 
 ```text
-User requests export
+User request
 → authorize
-→ create export request metadata
-→ bind immutable record snapshot/version
-→ dispatch DB queue job
-→ immediately return queued state
+→ create export request
+→ bind deterministic snapshot/version
+→ queue DB job
+→ immediate queued response
 
-Queue Worker
-→ generate artifact
-→ update export request status
-
-Browser
-→ poll/refresh export status
-→ download when READY
+Worker
+→ exact generation/render/sign
+→ READY/FAILED metadata
 ```
 
-No WebSocket is required.
+Technical states such as QUEUED/PROCESSING/READY/FAILED/EXPIRED are not NSCMF business states.
 
 ---
 
-## 54. Export Job State Is Not NSCMF Business State
+## 43. Template Registry / OOXML Patcher
 
-Export processing MAY use technical job/artifact states conceptually such as:
+Resolve immutable template version + integrity hash + matching explicit mapping. Copy template to private workspace and modify only mapped OOXML cells/native controls. Preserve unrelated package parts. Generic rewrite that strips Form Controls is forbidden.
+
+---
+
+## 44. Workbook Integrity / Renderer
+
+Integrity failure → export FAILED. PDF renderer must be qualified by golden exact-fidelity test. HTML/DomPDF approximation is not fallback.
+
+---
+
+## 45. Approved PDF Path
 
 ```text
-QUEUED
-PROCESSING
-READY
-FAILED
-EXPIRED
-```
-
-These are **export subsystem states**, not `05_State_Status_Flow.md` NSCMF business statuses.
-
-They MUST NOT appear as replacements/additions to canonical NSCMF lifecycle.
-
-Exact enum/schema belongs to ERD/API Contract.
-
----
-
-## 55. Export Snapshot Binding
-
-Because export is asynchronous, generated document MUST represent a deterministic record version.
-
-At export request time, architecture MUST bind job to an immutable logical **record snapshot/version**.
-
-This prevents:
-
-```text
-User requests export of version 12
-→ queue waits
-→ another actor changes record to version 13
-→ worker unexpectedly exports different content
-```
-
-Allowed representation is finalized by ERD, for example:
-
-- immutable revision/version reference; or
-- immutable export snapshot payload tied to request.
-
-Architecture requirement is deterministic snapshot semantics, not a specific table design.
-
----
-
-## 56. Export Authorization Timing
-
-Authorization occurs when export is requested.
-
-Download endpoint MUST also re-check current actor authorization for the artifact/parent record rather than treating possession of predictable artifact ID/path as sufficient access.
-
-Security Rules may add stronger controls.
-
----
-
-## 57. Template Registry
-
-Export subsystem MUST resolve an approved template version through a logical Template Registry.
-
-Template Registry responsibilities:
-
-- identify official template version;
-- provide immutable template binary/location;
-- provide integrity/hash metadata;
-- select matching mapping definition;
-- prevent accidental overwrite of canonical template during generation.
-
-Exact storage location and mapping format belong to Project Structure/Environment.
-
----
-
-## 58. OOXML Template Patcher
-
-Patcher accepts:
-
-```text
-template version
-+ export snapshot
-+ explicit template mapping
-```
-
-and produces filled XLSX by modifying only mapped workbook parts.
-
-MUST preserve all unrelated OOXML package parts.
-
-Primary low-level primitives remain consistent with `08`:
-
-- ZipArchive;
-- DOMDocument;
-- DOMXPath;
-- controlled equivalent implementation.
-
-MUST NOT rebuild spreadsheet layout from scratch.
-
----
-
-## 59. Workbook Integrity Validator
-
-Before XLSX becomes downloadable or moves to PDF rendering, subsystem MUST run structural/integrity checks defined by `08`/Testing Specification.
-
-Failure:
-
-```text
-integrity check fails
-→ export job FAILED
-→ no corrupted artifact exposed as READY
-```
-
----
-
-## 60. XLSX Export Path
-
-```text
-Export Request (format=XLSX)
-→ Worker loads bound snapshot
-→ resolve template + mapping
-→ copy immutable template to private workspace
-→ targeted OOXML patch
+APPROVED snapshot
+→ exact filled XLSX
 → integrity validation
-→ store private generated XLSX artifact
-→ mark READY + expires_at
+→ qualified renderer
+→ exact PDF
+→ PdfSigningService
+→ final signed PDF bytes
+→ compute SHA-256(final signed bytes)
+→ persist issuance metadata
+→ private artifact READY + expires_at +168h
 ```
 
-No PDF signing step applies.
+If signing fails, export FAILED; NSCMF remains APPROVED; no unsigned fallback.
 
 ---
 
-## 61. PDF Export Path
+# PART L — SIGNING ARCHITECTURE
+
+## 46. Signer Identity
+
+Logical signer = **System / Organization**.
+
+Human `Approved By` = eligible actor who performed `PENDING_APPROVAL -> APPROVED`.
+
+These identities are intentionally distinct.
+
+---
+
+## 47. Signing Identity Custody
+
+Confirmed security architecture:
+
+- private key + corresponding public certificate/verification material manually provisioned/installed on server/environment;
+- private key absent from GitHub, source code, normal deployment artifact, browser, and ordinary DB content;
+- PdfSigningService reads protected server/environment material;
+- exact file format/path/provider belongs to Environment/Deployment;
+- historical public verification material required to validate old issued PDFs must remain resolvable after key rotation.
+
+---
+
+## 48. Required Readiness
+
+Missing/unreadable/mismatched/unusable required signing identity:
 
 ```text
-Export Request (format=PDF)
-→ Worker loads bound snapshot
-→ resolve template + mapping
-→ targeted OOXML patch
-→ integrity validation
-→ qualified SpreadsheetPdfRenderer
-→ exact-fidelity PDF output
-→ signing eligibility decision
-→ if APPROVED: PdfSigningService
-→ store private PDF artifact
-→ mark READY + expires_at
+→ CRITICAL configuration/readiness failure
+→ application not considered normal signing-ready/healthy
+→ Approved PDF cannot silently fall back unsigned
 ```
 
-If any mandatory stage fails, artifact MUST NOT be marked READY.
+Exact process-level readiness endpoint/startup behavior is finalized in Environment/Deployment while preserving this invariant.
 
 ---
 
-# PART L — PDF SIGNING ARCHITECTURE
+## 49. TSA
 
-## 62. Signing Eligibility
+Trusted Timestamp Authority is **not required for current MVP**. Application/issuance timestamp MUST NOT be advertised as independent third-party TSA evidence.
 
-Confirmed rule:
+---
+
+# PART M — PUBLIC PDF VERIFICATION ARCHITECTURE
+
+## 50. Public Boundary
+
+Conceptual route:
 
 ```text
-format = PDF
-AND export snapshot business_status = APPROVED
-→ cryptographic PDF signing REQUIRED
+/ispdfvalid
 ```
 
-Other current-state PDF exports are unsigned.
-
-XLSX export is unsigned.
+No login required. This is a narrow validation utility, not a public NSCMF portal.
 
 ---
 
-## 63. Intended Signer Identity
-
-Logical signer identity = **System / Organization**.
-
-This does NOT replace workflow `Approved By`.
-
-Two concepts remain distinct:
+## 51. Verification Flow
 
 ```text
-Approved By
-= eligible human Approver who performed PENDING_APPROVAL → APPROVED
-
-PDF Cryptographic Signer
-= organization/system certificate identity applied by PdfSigningService
+Visitor
+→ rate-limited public request
+→ PDF-only temporary private upload
+→ structural/size checks
+→ ClamAV CLEAN
+→ PdfVerificationService
+   ├─ recognized issuer signature/public certificate verification
+   ├─ SHA-256 exact uploaded bytes
+   ├─ compare authoritative final-issued SHA-256
+   ├─ resolve issuance/version/approval iteration
+   └─ resolve current approval issuance context
+→ minimum-disclosure result
+→ delete temporary upload
 ```
 
-The exported document content still includes authenticated workflow sign-off values mapped from system data.
+No private key is used for validation.
 
 ---
 
-## 64. PdfSigningService Boundary
-
-Architecture MUST expose a dedicated conceptual boundary:
+## 52. Canonical Result Semantics
 
 ```text
-PdfSigningService
+VALID_CURRENT
+VALID_SUPERSEDED
+INVALID_MODIFIED
+UNKNOWN
 ```
 
-Responsibilities:
-
-- accept already-rendered exact PDF;
-- determine/receive approved signing identity configuration;
-- apply cryptographic PDF signature;
-- return signed PDF or explicit failure;
-- never silently downgrade to unsigned output when signing is mandatory.
-
-Certificate/private key provider, algorithm policy, key protection, rotation, revocation, trust chain, and secret custody are defined in `10_Security_Rules.md`.
+- `VALID_CURRENT`: exact genuine issued artifact and current Approved issuance.
+- `VALID_SUPERSEDED`: exact genuine issued artifact but no longer current due Reopen/Revert/newer approval issuance.
+- `INVALID_MODIFIED`: integrity/signature/hash evidence indicates uploaded bytes are not exact issued artifact / invalid modification.
+- `UNKNOWN`: cannot be recognized as known NSCMF-issued artifact; not automatically proof of malicious forgery.
 
 ---
 
-## 65. Tamper Behavior
+## 53. Minimum Disclosure
 
-Cryptographic signature is used so post-signing PDF modification is detectable by compliant PDF verification software.
-
-Architecture MUST NOT claim PDF is mathematically impossible to edit. Correct guarantee is:
-
-- document MAY technically be modified by capable software;
-- modification after signing MUST invalidate/break cryptographic signature verification.
+Public validator MUST NOT expose private form data, attachments, Business Timeline, raw audits, internal storage paths, or privileged actor details merely because a PDF was uploaded.
 
 ---
 
-## 66. Signing Failure
+# PART N — EXPORT BINARY RETENTION
 
-For an `APPROVED` PDF export:
+## 54. Seven-Day Binary Window
 
 ```text
-render success
-+ signing failure
-= export FAILED
+READY artifact
+→ authorized re-download for 168 hours / 7 days
+→ binary removed by scheduled cleanup
 ```
 
-MUST NOT:
-
-- deliver unsigned PDF as if equivalent;
-- mark artifact READY;
-- change NSCMF business status;
-- remove prior Approval evidence.
-
-User may retry export after technical issue is resolved.
+This cleanup does not remove source record, approval evidence, authoritative audits, or historical issuance/verification metadata.
 
 ---
 
-# PART M — EXPORT ARTIFACT RETENTION
+## 55. Re-Export
 
-## 67. Private Temporary Artifact
-
-Generated XLSX/PDF artifact is stored privately and can be re-downloaded by authorized user while valid.
-
-Retention:
-
-```text
-168 hours
-= 7 × 24 hours
-```
-
-Conceptually:
-
-```text
-expires_at = ready_at + 168 hours
-```
-
-Exact timezone/storage timestamp representation belongs to ERD/Environment, preferably an unambiguous server timestamp strategy.
+After binary expiry, eligible user may request a new export bound to a new deterministic snapshot/version. Old issuance metadata remains historical evidence for previously distributed signed PDFs.
 
 ---
 
-## 68. Re-Download
+# PART O — QUEUE / SCHEDULER
 
-While artifact state is READY and not expired:
+## 56. Database Queue
 
-- eligible user MAY download again;
-- download request re-checks authorization;
-- access/download may generate Access Audit evidence;
-- re-download does not regenerate file unless implementation chooses to after missing artifact/error.
+Export jobs are retry-aware/idempotent and cannot mutate NSCMF business state merely due retry/failure.
 
----
-
-## 69. Expiration
-
-After `expires_at`:
-
-- artifact is no longer served as valid ready download;
-- scheduler cleanup deletes private binary;
-- artifact metadata MAY remain as expired evidence according to ERD/audit policy;
-- user MAY request a new export, producing a new artifact from a newly bound snapshot/version.
-
-Retention of export request metadata is separate from binary retention and finalized downstream.
+Partial artifacts remain private and never READY until all mandatory stages complete.
 
 ---
 
-## 70. Scheduled Cleanup
+## 57. Scheduler
 
-Use Laravel Scheduler-compatible cleanup command/job triggered by cron/scheduler infrastructure.
+Responsibilities include expired export-binary cleanup, orphan export workspace cleanup, and future maintenance. It MUST NOT:
 
-Conceptual:
-
-```text
-Scheduler
-→ find expired generated export artifacts
-→ delete private binary
-→ mark/update technical artifact expiry/cleanup metadata
-→ log failures for retry/operations
-```
-
-Exact cron cadence is **not** fixed here; it must ensure expired artifacts are cleaned in a reasonable bounded period after 168-hour eligibility expires.
-
-`14_Environment_Specification.md` / `20_Deployment_Architecture.md` determine how scheduler process is invoked in each environment.
-
----
-
-# PART N — QUEUE / WORKER ARCHITECTURE
-
-## 71. Database Queue
-
-MySQL-backed Laravel Database Queue handles asynchronous export jobs.
-
-Queue is operational infrastructure, not source of truth for NSCMF state.
-
-If a job disappears/fails, current NSCMF business record remains intact.
-
----
-
-## 72. Queue Job Responsibilities
-
-Export job SHOULD receive stable identifiers/reference, not trust arbitrary user payload as authoritative business data.
-
-Worker reloads validated bound snapshot/template metadata from authoritative application persistence.
-
----
-
-## 73. Idempotency
-
-Export jobs MUST be retry-aware/idempotent.
-
-A retry MUST NOT:
-
-- mutate NSCMF business state;
-- create conflicting duplicate READY artifacts under same logical execution without tracking;
-- apply repeated uncontrolled mutations to canonical template;
-- produce multiple contradictory status rows for one attempt.
-
-Exact unique keys/attempt schema are defined in ERD.
-
----
-
-## 74. Worker Failure
-
-If worker crashes mid-generation:
-
-- partial temporary files remain private;
-- export request is retryable/failed according to queue policy;
-- partial file is never exposed as READY;
-- cleanup process can remove orphan temporary artifacts;
-- NSCMF state remains unchanged.
-
----
-
-## 75. Renderer Isolation
-
-Spreadsheet renderer is treated as a specialized runtime boundary.
-
-Application Worker invokes renderer adapter rather than embedding renderer-specific assumptions throughout domain code.
-
-Initial candidate is LibreOffice Headless only after qualification.
-
-Renderer process MUST NOT be called during normal workflow DB transaction.
-
----
-
-# PART O — SCHEDULER ARCHITECTURE
-
-## 76. Scheduler Responsibilities
-
-MVP scheduler has at minimum architecture responsibility for:
-
-- expired export cleanup;
-- orphan/temporary export workspace cleanup where applicable;
-- future non-blocking scheduled maintenance tasks.
-
-Notification scheduling or security maintenance MAY be added only by later specs.
-
----
-
-## 77. Scheduler Is Not Business Workflow Engine
-
-Laravel Scheduler MUST NOT be used to simulate Review/Approval state progression automatically unless a future business rule explicitly requires it.
-
-Canonical workflow remains actor/action driven.
+- auto-advance Review/Approval;
+- age-purge Business/Access/Security Audit;
+- delete historical issuance metadata needed for validation.
 
 ---
 
 # PART P — FAILURE ISOLATION
 
-## 78. Database Failure
+## 58. Database / Storage / Scan / Renderer / Signing Failure
 
-If MySQL transaction fails:
-
-- workflow action fails;
-- state MUST NOT partially advance;
-- business audit MUST NOT falsely record success;
-- user receives controlled failure/stale response according to API/UI contract.
-
----
-
-## 79. Private Storage Failure
-
-Attachment/export storage failure MUST NOT corrupt NSCMF business state.
-
-For export:
-
-```text
-storage failure → export FAILED
-```
-
-For attachment:
-
-```text
-storage/metadata failure → attachment mutation not reported as successful
-```
-
----
-
-## 80. Template/Patcher Failure
-
-If template missing, hash/integrity mismatch, mapping invalid, or OOXML patch fails:
-
-- export FAILED;
-- no approximate/rebuilt document substitute;
-- no mutation to canonical template;
-- technical error logged.
-
----
-
-## 81. Renderer Failure
-
-If qualified renderer fails:
-
-- PDF export FAILED;
-- XLSX intermediate remains private/internal according to cleanup policy;
-- application MUST NOT fall back to HTML/DomPDF approximation.
-
----
-
-## 82. Signing Failure
-
-Approved PDF signing failure behaves according to Section 66: FAILED, no unsigned fallback.
-
----
-
-## 83. Scheduler Failure
-
-Scheduler failure MUST NOT expose artifacts publicly or alter NSCMF workflow.
-
-Expired files may remain privately stored longer until cleanup succeeds; technical monitoring/alerting policy is downstream.
+- DB workflow transaction fail → no partial business transition/audit success.
+- storage/metadata fail → attachment/export not falsely successful.
+- ClamAV detection/error/timeout/unavailable → file not CLEAN/not usable.
+- template/patcher/integrity fail → export FAILED.
+- renderer fail/fidelity fail → PDF export FAILED, no HTML fallback.
+- signing fail → Approved-PDF export FAILED, NSCMF Approval remains.
+- public verification uncertainty → never claim `VALID_CURRENT`.
 
 ---
 
 # PART Q — MODULE DEPENDENCY RULES
 
-## 84. Allowed Dependency Direction
-
-Preferred dependency direction:
+## 59. Preferred Direction
 
 ```text
 Presentation / HTTP
         ↓
 Application Actions
         ↓
-Domain Rules / Authorization / Validation
+Domain / Authorization / Validation / Security Preconditions
         ↓
-Persistence / Audit / Storage abstractions
+Persistence / Audit / Storage / Scanner / Renderer / Signing adapters
 ```
 
-Export subsystem:
-
-```text
-HTTP Export Request
-        ↓
-Export Orchestrator
-        ↓
-Export Request Persistence / Queue
-        ↓
-Worker
-  ├─ Snapshot Reader
-  ├─ Template Registry
-  ├─ OOXML Patcher
-  ├─ Integrity Validator
-  ├─ Renderer Adapter
-  ├─ Signing Service
-  └─ Artifact Repository
-```
+External/runtime adapters do not decide business authorization or state.
 
 ---
 
-## 85. Forbidden Coupling
+## 60. Forbidden Coupling
 
 MUST NOT:
 
-- call Vue code from Laravel domain logic;
-- implement state transition inside Blade/Vue components;
-- make Eloquent model event hooks the only place workflow rules exist;
-- let renderer update NSCMF business status;
-- let OOXML patcher decide user authorization;
-- let queue worker bypass authorization/snapshot ownership assumptions established by Export Orchestrator;
-- make storage path itself represent permission;
-- make Access Audit row change business workflow;
-- make technical logs authoritative audit;
-- make PDF signature replace `Approved By` workflow evidence.
+- let Vue determine final permission/state/security truth;
+- make storage path authorization;
+- let OOXML patcher/renderer/signing/ClamAV change NSCMF state;
+- let Access Audit change workflow;
+- let technical log replace audit;
+- let PDF signature replace human `Approved By`;
+- let public verification endpoint bypass private-data authorization;
+- let community ClamAV package define business semantics.
 
 ---
 
-# PART R — READ/WRITE MODELS
+# PART R — SIGN-OFF / EVIDENCE
 
-## 86. Command-Oriented Writes
-
-Workflow-changing writes SHOULD be explicit commands/actions instead of generic unrestricted `update(record, payload)` endpoints.
-
-Examples:
-
-```text
-SubmitNscmf
-ForwardToApproval
-ApproveNscmf
-ReopenNscmf
-```
-
-This keeps permission/state/validation/transaction behavior tied to the business action.
-
----
-
-## 87. Scoped Query Reads
-
-History/queues MAY use optimized query objects/services independent from write actions, but both MUST use the same canonical visibility/scope semantics.
-
-No separate CQRS infrastructure/event bus is required.
-
----
-
-# PART S — SIGN-OFF / DOCUMENT EVIDENCE
-
-## 88. Workflow Sign-Off
-
-Digital sign-off fields derive from authenticated workflow events:
+## 61. Workflow Sign-Off
 
 ```text
 Requested By → first successful Submit actor/timestamp
-Reviewed By  → successful current-iteration Forward actor/timestamp
-Approved By  → successful final Approve actor/timestamp
+Reviewed By  → current-iteration successful Forward actor/timestamp
+Approved By  → final successful Approve actor/timestamp
 ```
 
-These values are business evidence stored in application data/audit and mapped into official export template.
+## 62. PDF Integrity Evidence
 
----
-
-## 89. PDF Cryptographic Signature Is Additional Integrity Evidence
-
-For approved PDF:
+Approved exported PDF adds:
 
 ```text
-workflow sign-off content
-+
-organization/system cryptographic PDF signature
+System/Organization cryptographic signature
++ exact final-file SHA-256 issuance evidence
 ```
 
-The cryptographic signature protects exported PDF integrity; it does not redefine who approved the NSCMF.
+This is document-integrity/authenticity evidence and does not redefine workflow approval.
 
 ---
 
-# PART T — SEARCH / PERFORMANCE / SCALE
+# PART S — SCALE / OBSERVABILITY
 
-## 90. 50-User Baseline
+## 63. 50-User Baseline
 
-Architecture is designed safely for 50 application users, not internet-scale multi-tenant traffic.
+MySQL + database queue/session/cache + modular monolith remain appropriate initial architecture. ClamAV and renderer resource cost must be considered in deployment sizing.
 
-At this scale:
+## 64. Minimum Signals
 
-- MySQL scoped indexes are sufficient baseline;
-- database session/cache are acceptable;
-- Database Queue is acceptable;
-- one modular monolith is preferred;
-- Redis/search engine/message broker are not required absent evidence.
+Observe at least application errors, auth/throttle/security failures, stale conflicts, queue depth/failure, malware scanner health/failures, export stage/duration, template/renderer/signing failures, public validator failures/abuse rate, scheduler/storage failures.
+
+Exact metrics/log platform/technical-log retention is downstream.
 
 ---
 
-## 91. Pagination and Indexing
+# PART T — IMPORTANT SEQUENCE FLOWS
 
-All potentially growing operational lists SHOULD be paginated.
-
-ERD MUST plan indexes for at least common dimensions implied by requirements such as:
-
-- Request No;
-- status;
-- archived flag;
-- requester;
-- Unit/Division/scopes;
-- family/subtype;
-- relevant dates.
-
-Exact composite indexes depend on ERD/query analysis.
-
----
-
-## 92. Bulk Export
-
-Bulk export remains asynchronous.
-
-Each selected record MUST pass visibility/export eligibility before job/request creation.
-
-Bulk packaging exact format remains a downstream implementation/UI decision unless explicitly confirmed later; architecture MUST NOT bypass per-record authorization merely because operation is bulk.
-
----
-
-# PART U — OBSERVABILITY BOUNDARY
-
-## 93. Minimum Architecture Signals
-
-System SHOULD make it possible to observe:
-
-- HTTP/application errors;
-- failed workflow transactions;
-- stale conflicts;
-- queue depth/failures;
-- export duration/failure stage;
-- template/integrity failures;
-- renderer failures;
-- signing failures;
-- scheduler cleanup failures;
-- storage failures.
-
-Exact metrics/log platform/retention/alerting is downstream.
-
----
-
-## 94. Correlation
-
-Important technical operations SHOULD have correlation/request/job identifiers so logs for export/queue failures can be traced without using user-visible Request No as the only diagnostic key.
-
-Exact format belongs to implementation.
-
----
-
-# PART V — SECURITY ARCHITECTURE HANDOFF
-
-## 95. Security Concerns Reserved for `10`
-
-`09` establishes boundaries but does not invent final security policy.
-
-`10_Security_Rules.md` MUST define at minimum applicable detail for:
-
-- password policy;
-- session duration/rotation;
-- login throttling/lockout;
-- CSRF/security headers;
-- authorization hardening;
-- attachment content scanning decision;
-- sensitive audit access;
-- secret management;
-- PDF signing certificate/private key storage;
-- signing algorithm/provider/trust-chain policy;
-- certificate rotation/revocation/expiry;
-- storage encryption/access policy;
-- transport security;
-- data retention/security logging.
-
----
-
-## 96. Signer Key Boundary
-
-Until `10` is written:
-
-- private key MUST be treated as highly sensitive system/organization credential;
-- it MUST NOT live in Vue/frontend bundle;
-- it MUST NOT be passed to Browser;
-- it MUST NOT be committed plaintext to repository;
-- PdfSigningService is server-side only.
-
-Exact implementation remains intentionally deferred.
-
----
-
-# PART W — DEPLOYMENT HANDOFF
-
-## 97. Logical Runtime Components
-
-Deployment Architecture must be able to place at least logical roles:
+## 65. Happy Path
 
 ```text
-Web/Application Runtime
-Queue Worker
-Scheduler
-MySQL 8.4
-Private Storage connection
-Qualified Spreadsheet Renderer
+Requester Submit
+→ locked transaction
+→ DRAFT -> PENDING_REVIEW + Business Audit
+
+Reviewer Forward
+→ locked transaction
+→ PENDING_REVIEW -> PENDING_APPROVAL + Business Audit
+
+Approver Approve
+→ locked transaction
+→ PENDING_APPROVAL -> APPROVED + approved_by + Business Audit
 ```
 
-PdfSigningService may be in application/worker process or protected dedicated runtime depending on Security/Deployment decision; logical interface remains stable.
-
----
-
-## 98. No Kubernetes Requirement
-
-Nothing in `09` requires:
-
-- Kubernetes;
-- service mesh;
-- API gateway;
-- event broker;
-- multiple application clusters.
-
-Deployment should remain proportional to 50-user baseline.
-
----
-
-# PART X — IMPORTANT SEQUENCE FLOWS
-
-## 99. Happy Path Submit → Approval
+## 66. Draft Autosave
 
 ```text
-Requester Browser
-  → Laravel Submit action
-    → authorize + validate
-      → DB transaction + row lock
-        → DRAFT → PENDING_REVIEW
-        → business audit Submit
-      → COMMIT
+expected_version
+→ authorize + DRAFT_PERSIST
+→ optimistic update + Business Audit
+→ version++
 
-Reviewer Browser
-  → Forward action
-    → authorize + scope + Result gate
-      → DB transaction + row lock
-        → PENDING_REVIEW → PENDING_APPROVAL
-        → business audit Forward
-      → COMMIT
-
-Approver Browser
-  → Approve action
-    → authorize + Approval Scope
-      → DB transaction + row lock
-        → PENDING_APPROVAL → APPROVED
-        → approved_by/timestamp
-        → business audit Approve
-      → COMMIT
+mismatch → conflict, no overwrite
 ```
 
----
-
-## 100. Draft Autosave
+## 67. Attachment
 
 ```text
-Requester Browser
-  → autosave payload + expected version
-    → authorize own editable record
-      → DRAFT_PERSIST validation
-        → optimistic version update
-          → persisted changes + business audit
-          → version increment
-
-version mismatch
-  → conflict
-  → no silent overwrite
+upload
+→ authorize/state + 06 validation
+→ private quarantine
+→ ClamAV
+→ CLEAN only
+→ persist/promote attachment
+→ Business/Security Audit as applicable
 ```
 
----
-
-## 101. Record View
+## 68. Approved PDF Export
 
 ```text
-User Browser
-  → Record Detail
-    → authenticate
-    → Policy + scope
-      → read MySQL
-      → Access Audit event
-      → return Inertia detail
-
-No business state change
-No business timeline Viewed row requirement
+request APPROVED PDF
+→ authorize + bind snapshot
+→ queue
+→ OOXML patch + integrity
+→ qualified renderer
+→ PdfSigningService
+→ final SHA-256 + issuance metadata
+→ private READY artifact for 168h
+→ authorized download + Access Audit
 ```
 
----
-
-## 102. Approved PDF Export
+## 69. Public Verify
 
 ```text
-User
-  → Export PDF
-    → authorize visible/exportable record
-    → capture/bind APPROVED record snapshot/version
-    → create export request QUEUED
-    → dispatch Database Queue
-
-Worker
-  → load snapshot
-  → resolve official template + mapping
-  → targeted OOXML patch
-  → workbook integrity validation
-  → qualified spreadsheet renderer
-  → exact PDF
-  → PdfSigningService
-       signer identity = system/organization
-  → private artifact storage
-  → READY + expires_at = +168h
-
-User
-  → poll/refresh status
-  → authorized download
-  → Access Audit download event
-
-Scheduler after expiry
-  → delete private artifact
-  → mark technical artifact expired/cleaned
+public PDF upload
+→ rate limit
+→ ClamAV CLEAN
+→ issuer signature verify
+→ exact SHA-256 lookup
+→ issuance/currentness resolve
+→ CURRENT / SUPERSEDED / MODIFIED / UNKNOWN
+→ temp upload deleted
 ```
 
 ---
 
-## 103. XLSX Export
+# PART U — CONFIRMED ARCHITECTURE DECISIONS
 
-```text
-User
-  → Export XLSX
-    → authorize
-    → bind snapshot/version
-    → queue job
-
-Worker
-  → template + OOXML patch + integrity validation
-  → private XLSX artifact
-  → READY for 168h
-
-No cryptographic PDF signature step
-```
-
----
-
-# PART Y — ARCHITECTURE DECISION RECORD SUMMARY
-
-## 104. Confirmed Decisions
+## 70. Summary
 
 | Concern | Confirmed Architecture Decision |
 |---|---|
-| Organization model | Single organization / single installation |
-| Architecture style | Modular Laravel monolith |
-| Frontend integration | Vue 3 + Inertia 3 inside Laravel application |
-| Primary DB | MySQL 8.4 LTS |
-| Sessions/cache | Database-backed baseline |
-| Async jobs | Laravel Database Queue |
-| Realtime | None required for MVP |
-| Workflow concurrency | Short DB transaction + row-level pessimistic lock |
-| Draft/Revision concurrency | Optimistic version check |
-| Result capture concurrency | Optimistic version check |
-| Business audit | Separate authoritative mutation/workflow audit |
-| Access audit | Separate access/view/download audit; not main business timeline |
-| Technical logs | Separate from both business/access audit |
-| Attachments | Private Flysystem storage + DB metadata |
-| Export choice | XLSX or PDF |
-| Export execution | All export asynchronous |
-| Export snapshot | Deterministic immutable logical record version/snapshot |
-| XLSX generation | Official template + targeted OOXML patching |
-| PDF rendering | Qualified spreadsheet renderer |
-| PDF signing | Cryptographic signature required only for APPROVED PDF snapshot |
-| PDF signer identity | System / Organization |
-| Personal Approver cert | Not architecture requirement |
-| Signing key detail | Deferred to `10_Security_Rules.md` |
-| Export artifact | Private temporary derived artifact |
-| Export retention | 168 hours / 7 days |
-| Cleanup | Laravel Scheduler / cron-compatible cleanup |
-| Kubernetes/microservices | Not required |
+| Organization | Single organization / installation |
+| Style | Modular Laravel monolith |
+| Frontend | Vue 3 + Inertia 3 |
+| DB | MySQL 8.4 LTS |
+| Session/cache | DB-backed baseline |
+| Async jobs | Laravel DB Queue |
+| Realtime | None required MVP |
+| Workflow concurrency | Short transaction + row lock/current-state revalidation |
+| Draft/Result concurrency | Optimistic version check |
+| Business Audit | authoritative, separate, no age purge |
+| Access Audit | separate from Timeline, no age purge |
+| Security Audit | separate authoritative security evidence, no age purge |
+| Technical Logs | separate operational concern |
+| Attachment | private quarantine/storage + ClamAV CLEAN gate |
+| Export | XLSX/PDF, all async, deterministic snapshot |
+| XLSX | official template + targeted OOXML patching |
+| PDF renderer | qualified spreadsheet renderer |
+| Approved PDF | mandatory cryptographic signing |
+| Signer | System/Organization, not human Approver |
+| Key custody | manually provisioned protected server/environment; never GitHub/source/deployment/ordinary DB |
+| Signing readiness | missing/unusable required identity = critical readiness failure |
+| TSA | not required current MVP |
+| Public validator | signature + exact SHA-256 + issuance/currentness |
+| Validator semantics | current / superseded / modified-invalid / unknown |
+| Export binary retention | 168 hours / 7 days |
+| Audit retention | no age-based purge |
+| Kubernetes/microservices | not required |
 
 ---
 
-# PART Z — ARCHITECTURE GUARDRAILS
+# PART V — ARCHITECTURE GUARDRAILS
 
-## 105. Developer / AI Must Not
+## 71. Developer / AI Must Not
 
 Implementation MUST NOT:
 
-1. add multi-tenancy/tenant layer without requirement change;
-2. split frontend/backend into independent deployments merely by preference;
-3. create microservices for modules defined here;
-4. let Vue enforce authoritative permission/state;
-5. bypass Policy/scope on History/export/download endpoints;
-6. hold row lock during user interaction;
-7. hold workflow transaction while rendering/exporting/uploading external file;
-8. use optimistic overwrite that silently loses newer Draft/Result changes;
-9. run Reviewer/Approver state transition without re-reading locked current state;
-10. commit successful state transition without required business audit evidence;
-11. record ordinary View as business status transition;
-12. mix Access Audit rows into business timeline in a way that floods operational history;
-13. treat technical logs as authoritative audit;
-14. expose attachment/export binary through public predictable path;
-15. use storage path as authorization decision;
-16. let object-storage success alone mean attachment mutation succeeded;
-17. generate export synchronously inside HTTP request path;
-18. let async export worker silently use a newer record version than requested snapshot;
-19. rebuild official XLSX visually from code;
-20. replace native controls with approximate symbols/images;
-21. deliver corrupted XLSX after integrity validation failure;
-22. use HTML/DomPDF approximation as fallback when spreadsheet PDF rendering fails;
-23. claim LibreOffice is production-authoritative before golden qualification;
-24. treat export job states as NSCMF business statuses;
-25. sign XLSX as if PDF signature requirement applies to it;
-26. require PDF cryptographic signature for non-Approved snapshot unless business rule changes;
-27. deliver unsigned Approved PDF when signing is mandatory and signing fails;
-28. use human Approver's personal certificate by assumption;
-29. store signing private key in frontend/repository plaintext;
-30. equate organization PDF signer with `Approved By` workflow actor;
-31. persist generated XLSX/PDF indefinitely by default;
-32. serve expired artifact after 168-hour validity window;
-33. delete source NSCMF record when export artifact expires;
-34. make scheduler advance Review/Approval workflow automatically;
-35. introduce Redis/Kafka/RabbitMQ/search cluster absent demonstrated need;
-36. weaken exact-template requirement due implementation convenience.
+1. add hidden multi-tenancy;
+2. split frontend/backend or make microservices by preference;
+3. let frontend authorize;
+4. bypass Policy/scope for History/export/download/audit;
+5. hold DB lock during user interaction/upload/scan/render/sign;
+6. silently overwrite stale Draft/Result;
+7. execute workflow transition without locked current-state revalidation;
+8. commit successful workflow without required Business Audit;
+9. pollute Business Timeline with routine access;
+10. age-purge Business/Access/Security Audit;
+11. expose attachment/export via public predictable path;
+12. use storage path as permission;
+13. treat structural upload validation as enough without ClamAV CLEAN;
+14. treat scan error/timeout/unavailable as CLEAN;
+15. expose `clamd` publicly;
+16. render export synchronously in workflow transaction;
+17. let async worker use later record version than bound snapshot;
+18. generic-rewrite official XLSX if native controls may be stripped;
+19. replace native controls with approximations;
+20. use HTML/DomPDF fallback;
+21. promote unqualified renderer;
+22. treat export/scan/security state as NSCMF business state;
+23. sign XLSX under PDF rule;
+24. require personal Approver certificate by assumption;
+25. put private signing key in browser/GitHub/source/deployment/ordinary DB;
+26. deliver unsigned Approved PDF on signing failure;
+27. treat missing signing identity as normal-ready state;
+28. equate System/Organization signer with `Approved By`;
+29. age-delete issuance metadata needed to validate historical PDF;
+30. claim TSA assurance current MVP;
+31. make `/ispdfvalid` a public record/history portal;
+32. classify a genuine superseded PDF as modified solely because record was later Reopened/Reverted;
+33. persist generated binary indefinitely by default;
+34. delete source/audit when binary expires;
+35. make scheduler advance business workflow;
+36. add Redis/Kafka/search cluster without demonstrated need.
 
 ---
 
-# PART AA — TESTABLE ARCHITECTURE ACCEPTANCE CRITERIA
+# PART W — TESTABLE ARCHITECTURE ACCEPTANCE
 
-## 106. Application Boundary
+## 72. Application / Authorization
 
-- [ ] System runs as one modular Laravel application.
-- [ ] No tenant layer exists for current single organization.
-- [ ] Vue/Inertia is presentation boundary; Laravel is server authority.
-- [ ] Domain actions are not scattered only through controllers/components/model hooks.
+- [ ] One modular Laravel application; no tenant layer.
+- [ ] Vue/Inertia is presentation; Laravel server authority.
+- [ ] Every protected record/resource path checks server permission/scope.
+- [ ] public validator exposes only narrow minimum-disclosure verification.
 
-## 107. Authorization / Query
+## 73. Concurrency
 
-- [ ] Every record read/write/export path checks effective authorization/scope server-side.
-- [ ] Scoped queue/history query does not leak unauthorized row/count data.
-- [ ] View does not change business status or create exclusive assignment.
+- [ ] workflow uses row-lock current-state transaction;
+- [ ] Reviewer/Approver race yields one valid transition;
+- [ ] Draft/Result stale version cannot overwrite.
 
-## 108. Concurrency
+## 74. Audit
 
-- [ ] Workflow transitions use short transaction + row-level lock/current-state revalidation.
-- [ ] Reviewer stale race produces only one valid state result.
-- [ ] Approver stale race produces only one valid final approval.
-- [ ] Draft/Revision update uses optimistic version conflict detection.
-- [ ] Change Result update uses optimistic version conflict detection.
-- [ ] Stale edit does not silently overwrite newer data.
+- [ ] Business/Access/Security/Technical concerns separate;
+- [ ] Business Timeline not flooded by Views;
+- [ ] authoritative audits are not age-purged;
+- [ ] normal user cannot mutate historical audit.
 
-## 109. Audit Separation
+## 75. Attachment / ClamAV
 
-- [ ] Business mutations/workflow actions write authoritative Business Audit.
-- [ ] Access/view/download evidence is stored separately from business timeline.
-- [ ] Technical logs are not used as replacement for either audit model.
-- [ ] Business timeline remains readable without routine View-event flooding.
+- [ ] upload is private before scan;
+- [ ] only CLEAN promotes;
+- [ ] infected/error/timeout/unavailable fails closed;
+- [ ] `clamd` private;
+- [ ] object/DB partial failures compensated.
 
-## 110. Attachments
+## 76. Export / Signing / Validation
 
-- [ ] Files are private and require parent-record authorization.
-- [ ] DB metadata and storage partial failures are compensated safely.
-- [ ] Orphan objects are never made publicly accessible.
+- [ ] all exports queued and bound to deterministic snapshot;
+- [ ] immutable template + targeted OOXML patching;
+- [ ] native controls preserved;
+- [ ] PDF renderer golden-qualified;
+- [ ] Approved PDF goes through PdfSigningService;
+- [ ] final signed bytes SHA-256 + issuance metadata persisted;
+- [ ] missing/unusable signing identity causes critical readiness state;
+- [ ] signing failure gives FAILED, no unsigned fallback;
+- [ ] public verifier can return current/superseded/modified/unknown;
+- [ ] public temp upload is deleted;
+- [ ] no TSA requirement/claim.
 
-## 111. Export Queue
+## 77. Binary Retention / Failure
 
-- [ ] Single XLSX export is queued asynchronously.
-- [ ] Single PDF export is queued asynchronously.
-- [ ] Bulk export is queued asynchronously.
-- [ ] Export request is bound to deterministic record snapshot/version.
-- [ ] Queue retry does not mutate NSCMF state.
-- [ ] Partial artifact is not exposed as READY.
-
-## 112. Exact XLSX
-
-- [ ] Worker starts from immutable approved official template.
-- [ ] Only mapped OOXML fields/control states are patched.
-- [ ] Integrity validator runs before artifact is READY.
-- [ ] Generated XLSX remains exact template representation apart from intended values/control states.
-
-## 113. PDF / Signing
-
-- [ ] PDF is rendered from filled XLSX/template representation.
-- [ ] Only qualified renderer is production-eligible.
-- [ ] `APPROVED` PDF export passes through PdfSigningService.
-- [ ] Intended signer is system/organization.
-- [ ] Approved PDF signing failure causes export FAILED, not unsigned fallback.
-- [ ] Non-Approved PDF does not receive mandatory organization signature under current rule.
-- [ ] XLSX does not receive PDF cryptographic signing flow.
-
-## 114. Artifact Retention
-
-- [ ] READY artifact has 168-hour expiry.
-- [ ] Authorized user can re-download before expiry.
-- [ ] Download path re-checks authorization.
-- [ ] Scheduler deletes expired private binary.
-- [ ] Expiration does not delete NSCMF source record/audit.
-- [ ] User can request a new export after expiration.
-
-## 115. Failure Isolation
-
-- [ ] Renderer/export failure does not alter NSCMF business state.
-- [ ] Signing failure does not alter Approval evidence.
-- [ ] Scheduler failure does not expose files publicly.
-- [ ] Database transaction failure does not leave partial workflow transition.
+- [ ] READY binary 168h/7d then scheduler removes it;
+- [ ] audit/issuance/source data remains;
+- [ ] renderer/signing/scheduler failures do not rewrite NSCMF state.
 
 ---
 
-# PART AB — DOWNSTREAM HANDOFFS
+# PART X — DOWNSTREAM HANDOFFS
 
-## 116. `10_Security_Rules.md`
+## 78. `10_Security_Rules.md`
 
-Must finalize security controls around:
+Security authority finalizes and constrains:
 
-- credentials/session;
-- permissions hardening;
-- CSRF/headers;
-- file security/scanning;
-- access-audit security/retention where applicable;
-- export artifact access;
-- PDF signing certificate/private key;
-- signing algorithm/trust/rotation/revocation;
-- secret management;
-- encryption/transport requirements.
+- exact confirmed password/session/re-auth behavior;
+- browser/request hardening;
+- authorization/IDOR/mass-assignment protection;
+- ClamAV fail-closed controls;
+- privileged audit visibility/preservation;
+- secret/key handling;
+- signing readiness/custody;
+- public verification controls;
+- safe errors/logging.
 
----
+It MUST NOT change architecture or canonical business state semantics.
 
-## 117. `11_ERD_Database_Schema.md`
+## 79. `11_ERD_Database_Schema.md`
 
-Must materialize architecture concepts including as appropriate:
+Must materialize at least record/version, scopes, business/access/security audits, attachment metadata/security state, session-related data as required, export/issuance metadata, final SHA-256, signer/certificate reference, expiry timestamps, and constraints/indexes.
 
-- NSCMF record/version token;
-- form-specific data;
-- scopes;
-- business audit;
-- access audit;
-- attachment metadata;
-- export request/job/artifact metadata;
-- template version reference;
-- snapshot/version binding;
-- expiry timestamps;
-- indexes/constraints.
+## 80. `12_API_Contract.md`
 
-Exact tables are intentionally not invented here.
+Must define optimistic conflict/stale action, session/re-auth errors, attachment scan outcomes, export request/status/download, and public PDF verification payloads.
 
----
+## 81. `13_Project_Structure.md`
 
-## 118. `12_API_Contract.md`
+Must place actions/services/adapters (`MalwareScanner`, `PdfSigningService`, `PdfVerificationService`, renderer, audit modules) without changing responsibility.
 
-Must define HTTP behavior for:
+## 82. `14_Environment_Specification.md`
 
-- optimistic version conflicts;
-- stale workflow action;
-- export request/status/download;
-- authorization failures;
-- validation errors;
-- attachment endpoints;
-- queued export state responses.
+Must define MySQL/queue/scheduler/storage/ClamAV/template/renderer/signing configuration paths and readiness checks without committing secrets.
+
+## 83. `20_Deployment_Architecture.md`
+
+Must place logical components physically and define backup/DR/availability/security operations proportional to scale.
 
 ---
 
-## 119. `13_Project_Structure.md`
+# PART Y — AUTHORITY MATRIX
 
-Must define code placement for logical modules/actions/adapters without changing responsibilities in this document.
-
----
-
-## 120. `14_Environment_Specification.md`
-
-Must define environment/runtime configuration for:
-
-- MySQL;
-- queue worker;
-- scheduler;
-- storage;
-- template registry path;
-- renderer executable/service;
-- temporary workspace;
-- signing service configuration reference;
-- expiry configuration if made configurable while preserving 168-hour default/requirement.
-
----
-
-## 121. `20_Deployment_Architecture.md`
-
-Must place logical components into production topology and define process/container availability without turning logical module boundaries into unnecessary microservices.
-
----
-
-# PART AC — AUTHORITY MATRIX
-
-## 122. Authority Matrix
+## 84. Authority Matrix
 
 | Concern | Authoritative Source |
 |---|---|
 | Product scope | `01_PRD.md` |
 | Business invariant | `02_Business_Rules.md` |
-| User interaction sequence | `03_User_Flow.md` |
-| Permission/scope semantics | `04_RBAC_Permission_Matrix.md` |
-| Business lifecycle/state | `05_State_Status_Flow.md` |
+| User interaction | `03_User_Flow.md` |
+| Permission/scope | `04_RBAC_Permission_Matrix.md` |
+| Lifecycle/state | `05_State_Status_Flow.md` |
 | Validation | `06_Validation_Rules.md` |
 | Presentation/interaction | `07_UI_UX_Specification.md` |
-| Technology selection | `08_Tech_Stack_Specification.md` |
-| **Component topology / concurrency / execution architecture** | **`09_System_Architecture.md`** |
+| Technology | `08_Tech_Stack_Specification.md` |
+| **Logical architecture / concurrency / execution boundaries** | **`09_System_Architecture.md`** |
 | Security controls | `10_Security_Rules.md` |
-| Physical relational schema | `11_ERD_Database_Schema.md` |
+| Physical schema | `11_ERD_Database_Schema.md` |
 | HTTP contract | `12_API_Contract.md` |
 | Code layout | `13_Project_Structure.md` |
-| Runtime/environment variables | `14_Environment_Specification.md` |
-| Coding/AI rules | `15_Coding_Rules_AGENTS.md` |
-| Detailed test coverage | `16_Testing_Specification.md` |
-| Dummy fixtures | `17_Seed_Dummy_Data_Specification.md` |
-| Completion criteria | `18_Definition_of_Done.md` |
-| Build order/tasks | `19_Task_Implementation_Plan.md` |
-| Production physical topology | `20_Deployment_Architecture.md` |
+| Environment | `14_Environment_Specification.md` |
+| Coding/AI | `15_Coding_Rules_AGENTS.md` |
+| Testing | `16_Testing_Specification.md` |
+| Seed | `17_Seed_Dummy_Data_Specification.md` |
+| DoD | `18_Definition_of_Done.md` |
+| Implementation plan | `19_Task_Implementation_Plan.md` |
+| Physical production topology | `20_Deployment_Architecture.md` |
 
 ---
 
-# PART AD — INTENTIONALLY DEFERRED ITEMS
+# PART Z — REMAINING ARCHITECTURE-ADJACENT TBDs
 
-## 123. Remaining Architecture-Adjacent TBDs
+## 85. Still Deferred
 
-The following MUST NOT be silently guessed in `09`:
-
-- exact password/session/security policy;
-- exact PDF signing certificate/provider/private-key storage;
-- signature algorithm/trust-chain/rotation/revocation policy;
-- attachment malware-scanning technology;
-- audit/access-audit retention period;
 - exact relational tables/columns;
-- exact optimistic version column naming/type;
-- exact HTTP status/payloads;
-- exact export-job table/state enum implementation;
-- exact bulk packaging format;
-- exact template cell/control mapping;
-- exact Docker Compose/container count;
-- exact cron execution cadence after expiration eligibility;
-- exact S3-compatible production provider;
-- exact observability platform;
+- exact optimistic version field naming/type;
+- exact API status/payloads;
+- exact export-job table/enums;
+- exact bulk packaging;
+- exact workbook cell/control mapping;
+- exact Docker/container count/placement;
+- exact cron cadence after 168h eligibility;
+- exact S3-compatible provider;
+- exact technical-log/observability platform and retention;
+- exact certificate file format/server path/provider/CA if external trust beyond NSCMF issuer/validator model is later required;
+- exact key-rotation operational ceremony;
+- backup/restore/DR/RPO/RTO;
 - notification provider/timing;
 - official company numbering SOP/sample;
-- exact Unit/Division master data;
-- final production infrastructure topology.
+- Unit/Division master data;
+- final production topology;
+- performance/SLA/availability targets.
+
+The following are no longer TBD: password/MFA/session baseline, re-auth/session revocation, ClamAV technology/fail-closed behavior, authoritative audit age-retention, signing-key custody/readiness, no TSA MVP, public PDF validator semantics, exact-template export, async export, and 7-day binary retention.
 
 ---
 
-# PART AE — REQUIRED SYNCHRONIZATION
+## 86. Next Document
 
-## 124. Prior-Artifact Synchronization
-
-Architecture decisions confirmed in this session that should be reflected where relevant upstream/downstream:
-
-- single-organization model;
-- hybrid concurrency model;
-- user-facing XLSX/PDF export choice;
-- all export asynchronous;
-- deterministic export snapshot/version binding;
-- 168-hour temporary export retention;
-- separate Access Audit vs Business Timeline;
-- `APPROVED` PDF cryptographic signing;
-- logical signer = system/organization;
-- signing key/certificate implementation deferred to Security Rules.
-
-Synchronization MUST NOT change canonical workflow states or validation decisions.
-
----
-
-## 125. Next Document
-
-Next document in fixed project order:
+Next document in fixed order:
 
 **`10_Security_Rules.md`**
 
-It must secure the architecture defined here without changing its business semantics, especially authentication/session hardening, authorization enforcement, attachment security, access-audit protection, private export delivery, and the organization/system PDF signing-key boundary.
+It secures these architecture boundaries without changing business semantics.
