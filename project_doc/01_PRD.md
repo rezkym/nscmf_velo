@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-PRD-001  
 > **Document Order:** 01 / 20  
-> **Status:** Draft — Synchronized through State / Status Flow  
+> **Status:** Draft — Synchronized through Validation Rules  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Primary Business Reference:** NSCMF Form 3.0 (Excel)  
 > **Product Flow Reference:** NSCMF FigJam proposal  
@@ -124,7 +124,7 @@ Produk bukan generic BPM, generic form builder, atau full document-management pl
 Role mapping, Unit/Division mapping, dan scope dapat disesuaikan tanpa melemahkan invariant.
 
 ### 5.6 No Silent Assumptions
-Hal yang belum diputuskan harus tetap TBD.
+Hal yang belum diputuskan harus tetap TBD. Rule sementara yang sengaja dipakai untuk MVP harus dinyatakan sebagai **PROVISIONAL**, bukan disajikan sebagai SOP resmi perusahaan.
 
 ---
 
@@ -134,7 +134,7 @@ Hal yang belum diputuskan harus tetap TBD.
 Seeded protected authority tertinggi pada standard template, global visibility, initial setup, dan default administrative authority. Tidak dapat delete/soft-delete/disable/downgrade.
 
 ### Requester
-Membuat dan mengelola own NSCMF sesuai current state.
+Membuat dan mengelola own NSCMF sesuai current state. Untuk Change, Requester/owner juga menjadi default actor untuk narrow `Result of Changes` capture selama `PENDING_REVIEW` melalui permission khusus.
 
 ### Reviewer
 Memproses record berdasarkan Unit/Division scope. Reviewer tidak dipilih eksklusif; semua eligible Reviewer dalam scope dapat melihat dan bertindak sesuai state.
@@ -201,6 +201,9 @@ MVP mencakup:
 33. No hard delete NSCMF.
 34. Emergency Change tetap Review + Approval.
 35. Change `Result of Changes` diselesaikan sebelum final Approval tanpa membuat state execution/result baru.
+36. Narrow Change Result capture oleh Requester/owner pada `PENDING_REVIEW` melalui `nscmf.change.result.edit` tanpa membuka general submitted form editing.
+37. Service Impact Change bersifat multi-select dan `Other` membutuhkan description.
+38. Validation dibedakan antara Draft persistence dan workflow gate; incomplete Draft tetap dapat disimpan.
 
 Notification hook adalah future capability dan bukan MVP blocker.
 
@@ -221,7 +224,8 @@ MVP tidak ditujukan untuk:
 - AI guessing untuk business classification;
 - exported file sebagai source of truth;
 - multi-level approval chain pada requirement saat ini;
-- state `UNDER_REVIEW`, `REOPENED`, `ARCHIVED`, `EXECUTION_PENDING`, atau `RESULT_PENDING` sebagai business status current design.
+- state `UNDER_REVIEW`, `REOPENED`, `ARCHIVED`, `EXECUTION_PENDING`, atau `RESULT_PENDING` sebagai business status current design;
+- freehand/cryptographic e-signature technology tanpa requirement baru.
 
 ---
 
@@ -250,6 +254,8 @@ Main information groups:
 - domain/email/hosting;
 - onsite/customer/POP configuration;
 - Request/Review/Approved sign-off.
+
+Required/conditional/optional classification mengikuti `06_Validation_Rules.md` dan tidak diturunkan hanya dari keberadaan field pada Excel.
 
 ### 10.2 NSCMF - Change
 
@@ -281,7 +287,11 @@ Input areas:
 - Customer;
 - Other.
 
-Single vs multi-select tetap ditentukan pada Validation/UI specification.
+Confirmed validation treatment:
+
+- Service Impact adalah **multi-select**;
+- minimum satu impact dipilih pada Submit/Resubmit;
+- jika `Other` dipilih, `Other Impact Description` wajib.
 
 Field lain:
 
@@ -298,6 +308,8 @@ Source workbook memiliki announcement timing:
 - 2 weeks before;
 - 2 days before (emergency).
 
+Exact warning/error behavior mengikuti `06_Validation_Rules.md`.
+
 #### Section B — Result of Changes
 
 Mencakup:
@@ -309,10 +321,14 @@ Mencakup:
 Confirmed workflow treatment:
 
 - section ini tidak otomatis wajib lengkap pada first Submit hanya karena tersedia di template;
-- applicable Result of Changes harus selesai sebelum Reviewer dapat `Forward to Approval`;
+- first Submit dapat memiliki zero Result rows;
+- row Result yang sudah mulai diisi harus internally complete sesuai Validation Rules;
+- sebelum Reviewer `Forward to Approval`, Change membutuhkan minimal satu complete Result row;
+- lima row pada source template adalah capacity, bukan mandatory count;
 - pengisian Result tidak menambah business state baru;
-- selama `PENDING_REVIEW`, system harus menyediakan narrow authorized mechanism untuk result capture tanpa membuka general Requester editing atau memaksa fake Return for Revision;
-- exact actor/permission dan field validation akan dikunci downstream.
+- selama `PENDING_REVIEW`, Requester/owner dengan `nscmf.change.result.edit` dapat mengisi Result melalui narrow result-only capability;
+- planning/submitted fields lain tetap locked;
+- persisted Result changes diaudit.
 
 ### 10.3 Upgrade Classification
 
@@ -339,7 +355,8 @@ System tidak boleh memilih hanya berdasarkan keyword `Upgrade`.
 **FR-DASH-001** Dashboard menjadi landing page setelah setup selesai.  
 **FR-DASH-002** Dashboard menyediakan `Create New Form` dan History entry point.  
 **FR-FORM-001** User memilih family → subtype → numbering mode.  
-**FR-FORM-002** Attachment input tersedia dan optional.
+**FR-FORM-002** Attachment input tersedia dan optional.  
+**FR-FORM-003** Automatic/manual Request No mengikuti validation current/provisional di `06_Validation_Rules.md`.
 
 ### Draft
 
@@ -356,7 +373,8 @@ System tidak boleh memilih hanya berdasarkan keyword `Upgrade`.
 **FR-REV-001** Semua eligible Reviewer dalam matching scope melihat `PENDING_REVIEW`.  
 **FR-REV-002** Membuka record tidak mengubah state dan tidak menciptakan exclusive owner.  
 **FR-REV-003** Multiple Reviewer dapat berpartisipasi dan seluruh activity dipertahankan.  
-**FR-REV-004** Reviewer dapat Forward → `PENDING_APPROVAL`, Return → `REVISION_REQUIRED`, atau Reject → `REJECTED`.
+**FR-REV-004** Reviewer dapat Forward → `PENDING_APPROVAL`, Return → `REVISION_REQUIRED`, atau Reject → `REJECTED`.  
+**FR-REV-005** Reviewer Return dan Reviewer Reject membutuhkan mandatory reason sesuai Validation Rules.
 
 ### Revision
 
@@ -370,7 +388,8 @@ System tidak boleh memilih hanya berdasarkan keyword `Upgrade`.
 **FR-APR-002** Approver dapat Approve → `APPROVED`, Return Reviewer → `PENDING_REVIEW`, Return Requester → `REVISION_REQUIRED`, atau Reject → `REJECTED`.  
 **FR-APR-003** Satu valid final Approve cukup; `Approved By` adalah actor yang berhasil melakukan transition.  
 **FR-APR-004** Emergency tidak bypass Review/Approval.  
-**FR-APR-005** Change Result-of-Changes applicable validation harus lulus sebelum masuk `PENDING_APPROVAL`.
+**FR-APR-005** Change Result-of-Changes applicable validation harus lulus sebelum masuk `PENDING_APPROVAL`.  
+**FR-APR-006** Approver Return/Reject membutuhkan mandatory reason; Approve comment optional.
 
 ### Reopen / Revert
 
@@ -392,7 +411,15 @@ System tidak boleh memilih hanya berdasarkan keyword `Upgrade`.
 **FR-ARC-002** Archive hanya pada `APPROVED`, `REJECTED`, `CANCELLED`.  
 **FR-ARC-003** Archive adalah independent flag; business status tidak berubah.  
 **FR-ARC-004** Actor memerlukan `nscmf.archive` + valid visibility.  
-**FR-ARC-005** Unarchive diperbolehkan dengan permission/visibility yang sama dan tidak mengubah business status.
+**FR-ARC-005** Archive dan Unarchive membutuhkan mandatory reason sesuai Validation Rules.  
+**FR-ARC-006** Unarchive tidak mengubah business status.
+
+### Attachment
+
+**FR-ATT-001** Attachment optional.  
+**FR-ATT-002** Current MVP limit = maksimum 10 files per record dan 20 MB per file.  
+**FR-ATT-003** Allowed file type baseline dan executable/script exclusions mengikuti `06_Validation_Rules.md`.  
+**FR-ATT-004** Upgrade/Emergency Change tanpa attachment menghasilkan warning, bukan blocking error.
 
 ### Audit / Concurrency
 
@@ -474,28 +501,29 @@ Stakeholder dapat:
 2. mengelola user/role/scope sesuai permission;
 3. membuat Activation/Change;
 4. memilih numbering mode;
-5. Save Draft/autosave;
-6. Submit ke `PENDING_REVIEW`;
+5. Save Draft/autosave meskipun Draft belum complete;
+6. Submit valid record ke `PENDING_REVIEW`;
 7. melakukan Review shared/non-exclusive;
 8. melakukan unlimited revision cycle;
-9. memproses Change Result sebelum final Approval tanpa state tambahan;
+9. memproses Change Result melalui narrow Requester result-edit capability sebelum final Approval tanpa state tambahan;
 10. melakukan single final Approval;
-11. menjalankan Return/Reject;
-12. Reopen/Revert sesuai authority dan destination yang valid;
+11. menjalankan Return/Reject dengan required reason;
+12. Reopen/Revert sesuai authority, mandatory reason, dan destination yang valid;
 13. melihat History/timeline sesuai scope;
 14. export visible record;
-15. Archive/Unarchive tanpa menghapus history atau mengganti business status;
-16. memastikan no hard delete dan stale action tidak menghasilkan conflicting transition.
+15. Archive/Unarchive dengan mandatory reason tanpa menghapus history atau mengganti business status;
+16. memastikan no hard delete dan stale action tidak menghasilkan conflicting transition;
+17. menerapkan current field/attachment/numbering validation sesuai `06_Validation_Rules.md`.
 
 ---
 
-## 16. Confirmed vs Deferred
+## 16. Confirmed, Provisional, and Deferred
 
 ### Confirmed
 
 - canonical states: `DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL`, `REJECTED`, `APPROVED`, `CANCELLED`;
 - `SUBMITTED`, `REVIEWED`, `REOPENED`, `ARCHIVED` bukan persistent business status;
-- autosave + Save Draft;
+- autosave + Save Draft; Draft may incomplete;
 - multi-role;
 - Reviewer/Approver shared/non-exclusive;
 - one final eligible Approver sufficient;
@@ -504,23 +532,36 @@ Stakeholder dapat:
 - Cancel permanent;
 - Archive eligible states + Unarchive;
 - Change Result completed before final Approval without extra state;
-- optional attachment;
+- Requester/owner default Change Result editor via `nscmf.change.result.edit` during `PENDING_REVIEW`;
+- Service Impact multi-select + required Other description;
+- optional attachment with current 10-file / 20-MB-per-file limit and allowlist;
+- mandatory reasons for Return/Reject/Reopen/Archive/Unarchive; Cancel reason optional;
 - view implies export;
 - Emergency no bypass;
 - stale action revalidation.
 
+### Provisional
+
+Until official company numbering/SOP is supplied:
+
+- automatic number format `NSCMF-YYYYMM-#####`;
+- global monthly automatic sequence scope;
+- manual number pattern/length;
+- Header Date not-future rule at first Submit.
+
+These are current implementation rules but MUST NOT be presented as official VELO numbering policy.
+
 ### Deferred / TBD
 
-- auto-number format/uniqueness scope;
 - exact Unit/Division default template entries;
-- exact validation/cardinality per field;
-- exact actor/permission for Change Result capture during `PENDING_REVIEW`;
-- Return/Reject/Cancel/Archive/Unarchive reason requirement selain confirmed Reopen reason;
+- official company NSCMF numbering SOP/sample that may replace provisional numbering;
+- search/filter requirement final details beyond current baseline direction;
 - export format selain PDF / bulk packaging;
 - notification implementation/provider;
-- attachment limits;
 - audit retention/export audit;
-- performance/SLA/retention targets.
+- performance/SLA/retention targets;
+- malware scanning/storage architecture;
+- e-signature technology if ever required.
 
 ---
 
@@ -552,16 +593,17 @@ Jika requirement berubah, dokumen terkait harus disinkronkan; perubahan tidak bo
 
 ## 19. Open Product Decisions
 
-- [ ] Automatic NSCMF number format dan uniqueness scope.
 - [ ] Exact default Unit/Division template data.
-- [ ] Exact Change Result capture actor/permission.
-- [ ] Field-level mandatory/conditional validation.
-- [ ] Reason requirement selain Reopen.
-- [ ] Search/filter requirement final.
+- [ ] Official NSCMF numbering SOP/sample to replace or confirm provisional rule.
+- [ ] Search/filter requirement final detail if additional criteria are needed.
 - [ ] Additional export format dan bulk packaging.
-- [ ] Audit retention dan export audit.
-- [ ] Attachment constraints.
+- [ ] Audit retention dan export/download audit policy.
 - [ ] Notification implementation.
+- [ ] Performance/availability/retention targets.
+- [ ] Malware scanning/storage architecture.
+- [ ] E-signature technology only if business later requires it.
+
+Resolved validation items MUST NOT be returned to TBD without an explicit requirement change.
 
 ---
 
@@ -575,8 +617,9 @@ Completed/current draft set:
 03_User_Flow.md
 04_RBAC_Permission_Matrix.md
 05_State_Status_Flow.md
+06_Validation_Rules.md
 ```
 
 Dokumen berikutnya:
 
-**`06_Validation_Rules.md`** — mengunci validitas field/input/action yang diperlukan oleh canonical state machine.
+**`07_UI_UX_Specification.md`** — menerjemahkan product, workflow, permission, state, dan validation rules menjadi screens, navigation, components, interaction states, responsive behavior, dan visual design system.
