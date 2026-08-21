@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-PRD-001  
 > **Document Order:** 01 / 20  
-> **Status:** Draft — Synchronized through System Architecture  
+> **Status:** Draft — Synchronized through Confirmed Security Decisions  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Primary Business Reference:** NSCMF Form 3.0 (Excel)  
 > **Product Flow Reference:** NSCMF FigJam proposal  
@@ -49,7 +49,7 @@ NSCMF Digital Form & Workflow System adalah aplikasi web internal **single-organ
 
 Aplikasi web mempertahankan makna bisnis NSCMF Form 3.0 tetapi UI operasional tidak wajib menyalin layout spreadsheet secara pixel-perfect. **Khusus output XLSX/PDF, official NSCMF XLSX template menjadi visual/export source of truth dan hasil export harus mempertahankan template tersebut secara exact; sistem hanya mengisi/mengganti field serta native control state yang dipetakan.**
 
-User dapat memilih output **XLSX** atau **PDF**. Export diproses asynchronous. Generated artifact tersedia untuk authorized re-download selama **168 jam / 7 hari**, kemudian dibersihkan otomatis. XLSX tidak memerlukan cryptographic document signature. PDF yang merepresentasikan snapshot `APPROVED` wajib mendapat cryptographic PDF signature dengan logical signer identity **System/Organization**; certificate/private-key implementation dikunci lebih lanjut pada Security Rules.
+User dapat memilih output **XLSX** atau **PDF**. Export diproses asynchronous. Generated artifact tersedia untuk authorized re-download selama **168 jam / 7 hari**, kemudian dibersihkan otomatis. XLSX tidak memerlukan cryptographic document signature. PDF yang merepresentasikan snapshot `APPROVED` wajib mendapat cryptographic PDF signature dengan logical signer identity **System/Organization**. Security policy yang telah dikonfirmasi—termasuk password/session, malware scanning, permanent authoritative audit evidence, signing-key custody, dan public PDF validation—dikunci secara authoritative pada `10_Security_Rules.md`.
 
 Dua form family utama:
 
@@ -223,6 +223,13 @@ MVP mencakup:
 43. Technology baseline menggunakan Laravel 13 + PHP 8.5 + Vue 3 + TypeScript + Inertia 3 + shadcn-vue + MySQL 8.4 LTS sesuai `08_Tech_Stack_Specification.md`.
 44. Testing infrastructure (Pest + Vitest + Playwright + static-analysis/quality gates) disiapkan sejak project bootstrap.
 45. Hybrid concurrency: workflow transitions memakai short transaction + row-level lock/current-state revalidation; Draft/Revision/Result persistence memakai optimistic version conflict detection.
+46. Authentication security baseline: password-only, minimum 6 characters, no composition requirement, no MFA, login throttling/progressive delay, idle timeout 30 menit, absolute session lifetime 8 jam, dan maksimum 2 active sessions per account.
+47. Administrative account create/reset menggunakan temporary password + mandatory password change. Password reset dan role/permission changes revoke seluruh active sessions target user; sensitive administrative action memerlukan password re-authentication acting user.
+48. Attachment security menggunakan private storage dan ClamAV malware scan; hanya explicit `CLEAN` yang membuat uploaded attachment usable.
+49. Authoritative Business Audit, Access Audit, dan Security Audit tidak memiliki age-based retention/purge dan tidak boleh dihapus otomatis karena umur.
+50. Approved-PDF signing identity diprovision manual pada server/environment, tidak disimpan di GitHub/source/deployment artifact, dan missing/unusable signing identity adalah critical readiness/configuration failure.
+51. Public no-login PDF validator memverifikasi recognized NSCMF issuer signature, exact final SHA-256, issuance metadata, dan current/superseded approval context tanpa membuka private NSCMF data.
+52. TSA/trusted external timestamp service tidak diwajibkan untuk current MVP.
 
 Notification hook adalah future capability dan bukan MVP blocker.
 
@@ -232,7 +239,7 @@ Notification hook adalah future capability dan bukan MVP blocker.
 
 MVP tidak ditujukan untuk:
 
-- public/customer portal;
+- public/customer portal; public PDF validation adalah narrow verification utility dan **bukan** customer/public NSCMF portal;
 - multi-tenant/multi-organization installation;
 - self-registration;
 - native mobile app;
@@ -249,7 +256,7 @@ MVP tidak ditujukan untuk:
 - personal certificate requirement untuk setiap human Approver;
 - redesigning the official NSCMF XLSX layout for export;
 - accepting approximate PDF layout when exact template fidelity is required;
-- treating a digitally signed PDF as impossible to edit; the intended property is tamper detection through signature invalidation.
+- treating a digitally signed PDF as impossible to edit; the intended property is tamper detection through signature/hash verification.
 
 ---
 
@@ -367,12 +374,18 @@ System tidak boleh memilih hanya berdasarkan keyword `Upgrade`.
 
 ### Authentication / Administration
 
-**FR-AUTH-001** Valid user dapat login/logout.  
+**FR-AUTH-001** Valid user dapat login/logout menggunakan username + password.  
 **FR-AUTH-002** Tidak ada self-registration.  
+**FR-AUTH-003** Current MVP tidak menggunakan MFA.  
+**FR-AUTH-004** Password minimum 6 characters tanpa composition requirement.  
+**FR-AUTH-005** Login menerapkan server-side throttling/progressive delay.  
+**FR-AUTH-006** Session policy = 30-minute idle timeout, 8-hour absolute lifetime, maximum 2 active sessions/account.  
 **FR-ADM-001** Seeded protected Superadmin dibuat saat initial seeding.  
 **FR-ADM-002** Initial setup menggunakan wizard.  
 **FR-ADM-003** Authorized admin dapat mengelola normal user, role, Unit/Division, dan eligible scope sesuai RBAC.  
-**FR-ADM-004** Protected Superadmin tidak dapat delete/disable/downgrade.
+**FR-ADM-004** Protected Superadmin tidak dapat delete/disable/downgrade.  
+**FR-ADM-005** Admin-created/reset credential menggunakan temporary password dan user wajib menggantinya.  
+**FR-ADM-006** Sensitive role/permission/credential administrative action memerlukan password re-authentication; affected target-user sessions dicabut sesuai Security Rules.
 
 ### Dashboard / Creation
 
@@ -430,6 +443,7 @@ System tidak boleh memilih hanya berdasarkan keyword `Upgrade`.
 **FR-HIS-001** Visibility mengikuti ownership/scope/RBAC.  
 **FR-HIS-002** Legitimate viewer dapat melihat business timeline siapa melakukan perubahan/workflow action.  
 **FR-HIS-003** Viewer/access/download evidence disimpan melalui separate access-audit concern sehingga routine View tidak memenuhi business timeline.  
+**FR-HIS-004** Authoritative Business/Access/Security Audit evidence tidak dihapus otomatis karena umur.  
 **FR-EXP-001** View implies export; bulk export check per record.  
 **FR-EXP-002** User dapat memilih `Export XLSX` atau `Export PDF`.  
 **FR-EXP-003** Official XLSX template adalah visual/export source of truth. Generated XLSX/PDF MUST preserve template exactly dan hanya mengisi/mengganti mapped fields/native control states.  
@@ -439,6 +453,7 @@ System tidak boleh memilih hanya berdasarkan keyword `Upgrade`.
 **FR-EXP-007** READY export artifact tersedia privately untuk authorized re-download selama 168 jam / 7 hari; setelah expiry binary dibersihkan otomatis.  
 **FR-EXP-008** PDF dari snapshot `APPROVED` wajib mendapatkan cryptographic PDF signature dengan logical signer identity System/Organization. XLSX tidak melalui signing flow tersebut.  
 **FR-EXP-009** Jika mandatory Approved-PDF signing gagal, export gagal; system MUST NOT memberikan unsigned PDF sebagai silent fallback.  
+**FR-EXP-010** Public verification capability memverifikasi issued Approved PDF tanpa memberi public access ke private NSCMF record.  
 **FR-ARC-001** No hard delete NSCMF.  
 **FR-ARC-002** Archive hanya pada `APPROVED`, `REJECTED`, `CANCELLED`.  
 **FR-ARC-003** Archive adalah independent flag; business status tidak berubah.  
@@ -451,14 +466,16 @@ System tidak boleh memilih hanya berdasarkan keyword `Upgrade`.
 **FR-ATT-001** Attachment optional.  
 **FR-ATT-002** Current MVP limit = maksimum 10 files per record dan 20 MB per file.  
 **FR-ATT-003** Allowed file type baseline dan executable/script exclusions mengikuti `06_Validation_Rules.md`.  
-**FR-ATT-004** Upgrade/Emergency Change tanpa attachment menghasilkan warning, bukan blocking error.
+**FR-ATT-004** Upgrade/Emergency Change tanpa attachment menghasilkan warning, bukan blocking error.  
+**FR-ATT-005** Uploaded attachment MUST remain unavailable until ClamAV returns explicit `CLEAN`; malware detection, scanner error, timeout, or unavailable scanner must not be treated as successful clean upload.
 
 ### Audit / Concurrency
 
 **FR-AUD-001** Every persisted business change dan workflow transition diaudit.  
 **FR-AUD-002** Viewer/access evidence dan modifier/workflow actor dapat dibedakan.  
 **FR-AUD-003** Historical cycles tidak boleh overwrite.  
-**FR-AUD-004** Business Audit, Access Audit, dan technical logs memiliki concern terpisah; technical logs bukan authoritative business audit.  
+**FR-AUD-004** Business Audit, Access Audit, Security Audit, dan technical logs memiliki concern terpisah; technical logs bukan authoritative audit replacement.  
+**FR-AUD-005** Business Audit, Access Audit, dan Security Audit MUST NOT memiliki age-based automatic purge.  
 **FR-CONC-001** Shared Reviewer/Approver action wajib revalidate current state server-side; stale conflicting action ditolak.  
 **FR-CONC-002** Workflow/lifecycle transition menggunakan short transaction + row-level locking/current-state revalidation.  
 **FR-CONC-003** Draft/Revision/Result persistence menggunakan optimistic version conflict detection agar stale write tidak silently overwrite data baru.
@@ -526,9 +543,9 @@ Exact lifecycle detail is authoritative in `05_State_Status_Flow.md`.
 **NFR-007 Testability** — backend/frontend/E2E/export testing infrastructure tersedia sejak bootstrap.  
 **NFR-008 Export Fidelity** — exact-template XLSX/PDF fidelity wajib diuji melalui structural/golden regression tests.  
 **NFR-009 Export Integrity** — Approved PDF signing failure tidak boleh menghasilkan unsigned output yang dianggap final.  
-**NFR-010 Export Binary Retention** — generated artifact tersedia selama 168 jam/7 hari sebelum automatic cleanup; source record tidak ikut dihapus.  
+**NFR-010 Export Binary Retention** — generated artifact tersedia selama 168 jam/7 hari sebelum automatic cleanup; source record dan authoritative audit/issuance evidence tidak ikut dihapus.  
 **NFR-011 Performance Target** — TBD.  
-**NFR-012 Availability / General Data Retention** — TBD.
+**NFR-012 Availability / General Data Retention** — availability/DR target masih TBD; authoritative audit evidence tidak memiliki age-based purge sesuai Security Rules.
 
 ---
 
@@ -555,7 +572,9 @@ Stakeholder dapat:
 17. Archive/Unarchive dengan mandatory reason tanpa menghapus history atau mengganti business status;
 18. memastikan no hard delete dan stale action tidak menghasilkan conflicting transition;
 19. menerapkan current field/attachment/numbering validation sesuai `06_Validation_Rules.md`;
-20. menjalankan automated backend/frontend/E2E/export regression tests sebagai quality gate.
+20. menjalankan automated backend/frontend/E2E/export regression tests sebagai quality gate;
+21. memverifikasi issued Approved PDF melalui public validator tanpa membuka private NSCMF data;
+22. mempertahankan authoritative audit evidence tanpa age-based deletion.
 
 ---
 
@@ -594,7 +613,18 @@ Stakeholder dapat:
 - Emergency no bypass;
 - stale action revalidation;
 - final stack baseline in `08`: Laravel 13/PHP 8.5/Vue 3/TypeScript/Inertia 3/shadcn-vue/MySQL 8.4 LTS;
-- testing stack established from bootstrap: Pest + Vitest + Playwright plus quality gates.
+- testing stack established from bootstrap: Pest + Vitest + Playwright plus quality gates;
+- password-only authentication, min 6 characters, no composition requirement, no MFA;
+- temporary password + mandatory change for admin-created/reset credentials;
+- login throttling/progressive delay;
+- session policy 30m idle / 8h absolute / max 2 concurrent sessions;
+- sensitive admin password re-authentication + target session revocation;
+- ClamAV malware scanning and fail-closed CLEAN gate;
+- no time-based purge for authoritative Business/Access/Security Audit;
+- manually provisioned server-side Approved-PDF signing identity, never in GitHub;
+- critical readiness failure if required signing identity is missing/unusable;
+- public PDF validator using signature + exact final SHA-256 + issuance/currentness context;
+- no TSA requirement for current MVP.
 
 ### Provisional
 
@@ -614,11 +644,10 @@ These are current implementation rules but MUST NOT be presented as official VEL
 - search/filter requirement final detail if additional criteria are needed;
 - additional export format and bulk packaging beyond confirmed XLSX/PDF behavior;
 - notification implementation/provider;
-- business/access audit retention policy;
-- performance/SLA/general data retention targets;
-- malware scanning/storage security architecture;
-- PDF signing certificate/private-key/provider/trust policy — finalized in `10_Security_Rules.md`;
-- exact deployment topology/provider.
+- performance/SLA/availability targets;
+- backup/restore/DR/RPO/RTO;
+- exact production deployment topology/provider;
+- exact operational signing certificate file format/path/provider if external trust is later required; the security behavior/custody model itself is confirmed in `10_Security_Rules.md`.
 
 ---
 
@@ -644,7 +673,8 @@ Notification bukan dependency core workflow.
 - `07_UI_UX_Specification.md` → presentation/interaction detail.
 - `08_Tech_Stack_Specification.md` → technology selection/technology guardrails.
 - `09_System_Architecture.md` → component topology, concurrency, audit separation, queue/export/signing execution architecture.
-- downstream docs → security/data/API/environment/deployment implementation detail.
+- `10_Security_Rules.md` → security controls/authentication/session/audit security/malware/signing-key/public verification.
+- downstream docs → data/API/environment/deployment implementation detail.
 
 Jika requirement berubah, dokumen terkait harus disinkronkan; perubahan tidak boleh hanya hidup di code.
 
@@ -656,19 +686,18 @@ Jika requirement berubah, dokumen terkait harus disinkronkan; perubahan tidak bo
 - [ ] Official NSCMF numbering SOP/sample to replace or confirm provisional rule.
 - [ ] Search/filter requirement final detail if additional criteria are needed.
 - [ ] Additional export format dan bulk packaging beyond XLSX/PDF.
-- [ ] Business/access audit retention policy.
 - [ ] Notification implementation.
-- [ ] Performance/availability/general data-retention targets.
-- [ ] Malware scanning/storage security architecture.
-- [ ] PDF signing certificate/key/provider/trust implementation in Security Rules.
+- [ ] Performance/availability targets.
+- [ ] Backup/restore/DR/RPO/RTO.
+- [ ] Exact production deployment topology/provider.
 
-Resolved Validation/Tech Stack/System Architecture decisions MUST NOT be returned to TBD without an explicit requirement change.
+Security decisions confirmed for `10_Security_Rules.md` MUST NOT be returned to TBD without an explicit requirement change.
 
 ---
 
 ## 20. Current Documentation Progress
 
-Completed/current draft set:
+Completed/current draft set before creation of document 10:
 
 ```text
 01_PRD.md
@@ -684,4 +713,4 @@ Completed/current draft set:
 
 Dokumen berikutnya:
 
-**`10_Security_Rules.md`** — mengunci security controls untuk authentication/session, authorization hardening, attachments, audit access, private export delivery, dan organization/system PDF signing-key boundary.
+**`10_Security_Rules.md`** — authoritative security controls untuk authentication/session, authorization hardening, attachments/malware scanning, permanent authoritative audit evidence, private export delivery, organization/system signing-key custody, dan public PDF verification.
