@@ -4,9 +4,9 @@
 
 > **Document ID:** NSCMF-UF-003  
 > **Document Order:** 03 / 20  
-> **Status:** Draft — Synchronized through Tech Stack Specification  
+> **Status:** Draft — Synchronized through System Architecture  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Last Updated:** 2026-08-21
 
@@ -23,6 +23,7 @@ Dokumen ini mendefinisikan **apa yang dilakukan user dari awal sampai akhir** ke
 - Validation Rules → validitas input/action;
 - UI/UX → presentation/interaction behavior;
 - Tech Stack → implementation technology;
+- System Architecture → component/execution/concurrency/audit/export topology;
 - User Flow → urutan interaksi user dan respons sistem.
 
 Canonical business states mengikuti `05_State_Status_Flow.md`:
@@ -47,9 +48,11 @@ CANCELLED
 - **Approver** — final approval berdasarkan Approval Scope;
 - **Delegated Administrator** — non-Superadmin dengan explicit admin permissions;
 - **Custom Role Actor** — granular permission combination;
-- **System** — authentication, authorization, persistence, validation, audit, workflow, export.
+- **System** — authentication, authorization, persistence, validation, Business Audit, Access Audit, workflow, queue/export, artifact cleanup.
 
 Satu user MAY memiliki beberapa role.
+
+Current installation model = **single organization**. Unit/Division adalah internal organizational scope, bukan tenant.
 
 ---
 
@@ -89,9 +92,10 @@ Dashboard
   │
   └── History
         ├── View Record
-        ├── View Timeline
-        ├── Export exact-template XLSX/PDF
-        └── Bulk Export
+        ├── View Business Timeline
+        ├── Export XLSX → queued → READY → download ≤ 7 days
+        ├── Export PDF  → queued → render/sign if Approved → READY → download ≤ 7 days
+        └── Bulk Export → queued
 ```
 
 Exceptional lifecycle:
@@ -109,6 +113,8 @@ CANCELLED
 ```
 
 `REOPENED` dan `ARCHIVED` adalah events/treatments, bukan persistent business status.
+
+Export job states seperti `QUEUED`, `PROCESSING`, `READY`, `FAILED`, `EXPIRED` adalah technical export states, bukan NSCMF business statuses.
 
 ---
 
@@ -148,6 +154,8 @@ Wizard menyediakan predefined template/mapping atau manual configuration. Exact 
 3. Approver memperoleh Approval Scope.
 4. Approver MAY mencakup beberapa Unit/Division.
 5. Scope dapat dikelola kemudian oleh authorized administrator.
+
+Unit/Division/Approval Scope tidak membuat tenant terpisah.
 
 ---
 
@@ -283,26 +291,31 @@ Result of Changes tidak membuat state baru. Final result tidak wajib tersedia pa
 
 1. New record berada pada `DRAFT`.
 2. Requester mengisi form.
-3. System autosave berdasarkan trigger/interval UI/implementation downstream.
-4. Persisted changes diaudit.
-5. Autosave tidak berarti record siap Submit.
-6. Draft MAY incomplete dan incomplete submission-required fields tidak menghasilkan blocking behavior hanya untuk autosave/Save Draft.
+3. System autosave berdasarkan trigger/interval UI.
+4. Autosave mengirim expected record version/concurrency token.
+5. Backend memvalidasi ownership/editability dan `DRAFT_PERSIST`.
+6. Jika version valid, latest data dipersist, Business Audit ditulis, dan version bertambah.
+7. Jika version stale, System menolak stale write dan UI MUST NOT menampilkan false `Saved`.
+8. Autosave tidak berarti record siap Submit.
+9. Draft MAY incomplete dan incomplete submission-required fields tidak menghasilkan blocking behavior hanya untuk autosave/Save Draft.
 
 ---
 
 ## 18. UF-DRAFT-002 — Manual Save Draft
 
 1. Requester memilih `Save Draft`.
-2. Latest editable data dipersist.
-3. Draft boleh incomplete.
-4. Persisted changes diaudit.
-5. State tetap `DRAFT`.
+2. Request membawa expected record version.
+3. Jika current version/state/permission valid, latest editable data dipersist.
+4. Draft boleh incomplete.
+5. Persisted changes diaudit.
+6. State tetap `DRAFT`.
+7. Stale version menghasilkan conflict, bukan silent overwrite.
 
 ---
 
 ## 19. UF-DRAFT-003 — Resume Draft
 
-Requester membuka own Draft dari History/Own Records. System memverifikasi ownership/permission/state, lalu form kembali editable.
+Requester membuka own Draft dari History/Own Records. System memverifikasi ownership/permission/state, lalu form kembali editable dengan current version/context.
 
 ---
 
@@ -319,10 +332,11 @@ Flow:
 1. Requester memilih Cancel.
 2. UI meminta confirmation.
 3. Reason **Optional**.
-4. System mencatat event dan optional reason jika tersedia.
-5. State menjadi `CANCELLED`.
-6. Record tetap History.
-7. `CANCELLED` tidak dapat Reopen.
+4. Backend revalidates current state in workflow transaction boundary.
+5. System mencatat event dan optional reason jika tersedia.
+6. State menjadi `CANCELLED`.
+7. Record tetap History.
+8. `CANCELLED` tidak dapat Reopen.
 
 ---
 
@@ -333,16 +347,17 @@ Flow:
 Preconditions: permission + ownership/access + submission validation.
 
 1. Requester memilih Submit.
-2. System menjalankan field/conditional validation sesuai `06_Validation_Rules.md`.
-3. Jika gagal, state tetap `DRAFT` dan UI menampilkan error yang dapat ditindaklanjuti.
-4. Non-blocking warning MAY ditampilkan terpisah dari error, misalnya Upgrade/Emergency tanpa attachment.
-5. Jika berhasil:
+2. Backend membuka short workflow transaction dan mengunci current NSCMF row untuk final current-state decision.
+3. System menjalankan field/conditional validation sesuai `06_Validation_Rules.md`.
+4. Jika gagal, state tetap `DRAFT` dan UI menampilkan error yang dapat ditindaklanjuti.
+5. Non-blocking warning MAY ditampilkan terpisah dari error, misalnya Upgrade/Emergency tanpa attachment.
+6. Jika berhasil:
    - latest data dipersist;
-   - event Submit dicatat;
+   - Business Audit Submit dicatat dalam consistent transaction;
    - state `DRAFT -> PENDING_REVIEW`;
    - normal Requester editing locked;
    - semua eligible Reviewer matching scope memperoleh visibility.
-6. Requester tidak memilih Reviewer tertentu.
+7. Requester tidak memilih Reviewer tertentu.
 
 `SUBMITTED` adalah event, bukan persistent state.
 
@@ -356,9 +371,10 @@ Preconditions: permission + ownership/access + submission validation.
 2. System menampilkan `PENDING_REVIEW` yang relevant berdasarkan Unit/Division scope.
 3. Reviewer membuka record.
 4. Backend memvalidasi permission/scope/current state.
-5. View event dapat dicatat.
-6. **State tetap `PENDING_REVIEW`.**
-7. Reviewer tidak menjadi exclusive owner; Reviewer lain tetap eligible.
+5. Successful view/access MAY/MUST menghasilkan separate Access Audit evidence sesuai Security/ERD policy.
+6. Routine `View` tidak ditambahkan sebagai business workflow row pada normal Timeline.
+7. **State tetap `PENDING_REVIEW`.**
+8. Reviewer tidak menjadi exclusive owner; Reviewer lain tetap eligible.
 
 ---
 
@@ -367,12 +383,12 @@ Preconditions: permission + ownership/access + submission validation.
 Contoh valid:
 
 ```text
-Reviewer A → View
+Reviewer A → View (Access Audit)
 Reviewer B → review activity
-Reviewer C → Forward
+Reviewer C → Forward (Business Audit)
 ```
 
-System mempertahankan semua actor/timestamp. Contributor metadata tidak menjadi exclusive authorization lock.
+Contributor/workflow actor dipertahankan di Business Audit/Timeline. Routine viewer evidence dipertahankan melalui separate Access Audit dan tidak menjadi exclusive authorization lock.
 
 ---
 
@@ -384,7 +400,7 @@ Dari `PENDING_REVIEW`, eligible Reviewer MAY:
 - `Return for Revision`;
 - `Reject`.
 
-Setiap action melalui permission + scope + state + validation check.
+Setiap action melalui permission + scope + locked current-state + validation check.
 
 Reason:
 
@@ -397,7 +413,7 @@ Reason:
 ## 25. UF-REVIEW-004 — Forward to Approval
 
 1. Reviewer memilih Forward.
-2. System memvalidasi current state dan action requirements.
+2. Backend memulai short transaction, memperoleh row-level lock, lalu revalidates permission/scope/current state.
 3. Untuk Change, Result gate MUST terpenuhi:
    - minimum satu complete Result row;
    - setiap used row complete;
@@ -408,7 +424,7 @@ Reason:
 PENDING_REVIEW -> PENDING_APPROVAL
 ```
 
-5. Review event/actor/timestamp dicatat.
+5. Business Audit Forward/actor/timestamp dicatat dalam consistent action.
 6. Semua eligible Approver matching Approval Scope melihat candidate.
 7. Candidate tidak di-assign exclusive.
 
@@ -418,7 +434,7 @@ PENDING_REVIEW -> PENDING_APPROVAL
 
 1. Reviewer memilih Return.
 2. UI meminta mandatory reason.
-3. System memvalidasi reason + permission/scope/current state.
+3. Backend memvalidasi reason + permission/scope/current state di workflow transaction boundary.
 4. State:
 
 ```text
@@ -426,7 +442,7 @@ PENDING_REVIEW -> REVISION_REQUIRED
 ```
 
 5. Requester editing diaktifkan.
-6. Requester memperbaiki record; persisted changes diaudit.
+6. Requester memperbaiki record menggunakan optimistic versioning; persisted changes diaudit.
 7. Requester Resubmit.
 8. Resubmit validation dijalankan kembali.
 9. State:
@@ -444,14 +460,14 @@ REVISION_REQUIRED -> PENDING_REVIEW
 
 1. Reviewer memilih Reject.
 2. UI meminta mandatory reason.
-3. System memvalidasi permission/scope/current state/reason.
+3. Backend memperoleh current-state row lock dan memvalidasi permission/scope/current state/reason.
 4. State:
 
 ```text
 PENDING_REVIEW -> REJECTED
 ```
 
-5. Reject event + reason dicatat.
+5. Reject Business Audit event + reason dicatat.
 6. Normal Requester edit/resubmit berhenti.
 7. Recovery hanya authorized Reopen.
 
@@ -465,10 +481,12 @@ Untuk Change yang Result-nya belum tersedia pada first Submit:
 2. Requester/owner dengan `nscmf.change.result.edit` melihat CTA khusus untuk mengisi/update Result;
 3. UI hanya membuka Result Summary, Performance Information, dan Status rows;
 4. planning/submitted fields lain tetap read-only;
-5. persisted Result changes diaudit;
-6. state tetap `PENDING_REVIEW`;
-7. started rows harus complete saat persistence/action gate yang relevan;
-8. jika belum ada minimum satu complete Result row, Forward ke Approval ditolak.
+5. request membawa expected version/concurrency token;
+6. valid Result changes dipersist dan diaudit;
+7. stale version menghasilkan conflict dan tidak boleh overwrite Result yang lebih baru;
+8. state tetap `PENDING_REVIEW`;
+9. started rows harus complete saat persistence/action gate yang relevan;
+10. jika belum ada minimum satu complete Result row, Forward ke Approval ditolak.
 
 Capability ini bukan general Requester edit pada `PENDING_REVIEW`.
 
@@ -482,24 +500,26 @@ Capability ini bukan general Requester edit pada `PENDING_REVIEW`.
 2. System menampilkan `PENDING_APPROVAL` yang matching Approval Scope.
 3. Semua eligible Approver dapat melihat candidate yang sama.
 4. Opening/view tidak mengubah state dan tidak mengunci actor lain.
+5. Successful access mengikuti separate Access Audit treatment.
 
 ---
 
 ## 30. UF-APPROVAL-002 — Approve
 
 1. Eligible Approver memilih Approve.
-2. Backend memvalidasi permission, scope, current state, review prerequisite, dan relevant validation.
-3. Approve comment Optional.
-4. Jika valid:
+2. Backend memperoleh row-level lock dalam short transaction.
+3. Backend revalidates permission, scope, current state, review prerequisite, dan relevant validation.
+4. Approve comment Optional.
+5. Jika valid:
 
 ```text
 PENDING_APPROVAL -> APPROVED
 ```
 
-5. Approval event, final actor, timestamp dicatat.
-6. Satu final approval cukup.
-7. `Approved By` = successful transition actor.
-8. Approver lain tidak dapat menghasilkan approval kedua untuk iteration yang sama.
+6. Approval Business Audit event, final actor, timestamp dicatat atomically.
+7. Satu final approval cukup.
+8. `Approved By` = successful transition actor.
+9. Approver lain tidak dapat menghasilkan approval kedua untuk iteration yang sama.
 
 ---
 
@@ -507,7 +527,8 @@ PENDING_APPROVAL -> APPROVED
 
 1. Approver memilih Return to Reviewer.
 2. UI meminta mandatory reason.
-3. Jika valid:
+3. Backend revalidates current locked state.
+4. Jika valid:
 
 ```text
 PENDING_APPROVAL -> PENDING_REVIEW
@@ -521,20 +542,21 @@ Requester general editing tidak otomatis terbuka. Eligible Reviewer kembali memp
 
 1. Approver memilih Return to Requester.
 2. UI meminta mandatory reason.
-3. State:
+3. Backend revalidates current locked state.
+4. State:
 
 ```text
 PENDING_APPROVAL -> REVISION_REQUIRED
 ```
 
-4. Requester revisi + Resubmit.
-5. Resubmit selalu:
+5. Requester revisi + Resubmit.
+6. Resubmit selalu:
 
 ```text
 REVISION_REQUIRED -> PENDING_REVIEW
 ```
 
-6. Reviewer harus Forward kembali sebelum candidate kembali `PENDING_APPROVAL`.
+7. Reviewer harus Forward kembali sebelum candidate kembali `PENDING_APPROVAL`.
 
 Forbidden:
 
@@ -548,13 +570,14 @@ REVISION_REQUIRED -> PENDING_APPROVAL
 
 1. Approver memilih Reject.
 2. UI meminta mandatory reason.
-3. Jika valid:
+3. Backend revalidates current locked state + permission/scope/reason.
+4. Jika valid:
 
 ```text
 PENDING_APPROVAL -> REJECTED
 ```
 
-Reject event + reason dicatat. Normal flow berhenti sampai authorized Reopen.
+Reject Business Audit event + reason dicatat. Normal flow berhenti sampai authorized Reopen.
 
 ---
 
@@ -577,9 +600,9 @@ Flow:
    - `REVISION_REQUIRED`;
    - `PENDING_REVIEW`.
 4. Actor memilih destination.
-5. Backend revalidates permission/scope/archive flag/current state/reason/destination.
+5. Backend memperoleh row lock dan revalidates permission/scope/archive flag/current state/reason/destination.
 6. Jika valid, state langsung berpindah ke selected destination.
-7. Reopen event + reason + previous rejection evidence dicatat.
+7. Reopen Business Audit event + reason + previous rejection evidence dicatat.
 
 Tidak ada persistent `REOPENED` state.
 
@@ -594,7 +617,7 @@ Valid destinations hanya:
 - `REVISION_REQUIRED`;
 - `PENDING_REVIEW`.
 
-Tidak boleh ke `DRAFT` atau `PENDING_APPROVAL`. Previous Approval tetap timeline/history.
+Tidak boleh ke `DRAFT` atau `PENDING_APPROVAL`. Previous Approval tetap business timeline/history.
 
 ---
 
@@ -616,9 +639,9 @@ Archived records tidak bercampur dalam default active view; user dapat mengakses
 
 ---
 
-## 37. UF-HISTORY-002 — View Detail and Timeline
+## 37. UF-HISTORY-002 — View Detail and Business Timeline
 
-User yang legitimate melihat form detail, relevant attachments, current business status, separate archive treatment, dan timeline siapa melakukan apa. Timeline read-only untuk normal user.
+User yang legitimate melihat form detail, relevant attachments, current business status, separate archive treatment, dan **Business Timeline** siapa melakukan persisted business/workflow/lifecycle action.
 
 Recommended record-detail information architecture:
 
@@ -626,39 +649,108 @@ Recommended record-detail information architecture:
 - Timeline;
 - Attachments.
 
----
-
-## 38. UF-EXPORT-001 — Single Exact-Template Export
-
-1. User memilih visible record dan Export.
-2. System memverifikasi `nscmf.export`/visibility.
-3. System membaca **stored structured record** sebagai business data source.
-4. System mengambil **approved official NSCMF XLSX template version** sebagai visual/export source of truth.
-5. System membuat copy export sementara dari template; original template tidak dimodifikasi.
-6. System mengisi/mengganti **hanya mapped business fields dan native control states** pada template.
-7. System MUST mempertahankan layout, formatting, merged cells, row/column dimensions, drawings/media, print settings, dan native Form Controls yang tidak ditargetkan.
-8. Filled XLSX divalidasi agar tidak kehilangan/merusak expected template structure.
-9. Untuk PDF, System merender **filled XLSX/template representation**, bukan HTML/Vue/Blade redesign.
-10. Concrete spreadsheet renderer MUST merupakan renderer yang telah lulus exact-fidelity golden qualification menurut `08_Tech_Stack_Specification.md`.
-11. Jika renderer tidak dapat menghasilkan approved exact representation, export PDF MUST dianggap gagal/renderer tidak qualified; System tidak boleh diam-diam memberikan approximate redesign.
-12. Export tidak mengubah business state.
+Routine record access/view evidence berada pada separate Access Audit concern dan tidak memenuhi normal Business Timeline.
 
 ---
 
-## 39. UF-EXPORT-002 — Bulk Export
+## 38. UF-EXPORT-001 — Request Single Export
 
-1. User memilih multiple visible records.
+1. User memilih visible record.
+2. User memilih format:
+   - `Export XLSX`; atau
+   - `Export PDF`.
+3. System memverifikasi `nscmf.export` + record visibility.
+4. System binds export request ke deterministic logical record snapshot/version pada saat request dibuat.
+5. System membuat technical export request state `QUEUED` dan dispatch Database Queue job.
+6. UI segera kembali tanpa menunggu OOXML/render/signing selesai.
+7. Export request tidak mengubah NSCMF business status.
+
+---
+
+## 39. UF-EXPORT-002 — Background Exact-Template Generation
+
+Worker memproses queued export:
+
+1. load bound record snapshot/version;
+2. resolve approved official NSCMF XLSX template version + matching mapping;
+3. membuat private temporary copy; canonical template tidak dimodifikasi;
+4. mengisi/mengganti **hanya mapped business fields dan native control states**;
+5. mempertahankan layout, formatting, merged cells, row/column dimensions, drawings/media, print settings, dan native Form Controls lain;
+6. menjalankan workbook integrity validation;
+7. jika format XLSX → simpan exact generated XLSX private artifact;
+8. jika format PDF → render filled XLSX melalui qualified spreadsheet renderer;
+9. jika PDF snapshot `APPROVED` → lanjut ke cryptographic signing;
+10. jika semua mandatory stage berhasil → mark technical export request `READY`;
+11. set artifact validity/expiry = ready time + **168 hours / 7 days**.
+
+`QUEUED/PROCESSING/READY/FAILED/EXPIRED` bukan NSCMF business states.
+
+---
+
+## 40. UF-EXPORT-003 — Approved PDF Signing
+
+Untuk format PDF dengan bound snapshot `APPROVED`:
+
+1. renderer menghasilkan exact PDF;
+2. System menjalankan server-side `PdfSigningService`;
+3. logical signer identity = **System/Organization**;
+4. human `Approved By` tetap berasal dari final workflow Approver dan tetap dipetakan ke document content;
+5. certificate/private-key implementation mengikuti `10_Security_Rules.md`;
+6. jika signing berhasil → continue to READY artifact;
+7. jika signing gagal → export `FAILED`; **tidak ada unsigned Approved-PDF fallback**.
+
+Cryptographic signature bertujuan membuat post-signing tampering detectable. System tidak boleh menyatakan PDF tidak mungkin diedit; perubahan setelah signing harus merusak/invalidate verification signature.
+
+---
+
+## 41. UF-EXPORT-004 — XLSX Download Treatment
+
+XLSX:
+
+- exact filled official template;
+- tidak melalui cryptographic PDF signing flow;
+- recipient MAY mengedit local downloaded copy;
+- local XLSX edit tidak mengubah stored NSCMF record/audit di aplikasi.
+
+---
+
+## 42. UF-EXPORT-005 — Export Status / Download / Re-Download
+
+1. Browser melakukan poll/refresh export status; WebSocket tidak diperlukan.
+2. Saat state `READY`, authorized user melihat Download action.
+3. Download endpoint re-checks current authorization/parent-record visibility.
+4. Access/download evidence mengikuti separate Access Audit concern.
+5. Artifact dapat di-download ulang selama belum expired.
+6. READY artifact berlaku **168 jam / 7 hari**.
+7. Setelah expiry, artifact tidak lagi disajikan sebagai valid download.
+8. User MAY membuat export request baru setelah expiry.
+
+---
+
+## 43. UF-EXPORT-006 — Automatic Artifact Cleanup
+
+1. Laravel Scheduler/cron-compatible process mencari generated export artifact yang sudah expired.
+2. System menghapus private XLSX/PDF binary yang expired.
+3. Cleanup MAY update technical artifact metadata sebagai expired/cleaned sesuai ERD.
+4. Cleanup MUST NOT menghapus source NSCMF record, workflow history, Business Audit, atau Approval evidence.
+5. Exact scheduler invocation cadence ditentukan Environment/Deployment Architecture.
+
+---
+
+## 44. UF-EXPORT-007 — Bulk Export
+
+1. User memilih multiple visible records dan target format supported.
 2. System melakukan visibility/export eligibility check **per selected record**.
 3. Inaccessible record MUST NOT bocor melalui bulk operation.
-4. Setiap generated XLSX/PDF menggunakan exact-template export rule yang sama seperti single export.
-5. Export generation MAY diproses melalui background queue sesuai `08_Tech_Stack_Specification.md`.
-6. Final packaging/additional format beyond confirmed XLSX/PDF remains downstream.
+4. Bulk generation diproses asynchronously.
+5. Setiap generated record output mengikuti exact-template, snapshot, renderer, signing, private retention, dan expiry rules yang sama.
+6. Exact packaging beyond current XLSX/PDF behavior remains downstream.
 
 ---
 
 # PART K — ARCHIVE / UNARCHIVE
 
-## 40. UF-ARCHIVE-001 — Archive Record
+## 45. UF-ARCHIVE-001 — Archive Record
 
 Preconditions:
 
@@ -671,7 +763,7 @@ Flow:
 
 1. Actor memilih Archive.
 2. UI meminta mandatory reason.
-3. System memvalidasi permission/visibility/state/reason.
+3. Backend obtains current-state lock and memvalidasi permission/visibility/state/reason.
 4. Jika valid:
 
 ```text
@@ -679,7 +771,7 @@ business_status = unchanged
 is_archived = true
 ```
 
-5. Archive event + reason dicatat.
+5. Archive Business Audit event + reason dicatat.
 6. Record keluar dari default active view.
 7. Normal scoped visibility tetap berlaku di archived/history view.
 8. Archived record tidak dapat Reopen/business-transition sampai Unarchive.
@@ -688,7 +780,7 @@ Active states (`DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL
 
 ---
 
-## 41. UF-ARCHIVE-002 — Unarchive Record
+## 46. UF-ARCHIVE-002 — Unarchive Record
 
 Preconditions:
 
@@ -700,7 +792,7 @@ Flow:
 
 1. Actor memilih Unarchive.
 2. UI meminta mandatory reason.
-3. System memvalidasi action/reason.
+3. Backend obtains current-state lock and memvalidasi action/reason.
 4. Result:
 
 ```text
@@ -708,7 +800,7 @@ business_status = unchanged
 is_archived = false
 ```
 
-5. Unarchive event + reason dicatat.
+5. Unarchive Business Audit event + reason dicatat.
 6. `APPROVED`/`REJECTED` baru dapat Reopen setelah Unarchive.
 7. `CANCELLED` tetap permanent terminal walaupun Unarchive.
 
@@ -716,7 +808,7 @@ is_archived = false
 
 # PART L — ATTACHMENT FLOW
 
-## 42. UF-ATT-001 — Upload Attachment
+## 47. UF-ATT-001 — Upload Attachment
 
 Pada editable context (`DRAFT` atau `REVISION_REQUIRED`):
 
@@ -727,16 +819,29 @@ Pada editable context (`DRAFT` atau `REVISION_REQUIRED`):
    - max 10 files/record;
    - max 20 MB/file;
    - allowed baseline PDF/XLS/XLSX/DOC/DOCX/PNG/JPG/JPEG/TXT/CSV.
-5. Jika invalid, upload ditolak dan attachment list tidak berubah secara salah.
-6. Mutation diaudit.
+5. System writes binary to controlled private storage and persists attachment metadata/audit through safe partial-failure handling.
+6. Jika invalid/storage/metadata persistence gagal, UI MUST NOT melaporkan attachment berhasil secara salah.
+7. Mutation diaudit.
 
 Attachment tidak tersedia melalui narrow Result edit di `PENDING_REVIEW` pada current requirement.
 
 ---
 
+## 48. UF-ATT-002 — Download Attachment
+
+1. User meminta attachment pada visible NSCMF.
+2. Backend re-checks parent-record visibility/authorization.
+3. System resolves private attachment metadata.
+4. Access/download evidence mengikuti Access Audit concern.
+5. System memberikan authorized private download/stream.
+
+Private storage path sendiri bukan authorization token.
+
+---
+
 # PART M — NOTIFICATION
 
-## 43. UF-NOTIF-001 — Future Notification
+## 49. UF-NOTIF-001 — Future Notification
 
 Future hooks MAY berada pada Submit, Return, Reject, Forward, Approve, Reopen. Telegram/WhatsApp-Baileys adalah candidates, bukan current blocker.
 
@@ -744,7 +849,7 @@ Future hooks MAY berada pada Submit, Return, Reject, Forward, Approve, Reopen. T
 
 # PART N — LOGOUT
 
-## 44. UF-AUTH-002 — Logout
+## 50. UF-AUTH-002 — Logout
 
 User Logout → session berakhir → kembali Login. Persisted Draft tetap tersimpan.
 
@@ -752,13 +857,13 @@ User Logout → session berakhir → kembali Login. Persisted Draft tetap tersim
 
 # PART O — ERROR / AUTHORIZATION / CONCURRENCY
 
-## 45. UF-ERROR-001 — Unauthorized Direct Access
+## 51. UF-ERROR-001 — Unauthorized Direct Access
 
 Backend menolak direct URL/ID/API access jika visibility tidak valid dan MUST NOT mengirim record data ke frontend.
 
 ---
 
-## 46. UF-ERROR-002 — Validation Failure
+## 52. UF-ERROR-002 — Validation Failure
 
 Jika Submit/Resubmit/Forward atau action lain gagal validation:
 
@@ -771,71 +876,98 @@ Draft persistence tidak diperlakukan seperti Submit validation.
 
 ---
 
-## 47. UF-ERROR-003 — Stale Reviewer Action
+## 53. UF-ERROR-003 — Stale Reviewer Action
 
 Example:
 
 ```text
 Reviewer A dan B membuka PENDING_REVIEW.
-A Forward -> PENDING_APPROVAL.
+A memperoleh transaction lock dan Forward -> PENDING_APPROVAL.
 B dari screen lama mencoba Reject sebagai Reviewer.
 ```
 
-Backend melihat current state bukan lagi `PENDING_REVIEW`, menolak stale action B, dan UI harus menunjukkan bahwa record berubah lalu refresh/current state.
+Saat B diproses, backend memperoleh lock/current state dan melihat record bukan lagi `PENDING_REVIEW`; stale action B ditolak. UI menunjukkan state berubah lalu refresh/current state.
 
 ---
 
-## 48. UF-ERROR-004 — Stale Approver Action
+## 54. UF-ERROR-004 — Stale Approver Action
 
 ```text
 Approver A dan B membuka PENDING_APPROVAL.
-A Approve -> APPROVED.
+A memperoleh transaction lock dan Approve -> APPROVED.
 B kemudian mencoba Approve/Reject/Return dari stale screen.
 ```
 
 Backend menolak action B. Hanya A final `Approved By` untuk iteration tersebut.
 
-Technical locking/transaction mechanism ditentukan downstream.
+---
+
+## 55. UF-ERROR-005 — Stale Draft / Result Save
+
+Jika Requester mengirim Save/Autosave dengan expected version yang sudah tidak current:
+
+1. backend menolak stale write;
+2. newer persisted data tidak ditimpa;
+3. UI menampilkan conflict/current-state feedback;
+4. UI MUST NOT menampilkan false `Saved` state.
 
 ---
 
-## 49. UF-ERROR-005 — Export Fidelity / Renderer Failure
+## 56. UF-ERROR-006 — Export Fidelity / Renderer Failure
 
 Jika generated XLSX merusak expected template structure atau PDF renderer tidak menghasilkan approved exact template representation:
 
-1. System MUST NOT menandai export sebagai successful final artifact;
+1. System MUST NOT menandai export `READY`;
 2. user menerima export failure/retry feedback yang tidak mengekspos internal sensitive detail;
 3. business record/state tidak berubah;
-4. failed export MAY dicatat sebagai technical/export event sesuai audit policy final;
+4. technical error dicatat;
 5. system MUST NOT fallback ke redesigned HTML PDF yang berbeda dari official template.
+
+---
+
+## 57. UF-ERROR-007 — Approved PDF Signing Failure
+
+Jika Approved PDF mandatory signing gagal:
+
+1. export state menjadi/berakhir `FAILED` sesuai API/ERD representation;
+2. unsigned PDF MUST NOT diberikan sebagai equivalent fallback;
+3. NSCMF tetap `APPROVED`;
+4. previous Approval Business Audit/sign-off tetap utuh;
+5. user dapat retry export setelah technical/security issue resolved.
 
 ---
 
 # PART P — USER FLOW SUMMARY BY ACTOR
 
-## 50. Requester
+## 58. Requester
 
 ```text
 Login
 → Dashboard
 → Create Form
 → DRAFT
-→ Autosave/Save
+→ Autosave/Save with version checking
 → Cancel OR Submit
 → PENDING_REVIEW
-   ├─ if Change: may Update Result via narrow result-only flow
+   ├─ if Change: may Update Result via narrow result-only flow + version check
    ├─ if Returned: REVISION_REQUIRED → edit → Resubmit → PENDING_REVIEW
    ├─ if Rejected: normal flow stops
-   └─ if Approved: read-only/history/exact-template export
+   └─ if Approved: read-only/history/export
+
+Visible record
+→ choose Export XLSX or PDF
+→ queued
+→ READY
+→ download/re-download ≤ 7 days
 ```
 
 ---
 
-## 51. Reviewer
+## 59. Reviewer
 
 ```text
 Open PENDING_REVIEW queue
-→ View (no state change)
+→ View (Access Audit, no state change)
 → Forward OR Return(reason) OR Reject(reason)
 ```
 
@@ -843,11 +975,11 @@ Reviewer non-exclusive; multiple contributors allowed.
 
 ---
 
-## 52. Approver
+## 60. Approver
 
 ```text
 Open PENDING_APPROVAL queue
-→ View (no state change)
+→ View (Access Audit, no state change)
 → Approve OR Return Reviewer(reason) OR Return Requester(reason) OR Reject(reason)
 ```
 
@@ -855,14 +987,14 @@ Approver non-exclusive; one successful final Approve sufficient.
 
 ---
 
-## 53. Authorized Lifecycle Actor
+## 61. Authorized Lifecycle Actor
 
 ```text
 Visible eligible record
 → permission/state/archive check
 → Reopen(reason + valid destination)
 OR Archive(reason) / Unarchive(reason)
-→ audit event
+→ Business Audit event
 ```
 
 Default Superadmin memiliki permissions; role lain MAY mendapatkannya explicitly.
@@ -871,21 +1003,22 @@ Default Superadmin memiliki permissions; role lain MAY mendapatkannya explicitly
 
 # PART Q — CONFIRMED FLOW DECISIONS
 
-## 54. Confirmed Decisions
+## 62. Confirmed Decisions
 
 | Area | Decision |
 |---|---|
+| Organization | Single organization / single installation |
 | Setup | Wizard |
 | Authentication | standalone username + password; no self-registration |
 | Multi-role | Allowed |
 | Family selection | family → subtype → numbering → fields |
 | Numbering | Auto/manual; provisional formats in Validation Rules |
-| Draft | `DRAFT`, autosave + Save Draft, incomplete allowed |
+| Draft | `DRAFT`, autosave + Save Draft, incomplete allowed, optimistic version conflict detection |
 | Cancel | `DRAFT -> CANCELLED`, permanent; reason optional |
 | Submit | `DRAFT -> PENDING_REVIEW` |
 | Submitted | Event, not persistent state |
 | Under Review | Not used |
-| Reviewer View | No state change |
+| Reviewer View | Separate Access Audit; no state change; no business Timeline View row |
 | Reviewer eligibility | Shared/non-exclusive |
 | Reviewer Return/Reject | Mandatory reason |
 | Revision | `REVISION_REQUIRED`, unlimited |
@@ -893,7 +1026,7 @@ Default Superadmin memiliki permissions; role lain MAY mendapatkannya explicitly
 | Forward | `PENDING_REVIEW -> PENDING_APPROVAL` |
 | Approver eligibility | Shared/non-exclusive |
 | Final approval | One eligible Approver sufficient |
-| Approved By | Successful final actor |
+| Approved By | Successful final human actor |
 | Approver Return/Reject | Mandatory reason |
 | Return Reviewer | `PENDING_APPROVAL -> PENDING_REVIEW` |
 | Return Requester | `PENDING_APPROVAL -> REVISION_REQUIRED -> PENDING_REVIEW` |
@@ -903,40 +1036,47 @@ Default Superadmin memiliki permissions; role lain MAY mendapatkannya explicitly
 | Archive | Independent flag; only Approved/Rejected/Cancelled; mandatory reason |
 | Unarchive | Allowed with permission; status unchanged; mandatory reason |
 | Change Service Impact | Multi-select; Other requires description |
-| Change Result | Requester/owner `nscmf.change.result.edit`; minimum one complete row before Forward; no new state |
+| Change Result | Requester/owner `nscmf.change.result.edit`; minimum one complete row before Forward; optimistic version check; no new state |
 | Attachment | Optional; max 10 files, 20 MB/file, current allowlist |
-| Timeline | Legitimate viewer sees activity |
-| Export | View implies export; XLSX/PDF preserve official XLSX template exactly; PDF comes from filled spreadsheet representation |
+| Business Timeline | Business mutation/workflow/lifecycle actions only |
+| Access Audit | Separate from Business Timeline |
+| Export formats | User chooses XLSX or PDF |
+| Export execution | All single/bulk generation asynchronous |
+| Export snapshot | Deterministic logical record snapshot/version |
+| Export fidelity | XLSX/PDF preserve official XLSX template exactly; PDF comes from filled spreadsheet representation |
+| Approved PDF | Cryptographically signed by System/Organization identity |
+| XLSX | No PDF-signing flow; local copy may be edited |
+| Export retention | READY artifact re-downloadable 168 hours / 7 days then scheduled cleanup |
 | Emergency | Same Review + Approval flow |
-| Concurrency | Stale state-changing action rejected server-side |
-| Tech baseline | Laravel + Inertia + Vue + MySQL modular monolith per `08` |
+| Workflow concurrency | Short DB transaction + row-level lock/current-state revalidation |
+| Draft/Result concurrency | Optimistic version conflict detection |
+| Tech baseline | Laravel + Inertia + Vue + MySQL modular monolith per `08`/`09` |
 
 ---
 
 # PART R — OPEN ITEMS
 
-## 55. Explicit Downstream TBDs
+## 63. Explicit Downstream TBDs
 
 - exact Unit/Division template entries;
 - official company NSCMF numbering SOP/sample;
 - search/filter details beyond confirmed baseline;
-- additional export format/bulk packaging beyond exact XLSX/PDF requirement;
-- audit retention/export audit;
+- additional export format/bulk packaging beyond XLSX/PDF;
+- Business/Access Audit retention and privileged visibility policy;
 - notification provider/timing;
-- technical transaction/version mechanism;
-- malware scanning/storage architecture;
-- e-signature technology if ever required;
-- performance/availability/retention targets;
+- malware scanning/storage security architecture;
+- PDF signing certificate/private-key/provider/trust/rotation/revocation implementation;
+- performance/availability/general data-retention targets;
 - exact deployment topology/provider.
 
-Exact XLSX/PDF template fidelity is **not TBD**. Concrete PDF renderer remains qualification-gated according to `08`.
+Exact XLSX/PDF template fidelity, asynchronous export, 168-hour artifact retention, Approved-PDF signing requirement, Access Audit separation, and hybrid concurrency are **not TBD**.
 
 ---
 
-## 56. Current Documentation Progress
+## 64. Current Documentation Progress
 
-`05_State_Status_Flow.md` mengunci lifecycle authoritative, `06_Validation_Rules.md` mengunci input/action validity, `07_UI_UX_Specification.md` mengunci UI behavior, dan `08_Tech_Stack_Specification.md` mengunci technology baseline.
+`05_State_Status_Flow.md` mengunci lifecycle authoritative, `06_Validation_Rules.md` mengunci input/action validity, `07_UI_UX_Specification.md` mengunci UI behavior, `08_Tech_Stack_Specification.md` mengunci technology baseline, dan `09_System_Architecture.md` mengunci component/execution/concurrency/audit/export architecture.
 
 Dokumen berikutnya:
 
-**`09_System_Architecture.md`**.
+**`10_Security_Rules.md`**.
