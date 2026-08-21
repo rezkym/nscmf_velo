@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-PRD-001  
 > **Document Order:** 01 / 20  
-> **Status:** Draft — Synchronized with confirmed Business Rules / User Flow decisions  
+> **Status:** Draft — Synchronized through State / Status Flow  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Primary Business Reference:** NSCMF Form 3.0 (Excel)  
 > **Product Flow Reference:** NSCMF FigJam proposal  
@@ -16,7 +16,7 @@
 
 PRD ini mendefinisikan produk yang dibangun, masalah yang diselesaikan, user utama, scope, functional requirements, product boundaries, dan acceptance intent pada level produk.
 
-Dokumen ini bukan source of truth untuk permission detail, state machine, validation field, UI behavior detail, database, API, security implementation, maupun deployment. Detail tersebut dibuat bertahap pada dokumen 02–20.
+Dokumen ini bukan source of truth untuk permission detail, state machine, field validation, UI behavior detail, database, API, security implementation, maupun deployment. Detail tersebut didefinisikan pada dokumen lanjutan.
 
 Urutan dokumentasi proyek:
 
@@ -45,129 +45,124 @@ Urutan dokumentasi proyek:
 
 ## 2. Executive Summary
 
-NSCMF Digital Form & Workflow System adalah aplikasi web internal untuk mengganti proses NSCMF yang berbasis file Excel menjadi record digital yang terstruktur, traceable, dapat direview, di-approve, dicari kembali, dan diekspor.
+NSCMF Digital Form & Workflow System adalah aplikasi web internal untuk mengganti proses NSCMF yang berbasis file Excel menjadi record digital yang terstruktur, traceable, dapat direview, di-approve, dicari kembali, diaudit, diarsipkan tanpa delete, dan diekspor.
 
-Aplikasi mempertahankan makna bisnis dari NSCMF Form 3.0 tetapi tidak harus menyalin layout spreadsheet secara pixel-perfect.
+Aplikasi mempertahankan makna bisnis NSCMF Form 3.0 tetapi tidak wajib menyalin layout spreadsheet secara pixel-perfect.
 
 Dua form family utama:
 
-- **NSCMF - Activation** — konteks instalasi / provisioning;
-- **NSCMF - Change** — konteks maintenance / perubahan pada layanan atau environment yang sudah berjalan.
+- **NSCMF - Activation** — instalasi / provisioning;
+- **NSCMF - Change** — maintenance / perubahan layanan atau environment yang sudah berjalan.
 
 Core product journey:
 
-`Login → Dashboard → Create New Form → Pilih Form Family/Subtype → Draft → Submit → Review → Approval → History / Export`
+```text
+Login
+→ Dashboard
+→ Create New Form
+→ pilih Form Family/Subtype
+→ DRAFT
+→ PENDING_REVIEW
+→ PENDING_APPROVAL
+→ APPROVED
+→ History / Export
+```
 
-Flow juga mendukung:
+Dengan branch:
 
-- autosave dan Save Draft;
-- Cancel pada Draft;
+- Cancel Draft;
 - Return for Revision;
-- repeated revision/resubmission;
+- unlimited revision/resubmission;
 - Reviewer/Approver Reject;
-- Reopen oleh authority yang sesuai;
-- Archive tanpa hard delete;
-- detailed audit log;
-- multi-role user;
-- scoped Reviewer/Approver visibility.
+- authorized Reopen/Revert;
+- Archive/Unarchive tanpa mengubah business status;
+- detailed audit trail;
+- scoped shared Reviewer/Approver pools.
 
 ---
 
 ## 3. Problem Statement
 
-Workflow berbasis spreadsheet membuat NSCMF bergantung pada file individual sehingga data, status, sign-off, revision history, dan retrieval tidak berada pada satu sistem terpusat.
+Workflow spreadsheet membuat NSCMF bergantung pada file individual sehingga data, status, sign-off, revision history, dan retrieval tidak berada pada satu sistem terpusat.
 
-Produk harus menyelesaikan masalah berikut:
+Produk harus:
 
 1. membuat NSCMF tanpa membuat file Excel baru secara manual;
-2. menjaga field dan konteks bisnis dari NSCMF Form 3.0;
-3. menyediakan workflow Request → Review → Approval;
+2. menjaga field dan konteks bisnis NSCMF Form 3.0;
+3. menyediakan Request → Review → Approval yang jelas;
 4. mendukung revision tanpa kehilangan history;
-5. menyimpan setiap record secara terpusat;
+5. menyimpan record terpusat;
 6. menyediakan History dan detail record;
 7. menyediakan single/bulk export;
-8. mencatat siapa melihat/mengubah/memproses record sesuai requirement audit;
-9. mencegah hard delete terhadap NSCMF;
+8. mencatat viewer/modifier/workflow actor sesuai audit requirement;
+9. mencegah hard delete NSCMF;
 10. menyediakan role/scope configuration yang dapat disesuaikan organisasi.
 
 ---
 
 ## 4. Product Vision
 
-> Menjadi satu source of truth internal untuk membuat, memproses, menelusuri, mengaudit, dan mengekspor NSCMF tanpa menghilangkan proses bisnis inti yang sudah dikenal dari NSCMF Form 3.0.
+> Menjadi satu source of truth internal untuk membuat, memproses, menelusuri, mengaudit, dan mengekspor NSCMF tanpa menghilangkan proses bisnis inti dari NSCMF Form 3.0.
 
 ---
 
 ## 5. Product Principles
 
 ### 5.1 Preserve Business Meaning
-
-Field dan konteks bisnis dari workbook harus dipertahankan.
+Field dan konteks bisnis workbook harus dipertahankan.
 
 ### 5.2 Structured Record Is the Source of Truth
-
-Record aplikasi adalah sumber data utama. PDF/format export adalah output dari record, bukan master data baru.
+Record aplikasi adalah sumber data utama; export adalah output.
 
 ### 5.3 Traceability by Default
-
-Persisted changes, workflow actions, revision cycles, dan actor/timestamp penting harus dapat ditelusuri.
+Persisted changes, workflow actions, viewer activity yang diwajibkan, revision cycles, dan actor/timestamp penting harus dapat ditelusuri.
 
 ### 5.4 Simple Operational Product
-
 Produk bukan generic BPM, generic form builder, atau full document-management platform.
 
 ### 5.5 Configurable Where Organization-Specific
-
-Role mapping, Unit/Division mapping, dan approval scope dapat disesuaikan tanpa melemahkan core business invariants.
+Role mapping, Unit/Division mapping, dan scope dapat disesuaikan tanpa melemahkan invariant.
 
 ### 5.6 No Silent Assumptions
-
-Hal yang belum diputuskan harus diberi status TBD, bukan diisi berdasarkan tebakan developer/AI.
+Hal yang belum diputuskan harus tetap TBD.
 
 ---
 
 ## 6. Product Users
 
-### 6.1 Protected Superadmin
+### Protected Superadmin
+Seeded protected authority tertinggi pada standard template, global visibility, initial setup, dan default administrative authority. Tidak dapat delete/soft-delete/disable/downgrade.
 
-Seeded system account/role dengan authority tertinggi, global visibility, user administration, initial setup, archive, dan protected administration actions.
-
-Protected Superadmin tidak boleh delete, soft-delete, disable, atau downgrade melalui normal application flow.
-
-### 6.2 Requester
-
+### Requester
 Membuat dan mengelola own NSCMF sesuai current state.
 
-### 6.3 Reviewer
+### Reviewer
+Memproses record berdasarkan Unit/Division scope. Reviewer tidak dipilih eksklusif; semua eligible Reviewer dalam scope dapat melihat dan bertindak sesuai state.
 
-Melihat dan memproses record berdasarkan Unit/Division scope. Reviewer tidak dipilih satu per satu oleh requester; semua eligible Reviewer dalam scope dapat melihat record.
+### Approver
+Final approval berdasarkan configured Approval Scope. Scope dapat mencakup beberapa Unit/Division. Approval tidak eksklusif; satu eligible Approver yang berhasil Approve cukup menjadi final approver untuk iteration tersebut.
 
-### 6.4 Approver
-
-Melakukan approval berdasarkan configured approval scope. Satu Approver dapat memiliki scope beberapa Unit/Division sekaligus.
-
-### 6.5 Multi-Role User
-
-Satu user dapat memiliki lebih dari satu role. Current requirement tidak memaksakan segregation of duty.
+### Multi-Role User
+Satu user dapat memiliki lebih dari satu role. Current requirement tidak mewajibkan segregation of duty.
 
 ---
 
 ## 7. Initial Setup Scope
 
-Pada first run, protected Superadmin menjalankan setup wizard.
+First run menggunakan protected Superadmin dan Setup Wizard.
 
 Wizard minimal mencakup:
 
 1. role configuration: **Use Role Template** atau **Manual Role Configuration**;
-2. Unit/Division: pilih predefined template/mapping atau buat manual;
+2. Unit/Division: predefined template/mapping atau manual;
 3. configure Reviewer/Approver scope;
 4. menyelesaikan initial organization setup.
 
-Template configuration tetap dapat diubah kemudian oleh authorized administrator, kecuali protected invariants.
+Template tetap dapat diubah kemudian oleh authorized administrator kecuali protected invariants. Core system settings tetap Superadmin-only.
 
 ---
 
-## 8. Product Scope — Confirmed MVP
+## 8. Confirmed MVP Scope
 
 MVP mencakup:
 
@@ -175,45 +170,39 @@ MVP mencakup:
 2. Protected seeded Superadmin.
 3. Initial setup wizard.
 4. User administration.
-5. Role template atau manual role configuration.
-6. Unit/Division template/mapping atau manual configuration.
+5. Role template/manual configuration.
+6. Unit/Division template/manual configuration.
 7. Multi-role assignment.
 8. Dashboard sederhana.
 9. CTA `Create New Form`.
-10. Direct access ke History.
-11. `NSCMF - Activation`.
-12. `NSCMF - Change`.
-13. Pemilihan subtype.
-14. Pilihan nomor NSCMF `Automatic` atau `Manual` setiap membuat form.
-15. Draft.
-16. Autosave.
-17. Manual `Save Draft`.
-18. Optional attachment input.
-19. Cancel Draft sebelum Submit.
-20. Submit.
-21. Review oleh eligible Reviewer.
-22. Multiple Reviewer participation.
-23. Return for Revision.
-24. Unlimited revision/resubmission cycles.
-25. Reviewer Reject.
-26. Approval.
-27. Approver Return to Reviewer.
-28. Approver Return to Requester dan kemudian wajib Review ulang.
-29. Approver Reject.
-30. Authorized Reopen untuk Rejected record.
-31. Highest-authority Reopen/Revert untuk Approved record.
-32. Detailed audit/change history.
-33. History dan detail record.
-34. Scoped visibility.
-35. Single export.
-36. Bulk export.
-37. PDF sebagai minimum confirmed export format.
-38. Archive sebagai pengganti delete.
-39. No hard delete NSCMF.
+10. Direct History access.
+11. Activation dan Change forms.
+12. Form subtype selection.
+13. Auto/manual numbering mode per record.
+14. Draft + autosave + Save Draft.
+15. Optional attachment input.
+16. Cancel hanya pada Draft sebelum first Submit.
+17. Shared/non-exclusive Review.
+18. Multiple Reviewer contributors.
+19. Return for Revision.
+20. Unlimited revision cycles.
+21. Reviewer Reject.
+22. Shared/non-exclusive Approval.
+23. Approver Return to Reviewer.
+24. Approver Return to Requester dan wajib Review ulang setelah Resubmit.
+25. Approver Reject.
+26. Satu final approval dari satu eligible Approver.
+27. Reopen/Revert untuk Rejected/Approved oleh protected Superadmin atau actor dengan explicit `nscmf.reopen` + valid visibility/scope.
+28. Detailed audit/change history.
+29. History + detail + timeline.
+30. Scoped visibility.
+31. Single/bulk export; PDF minimum confirmed format.
+32. Archive/Unarchive sebagai administrative lifecycle tanpa hard delete.
+33. No hard delete NSCMF.
+34. Emergency Change tetap Review + Approval.
+35. Change `Result of Changes` diselesaikan sebelum final Approval tanpa membuat state execution/result baru.
 
-### Draft / Future Capability
-
-Notification hook direncanakan tetapi **bukan execution priority**. Telegram dan WhatsApp/Baileys adalah candidate integration, bukan final MVP technology commitment.
+Notification hook adalah future capability dan bukan MVP blocker.
 
 ---
 
@@ -228,9 +217,11 @@ MVP tidak ditujukan untuk:
 - generic workflow designer;
 - generic form builder;
 - hard-delete NSCMF;
-- menjadikan notification integration blocker terhadap core MVP;
-- membuat service-impact/business classification berdasarkan AI guessing;
-- mengubah exported file menjadi source of truth.
+- notification sebagai blocker core workflow;
+- AI guessing untuk business classification;
+- exported file sebagai source of truth;
+- multi-level approval chain pada requirement saat ini;
+- state `UNDER_REVIEW`, `REOPENED`, `ARCHIVED`, `EXECUTION_PENDING`, atau `RESULT_PENDING` sebagai business status current design.
 
 ---
 
@@ -240,7 +231,7 @@ MVP tidak ditujukan untuk:
 
 Business context: instalasi/provisioning.
 
-Subtype dari source workbook:
+Subtype:
 
 - Activation;
 - Upgrade / Downgrade;
@@ -270,19 +261,17 @@ Subtype:
 - Upgrade;
 - Emergency.
 
-Workbook structure yang sudah diverifikasi:
-
 #### Section A — Purpose of Changes
 
 `Purpose of Changes` adalah section, bukan option.
 
-Field/area input:
+Input areas:
 
 - Facing Challenges (Upgrade / Emergency);
 - Maintenance Purpose;
 - Identified Problem (Please elaborate).
 
-`Service Impact` menyediakan selectable values:
+`Service Impact` menyediakan:
 
 - NOC15;
 - NOC23;
@@ -291,6 +280,8 @@ Field/area input:
 - POP;
 - Customer;
 - Other.
+
+Single vs multi-select tetap ditentukan pada Validation/UI specification.
 
 Field lain:
 
@@ -301,7 +292,7 @@ Field lain:
 - Rollback scenario;
 - Maintenance Announcement.
 
-Source workbook memiliki announcement options:
+Source workbook memiliki announcement timing:
 
 - 1 week before;
 - 2 weeks before;
@@ -309,20 +300,26 @@ Source workbook memiliki announcement options:
 
 #### Section B — Result of Changes
 
+Mencakup:
+
 - Result summary;
 - Performance information;
 - Status.
 
-Exact timing kapan Result of Changes wajib diisi masih TBD dan akan didefinisikan pada downstream workflow/validation specification.
+Confirmed workflow treatment:
+
+- section ini tidak otomatis wajib lengkap pada first Submit hanya karena tersedia di template;
+- applicable Result of Changes harus selesai sebelum Reviewer dapat `Forward to Approval`;
+- pengisian Result tidak menambah business state baru;
+- selama `PENDING_REVIEW`, system harus menyediakan narrow authorized mechanism untuk result capture tanpa membuka general Requester editing atau memaksa fake Return for Revision;
+- exact actor/permission dan field validation akan dikunci downstream.
 
 ### 10.3 Upgrade Classification
-
-Kata `Upgrade` sendiri tidak menentukan form.
 
 - installation/provisioning context → Activation;
 - maintenance/existing-service context → Change.
 
-System tidak boleh memilih hanya berdasarkan keyword.
+System tidak boleh memilih hanya berdasarkan keyword `Upgrade`.
 
 ---
 
@@ -330,189 +327,165 @@ System tidak boleh memilih hanya berdasarkan keyword.
 
 ### Authentication / Administration
 
-**FR-AUTH-001** User valid dapat login.  
+**FR-AUTH-001** Valid user dapat login/logout.  
 **FR-AUTH-002** Tidak ada self-registration.  
-**FR-AUTH-003** User dapat logout.  
-**FR-ADM-001** Seeded Superadmin dibuat pada initial seeding.  
-**FR-ADM-002** Superadmin menjalankan initial setup wizard.  
-**FR-ADM-003** Authorized admin dapat create/edit/enable/disable normal user, assign role, assign Unit/Division, dan mengelola scope.  
+**FR-ADM-001** Seeded protected Superadmin dibuat saat initial seeding.  
+**FR-ADM-002** Initial setup menggunakan wizard.  
+**FR-ADM-003** Authorized admin dapat mengelola normal user, role, Unit/Division, dan eligible scope sesuai RBAC.  
 **FR-ADM-004** Protected Superadmin tidak dapat delete/disable/downgrade.
 
-### Dashboard
+### Dashboard / Creation
 
-**FR-DASH-001** Dashboard menjadi landing page setelah login/setup selesai.  
-**FR-DASH-002** Dashboard memiliki CTA `Create New Form`.  
-**FR-DASH-003** User dapat membuka History tanpa membuat form.
-
-### Create Form
-
-**FR-FORM-001** User memilih Activation atau Change.  
-**FR-FORM-002** User memilih subtype.  
-**FR-FORM-003** User memilih Auto atau Manual numbering setiap membuat form.  
-**FR-FORM-004** UI menampilkan struktur field sesuai form family.  
-**FR-FORM-005** Attachment input tersedia dan optional.
+**FR-DASH-001** Dashboard menjadi landing page setelah setup selesai.  
+**FR-DASH-002** Dashboard menyediakan `Create New Form` dan History entry point.  
+**FR-FORM-001** User memilih family → subtype → numbering mode.  
+**FR-FORM-002** Attachment input tersedia dan optional.
 
 ### Draft
 
-**FR-DRAFT-001** New record dapat berada pada Draft.  
-**FR-DRAFT-002** Draft dapat diedit requester.  
-**FR-DRAFT-003** Draft mendukung autosave.  
-**FR-DRAFT-004** Tombol `Save Draft` tetap tersedia.  
-**FR-DRAFT-005** Persisted draft changes masuk audit.  
-**FR-DRAFT-006** Requester dapat Cancel hanya selama Draft sebelum Submit.  
-**FR-DRAFT-007** Cancelled record permanent dan tidak dapat Reopen.
+**FR-DRAFT-001** New record berada pada `DRAFT`.  
+**FR-DRAFT-002** Own Draft editable.  
+**FR-DRAFT-003** Autosave + Save Draft tersedia dan persisted changes diaudit.  
+**FR-DRAFT-004** Draft boleh incomplete.  
+**FR-DRAFT-005** Cancel hanya selama `DRAFT` sebelum first Submit; hasilnya `CANCELLED` permanent.
 
 ### Submit / Review
 
-**FR-SUB-001** Valid Draft dapat Submit.  
-**FR-SUB-002** Setelah Submit, requester tidak dapat normal edit.  
-**FR-REV-001** Submitted record terlihat oleh semua eligible Reviewer dalam Unit/Division scope.  
-**FR-REV-002** Requester tidak perlu memilih Reviewer.  
-**FR-REV-003** View Reviewer dapat dicatat sebagai viewer activity.  
-**FR-REV-004** Reviewer yang melakukan action dicatat sebagai actor/assigned-or-modified context.  
-**FR-REV-005** Lebih dari satu Reviewer dapat berpartisipasi pada record yang sama.  
-**FR-REV-006** Reviewer dapat Forward, Return for Revision, atau Reject.
+**FR-SUB-001** Valid `DRAFT` Submit → `PENDING_REVIEW`.  
+**FR-SUB-002** Setelah Submit, normal Requester editing locked kecuali narrow authorized Change Result capture.  
+**FR-REV-001** Semua eligible Reviewer dalam matching scope melihat `PENDING_REVIEW`.  
+**FR-REV-002** Membuka record tidak mengubah state dan tidak menciptakan exclusive owner.  
+**FR-REV-003** Multiple Reviewer dapat berpartisipasi dan seluruh activity dipertahankan.  
+**FR-REV-004** Reviewer dapat Forward → `PENDING_APPROVAL`, Return → `REVISION_REQUIRED`, atau Reject → `REJECTED`.
 
 ### Revision
 
-**FR-REVISION-001** Return ke Requester mengaktifkan kembali editing.  
-**FR-REVISION-002** Revision cycle dapat berulang tanpa fixed maximum.  
-**FR-REVISION-003** Resubmit mempertahankan reviewer continuity tetapi tetap visible oleh reviewer lain.  
-**FR-REVISION-004** Seluruh revision history dipertahankan.
+**FR-REVISION-001** `REVISION_REQUIRED` mengaktifkan Requester editing.  
+**FR-REVISION-002** Resubmit selalu → `PENDING_REVIEW`.  
+**FR-REVISION-003** Revision cycle unlimited dan full history preserved.
 
 ### Approval
 
-**FR-APR-001** Approver melihat record berdasarkan configured scope.  
-**FR-APR-002** Satu Approver dapat memiliki scope beberapa unit.  
-**FR-APR-003** Review wajib sebelum Approval, termasuk Emergency.  
-**FR-APR-004** Approver dapat Approve, Return to Reviewer, Return to Requester, atau Reject.  
-**FR-APR-005** Jika Return ke Requester, revision yang di-Resubmit wajib melalui Review lagi sebelum Approval.
+**FR-APR-001** Semua eligible Approver dalam matching Approval Scope dapat melihat `PENDING_APPROVAL`.  
+**FR-APR-002** Approver dapat Approve → `APPROVED`, Return Reviewer → `PENDING_REVIEW`, Return Requester → `REVISION_REQUIRED`, atau Reject → `REJECTED`.  
+**FR-APR-003** Satu valid final Approve cukup; `Approved By` adalah actor yang berhasil melakukan transition.  
+**FR-APR-004** Emergency tidak bypass Review/Approval.  
+**FR-APR-005** Change Result-of-Changes applicable validation harus lulus sebelum masuk `PENDING_APPROVAL`.
 
-### Reopen
+### Reopen / Revert
 
-**FR-REOPEN-001** Rejected record dapat Reopen oleh authorized highest role atau explicit permission sesuai RBAC.  
-**FR-REOPEN-002** Approved record dapat Reopen/Revert oleh highest authority.  
-**FR-REOPEN-003** Reopen membutuhkan reason.  
-**FR-REOPEN-004** Reopen actor memilih valid target destination.  
-**FR-REOPEN-005** Historical Reject/Approval tidak dihapus.
+**FR-REOPEN-001** Hanya `REJECTED` dan `APPROVED` yang Reopen-eligible.  
+**FR-REOPEN-002** Actor = protected Superadmin atau explicit `nscmf.reopen`, dengan valid visibility/scope.  
+**FR-REOPEN-003** Mandatory reason + selected destination.  
+**FR-REOPEN-004** Destination hanya `REVISION_REQUIRED` atau `PENDING_REVIEW`.  
+**FR-REOPEN-005** Reopen ke `DRAFT` atau `PENDING_APPROVAL` dilarang.  
+**FR-REOPEN-006** Previous Reject/Approval evidence tetap dipertahankan.  
+**FR-REOPEN-007** Archived record harus Unarchive terlebih dahulu sebelum Reopen.
 
 ### History / Export / Archive
 
-**FR-HIS-001** History menampilkan records sesuai visibility.  
-**FR-HIS-002** Requester melihat own records; Reviewer berdasarkan Unit/Division; Approver berdasarkan scope; Superadmin global.  
-**FR-HIS-003** Record detail menyediakan status/history yang relevan.  
-**FR-EXP-001** View access memberikan export access terhadap record yang sama.  
-**FR-EXP-002** Bulk export hanya memasukkan records yang visible.  
-**FR-EXP-003** PDF minimum supported format.  
-**FR-ARC-001** NSCMF tidak dapat hard delete.  
-**FR-ARC-002** Highest authority dapat Archive record.  
-**FR-ARC-003** Archive mengeluarkan record dari default active view tetapi mempertahankan business history.
+**FR-HIS-001** Visibility mengikuti ownership/scope/RBAC.  
+**FR-HIS-002** Legitimate viewer dapat melihat timeline siapa melakukan apa.  
+**FR-EXP-001** View implies export; bulk export check per record.  
+**FR-EXP-002** PDF minimum confirmed format.  
+**FR-ARC-001** No hard delete NSCMF.  
+**FR-ARC-002** Archive hanya pada `APPROVED`, `REJECTED`, `CANCELLED`.  
+**FR-ARC-003** Archive adalah independent flag; business status tidak berubah.  
+**FR-ARC-004** Actor memerlukan `nscmf.archive` + valid visibility.  
+**FR-ARC-005** Unarchive diperbolehkan dengan permission/visibility yang sama dan tidak mengubah business status.
 
-### Audit
+### Audit / Concurrency
 
-**FR-AUD-001** Persisted business changes memiliki detailed audit.  
-**FR-AUD-002** Field change audit dapat menyimpan actor, timestamp, field, old value, new value, dan event context.  
-**FR-AUD-003** Workflow event dan revision cycle tidak boleh overwrite historical event.  
-**FR-AUD-004** Reviewer viewer activity harus dapat dibedakan dari modifier/action actor.
+**FR-AUD-001** Every persisted business change dan workflow transition diaudit.  
+**FR-AUD-002** Viewer dan modifier/workflow actor dapat dibedakan.  
+**FR-AUD-003** Historical cycles tidak boleh overwrite.  
+**FR-CONC-001** Shared Reviewer/Approver action wajib revalidate current state server-side; stale conflicting action ditolak.
 
 ---
 
 ## 12. Product-Level Workflow
 
 ```text
-Draft
-  |-- Autosave / Save Draft
-  |-- Cancel -> Cancelled (permanent)
+DRAFT
+  |-- Cancel ------------------------> CANCELLED
   |
-  +-- Submit
-        |
-        v
-      Review
-        |-- Return -> Requester Revision -> Resubmit -> Review
-        |-- Reject -> Rejected -> Authorized Reopen (optional)
-        |
-        +-- Forward
-              |
-              v
-           Approval
-              |-- Return to Reviewer -> Review
-              |-- Return to Requester -> Revision -> Resubmit -> Review
-              |-- Reject -> Rejected -> Authorized Reopen (optional)
-              |
-              +-- Approve -> Approved
-                               |
-                               +-- Highest-authority Reopen/Revert with reason
+  +-- Submit ------------------------> PENDING_REVIEW
+                                         |-- Return --> REVISION_REQUIRED
+                                         |                |-- Resubmit --> PENDING_REVIEW
+                                         |-- Reject --> REJECTED
+                                         +-- Forward --> PENDING_APPROVAL
+                                                           |-- Return Reviewer --> PENDING_REVIEW
+                                                           |-- Return Requester -> REVISION_REQUIRED
+                                                           |-- Reject -----------> REJECTED
+                                                           +-- Approve ----------> APPROVED
 ```
 
-Emergency mengikuti Review dan Approval yang sama.
+Recovery:
 
-Exact state names/transitions tetap menjadi tanggung jawab `05_State_Status_Flow.md`.
+```text
+REJECTED / APPROVED
+  -- authorized Reopen(reason, destination) --> REVISION_REQUIRED or PENDING_REVIEW
+
+CANCELLED
+  -- no reopen --> permanent terminal
+```
+
+Archive:
+
+```text
+business_status unchanged
+is_archived false <-> true
+```
+
+Exact lifecycle detail is authoritative in `05_State_Status_Flow.md`.
 
 ---
 
-## 13. Visibility Model — Product Intent
+## 13. Visibility Model
 
 | Actor Context | Visibility Intent |
 |---|---|
 | Requester | Own records |
-| Reviewer | Records dalam assigned Unit/Division scope |
-| Approver | Records dalam configured approval scope; dapat multi-unit |
-| Protected Superadmin | Seluruh records |
-| Multi-role user | Gabungan visibility sesuai role/scope |
-
-Permission final akan difinalisasi pada RBAC.
+| Reviewer | Assigned Unit/Division scope |
+| Approver | Configured Approval Scope; may be multi-unit |
+| Protected Superadmin | All NSCMF |
+| Multi-role user | Additive union according to permission/scope |
 
 ---
 
 ## 14. Non-Functional Product Requirements
 
-### NFR-001 — Reliability
-Persisted data tidak hilang karena normal navigation.
-
-### NFR-002 — Consistency
-Form detail, History, audit, dan export harus merepresentasikan record yang konsisten.
-
-### NFR-003 — Server-Side Authorization
-UI hiding bukan authorization boundary.
-
-### NFR-004 — Desktop-First Internal UX
-Primary target adalah internal desktop web browser.
-
-### NFR-005 — Traceability
-Critical workflow actions dan changes dapat ditelusuri.
-
-### NFR-006 — Maintainability
-Arsitektur MVP tidak boleh dibuat lebih kompleks dari kebutuhan bisnis.
-
-### NFR-007 — Performance Target — TBD
-Concurrency, latency target, data volume, dan export performance belum ditentukan.
-
-### NFR-008 — Availability / Retention — TBD
-Availability target dan retention period belum ditentukan.
+**NFR-001 Reliability** — persisted data tidak hilang karena normal navigation.  
+**NFR-002 Consistency** — form detail, History, audit, state, dan export konsisten.  
+**NFR-003 Server-Side Authorization** — UI hiding bukan authorization boundary.  
+**NFR-004 Desktop-First** — primary target internal desktop browser.  
+**NFR-005 Traceability** — critical activity dapat ditelusuri.  
+**NFR-006 Maintainability** — MVP tidak dibuat lebih kompleks dari kebutuhan.  
+**NFR-007 Performance Target** — TBD.  
+**NFR-008 Availability / Retention** — TBD.
 
 ---
 
 ## 15. Success Criteria
 
-Produk memenuhi tujuan awal jika stakeholder dapat:
+Stakeholder dapat:
 
-1. login sebagai authorized user;
-2. menyelesaikan first-time setup;
-3. membuat user/role/scope;
-4. membuat Activation atau Change;
-5. memilih numbering mode;
-6. menyimpan Draft melalui autosave/manual Save Draft;
-7. Submit valid form;
-8. melakukan Review melalui eligible Reviewer;
-9. melakukan revision cycle berulang bila diperlukan;
-10. melakukan Approval;
-11. menjalankan Return/Reject sesuai business rules;
-12. mengetahui viewer/modifier/workflow history yang relevan;
-13. Reopen record sesuai authority;
-14. menemukan record pada History sesuai scope;
-15. export visible records;
-16. Archive tanpa menghapus history;
-17. memastikan tidak tersedia hard-delete NSCMF.
+1. login dan menyelesaikan setup;
+2. mengelola user/role/scope sesuai permission;
+3. membuat Activation/Change;
+4. memilih numbering mode;
+5. Save Draft/autosave;
+6. Submit ke `PENDING_REVIEW`;
+7. melakukan Review shared/non-exclusive;
+8. melakukan unlimited revision cycle;
+9. memproses Change Result sebelum final Approval tanpa state tambahan;
+10. melakukan single final Approval;
+11. menjalankan Return/Reject;
+12. Reopen/Revert sesuai authority dan destination yang valid;
+13. melihat History/timeline sesuai scope;
+14. export visible record;
+15. Archive/Unarchive tanpa menghapus history atau mengganti business status;
+16. memastikan no hard delete dan stale action tidak menghasilkan conflicting transition.
 
 ---
 
@@ -520,73 +493,70 @@ Produk memenuhi tujuan awal jika stakeholder dapat:
 
 ### Confirmed
 
-- Save Draft + autosave;
-- multi-role users;
-- initial setup wizard;
-- template/manual role config;
-- template/manual Unit/Division mapping;
-- multiple-unit Approver scope;
-- Reviewer non-exclusive visibility;
-- multiple Reviewer participation;
-- detailed audit;
-- Return/Reject/Reopen flows;
-- Cancel Draft-only and permanent;
-- no hard delete;
-- Archive;
+- canonical states: `DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL`, `REJECTED`, `APPROVED`, `CANCELLED`;
+- `SUBMITTED`, `REVIEWED`, `REOPENED`, `ARCHIVED` bukan persistent business status;
+- autosave + Save Draft;
+- multi-role;
+- Reviewer/Approver shared/non-exclusive;
+- one final eligible Approver sufficient;
+- unlimited revision;
+- Reopen sources/destinations;
+- Cancel permanent;
+- Archive eligible states + Unarchive;
+- Change Result completed before final Approval without extra state;
 - optional attachment;
 - view implies export;
-- Emergency does not bypass workflow.
+- Emergency no bypass;
+- stale action revalidation.
 
 ### Deferred / TBD
 
-- auto-number format;
+- auto-number format/uniqueness scope;
 - exact Unit/Division default template entries;
-- exact permission matrix;
-- exact workflow state names;
 - exact validation/cardinality per field;
-- timing requirement for Change Result of Changes;
-- export format selain PDF;
+- exact actor/permission for Change Result capture during `PENDING_REVIEW`;
+- Return/Reject/Cancel/Archive/Unarchive reason requirement selain confirmed Reopen reason;
+- export format selain PDF / bulk packaging;
 - notification implementation/provider;
 - attachment limits;
-- audit retention;
+- audit retention/export audit;
 - performance/SLA/retention targets.
 
 ---
 
 ## 17. Notification Roadmap Note
 
-Notification merupakan future capability. Candidate yang disebut dalam requirement discussion:
+Future candidates:
 
 - Telegram;
-- WhatsApp menggunakan Baileys.
+- WhatsApp via Baileys.
 
-Ini hanya roadmap/draft note. Notification tidak boleh menjadi dependency yang menghambat implementasi core workflow pada tahap awal.
+Notification bukan dependency core workflow.
 
 ---
 
 ## 18. Document Precedence
 
-- PRD → product scope dan functional intent.
-- Business Rules → aturan bisnis authoritative.
-- User Flow → urutan interaksi user authoritative.
-- RBAC → permission authoritative.
-- State Flow → lifecycle authoritative.
-- Validation Rules → validitas input authoritative.
-- UI/UX → presentation/interactions authoritative.
-- Dokumen teknis → implementation detail.
+- `01_PRD.md` → product scope / intent.
+- `02_Business_Rules.md` → business invariants.
+- `03_User_Flow.md` → interaction sequence.
+- `04_RBAC_Permission_Matrix.md` → permission/scope.
+- `05_State_Status_Flow.md` → authoritative lifecycle/state machine.
+- `06_Validation_Rules.md` → field/action validity.
+- `07_UI_UX_Specification.md` → presentation/interaction detail.
+- downstream technical docs → implementation detail.
 
-Jika requirement berubah, dokumen yang terkait harus disinkronkan; perubahan tidak boleh hanya hidup di code.
+Jika requirement berubah, dokumen terkait harus disinkronkan; perubahan tidak boleh hanya hidup di code.
 
 ---
 
 ## 19. Open Product Decisions
 
-- [ ] Automatic NSCMF number format.
+- [ ] Automatic NSCMF number format dan uniqueness scope.
 - [ ] Exact default Unit/Division template data.
-- [ ] Exact permission matrix.
-- [ ] Exact state names dan Reopen targets.
-- [ ] Result of Changes timing/ownership.
-- [ ] Return/Reject/Cancel/Archive reason requirement selain Reopen.
+- [ ] Exact Change Result capture actor/permission.
+- [ ] Field-level mandatory/conditional validation.
+- [ ] Reason requirement selain Reopen.
 - [ ] Search/filter requirement final.
 - [ ] Additional export format dan bulk packaging.
 - [ ] Audit retention dan export audit.
@@ -595,10 +565,18 @@ Jika requirement berubah, dokumen yang terkait harus disinkronkan; perubahan tid
 
 ---
 
-## 20. Next Documentation
+## 20. Current Documentation Progress
 
-Business Rules sudah tersedia pada `02_Business_Rules.md`.
+Completed/current draft set:
 
-Dokumen berikutnya adalah:
+```text
+01_PRD.md
+02_Business_Rules.md
+03_User_Flow.md
+04_RBAC_Permission_Matrix.md
+05_State_Status_Flow.md
+```
 
-**`03_User_Flow.md`** — menerjemahkan product scope dan rules menjadi urutan interaksi user dari initial setup sampai record lifecycle selesai.
+Dokumen berikutnya:
+
+**`06_Validation_Rules.md`** — mengunci validitas field/input/action yang diperlukan oleh canonical state machine.
