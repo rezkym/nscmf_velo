@@ -4,9 +4,9 @@
 
 > **Document ID:** NSCMF-RBAC-004  
 > **Document Order:** 04 / 20  
-> **Status:** Draft — Synchronized through System Architecture  
+> **Status:** Draft — Synchronized through Confirmed Security Decisions  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
 > **Last Updated:** 2026-08-21
 
 ---
@@ -26,9 +26,10 @@ Dokumen menjadi source of truth untuk:
 - custom role behavior;
 - delegated administration;
 - protected Superadmin restrictions;
+- privileged audit visibility permissions;
 - authorization guardrails.
 
-Business Rules menentukan invariant. User Flow menentukan urutan interaction. State Flow menentukan lifecycle yang valid. Validation Rules menentukan apakah input/action valid. RBAC menentukan apakah actor tertentu berhak melakukan action pada current record/state.
+Business Rules menentukan invariant. User Flow menentukan urutan interaction. State Flow menentukan lifecycle yang valid. Validation Rules menentukan apakah input/action valid. RBAC menentukan apakah actor tertentu berhak melakukan action pada current record/state. `10_Security_Rules.md` menambahkan security preconditions seperti re-authentication/session revocation tanpa mengubah business permission semantics.
 
 Technology implementation boundary telah dikunci pada `08_Tech_Stack_Specification.md`:
 
@@ -41,7 +42,7 @@ Spatie Laravel Permission 8.x
 
 Spatie menangani role/permission primitives, **bukan seluruh business authorization model**.
 
-`09_System_Architecture.md` mengunci bahwa routine record/resource access evidence berada pada **Access Audit** terpisah, sedangkan `nscmf.timeline.view` mengacu pada **Business Timeline** yang berisi business mutation/workflow/lifecycle evidence.
+`09_System_Architecture.md` mengunci bahwa routine record/resource access evidence berada pada **Access Audit** terpisah, sedangkan `nscmf.timeline.view` mengacu pada **Business Timeline** yang berisi business mutation/workflow/lifecycle evidence. `10_Security_Rules.md` mengunci permanent audit preservation dan protected raw Access/Security Audit visibility.
 
 ---
 
@@ -65,6 +66,8 @@ Business Rules
 Validation Rules
 +
 Protected Invariants
++
+Security Preconditions
 ```
 
 Permission saja tidak cukup.
@@ -76,6 +79,8 @@ Contoh:
 - `nscmf.change.result.edit` tetapi actor bukan owner/visible authorized actor atau record bukan Change `PENDING_REVIEW` → DENY;
 - `nscmf.reopen` tetapi record archived → DENY sampai Unarchive;
 - `nscmf.archive` tetapi record `DRAFT` → DENY;
+- `users.reset_password` tanpa successful password re-authentication → DENY;
+- `audit.access.view` tanpa underlying eligible audit/resource scope → DENY unless future explicit global-auditor mandate exists;
 - global Superadmin visibility tetap tidak memberi hard-delete NSCMF.
 
 ---
@@ -86,13 +91,13 @@ Contoh:
 Action yang tidak diberikan atau tidak memenuhi scope/state MUST ditolak.
 
 ### RBAC-PRINCIPLE-002 — Server-Side Enforcement
-Permission, visibility, ownership/scope, archive flag, current state, dan validation MUST diverifikasi backend.
+Permission, visibility, ownership/scope, archive flag, current state, validation, dan required security preconditions MUST diverifikasi backend.
 
 ### RBAC-PRINCIPLE-003 — Multi-Role Allowed
 Satu user MAY memiliki beberapa role.
 
 ### RBAC-PRINCIPLE-004 — Permission Union
-Effective permission multi-role pada dasarnya union seluruh role, tetap tunduk state/scope/invariants.
+Effective permission multi-role pada dasarnya union seluruh role, tetap tunduk state/scope/invariants/security preconditions.
 
 ### RBAC-PRINCIPLE-005 — Scope Independent From Role Name
 Reviewer/Approver role tidak otomatis global.
@@ -107,7 +112,10 @@ Tidak ada user impersonation/login-as-user.
 Permission yang dibuat untuk field subset seperti `nscmf.change.result.edit` MUST NOT ditafsirkan sebagai general form edit capability.
 
 ### RBAC-PRINCIPLE-009 — Package Does Not Override Domain Scope
-Spatie role/permission success MUST NOT bypass ownership, Unit/Division scope, Approval Scope, state, archive treatment, or protected invariants.
+Spatie role/permission success MUST NOT bypass ownership, Unit/Division scope, Approval Scope, state, archive treatment, security preconditions, or protected invariants.
+
+### RBAC-PRINCIPLE-010 — Security Preconditions Are Not New Business Permissions
+Password re-authentication, session validity, malware gate, dan signing readiness are security preconditions. Mereka tidak menciptakan alternate route untuk memperoleh business permission atau persistent NSCMF state baru.
 
 ---
 
@@ -133,6 +141,7 @@ Protected Superadmin:
 - seeded saat initial setup;
 - global NSCMF visibility, termasuk archived;
 - default memiliki normal NSCMF/admin permissions;
+- default eligible melihat privileged Access Audit dan Security Audit;
 - tidak dapat disable/delete/downgrade/lose protected role;
 - tidak memiliki NSCMF hard-delete capability karena capability tersebut tidak tersedia.
 
@@ -162,6 +171,8 @@ Code naming MAY berbeda sedikit selama mapping terdokumentasi.
 | `session.logout` | Logout own session |
 
 Disabled normal account tidak dapat login. Protected Superadmin tidak dapat disabled.
+
+Authentication policy itself is not granted by permission: current MVP is password-only, minimum 6 characters, no composition requirement, no MFA, and session controls follow `10_Security_Rules.md`.
 
 ---
 
@@ -230,7 +241,7 @@ Satu NSCMF MAY memiliki beberapa Reviewer contributors sepanjang lifecycle.
 `assigned`, `modified by`, `reviewed by`, viewer/contributor metadata tidak boleh menjadi exclusive authorization lock.
 
 ### RBAC-REV-005 — Reviewer Access Logging
-Reviewer view/access MAY/MUST dicatat sesuai Access Audit requirement tanpa state transition. Routine access evidence MUST NOT diperlakukan sebagai business workflow action pada normal Business Timeline.
+Reviewer view/access MUST mengikuti Access Audit requirement tanpa state transition. Routine access evidence MUST NOT diperlakukan sebagai business workflow action pada normal Business Timeline.
 
 ### RBAC-REV-006 — Change Result Is Not Reviewer Ownership
 Change Result capture tidak otomatis menjadi Reviewer permission. Default actor adalah Requester/owner melalui `nscmf.change.result.edit`. Reviewer tetap memvalidasi Result melalui Forward gate.
@@ -348,12 +359,14 @@ Tidak ada `nscmf.delete` / `nscmf.force_delete`.
 | `users.update` | Update eligible user |
 | `users.enable` | Enable eligible user |
 | `users.disable` | Disable eligible normal user |
-| `users.reset_password` | Reset credential according to security flow |
+| `users.reset_password` | Reset credential according to temporary-password security flow |
 | `users.assign_roles` | Assign/remove roles |
 | `users.assign_units` | Assign/move Unit/Division |
 | `users.assign_scopes` | Configure eligible reviewer/approval scope |
 
 User administration MAY didelegasikan, tetapi protected Superadmin invariants tetap berlaku.
+
+Sensitive credential/role/permission actions additionally require acting-user password re-authentication. Password reset and role/permission/access-changing identity mutations revoke all target-user active sessions according to `10_Security_Rules.md`; permission presence alone is insufficient.
 
 ---
 
@@ -367,7 +380,7 @@ User administration MAY didelegasikan, tetapi protected Superadmin invariants te
 | `roles.archive` | Archive eligible role jika model final mengizinkan |
 | `permissions.assign` | Assign permission to role |
 
-Role administration MAY didelegasikan. Protected Superadmin role tidak dapat dihapus/archive/downgrade.
+Role administration MAY didelegasikan. Protected Superadmin role tidak dapat dihapus/archive/downgrade. Role/permission mutations that change effective access require password re-authentication and target-session revocation.
 
 ---
 
@@ -383,13 +396,13 @@ Role administration MAY didelegasikan. Protected Superadmin role tidak dapat dih
 | `org_units.assign_reviewer_scope` | Configure Reviewer Scope |
 | `org_units.assign_approver_scope` | Configure Approval Scope |
 
-These MAY be delegated through explicit permission.
+These MAY be delegated through explicit permission. If a scope mutation changes effective access for a target user, session-revocation security policy applies.
 
 ---
 
 ## 15. System Settings
 
-Core system settings tetap protected Superadmin-only, termasuk initial setup mode, global numbering configuration, notification integration settings, dan other protected settings.
+Core system settings tetap protected Superadmin-only, termasuk initial setup mode, global numbering configuration, notification integration settings, dan protected security/signing configuration where exposed through application administration.
 
 Conceptual permission:
 
@@ -398,6 +411,25 @@ system.settings.manage
 ```
 
 Current requirement tidak mendelegasikan permission ini.
+
+Sensitive protected settings require password re-authentication according to `10_Security_Rules.md`.
+
+---
+
+## 15A. Privileged Audit Permissions
+
+| Permission | Description |
+|---|---|
+| `audit.access.view` | View privileged/raw Access Audit evidence within underlying authorized resource/audit scope |
+| `audit.security.view` | View privileged Security Audit evidence within applicable administrative/security scope |
+
+Rules:
+
+- Protected Superadmin receives both by default.
+- Permissions MAY be explicitly delegated to an eligible custom role.
+- `audit.access.view` and `audit.security.view` MUST NOT by themselves grant ordinary NSCMF record visibility, Review scope, Approval Scope, export permission, or business Timeline mutation.
+- A future explicit global-auditor requirement MAY define broader audit scope, but it does not exist implicitly today.
+- No normal role has permission to edit/delete historical authoritative audit evidence.
 
 ---
 
@@ -474,6 +506,8 @@ Legend:
 | View scoped NSCMF | ✅ | — | ✅ Unit/Division | ✅ Approval Scope |
 | View all NSCMF | 🔒 | — | — | — |
 | View Business Timeline on visible record | ✅ | ✅ | ✅ | ✅ |
+| View raw Access Audit | ✅ | — | — | — |
+| View Security Audit | ✅ | — | — | — |
 | Manage attachment while authorized | ✅ | ✅ | — | — |
 | Review `PENDING_REVIEW` | ✅ | — | ✅ Scope | — |
 | Forward to Approval | ✅ | — | ✅ Scope | — |
@@ -489,7 +523,7 @@ Legend:
 | Bulk Export visible records | ✅ | ✅ | ✅ | ✅ |
 | Hard Delete NSCMF | ❌ | ❌ | ❌ | ❌ |
 
-`Reopen` and `Archive/Unarchive` MAY be custom-granted explicitly to non-Superadmin roles.
+`Reopen`, `Archive/Unarchive`, `audit.access.view`, and `audit.security.view` MAY be custom-granted explicitly to eligible non-Superadmin roles while all underlying scope/security restrictions remain mandatory.
 
 `nscmf.change.result.edit` MAY also be custom-granted, but field/state/family/visibility restrictions remain mandatory.
 
@@ -505,10 +539,12 @@ Legend:
 | Assign Roles/Units/Scopes | ✅ | — | — | — |
 | Manage Roles/Permissions | ✅ | — | — | — |
 | Manage Unit/Division | ✅ | — | — | — |
+| View raw Access Audit | ✅ | — | — | — |
+| View Security Audit | ✅ | — | — | — |
 | Manage Core System Settings | 🔒 | — | — | — |
 | Impersonate User | ❌ | ❌ | ❌ | ❌ |
 
-All administration capability except Core System Settings MAY be delegated by explicit permissions.
+All administration capability except Core System Settings MAY be delegated by explicit permissions. Delegation does not remove re-authentication/session-revocation security preconditions.
 
 ---
 
@@ -655,15 +691,30 @@ Single successful final approval actor
 
 # PART J — AUDIT VISIBILITY
 
-## 31. Business Timeline Visibility
+## 31. Business Timeline and Privileged Audit Visibility
 
 Legitimate record viewer can see **Business Timeline** sesuai record visibility. Timeline dapat memuat creator, modifier, submit/resubmit, Result capture, review/forward, return, reject, approve, reopen, archive/unarchive, timestamp, dan required reason/comment yang relevan.
 
 Routine record `View`, attachment access/download, export request/download evidence **tidak menjadi routine Business Timeline row**. Evidence tersebut berada pada separate Access Audit concern menurut `09_System_Architecture.md`.
 
-Exact permission/role untuk melihat raw/privileged Access Audit selain normal Business Timeline belum ditentukan di RBAC ini; Security Rules dapat menambah protected access-audit visibility control tanpa mengubah `nscmf.timeline.view` semantics.
+Raw/privileged audit visibility is now confirmed:
 
-No normal role may mutate historical Business Audit/Timeline events.
+```text
+Business Timeline
+→ normal legitimate record viewer, via record visibility
+
+Raw Access Audit
+→ Protected Superadmin by default
+→ or explicit audit.access.view + valid underlying audit/resource scope
+
+Security Audit
+→ Protected Superadmin by default
+→ or explicit audit.security.view + applicable security/admin scope
+```
+
+These permissions do not imply `nscmf.view.all` and do not alter Reviewer/Approver scope.
+
+Authoritative Business/Access/Security Audit evidence has no time-based automatic purge according to `10_Security_Rules.md`. No normal role may mutate/delete historical authoritative audit evidence.
 
 ---
 
@@ -679,6 +730,12 @@ Examples:
 nscmf.view
 nscmf.timeline.view
 nscmf.export
+```
+
+If raw Access Audit is explicitly required and underlying scope is authorized:
+
+```text
+audit.access.view
 ```
 
 ### NOC Reviewer
@@ -730,12 +787,15 @@ State/family/visibility restrictions continue to apply.
 | Delete/disable/downgrade protected Superadmin | Unavailable |
 | User impersonation | Out of scope |
 | Bypass audit | Unavailable |
+| Delete authoritative audit because of age | Unavailable |
 | Bypass Review | Unavailable |
 | Bypass Approval | Unavailable |
 | Reopen directly to Approval | Unavailable |
 | Archive active-work state | Unavailable |
 | General edit through Result-only permission | Unavailable |
 | Core system settings for normal role | Not delegated |
+| Bypass sensitive-action password re-authentication | Unavailable |
+| Bypass target-session revocation after access-changing identity mutation | Unavailable |
 
 ---
 
@@ -746,18 +806,19 @@ State/family/visibility restrictions continue to apply.
 Backend SHOULD/MUST conceptually evaluate:
 
 ```text
-1. authenticated + active account?
+1. authenticated + active account + valid session?
 2. protected invariant satisfied?
 3. required permission?
-4. record visibility?
+4. record/resource visibility?
 5. ownership / matching scope where required?
 6. archive flag compatible with action?
 7. current business state eligible?
 8. input/action validation passes?
 9. destination allowed?
 10. field subset restriction satisfied for narrow edit?
-11. execute atomically / with architecture-appropriate concurrency control.
-12. write required Business Audit/workflow evidence.
+11. required password re-auth/security precondition satisfied for sensitive admin action?
+12. execute atomically / with architecture-appropriate concurrency control.
+13. write required Business Audit / Access Audit / Security Audit evidence to the correct concern.
 ```
 
 Routine access logging follows separate Access Audit path and MUST NOT be mistaken for workflow mutation.
@@ -838,11 +899,13 @@ Protected Superadmin default:
 - global visibility;
 - `nscmf.reopen`;
 - `nscmf.archive` (Archive + Unarchive);
+- `audit.access.view`;
+- `audit.security.view`;
 - eligible user/role/permission/org administration;
 - `system.settings.manage`;
 - protected invariants.
 
-Does not include hard-delete NSCMF, protected-account deletion/downgrade/disable, or impersonation.
+Does not include hard-delete NSCMF, protected-account deletion/downgrade/disable, impersonation, atau bypass of sensitive-action password re-authentication.
 
 ---
 
@@ -884,6 +947,22 @@ Business Timeline
 → business mutation/workflow/lifecycle evidence
 ```
 
+Confirmed by `10_Security_Rules.md`:
+
+```text
+password policy
+→ minimum 6, no composition rule, no MFA
+
+session
+→ 30m idle, 8h absolute, max 2 active sessions
+
+sensitive admin mutation
+→ password re-auth + target-session revocation
+
+raw Access/Security Audit
+→ protected permissions + no age-based purge
+```
+
 ### Still Deferred to Data / Security / Code Organization
 
 - exact scope storage representation;
@@ -892,13 +971,14 @@ Business Timeline
 - archive flag physical representation;
 - workflow iteration/version column/table representation;
 - middleware/policy class organization;
-- sensitive permission-change audit policy;
-- Access Audit privileged visibility/retention policy;
-- session/password reset controls.
+- exact re-auth proof lifetime/implementation;
+- exact session persistence/eviction physical representation.
 
 Validation decisions regarding Result actor, Result fields, first Submit/Resubmit, mandatory reasons, attachment, numbering, dan Service Impact are **no longer TBD** and follow `06_Validation_Rules.md`.
 
 Hybrid concurrency and Business Timeline/Access Audit separation are **no longer TBD** and follow `09_System_Architecture.md`.
+
+Security policy, audit preservation/visibility, and session/re-auth controls are **no longer TBD** and follow `10_Security_Rules.md`.
 
 ---
 
@@ -926,6 +1006,9 @@ Hybrid concurrency and Business Timeline/Access Audit separation are **no longer
 - [ ] Archived `APPROVED`/`REJECTED` must Unarchive before Reopen.
 - [ ] Legitimate record viewer can see Business Timeline and export.
 - [ ] Routine View/access evidence does not pollute Business Timeline and is represented through separate Access Audit architecture.
+- [ ] Raw Access Audit requires Protected Superadmin default or explicit `audit.access.view` plus valid underlying scope.
+- [ ] Security Audit requires Protected Superadmin default or explicit `audit.security.view` plus valid security/admin scope.
+- [ ] Audit permissions do not implicitly grant `nscmf.view.all`, Review, Approval, Reopen, or export capability.
 - [ ] Inaccessible record cannot be exported through API/ID manipulation.
 - [ ] Protected Superadmin remains protected/global.
 - [ ] Delegated administrators cannot bypass protected invariants.
@@ -933,14 +1016,17 @@ Hybrid concurrency and Business Timeline/Access Audit separation are **no longer
 - [ ] Core System Settings remain Superadmin-only.
 - [ ] No impersonation or NSCMF hard-delete capability.
 - [ ] Server-side state revalidation rejects stale conflicting workflow actions.
-- [ ] Spatie role/permission success alone cannot bypass ownership/scope/state rules.
+- [ ] Spatie role/permission success alone cannot bypass ownership/scope/state/security rules.
 - [ ] Optimistic concurrency does not grant extra edit permission or allow stale Draft/Result overwrite.
+- [ ] Sensitive password/role/permission mutation requires acting-user password re-authentication.
+- [ ] Password/role/permission/access-changing target mutation revokes all target-user active sessions.
+- [ ] Authoritative audit evidence cannot be normal-user modified/deleted and is not age-purged.
 
 ---
 
 # PART Q — TRACEABILITY / NEXT DOCUMENT
 
-## 41. Relationship to State, Validation, Tech Stack, and Architecture
+## 41. Relationship to State, Validation, Tech Stack, Architecture, and Security
 
 `05_State_Status_Flow.md` is authoritative for:
 
@@ -973,16 +1059,25 @@ Hybrid concurrency and Business Timeline/Access Audit separation are **no longer
 - application/module interaction boundaries;
 - asynchronous export/storage execution topology.
 
+`10_Security_Rules.md` is authoritative for:
+
+- password/session/security policy;
+- sensitive action re-authentication;
+- target-session revocation;
+- privileged audit security and no-time-based audit purge;
+- attachment malware security;
+- signing credential protection/public PDF verification.
+
 This RBAC document remains authoritative for actor permission/scope eligibility and business authorization semantics.
 
 ---
 
 ## 42. Next Document
 
-Current fixed project order has completed through `09_System_Architecture.md`.
+Current fixed project order is synchronized through confirmed Security decisions.
 
-The next project document is:
+The next project document to be created is:
 
 **`10_Security_Rules.md`**
 
-It must secure the authorization and audit boundaries defined here, including authentication/session hardening, sensitive permission changes, Access Audit visibility/retention, attachment/export access, and PDF-signing credential protection without changing this permission model.
+It MUST consume this permission model without changing Reviewer/Approver/Requester/Superadmin business eligibility.
