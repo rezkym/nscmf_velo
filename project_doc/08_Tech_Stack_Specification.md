@@ -4,9 +4,9 @@
 
 > **Document ID:** NSCMF-TECH-008  
 > **Document Order:** 08 / 20  
-> **Status:** Draft — Confirmed Technology Baseline  
+> **Status:** Draft — Confirmed Technology Baseline + Security Synchronization  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `10_Security_Rules.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Target Capacity Baseline:** 50 application users  
 > **Last Updated:** 2026-08-21
@@ -29,6 +29,7 @@ Dokumen mengunci:
 - database engine;
 - queue/cache/session baseline;
 - attachment storage abstraction;
+- malware-scanning technology baseline;
 - exact-template XLSX/PDF export technology direction;
 - audit implementation direction;
 - search/realtime decisions;
@@ -41,7 +42,7 @@ Dokumen mengunci:
 
 Dokumen ini **tidak mengubah** product scope, business invariant, permission semantics, lifecycle, field validation, atau UI/UX yang sudah authoritative pada `01–07`.
 
-System Architecture (`09`) menentukan komponen dan interaction topology berdasarkan stack ini. Deployment Architecture (`20`) menentukan production topology/final hosting implementation.
+System Architecture (`09`) menentukan komponen dan interaction topology berdasarkan stack ini. Security Rules (`10`) menentukan security-control behavior yang menggunakan stack ini. Deployment Architecture (`20`) menentukan production topology/final hosting implementation.
 
 ---
 
@@ -72,8 +73,8 @@ Stack dipilih untuk memenuhi requirement berikut, bukan sebaliknya:
 8. server-side authoritative permission/state/validation;
 9. non-exclusive Reviewer/Approver concurrency;
 10. Draft autosave + manual Save Draft;
-11. detailed immutable business/workflow audit;
-12. attachment up to 10 files × 20 MB;
+11. detailed authoritative business/access/security audit separation;
+12. attachment up to 10 files × 20 MB with private malware-scanning gate;
 13. structured searchable History;
 14. single/bulk export;
 15. exact-template XLSX/PDF export requirement;
@@ -81,7 +82,9 @@ Stack dipilih untuk memenuhi requirement berikut, bukan sebaliknya:
 17. initial practical user count ~10, engineered safely for **50 users**;
 18. Docker/container is allowed;
 19. MVP does not need WebSocket/realtime infrastructure;
-20. testing infrastructure must be established properly from project bootstrap.
+20. testing infrastructure must be established properly from project bootstrap;
+21. Approved PDF requires System/Organization signing identity;
+22. public PDF verification is part of the same application boundary.
 
 ---
 
@@ -136,9 +139,12 @@ Rationale:
 | Session | **Laravel database session driver** |
 | Cache | **Laravel database cache baseline**; Redis not required for MVP |
 | Attachment Storage | **Laravel Filesystem/Flysystem**, private local dev + S3-compatible production target |
+| Malware Scanning | **ClamAV / `clamd`**, behind an application `MalwareScanner` adapter |
 | XLSX Export | **Original template + targeted OOXML patching** |
 | PDF Export | **Qualified spreadsheet renderer**, LibreOffice Headless primary candidate after golden fidelity qualification |
-| Audit | **Custom authoritative NSCMF audit/workflow model** |
+| PDF Signing | **Server-side PdfSigningService boundary** using manually provisioned System/Organization signing identity |
+| Public PDF Verification | **Laravel application verification service** using issuer signature + exact SHA-256 + issuance/currentness metadata |
+| Audit | **Custom authoritative NSCMF Business/Access/Security audit model** |
 | Search | **MySQL/Eloquent + indexes** |
 | Realtime | **None for MVP** |
 | Backend Tests | **Pest 4.x** |
@@ -151,6 +157,8 @@ Rationale:
 | Vue Type Check | **vue-tsc / TypeScript compiler checks** |
 | CI Baseline | **GitHub Actions** |
 | Runtime Packaging | **Docker-compatible** |
+
+A Laravel/community ClamAV package MAY be used as integration glue, but the package is not the security authority and MUST NOT replace the application `MalwareScanner` abstraction.
 
 ---
 
@@ -211,10 +219,13 @@ Laravel is the authoritative application runtime for:
 - state transitions;
 - database persistence;
 - transaction boundaries;
-- audit events;
+- Business/Access/Security Audit orchestration;
 - queue jobs;
 - attachment access;
+- malware scan orchestration;
 - export orchestration;
+- Approved-PDF signing orchestration;
+- public PDF verification;
 - History/search queries.
 
 Business logic MUST NOT live only in Vue components.
@@ -238,12 +249,15 @@ ApproveNscmf
 ReopenNscmf
 ArchiveNscmf
 UpdateChangeResult
+ScanAttachment
 GenerateNscmfExport
+SignApprovedPdf
+VerifyIssuedPdf
 ```
 
 Exact directory structure is defined later in `13_Project_Structure.md`.
 
-This specification only requires that workflow/business logic not be scattered across controllers, Vue pages, jobs, and model hooks without a clear authoritative layer.
+This specification only requires that workflow/business/security orchestration not be scattered across controllers, Vue pages, jobs, and model hooks without a clear authoritative layer.
 
 ---
 
@@ -251,18 +265,20 @@ This specification only requires that workflow/business logic not be scattered a
 
 Laravel `DB::transaction()` + MySQL InnoDB transaction primitives MUST be available for workflow-changing operations.
 
-The exact locking strategy—row lock, optimistic version, combination, retry policy—is finalized in System Architecture / ERD/API documents.
+The exact hybrid locking strategy is defined in `09_System_Architecture.md`.
 
-However implementation MUST preserve the already-confirmed invariant:
+Implementation MUST preserve the already-confirmed invariant:
 
 ```text
 permission/scope/state validation
 + state update
-+ audit evidence
++ required audit evidence
 = one consistent business action
 ```
 
 No partial successful workflow transition is allowed.
+
+Long-running malware scans, spreadsheet rendering, or PDF signing MUST NOT hold a browser-lifetime business transaction/row lock.
 
 ---
 
@@ -271,8 +287,6 @@ No partial successful workflow transition is allowed.
 ## 10. Vue 3 + TypeScript
 
 Final frontend framework = **Vue 3** using Composition API and TypeScript.
-
-This resolves the previous `07` technology boundary.
 
 Vue is used for:
 
@@ -285,9 +299,11 @@ Vue is used for:
 - history/table UX;
 - dialogs;
 - result-only editing;
+- security-state feedback;
+- public PDF verification UI;
 - local interaction state.
 
-Vue MUST NOT become the source of truth for permission or workflow validity.
+Vue MUST NOT become the source of truth for permission, workflow validity, malware trust, or PDF authenticity.
 
 ---
 
@@ -313,12 +329,12 @@ For writes:
 Vue/Inertia request
 → Laravel endpoint
 → server authorization
-→ server validation
+→ server validation/security preconditions
 → transaction/persistence
 → Inertia response / redirect / validation errors
 ```
 
-Dedicated JSON endpoints MAY exist when technically natural for autosave, file upload, export status, or similar internal behavior, but they remain part of the same Laravel application and MUST obey the same backend rules.
+Dedicated JSON endpoints MAY exist when technically natural for autosave, file upload, export status, public PDF verification, or similar internal behavior, but they remain part of the same Laravel application and MUST obey the same backend rules.
 
 ---
 
@@ -328,11 +344,11 @@ Inertia server-side rendering is **not required** for MVP.
 
 Rationale:
 
-- application is internal;
-- SEO is irrelevant;
+- application is internal except narrow public verification utility;
+- SEO is irrelevant to the operational product;
 - SSR introduces another long-running Node process without product value for current requirement.
 
-SSR MUST NOT be added by default.
+SSR MUST NOT be added by default merely because `/ispdfvalid` is public.
 
 ---
 
@@ -342,28 +358,11 @@ SSR MUST NOT be added by default.
 
 Final UI component direction = **shadcn-vue**, consistent with `07_UI_UX_Specification.md`.
 
-Use its component approach for:
-
-- button;
-- input/textarea;
-- select;
-- checkbox/radio;
-- dialog/alert dialog;
-- sidebar;
-- table primitives;
-- dropdown;
-- badge;
-- tabs;
-- alert;
-- tooltip;
-- popover;
-- date/calendar patterns;
-- skeleton;
-- toast/sonner-style feedback.
+Use its component approach for button/input/textarea/select/checkbox/radio/dialog/sidebar/table/dropdown/badge/tabs/alert/tooltip/popover/date/skeleton/toast patterns.
 
 Components live in the application codebase and MAY be customized to implement NSCMF design tokens.
 
-MUST NOT modify business behavior merely to fit a component default.
+MUST NOT modify business/security behavior merely to fit a component default.
 
 ---
 
@@ -371,7 +370,7 @@ MUST NOT modify business behavior merely to fit a component default.
 
 Use **Tailwind CSS 4.x** for application styling.
 
-Brand tokens from `07` MUST remain authoritative:
+Brand tokens from `07` remain authoritative:
 
 ```text
 #091540
@@ -380,17 +379,15 @@ Brand tokens from `07` MUST remain authoritative:
 #ABD2FA
 ```
 
-Semantic green/yellow-red/neutral treatment remains defined by `07`.
-
-Tailwind config/theme implementation MUST preserve the neutral-first, color-with-purpose principle.
+Semantic green/yellow/red/neutral treatment remains defined by `07`.
 
 ---
 
 ## 15. Icon Library
 
-Preferred icon family = **Lucide / lucide-vue-next**, aligned with shadcn-style conventions.
+Preferred icon family = **Lucide / lucide-vue-next**.
 
-Critical workflow actions retain text labels; icon is supplemental.
+Critical workflow/security actions retain text labels; icon is supplemental.
 
 ---
 
@@ -407,9 +404,9 @@ username
 + password
 ```
 
-No Microsoft SSO, LDAP, OAuth, or external IdP is required for MVP.
+No Microsoft SSO, LDAP, OAuth, external IdP, atau MFA is required for current MVP.
 
-Authentication uses Laravel session authentication through the Laravel starter-kit/Fortify foundation.
+Authentication uses Laravel session authentication through Laravel Fortify/starter-kit foundations.
 
 ---
 
@@ -422,32 +419,38 @@ MUST:
 - be unique according to final DB rules;
 - be resolved server-side;
 - never store plaintext password;
-- use Laravel-supported password hashing;
+- use Laravel-supported secure password hashing;
 - reject disabled user login;
 - respect protected Superadmin invariants.
 
-Exact username length/pattern and password policy are finalized in Security Rules (`10`).
+Exact username length/pattern remains downstream. **Password policy is already confirmed in `10_Security_Rules.md`: minimum 6 characters, no mandatory composition rule, no MFA.**
 
 ---
 
-## 18. Fortify Features
+## 18. Fortify / Session Feature Boundary
 
 Public registration MUST be disabled.
 
 The application MUST NOT expose normal self-registration routes/UI.
 
-Email verification is not required for the standalone username/password baseline unless Security Rules later introduce an explicit requirement.
+Email verification is not required for the standalone username/password baseline.
 
-Self-service password-reset email flow is not required by current product flow; credential reset is performed through authorized administration as already defined upstream.
+Self-service email `Forgot Password` flow is not required. Credential reset occurs through authorized administration.
 
-Security Rules will define:
+Confirmed security contract from `10_Security_Rules.md`:
 
-- password complexity;
-- reset handling;
-- session timeout;
-- login throttling;
-- lockout behavior;
-- credential audit expectations.
+- password minimum 6 characters;
+- no uppercase/lowercase/number/symbol composition rule;
+- no MFA;
+- admin-created/reset credential uses temporary password + mandatory change;
+- login endpoint uses server-side throttling/progressive delay;
+- idle session timeout = 30 minutes;
+- absolute session lifetime = 8 hours;
+- maximum 2 active sessions/account;
+- sensitive password/role/permission administration requires current-password re-authentication;
+- password reset/role/permission/access-changing identity mutation revokes all target-user sessions.
+
+Implementation MUST NOT silently enable starter-kit registration, MFA, or password-composition requirements that contradict these product decisions.
 
 ---
 
@@ -457,13 +460,7 @@ Security Rules will define:
 
 Use **Spatie Laravel Permission 8.x** for role/permission primitives.
 
-It is responsible for:
-
-- role definitions;
-- permission definitions;
-- user-role relationships;
-- direct/custom permissions where required;
-- Laravel Gate integration.
+It is responsible for role definitions, permission definitions, user-role relationships, direct/custom permissions where required, and Laravel Gate integration.
 
 ---
 
@@ -481,6 +478,7 @@ role/permission
 + business state
 + archive state
 + validation
++ security preconditions
 + protected invariants
 ```
 
@@ -491,7 +489,7 @@ Use:
 - **custom domain scope/query logic** → ownership/Unit/Reviewer/Approver scope;
 - **domain services** → state/action eligibility and invariant enforcement.
 
-Spatie `teams` feature MUST NOT silently replace the project's Unit/Division or Approval Scope model.
+Spatie `teams` MUST NOT silently replace the project's Unit/Division or Approval Scope model.
 
 ---
 
@@ -510,6 +508,8 @@ nscmf.approval.*
 nscmf.approve
 nscmf.reopen
 nscmf.archive
+audit.access.view
+audit.security.view
 ...
 ```
 
@@ -527,21 +527,7 @@ Backend validation uses Laravel validation primitives:
 - reusable custom Rule objects;
 - domain validators/services for state/action-specific cross-field rules.
 
-`06_Validation_Rules.md` remains authoritative.
-
-Implementation SHOULD map canonical validation profiles such as:
-
-```text
-DRAFT_PERSIST
-FIRST_SUBMIT
-RESUBMIT
-REVIEW_FORWARD
-APPROVAL_ACTION
-RESULT_CAPTURE
-...
-```
-
-into explicit backend validation/application paths rather than one giant generic validator.
+`06_Validation_Rules.md` remains authoritative for business/input validation. `10_Security_Rules.md` adds security gates such as malware scanning after structural file validation.
 
 ---
 
@@ -549,16 +535,9 @@ into explicit backend validation/application paths rather than one giant generic
 
 Frontend validation exists for usability only.
 
-Use:
+The project MUST NOT maintain a second independent client-side business/security-rule schema whose behavior can silently diverge from Laravel.
 
-- HTML/input constraints;
-- Vue component constraints;
-- Inertia server error bags;
-- small client-side format/helper validation where it materially improves UX.
-
-The project MUST NOT maintain a second independent client-side business-rule schema whose behavior can silently diverge from Laravel.
-
-Server always revalidates authoritative actions.
+Server always revalidates authoritative actions and security preconditions.
 
 ---
 
@@ -568,13 +547,7 @@ Server always revalidates authoritative actions.
 
 Final relational database = **MySQL 8.4 LTS**, InnoDB.
 
-Use:
-
-- transactional InnoDB tables;
-- foreign keys where domain model allows;
-- `utf8mb4` character set;
-- appropriate indexes for scoped queues/history/search;
-- database constraints for invariants that belong safely at DB level.
+Use transactional InnoDB tables, foreign keys where appropriate, `utf8mb4`, and indexes for scoped queues/history/search.
 
 Exact schema is defined in `11_ERD_Database_Schema.md`.
 
@@ -588,6 +561,8 @@ Query Builder/raw SQL MAY be used for performance-sensitive queries when justifi
 
 User-controlled values MUST NOT be concatenated into unparameterized SQL.
 
+Production application connection MUST use a dedicated least-privilege DB account, not MySQL `root` for normal operation.
+
 ---
 
 ## 26. No Search Engine for MVP
@@ -595,8 +570,6 @@ User-controlled values MUST NOT be concatenated into unparameterized SQL.
 Do not introduce Elasticsearch, OpenSearch, Meilisearch, Typesense, or Laravel Scout infrastructure for initial implementation.
 
 History/queue requirements are structured and can be fulfilled through MySQL indexes and Eloquent/query-builder filtering at target scale.
-
-A dedicated search engine requires evidence of a real scaling/search problem before adoption.
 
 ---
 
@@ -606,12 +579,17 @@ A dedicated search engine requires evidence of a real scaling/search problem bef
 
 Use Laravel **database session** baseline.
 
+This selection is also useful for enforcing the confirmed maximum-2-session/account policy and server-side revocation behavior.
+
 Rationale:
 
 - works cleanly with Docker;
 - avoids container-local session state;
+- supports explicit session listing/revocation;
 - supports future multiple app instances more safely than local-file session;
-- target user count is small enough that database session overhead is acceptable.
+- target user count is small enough that DB-session overhead is acceptable.
+
+Cache MUST NOT be the source of truth for effective session authorization; server-side security checks remain authoritative.
 
 ---
 
@@ -621,7 +599,7 @@ Use Laravel database cache baseline for current requirements.
 
 Redis is intentionally **not required** for MVP.
 
-Cache MUST NOT be the source of truth for workflow status, authorization, or audit history.
+Cache MUST NOT be the source of truth for workflow status, authorization, audit history, malware trust, or PDF validity.
 
 ---
 
@@ -632,11 +610,14 @@ Use **Laravel Database Queue**.
 Good queue candidates include:
 
 - exact-template export generation;
+- Approved-PDF signing after rendering;
 - bulk exports;
 - future notification delivery;
 - non-blocking maintenance tasks.
 
-Direct form/workflow state transitions SHOULD remain synchronous business requests unless Architecture later defines a strong reason otherwise.
+Attachment malware scanning MAY be synchronous or job-assisted only if UX/state/storage design preserves the strict rule that file is unusable until explicit CLEAN. It MUST NOT hold a long business transaction.
+
+Direct form/workflow state transitions remain synchronous business requests unless Architecture defines otherwise.
 
 Queue jobs MUST be idempotent/retry-aware where relevant.
 
@@ -646,19 +627,11 @@ Queue jobs MUST be idempotent/retry-aware where relevant.
 
 Redis, Horizon, or distributed cache/queue infrastructure is **not part of MVP baseline**.
 
-It MAY be introduced later if metrics demonstrate need for:
-
-- higher job throughput;
-- queue monitoring requirements;
-- distributed locks;
-- significant cache load;
-- horizontal scaling beyond database-backed infrastructure.
-
-Do not add Redis preemptively.
+It MAY be introduced later only when evidence demonstrates need.
 
 ---
 
-# PART L — ATTACHMENT STORAGE
+# PART L — ATTACHMENT STORAGE & MALWARE SCANNING
 
 ## 31. Laravel Filesystem / Flysystem
 
@@ -676,7 +649,7 @@ Production target:
 private S3-compatible object storage
 ```
 
-Examples MAY include AWS S3 or S3-compatible service such as MinIO, but exact provider is Deployment Architecture responsibility.
+Exact provider remains Deployment Architecture responsibility.
 
 ---
 
@@ -684,15 +657,42 @@ Examples MAY include AWS S3 or S3-compatible service such as MinIO, but exact pr
 
 NSCMF attachments MUST NOT be stored as publicly addressable web assets.
 
-Download/view must flow through authorized application access or time-limited/private storage access according to Security/Architecture.
+Download/view must flow through authorized application access or controlled private delivery according to Security/Architecture.
 
 Attachment limits/types remain defined by `06`.
 
 ---
 
+## 33. ClamAV / clamd — Confirmed Malware Scanner
+
+Confirmed MVP malware engine = **ClamAV / `clamd`**.
+
+Conceptual application boundary:
+
+```text
+MalwareScanner
+  ↓
+ClamAvScanner
+  ↓
+clamd
+```
+
+Rules:
+
+- Laravel/domain code depends on an application interface/adapter, not on a specific community package;
+- a compatible Laravel/PHP ClamAV client package MAY be used as transport glue;
+- `clamd` is the actual malware-scanning service/engine;
+- `clamd` socket/TCP endpoint MUST remain infrastructure-private and MUST NOT be exposed publicly;
+- virus signature database update mechanism (`freshclam` or equivalent ClamAV-supported update operation) belongs to environment/deployment operations;
+- scanner resource requirements MUST be included in server/container sizing.
+
+Security semantics are authoritative in `10_Security_Rules.md`: only explicit `CLEAN` permits a file to become usable; infected/error/timeout/unavailable fails closed.
+
+---
+
 # PART M — EXACT XLSX / PDF EXPORT — CRITICAL
 
-## 33. Export Requirement Is Template Fidelity, Not HTML Rendering
+## 34. Export Requirement Is Template Fidelity, Not HTML Rendering
 
 The export requirement is strict:
 
@@ -704,71 +704,47 @@ DOMPDF/Browsershot HTML rendering is **not** the authoritative NSCMF export appr
 
 ---
 
-## 34. Canonical Export Template
+## 35. Canonical Export Template
 
 Original `NSCMF-Form-3.0.xlsx` is the canonical export template baseline until an approved newer template version exists.
 
-The template contains features that must be preserved, including native Excel package artifacts such as:
+The template contains worksheets, formatting/styles, merged cells, row/column dimensions, media, print settings, VML drawings, and native Form Control checkbox definitions/control properties that must be preserved.
 
-- worksheets;
-- formatting/styles;
-- merged cells;
-- row heights;
-- column widths;
-- drawing/media content;
-- print settings;
-- VML drawings;
-- native Form Control checkbox definitions / control properties.
-
-Template MUST be versioned and integrity-checked.
-
-A production export MUST always be traceable to the template version used.
+Template MUST be versioned and integrity-checked. Production export MUST be traceable to the template version used.
 
 ---
 
-## 35. No Generic Workbook Rewrite in Authoritative Path
+## 36. No Generic Workbook Rewrite in Authoritative Path
 
-Because the source workbook contains native Excel Form Controls and VML/control-property parts, the authoritative exporter MUST NOT casually load and re-save the workbook through a generic spreadsheet library if doing so rewrites/strips unsupported package parts.
-
-This includes a guardrail against assuming a library is safe simply because ordinary cells/styles survive.
+Because source workbook contains native Excel Form Controls and VML/control-property parts, authoritative exporter MUST NOT casually load/re-save the workbook through a generic spreadsheet library if doing so rewrites/strips unsupported package parts.
 
 The approved strategy is **targeted OOXML package patching**.
 
 ---
 
-## 36. Targeted OOXML Patching
+## 37. Targeted OOXML Patching
 
 XLSX is treated as an OOXML ZIP package.
 
-Authoritative export implementation SHOULD use PHP-native primitives such as:
-
-- `ZipArchive`;
-- `DOMDocument`;
-- `DOMXPath`;
-
-or an equivalently controlled implementation to modify only explicitly mapped OOXML parts.
+Authoritative implementation SHOULD use controlled PHP-native primitives such as `ZipArchive`, `DOMDocument`, `DOMXPath`, or equivalently controlled code to modify only explicitly mapped OOXML parts.
 
 Conceptual flow:
 
 ```text
 immutable official template
-→ copy to temporary export workspace
+→ copy to private temporary export workspace
 → patch mapped worksheet cell values
-→ patch mapped checkbox/control state where required
-→ preserve all unrelated package parts
+→ patch mapped checkbox/control state
+→ preserve unrelated package parts
 → validate package integrity
 → output filled XLSX
 ```
 
-The exporter MUST NOT rebuild worksheet layout from application code.
-
 ---
 
-## 37. Export Mapping Layer
+## 38. Export Mapping Layer
 
-Application MUST maintain an explicit template mapping per template version.
-
-Conceptual mapping:
+Application MUST maintain explicit versioned template mapping:
 
 ```text
 business field
@@ -777,58 +753,31 @@ business field
 → output formatting/type rule
 ```
 
-Examples conceptually:
-
-```text
-request_no -> Activation!<mapped cell>
-customer_name -> Activation!<mapped cell>
-change.service_impact.NOC15 -> mapped native checkbox/control
-approved_by -> mapped sign-off field
-```
-
-Actual cell/control addresses MUST be discovered from and tested against the official template; this document intentionally does not invent addresses.
-
-Mapping is technical configuration/code and MUST be version-controlled.
+Actual addresses must be discovered/tested against the official template and MUST NOT be guessed.
 
 ---
 
-## 38. Native Checkbox Handling
+## 39. Native Checkbox Handling
 
-Existing checkbox controls MUST be preserved as existing template controls.
+Existing checkbox controls MUST be preserved as native template controls.
 
-The exporter SHOULD update the actual mapped OOXML/VML control state rather than replacing controls with Unicode symbols, images, text characters, or newly drawn checkboxes.
-
-Any implementation that changes the visual control type fails template-fidelity acceptance.
+Exporter SHOULD update actual mapped OOXML/VML control state rather than replacing controls with Unicode symbols/images/text/new drawings.
 
 ---
 
-## 39. Filled XLSX Acceptance
+## 40. Filled XLSX Acceptance
 
-Generated XLSX MUST preserve all non-targeted template structure.
+Generated XLSX MUST preserve all non-targeted template structure and open without repair warning.
 
-Minimum structural checks SHOULD include:
-
-- workbook opens without repair warning;
-- same expected sheet structure;
-- same merged ranges unless a mapped field intentionally changes only value;
-- same style definitions/layout;
-- same drawings/media;
-- same native control count/type;
-- same print settings;
-- only mapped fields/control states differ;
-- no unexpected XML parts removed.
+Structural/golden tests must check expected sheet structure, merges, styles/layout, drawings/media, native controls, print settings, mapped differences, and unexpected part removal.
 
 ---
 
-## 40. PDF Renderer
+## 41. PDF Renderer
 
 Primary container-friendly candidate = **LibreOffice Headless / Calc PDF export**.
 
-However, because the requirement is **exact fidelity**, LibreOffice is not automatically production-authoritative merely because it can convert XLSX to PDF.
-
-It is a **QUALIFIED renderer candidate**.
-
-Production rule:
+Because requirement is exact fidelity, LibreOffice is a **QUALIFIED renderer candidate**, not automatically authoritative.
 
 ```text
 candidate renderer
@@ -838,19 +787,17 @@ candidate renderer
 = must pass before production use
 ```
 
-If LibreOffice output differs from the approved expected XLSX print representation, implementation MUST NOT weaken the product requirement. The renderer must be replaced/changed with another qualified spreadsheet rendering method.
+If it cannot preserve the approved expected representation, replace/change renderer rather than weaken requirement.
 
 ---
 
-## 41. Renderer Adapter Boundary
+## 42. Renderer Adapter Boundary
 
-Export implementation SHOULD expose a renderer abstraction conceptually:
+Expose a conceptual abstraction:
 
 ```text
 SpreadsheetPdfRenderer
 ```
-
-so application/domain code does not depend directly on one executable.
 
 Initial candidate adapter:
 
@@ -858,545 +805,415 @@ Initial candidate adapter:
 LibreOfficeHeadlessRenderer
 ```
 
-This keeps exact-fidelity qualification replaceable without rewriting workflow/export orchestration.
+---
+
+## 43. Print Settings
+
+Renderer MUST honor workbook/template print definition whenever technically supported: ranges, paper/orientation, scale/fit, margins, pagination, and existing headers/footers.
 
 ---
 
-## 42. Print Settings
+## 44. Export Temporary Files
 
-PDF renderer MUST honor the workbook/template print definition whenever technically supported, including relevant:
+Intermediate and READY artifacts are controlled private files.
 
-- print ranges;
-- paper/orientation;
-- scale/fit behavior;
-- margins;
-- pagination;
-- existing headers/footers where present.
+Confirmed READY binary retention:
 
-Implementation MUST NOT redesign PDF page layout independently from the XLSX template.
+```text
+168 hours / 7 days
+```
 
----
-
-## 43. Export Temporary Files
-
-Intermediate filled XLSX/PDF files SHOULD be created in controlled private temporary storage.
-
-Temporary export artifacts MUST have cleanup policy defined by Architecture/Environment/Security.
-
-They MUST NOT be publicly exposed by predictable path.
+Then scheduler cleans the generated binary. Cleanup MUST NOT delete NSCMF source record, authoritative Business/Access/Security Audit evidence, or signing issuance/verification metadata.
 
 ---
 
-# PART N — AUDIT
+# PART N — APPROVED PDF SIGNING & VALIDATION TECHNOLOGY BOUNDARY
 
-## 44. Custom Authoritative Audit Model
+## 45. PdfSigningService Boundary
 
-Final decision = **custom NSCMF audit/workflow tables**, not generic activity-log package as the authoritative source.
+Approved PDF signing MUST remain behind an application service/adapter boundary, conceptually:
 
-Rationale:
+```text
+PdfSigningService
+```
 
-Project requires domain-specific evidence:
+Requirements from `10`:
 
-- source state;
-- action;
-- target state;
-- workflow iteration/context;
-- actor;
-- viewer vs modifier distinction;
-- old/new values;
-- mandatory reason;
-- sign-off actor/timestamp;
-- attachment changes;
-- Result capture;
-- reopen/archive lifecycle;
-- stale/conflicting action semantics.
+- logical signer = System/Organization;
+- human `Approved By` remains a separate workflow actor;
+- private key + corresponding public certificate/verification material are provisioned manually on server/environment;
+- private key MUST NOT be in GitHub/source/deployment artifact/ordinary DB;
+- missing/unreadable/mismatched/unusable required signing identity is a critical readiness/configuration failure;
+- mandatory signing failure makes export fail;
+- no unsigned Approved-PDF fallback;
+- TSA is not required for current MVP.
+
+Exact signing library/algorithm/container format/provider is an implementation/environment choice only if it satisfies these rules and the PDF verification tests.
+
+---
+
+## 46. PdfVerificationService Boundary
+
+Public no-login validator stays in the same Laravel application and uses a conceptual:
+
+```text
+PdfVerificationService
+```
+
+It MUST support:
+
+- PDF-only temporary upload;
+- request rate limiting;
+- ClamAV CLEAN before deep parsing;
+- recognized NSCMF issuer signature/public-certificate verification;
+- SHA-256 calculation over exact uploaded bytes;
+- matching against exact final-signed-PDF SHA-256 saved at issuance;
+- issuance/version/approval-iteration lookup;
+- current-vs-superseded business context resolution;
+- minimum-disclosure output.
+
+Canonical semantic results are defined in `10`:
+
+```text
+VALID_CURRENT
+VALID_SUPERSEDED
+INVALID_MODIFIED
+UNKNOWN
+```
+
+The public validator is not a public record/history portal.
+
+---
+
+# PART O — AUDIT
+
+## 47. Custom Authoritative Audit Model
+
+Final decision = **custom NSCMF audit/workflow/security tables**, not generic activity-log package as authority.
+
+System distinguishes:
+
+```text
+Business Audit
+Access Audit
+Security Audit
+Technical Logs
+```
+
+Business/Access/Security Audit are authoritative evidence and **have no age-based automatic purge**. Technical logs are operational and separate; their exact retention remains Environment/Deployment policy.
 
 Exact schema is defined by ERD.
 
 ---
 
-## 45. Generic Activitylog Package
+## 48. Generic Activitylog Package
 
 Spatie Activitylog is **not required** for MVP.
 
-It MAY be introduced later only as supplemental technical logging if it adds value, but MUST NOT replace the domain audit source of truth.
-
-Avoid duplicate competing audit systems unless responsibility is explicitly separated.
+It MAY be supplemental technical logging but MUST NOT replace domain audit source of truth.
 
 ---
 
-# PART O — REALTIME / NOTIFICATION
+# PART P — REALTIME / NOTIFICATION
 
-## 46. No WebSocket for MVP
+## 49. No WebSocket for MVP
 
-Do not add Laravel Reverb, Pusher, Socket.IO, or equivalent realtime infrastructure by default.
+Do not add Reverb/Pusher/Socket.IO by default.
 
-Concurrency correctness is guaranteed by server-side current-state revalidation, not by live UI synchronization.
-
-UI handles stale state through explicit refresh/current-state response as defined in `07`.
+Concurrency correctness is server-side current-state revalidation, not live UI synchronization.
 
 ---
 
-## 47. Notification Technology
+## 50. Notification Technology
 
-Notification remains future capability.
-
-Laravel Notification/queue primitives MAY be used later, but Telegram/WhatsApp/Baileys providers are not selected in this specification.
-
-Notification is not an MVP workflow dependency.
+Notification remains future capability. Provider not selected and notification is not an MVP workflow dependency.
 
 ---
 
-# PART P — BUILD / PACKAGE TOOLING
+# PART Q — BUILD / PACKAGE TOOLING
 
-## 48. Composer
+## 51. Composer
 
 Use Composer 2.x with committed `composer.lock`.
 
-Production install SHOULD use reproducible dependency installation and omit development dependencies.
+Production install SHOULD be reproducible and omit dev dependencies.
 
 ---
 
-## 49. npm
+## 52. npm
 
-Use npm with committed `package-lock.json`.
-
-CI MUST use reproducible install behavior such as `npm ci`.
-
-Do not mix npm/yarn/pnpm lockfiles in the same project.
+Use npm with committed `package-lock.json`. CI uses reproducible install such as `npm ci`.
 
 ---
 
-## 50. Vite
+## 53. Vite
 
-Vite is the frontend development/build tool through Laravel's standard integration.
-
-It handles:
-
-- Vue SFC compilation;
-- TypeScript;
-- Tailwind build integration;
-- development HMR;
-- production assets.
+Vite is the frontend development/build tool through Laravel standard integration.
 
 ---
 
-## 51. Required PHP Extensions Direction
+## 54. Required PHP Extensions Direction
 
-Environment MUST provide extensions required by Laravel/project features, including at minimum relevant:
+Environment MUST provide Laravel/project extensions, including relevant PDO MySQL, mbstring, OpenSSL, tokenizer, XML/DOM, fileinfo, ZIP/`ZipArchive`, and other Laravel runtime requirements.
 
-- PDO MySQL;
-- mbstring;
-- OpenSSL;
-- tokenizer;
-- XML/DOM;
-- fileinfo;
-- ZIP / `ZipArchive` for targeted XLSX package processing;
-- other Laravel runtime requirements.
-
-Exact Docker image/package list is finalized in Environment Specification / Deployment Architecture.
+Exact image/package list is finalized in Environment/Deployment.
 
 ---
 
-# PART Q — TESTING — REQUIRED FROM PROJECT BOOTSTRAP
+# PART R — TESTING — REQUIRED FROM PROJECT BOOTSTRAP
 
-## 52. Testing Is a First-Class Stack Component
+## 55. Testing Is First-Class
 
-Testing infrastructure MUST be initialized at project bootstrap, not postponed until features are mostly complete.
+Testing infrastructure MUST be initialized at project bootstrap.
 
-No core workflow feature is considered implementation-complete without tests appropriate to its risk.
-
----
-
-## 53. Backend Test Stack — Pest 4
-
-Use **Pest 4.x** for PHP tests.
-
-Required backend categories:
-
-```text
-tests/Unit
-- pure domain/helper rules
-- value/format rules where appropriate
-
-tests/Feature
-- authentication
-- authorization/policies
-- CRUD/application actions
-- validation profiles
-- state transitions
-- history/audit
-- attachments
-- exports
-- queues
-```
-
-Exact directory naming can be refined in `13_Project_Structure.md`.
+No core workflow/security/export feature is complete without appropriate tests.
 
 ---
 
-## 54. Authorization Tests
+## 56. Backend Test Stack — Pest 4
 
-Every high-risk permission/state combination MUST have explicit tests.
-
-Examples:
-
-- Requester cannot view another Requester's private record without other scope;
-- Reviewer outside scope denied;
-- Approver outside scope denied;
-- hidden button is irrelevant to server denial;
-- `nscmf.change.result.edit` cannot edit planning fields;
-- Reopen/Archive permissions obey state + archive guard;
-- protected Superadmin invariants cannot be bypassed.
+Use **Pest 4.x** for Unit/Feature tests covering authentication, authorization, validation, state transitions, audit, attachments, malware gate, queues, exports, signing, and public PDF verification.
 
 ---
 
-## 55. Workflow / State Tests
+## 57. Authorization / Security Tests
 
-State machine tests MUST cover every allowed and important forbidden transition from `05`.
+High-risk combinations MUST have tests, including:
 
-Must include:
-
-- happy path;
-- Return/Revision loop;
-- Approver Return Reviewer;
-- Approver Return Requester requiring Review again;
-- Reviewer/Approver Reject;
-- Reopen destinations;
-- Cancel permanent terminal;
-- Archive/Unarchive;
-- Change Result Forward gate;
-- Emergency no bypass.
-
----
-
-## 56. Concurrency / Stale Action Tests
-
-Backend test suite MUST explicitly simulate stale workflow actions.
-
-Example target:
-
-```text
-Reviewer A Forward succeeds
-Reviewer B stale Reject fails
-state remains PENDING_APPROVAL
-only one valid transition/audit result exists
-```
-
-Equivalent Approver race must be tested.
-
-Exact DB locking mechanism may be finalized later, but behavioral concurrency tests are required now.
+- Requester cross-record denial;
+- Reviewer/Approver out-of-scope denial;
+- result-only edit cannot update planning fields;
+- protected Superadmin invariants;
+- min-password 5 rejected / 6 accepted regardless composition;
+- no MFA requirement;
+- temporary-password forced change;
+- login throttling behavior;
+- 30m idle / 8h absolute / max-2 sessions;
+- role/permission/password reset session revocation;
+- sensitive-admin password re-auth;
+- Access/Security Audit privileged visibility;
+- no age-based authoritative audit purge;
+- ClamAV fail-closed behavior;
+- no unsigned Approved-PDF fallback;
+- public validator minimum disclosure.
 
 ---
 
-## 57. Frontend Tests — Vitest 4
+## 58. Workflow / State Tests
 
-Use **Vitest 4.x** with Vue Test Utils.
+State tests MUST cover every allowed/important forbidden transition from `05`, including happy path, revision loop, both Approver returns, rejects, Reopen destinations, Cancel, Archive/Unarchive, Change Result gate, Emergency no bypass.
 
-Frontend tests SHOULD focus on behavior that can fail independently of Laravel server tests, including:
-
-- conditional component display;
-- section navigation behavior;
-- autosave UI state machine;
-- warning vs error rendering;
-- Result-only UI locking;
-- action-dialog behavior;
-- status/archive badge presentation;
-- reusable composables/utilities;
-- accessibility-oriented component behavior where practical.
-
-Do not duplicate every backend validation rule as a frontend unit test.
+Security failure MUST NOT invent a new persistent NSCMF state.
 
 ---
 
-## 58. End-to-End Tests — Playwright
+## 59. Concurrency / Stale Action Tests
 
-Use **Playwright** directly for browser/E2E flows.
+Backend suite MUST simulate stale Reviewer/Approver actions and Draft/Result optimistic conflicts according to `09`.
 
-Minimum critical E2E journeys:
+---
+
+## 60. Frontend Tests — Vitest 4
+
+Use **Vitest 4.x + Vue Test Utils** for conditional display, autosave/conflict UI, warnings/errors, Result-only locking, action dialogs, session/security feedback, attachment scanning states, public validator result presentation, and accessibility-oriented behavior.
+
+---
+
+## 61. End-to-End Tests — Playwright
+
+Minimum critical E2E journeys include:
 
 1. login → dashboard;
-2. create Activation → Draft → Submit;
-3. create Change → Submit;
-4. Requester Result-only update during Review;
-5. Reviewer Forward;
-6. Reviewer Return → Requester revision → Resubmit;
-7. Reviewer Reject;
-8. Approver Approve;
-9. Approver Return Reviewer;
-10. Approver Return Requester;
-11. Approver Reject;
-12. authorized Reopen;
-13. Archive/Unarchive;
-14. History/timeline;
-15. attachment upload constraints;
-16. single export;
-17. bulk export;
-18. forbidden/direct-access attempts.
-
-Primary browser baseline SHOULD include Chromium-compatible behavior. Additional browser matrix can be defined in Testing Specification.
+2. temporary-password login → mandatory password change;
+3. session expiry/revocation behavior;
+4. create Activation → Draft → Submit;
+5. create Change → Submit;
+6. Requester Result-only update;
+7. Reviewer Forward/Return/Reject;
+8. Approver Approve/Returns/Reject;
+9. authorized Reopen;
+10. Archive/Unarchive;
+11. History/timeline;
+12. attachment structural validation + malware gate;
+13. single/bulk export;
+14. Approved-PDF signing failure/success;
+15. public PDF current/superseded/modified/unknown verification;
+16. forbidden/direct-access attempts.
 
 ---
 
-## 59. Test Database
+## 62. Test Database
 
-CI integration/feature tests that depend on database behavior SHOULD use **MySQL 8.4**, preferably containerized.
-
-SQLite MUST NOT be the only CI database because differences in constraints, transactions, indexing, locking, and MySQL behavior could hide production defects.
-
-Fast isolated unit tests MAY remain database-independent.
+CI integration tests SHOULD use **MySQL 8.4**, preferably containerized. SQLite MUST NOT be the only CI DB.
 
 ---
 
-## 60. Export Golden Tests
+## 63. Export Golden Tests
 
-Export is a critical fidelity subsystem and MUST have dedicated golden tests.
+Export requires XLSX structure tests and PDF visual golden tests. Renderer/container upgrades MUST rerun them.
 
-### XLSX Golden Structure Test
+Approved-PDF tests additionally verify:
 
-For known fixture data:
-
-```text
-official template
-+ fixture record
-→ generated XLSX
-```
-
-Verify at minimum:
-
-- expected mapped values;
-- expected control states;
-- workbook opens correctly;
-- expected OOXML package parts preserved;
-- unexpected layout/style/control mutation fails the test.
-
-### PDF Golden Visual Test
-
-For the same approved fixture:
-
-```text
-generated XLSX
-→ qualified renderer
-→ generated PDF
-→ compare against approved golden/reference rendering
-```
-
-Visual difference outside explicitly dynamic content MUST fail fidelity qualification.
-
-Renderer/container upgrades MUST rerun the golden export suite.
+- signature applied only as required;
+- final issued bytes SHA-256 persisted;
+- modified byte changes validator result;
+- historical exact PDF can remain genuine but become superseded after Reopen/new approval;
+- signing failure never exposes unsigned equivalent.
 
 ---
 
-## 61. Test Fixture Rule
+## 64. Test Fixture Rule
 
-Test fixtures MUST NOT use real sensitive production data.
-
-Dummy/seed specification is defined in `17_Seed_Dummy_Data_Specification.md`.
+Tests MUST NOT use real sensitive production data.
 
 ---
 
-# PART R — STATIC ANALYSIS / LINT / FORMAT
+# PART S — STATIC ANALYSIS / LINT / FORMAT
 
-## 62. Laravel Pint
+## 65. Quality Gates
 
-Use Laravel Pint for PHP code formatting.
+Use Laravel Pint, PHPStan/Larastan, ESLint, Prettier, and `vue-tsc`/TypeScript checking.
 
-CI MUST fail on unformatted PHP according to repository standard.
-
----
-
-## 63. PHPStan / Larastan
-
-Use PHPStan with Larastan for Laravel-aware static analysis.
-
-The project SHOULD start with a meaningful strictness level from the beginning and increase deliberately; it MUST NOT be permanently disabled because existing code accumulated unchecked issues.
-
-Exact level is finalized in `15_Coding_Rules_AGENTS.md`.
+Exact strictness is defined later in Coding Rules.
 
 ---
 
-## 64. ESLint
+# PART T — CI BASELINE
 
-Use ESLint for Vue/TypeScript linting.
+## 66. GitHub Actions
 
-Rules SHOULD cover:
+CI baseline remains GitHub Actions with reproducible Composer/npm installs, formatting/static analysis, Pest, frontend lint/type/Vitest/build, Playwright critical suite, and export golden tests where renderer environment is available.
 
-- Vue SFC correctness;
-- TypeScript quality;
-- obvious unsafe patterns;
-- import/code consistency.
+Dependency vulnerability checks SHOULD be included through supported Composer/npm/GitHub capabilities.
 
----
-
-## 65. Prettier
-
-Use Prettier for JS/TS/Vue formatting where appropriate.
-
-Formatting responsibilities between ESLint and Prettier MUST be configured to avoid conflicting rules.
+Real signing private keys MUST NOT be stored in repository/normal CI fixture. Tests use dedicated non-production test signing material provisioned securely by test environment.
 
 ---
 
-## 66. Type Checking
+# PART U — DOCKER COMPATIBILITY
 
-Production/CI build quality gate MUST include TypeScript/Vue type checking through `vue-tsc` or equivalent supported Vue TypeScript tooling.
+## 67. Container Baseline
 
-A Vite production build succeeding is not a substitute for explicit type checking.
+Project MUST be Docker-compatible.
 
----
-
-# PART S — CI BASELINE
-
-## 67. GitHub Actions
-
-GitHub Actions is the baseline CI service because source repository is hosted on GitHub.
-
-CI SHOULD run on pull request and relevant main-branch updates.
-
-Minimum gates:
-
-```text
-Composer install
-npm ci
-PHP formatting check
-PHP static analysis
-Pest tests
-ESLint
-Prettier check
-Vue/TypeScript type check
-Vitest
-production frontend build
-Playwright critical suite
-export golden tests where environment supports renderer
-```
-
-Jobs MAY be parallelized later for speed.
-
----
-
-## 68. Dependency Security
-
-Dependency vulnerability checks SHOULD be part of CI/maintenance using supported Composer/npm/GitHub capabilities.
-
-Exact security scanning policy belongs to `10_Security_Rules.md` and Testing/CI details.
-
----
-
-# PART T — DOCKER COMPATIBILITY
-
-## 69. Container Baseline
-
-Project MUST be Docker-compatible for local/CI/runtime packaging.
-
-Containerization MAY include logical services such as:
+Logical services MAY include:
 
 ```text
 app runtime
 web server
 MySQL
 queue worker
+ClamAV / clamd
 qualified spreadsheet renderer
 ```
 
-Exact container topology is intentionally deferred to `09_System_Architecture.md`, `14_Environment_Specification.md`, and `20_Deployment_Architecture.md`.
+Exact deployment topology is deferred to `09`, `14`, and `20`; logical separation does not mean every item needs a dedicated physical server.
 
 This document does not require Kubernetes.
 
 ---
 
-## 70. LibreOffice Isolation
+## 68. LibreOffice Isolation
 
-Spreadsheet PDF rendering SHOULD be isolated from normal request processing through queued export execution and an explicit renderer boundary.
-
-LibreOffice packages/fonts/runtime must be pinned in the qualified container/environment so rendering does not silently change after system updates.
+Spreadsheet renderer SHOULD be isolated from request processing via queued export boundary. Packages/fonts/runtime must be pinned after qualification.
 
 ---
 
-# PART U — CAPACITY AND SIMPLICITY
+## 69. ClamAV Operational Direction
 
-## 71. Capacity Baseline
+ClamAV may run as a same-host daemon or private container/service, subject to Environment/Deployment sizing.
 
-Actual expected users currently approximately 10.
+Operational requirements include:
 
-Engineering planning baseline = **50 users**.
+- private-only daemon endpoint;
+- virus-definition updates;
+- health/readiness visibility;
+- resource sizing that accounts for ClamAV memory/CPU alongside Laravel/MySQL/renderer if colocated;
+- scanner failure treated fail-closed by application.
 
-At this scale the stack intentionally avoids premature distributed infrastructure.
-
-MySQL + database queue/session/cache is adequate as a starting architecture provided performance tests/monitoring do not show otherwise.
-
----
-
-## 72. No Premature Infrastructure
-
-MVP MUST NOT add by default:
-
-- Kubernetes;
-- microservices;
-- event broker/Kafka/RabbitMQ;
-- Redis cluster;
-- Elasticsearch/OpenSearch;
-- separate API gateway;
-- separate Vue deployment;
-- WebSocket infrastructure;
-- CDN dependency for core internal app;
-- generic workflow/BPM engine.
-
-These require explicit demonstrated need and specification change.
+No separate antivirus server is inherently required for the current 50-user architecture unless deployment sizing/operations choose one.
 
 ---
 
-# PART V — LOGGING / OBSERVABILITY BOUNDARY
+# PART V — CAPACITY AND SIMPLICITY
 
-## 73. Application Logging
+## 70. Capacity Baseline
 
-Use Laravel logging facilities for technical/application logs.
+Actual expected users ~10. Engineering baseline = **50 users**.
 
-Technical logs are separate from authoritative NSCMF business audit.
-
-Implementation MUST NOT assume application logs can replace audit records.
-
-Exact logging channels, retention, metrics, health checks, and alerting are finalized in System Architecture/Security/Environment/Deployment documents.
+MySQL + database queue/session/cache is adequate starting architecture if performance evidence does not show otherwise.
 
 ---
 
-# PART W — TECHNOLOGY GUARDRAILS
+## 71. No Premature Infrastructure
 
-## 74. Developer / AI Must Not
+MVP MUST NOT add by default Kubernetes, microservices, Kafka/RabbitMQ, Redis cluster, external search engine, separate API gateway, separate Vue deployment, WebSockets, CDN dependency, or generic BPM engine.
+
+ClamAV is not considered premature infrastructure because malware scanning is now a confirmed security requirement.
+
+---
+
+# PART W — LOGGING / OBSERVABILITY BOUNDARY
+
+## 72. Application Logging
+
+Use Laravel logging for technical/application logs.
+
+Technical logs remain separate from authoritative Business/Access/Security Audit.
+
+Application logs MUST NOT replace audit records. Exact technical-log retention, channels, metrics, health checks, alerts remain downstream.
+
+Security-sensitive values such as passwords, private key material/passphrases, secrets, and raw authentication payloads MUST NOT be logged.
+
+---
+
+# PART X — TECHNOLOGY GUARDRAILS
+
+## 73. Developer / AI Must Not
 
 Implementation MUST NOT:
 
 1. switch Vue to React without specification change;
-2. build a separate REST SPA when Inertia monolith is the confirmed baseline;
+2. build a separate REST SPA when Inertia monolith is confirmed;
 3. use frontend authorization as security boundary;
 4. treat Spatie permission alone as sufficient for scope/state authorization;
-5. use Spatie teams as an undocumented substitute for Unit/Approval scopes;
+5. use Spatie teams as undocumented Unit/Approval-scope substitute;
 6. enable public registration;
-7. add SSO/LDAP/OAuth requirement without approved change;
-8. use MySQL Innovation line instead of selected 8.4 LTS without review;
-9. use SQLite as the only database test target;
-10. add Redis because it is fashionable rather than required;
-11. add WebSocket just to make queues look realtime;
-12. add external search engine for current 50-user baseline without evidence;
-13. use DOMPDF/HTML rendering as authoritative NSCMF template export;
-14. rebuild the Excel template visually in code;
-15. casually save the official workbook through a library that strips/changes native controls;
-16. replace native checkboxes with characters/images merely for easier export;
-17. claim LibreOffice is exact without golden qualification;
-18. accept visually different PDF output by weakening the exact-template requirement;
-19. make generic activity-log package the authoritative workflow audit;
-20. postpone all tests until after implementation;
-21. merge workflow/state functionality without server-side feature tests;
-22. allow renderer/dependency upgrade to bypass export regression tests;
+7. add SSO/LDAP/OAuth/MFA without approved change;
+8. impose password composition beyond confirmed minimum-6 rule;
+9. use MySQL Innovation instead of selected 8.4 LTS without review;
+10. use SQLite as the only DB test target;
+11. add Redis without demonstrated need;
+12. add WebSocket just to make queues look realtime;
+13. add external search engine without evidence;
+14. use HTML rendering as authoritative NSCMF PDF template;
+15. rebuild Excel template visually in code;
+16. casually re-save official workbook through library that strips native controls;
+17. replace native checkboxes with symbols/images;
+18. claim LibreOffice exact without golden qualification;
+19. accept visually different PDF by weakening requirement;
+20. make generic activity-log package authoritative audit;
+21. postpone tests until after implementation;
+22. let renderer/dependency upgrade bypass export regression;
 23. add Inertia SSR without requirement;
 24. expose private attachments through public filesystem paths;
-25. make cache/session/queue state authoritative over persisted business data.
+25. make cache/session/queue state authoritative over persisted business data;
+26. treat ClamAV failure/timeout/unavailability as CLEAN;
+27. expose `clamd` publicly;
+28. delete Business/Access/Security Audit because of age;
+29. put production signing private key in GitHub/source/deployment artifact/ordinary DB;
+30. deliver unsigned Approved PDF when mandatory signing fails;
+31. claim TSA-backed independent timestamp assurance when current MVP has no TSA;
+32. make public PDF validator a public History/record portal;
+33. make cryptographic signer replace human `Approved By`.
 
 ---
 
-# PART X — REQUIRED DEPENDENCY CATEGORIES
+# PART Y — REQUIRED DEPENDENCY CATEGORIES
 
-## 75. PHP / Composer Baseline
+## 74. PHP / Composer Baseline
 
-Required/expected categories:
+Expected categories:
 
 ```text
 laravel/framework ^13
@@ -1406,13 +1223,13 @@ larastan/larastan --dev
 Laravel Pint --dev / Laravel-provided tooling
 ```
 
-Exact patch constraints and any additional packages are selected at implementation/bootstrap time and captured by `composer.lock`.
+ClamAV client integration package is optional; exact package MAY be selected at bootstrap after compatibility review because the authoritative requirement is the `MalwareScanner` adapter + `clamd`, not a particular package.
 
-The project SHOULD avoid adding third-party packages for features adequately provided by Laravel/PHP unless the package clearly reduces risk/complexity.
+PDF signing library is similarly selected only if it satisfies exact signing/verification requirements and tests.
 
 ---
 
-## 76. npm Baseline
+## 75. npm Baseline
 
 Expected categories:
 
@@ -1432,89 +1249,85 @@ Prettier
 vue-tsc
 ```
 
-Exact packages generated by the current official Laravel Vue starter kit and shadcn-vue installation are authoritative at bootstrap, subject to this specification and lockfile.
+Exact packages from current official Laravel Vue starter kit/shadcn-vue install are subject to this specification and lockfile.
 
 ---
 
-# PART Y — EXTERNAL VERSION VERIFICATION BASIS
+# PART Z — EXTERNAL VERSION VERIFICATION BASIS
 
-## 77. Verification Notes — 2026-08-21
+## 76. Verification Notes — 2026-08-21
 
-Technology versions/directions were checked against current official sources before this specification was written.
+Technology version/direction basis includes current official project sources checked during specification work. External sources validate capability/version direction only and never override NSCMF decisions.
 
-Relevant references:
+Relevant references already established for Laravel 13, Laravel starter kits/validation/database, Node LTS, MySQL 8.4 LTS, Spatie Permission 8, Vitest 4, and LibreOffice PDF export.
 
-- Laravel 13 release/support: `https://laravel.com/docs/13.x/releases`
-- Laravel official starter kits: `https://laravel.com/starter-kits`
-- Laravel 13 starter-kit authentication/Fortify: `https://laravel.com/docs/13.x/starter-kits`
-- Laravel validation: `https://laravel.com/docs/13.x/validation`
-- Laravel database transactions: `https://laravel.com/docs/13.x/database`
-- Node release/LTS schedule: `https://nodejs.org/about/previous-releases`
-- MySQL 8.4 LTS model: `https://dev.mysql.com/doc/refman/8.4/en/mysql-releases.html`
-- Spatie Permission compatibility: `https://spatie.be/docs/laravel-permission/v8/prerequisites`
-- Vitest 4 documentation: `https://v4.vitest.dev/guide/`
-- LibreOffice Calc PDF export: `https://help.libreoffice.org/latest/en-US/text/shared/01/ref_pdf_export.html?DbPAR=CALC`
-
-External sources validate technology capability/version direction only. They do not override NSCMF business requirements.
+For ClamAV, `clamd`/`freshclam` behavior and community-integration boundary follow official ClamAV documentation. Exact server package installation and update schedule belong to Environment/Deployment.
 
 ---
 
-# PART Z — TESTABLE TECH STACK ACCEPTANCE CRITERIA
+# PART AA — TESTABLE TECH STACK ACCEPTANCE CRITERIA
 
-## 78. Runtime / Build
+## 77. Runtime / Build
 
-- [ ] Application runs on Laravel 13 + PHP 8.5.
-- [ ] Frontend uses Vue 3 + TypeScript + Inertia 3.
-- [ ] Node runtime baseline is Node 24 LTS.
-- [ ] Tailwind 4 + shadcn-vue implement `07` design system direction.
-- [ ] `composer.lock` and `package-lock.json` are committed.
-- [ ] Production frontend build succeeds with explicit type checking.
+- [ ] Laravel 13 + PHP 8.5.
+- [ ] Vue 3 + TypeScript + Inertia 3.
+- [ ] Node 24 LTS.
+- [ ] Tailwind 4 + shadcn-vue.
+- [ ] `composer.lock` and `package-lock.json` committed.
+- [ ] production build has explicit type checking.
 
-## 79. Authentication / Authorization
+## 78. Authentication / Authorization
 
-- [ ] Login is username + password.
-- [ ] Public registration is disabled.
-- [ ] Admin-created account flow remains possible.
-- [ ] Spatie handles role/permission primitives.
-- [ ] Laravel Policies/custom scope logic enforce ownership/Unit/Approval scope.
-- [ ] Direct request cannot bypass state/scope authorization.
+- [ ] login = username + password;
+- [ ] public registration disabled;
+- [ ] password min 6 and no composition rule;
+- [ ] no MFA requirement;
+- [ ] admin temporary password + forced change works;
+- [ ] 30m idle / 8h absolute / max2 sessions enforced;
+- [ ] sensitive admin password re-auth works;
+- [ ] target session revocation works;
+- [ ] Spatie handles permission primitives while Policies/custom scope enforce domain access.
 
-## 80. Database / Queue / Storage
+## 79. Database / Queue / Storage / Malware
 
-- [ ] MySQL 8.4 LTS is the primary DB and CI integration DB.
-- [ ] Database queue works for background export jobs.
-- [ ] Database session/cache work without Redis.
-- [ ] Attachments use Laravel Filesystem abstraction and are private.
-- [ ] Production storage remains S3-compatible-ready/targeted.
+- [ ] MySQL 8.4 LTS primary/CI integration DB.
+- [ ] Database queue/session/cache work without Redis.
+- [ ] Attachments use private Filesystem abstraction.
+- [ ] ClamAV/`clamd` integration sits behind adapter.
+- [ ] file is not usable before explicit CLEAN.
+- [ ] scanner error/timeout/unavailable fails closed.
+- [ ] `clamd` not publicly exposed.
 
-## 81. Export
+## 80. Export / Signing / Verification
 
-- [ ] Official XLSX template is versioned and integrity-known.
-- [ ] Export fills/replaces mapped fields only.
-- [ ] Native controls remain native controls.
-- [ ] Targeted OOXML patching does not remove unrelated package parts.
-- [ ] Generated XLSX opens without repair warning.
-- [ ] Layout/formatting/print definition remains the approved template layout.
-- [ ] PDF is rendered from the filled spreadsheet/template, not from HTML redesign.
-- [ ] LibreOffice renderer is not promoted to production until exact-fidelity golden test passes.
-- [ ] Renderer upgrade triggers golden regression tests.
+- [ ] official XLSX template version/integrity known;
+- [ ] targeted OOXML patching preserves native controls/unrelated parts;
+- [ ] PDF rendered from spreadsheet representation;
+- [ ] renderer qualified by golden tests;
+- [ ] Approved PDF signed by System/Organization;
+- [ ] signing key absent from repository/deployment artifact;
+- [ ] missing required signing identity triggers critical readiness/configuration failure;
+- [ ] no unsigned Approved-PDF fallback;
+- [ ] exact final-signed-PDF SHA-256 stored as issuance evidence;
+- [ ] public verifier differentiates current/superseded/modified/unknown;
+- [ ] no TSA is required/claimed in current MVP.
 
-## 82. Testing / Quality
+## 81. Audit / Testing / Quality
 
-- [ ] Pest exists from bootstrap and covers backend workflow/authorization/validation.
-- [ ] Vitest exists from bootstrap for Vue behavior.
-- [ ] Playwright exists from bootstrap for critical E2E flows.
+- [ ] Business/Access/Security Audit separated from technical logs.
+- [ ] authoritative audit has no age-based purge.
+- [ ] privileged Access/Security Audit permissions tested.
+- [ ] Pest/Vitest/Playwright exist from bootstrap.
 - [ ] MySQL-backed CI tests exist.
-- [ ] Concurrency/stale workflow behavior has automated tests.
-- [ ] XLSX/PDF golden export tests exist before export is considered complete.
-- [ ] Pint, PHPStan/Larastan, ESLint, Prettier, and Vue type check are CI quality gates.
-- [ ] GitHub Actions runs required checks.
+- [ ] concurrency tests exist.
+- [ ] export/signing/verification golden/integrity tests exist.
+- [ ] Pint/PHPStan-Larastan/ESLint/Prettier/vue-tsc are quality gates.
 
 ---
 
-# PART AA — RELATIONSHIP TO OTHER DOCUMENTS
+# PART AB — RELATIONSHIP TO OTHER DOCUMENTS
 
-## 83. Authority Matrix
+## 82. Authority Matrix
 
 | Concern | Authoritative Source |
 |---|---|
@@ -1533,7 +1346,7 @@ External sources validate technology capability/version direction only. They do 
 | Project directories/code organization | `13_Project_Structure.md` |
 | Environment variables/runtime setup | `14_Environment_Specification.md` |
 | Coding/AI rules | `15_Coding_Rules_AGENTS.md` |
-| Detailed testing cases/coverage | `16_Testing_Specification.md` |
+| Detailed tests | `16_Testing_Specification.md` |
 | Seed/dummy fixtures | `17_Seed_Dummy_Data_Specification.md` |
 | Completion gates | `18_Definition_of_Done.md` |
 | Implementation order | `19_Task_Implementation_Plan.md` |
@@ -1541,68 +1354,47 @@ External sources validate technology capability/version direction only. They do 
 
 ---
 
-## 84. Decisions Intentionally Deferred
+## 83. Decisions Intentionally Deferred
 
 This tech stack does not silently decide:
 
-- exact System Architecture component boundaries/topology;
-- final transaction locking/version algorithm;
 - exact ERD/table/index definitions;
 - exact API request/response schema;
 - exact Docker Compose/production container topology;
 - exact production S3-compatible provider;
-- exact malware scanning technology;
-- exact audit retention/export-download audit policy;
+- exact ClamAV deployment form/sizing while preserving the confirmed scanner technology/security behavior;
+- exact technical-log retention/monitoring platform;
 - notification provider;
-- final observability/monitoring platform;
-- exact password/session/security policy;
 - official company numbering SOP/sample;
 - exact Unit/Division master data;
-- e-signature technology if ever required.
+- exact signing certificate file format/path/provider/CA where external trust beyond NSCMF's issuer/validator model is later required;
+- exact private-key rotation ceremony;
+- backup/restore/DR/RPO/RTO;
+- performance/SLA/availability targets.
 
-### PDF Renderer Qualification Note
-
-The **requirement is final**, while the concrete renderer remains qualification-gated:
+The following are **not TBD** anymore:
 
 ```text
-PDF must exactly preserve approved XLSX template representation
+password/security baseline
+session limits
+no MFA
+ClamAV malware scanner + fail-closed CLEAN gate
+no age-based authoritative audit deletion
+Approved-PDF signing custody/readiness requirement
+public PDF verification
+no TSA requirement for MVP
+exact-template XLSX/PDF contract
+async export + 7-day binary retention
 ```
 
-LibreOffice Headless is the primary container-compatible implementation candidate, not permission to accept approximation.
-
 ---
 
-## 85. Required Synchronization to Prior Artifacts
+## 84. Synchronization Status / Next Document
 
-After this document is approved/created, prior artifacts should be synchronized where they still say technology is TBD/current direction:
+Prior business, user-flow, RBAC, validation, UI, architecture, and FigJam artifacts are being synchronized to the confirmed security decisions without changing their authoritative concern boundaries.
 
-- `02_Business_Rules.md` — Spatie is no longer merely a candidate;
-- `04_RBAC_Permission_Matrix.md` — implementation package boundary is now confirmed;
-- `07_UI_UX_Specification.md` — Vue/shadcn-vue boundary is resolved;
-- FigJam Architecture section — Laravel + Vue + MySQL may be changed from `current direction` to confirmed baseline and should mention Inertia/TypeScript/shadcn-vue at an appropriate high level;
-- FigJam export block should reflect exact XLSX-template-based export rather than generic PDF generation.
+The next document in fixed project order is:
 
-Synchronization MUST NOT alter upstream business rules.
+**`10_Security_Rules.md`**
 
----
-
-## 86. Next Document
-
-Next document in fixed project order:
-
-**`09_System_Architecture.md`**
-
-It should transform this stack into the actual component architecture, including at minimum:
-
-- Browser / Vue-Inertia interaction;
-- Laravel application boundaries;
-- authentication/authorization flow;
-- domain/application services;
-- MySQL persistence;
-- database-backed queue worker;
-- private attachment storage;
-- exact-template export subsystem;
-- qualified spreadsheet renderer boundary;
-- audit subsystem;
-- concurrency/transaction boundary;
-- Docker-compatible component topology without inventing unnecessary distributed services.
+It is authoritative for the confirmed security-control behavior and is followed by `11_ERD_Database_Schema.md`.
