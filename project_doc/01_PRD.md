@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-PRD-001  
 > **Document Order:** 01 / 20  
-> **Status:** Draft for Business Review  
+> **Status:** Draft — Synchronized with confirmed Business Rules / User Flow decisions  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Primary Business Reference:** NSCMF Form 3.0 (Excel)  
 > **Product Flow Reference:** NSCMF FigJam proposal  
@@ -12,141 +12,89 @@
 
 ---
 
-## 1. Purpose of This Document
+## 1. Purpose
 
-Dokumen ini mendefinisikan **produk apa yang akan dibangun**, masalah bisnis yang ingin diselesaikan, siapa penggunanya, ruang lingkup produk, fitur yang harus tersedia, batasan MVP, serta acceptance criteria pada level produk.
+PRD ini mendefinisikan produk yang dibangun, masalah yang diselesaikan, user utama, scope, functional requirements, product boundaries, dan acceptance intent pada level produk.
 
-PRD ini **belum dimaksudkan untuk menjadi dokumen teknis implementasi**. Detail seperti business rules yang otoritatif, permission matrix, state machine, validation rules, UI specification, teknologi, database schema, API contract, project structure, security implementation, dan deployment akan ditetapkan pada dokumen-dokumen berikutnya sesuai urutan dokumentasi proyek.
+Dokumen ini bukan source of truth untuk permission detail, state machine, validation field, UI behavior detail, database, API, security implementation, maupun deployment. Detail tersebut dibuat bertahap pada dokumen 02–20.
 
-Urutan dokumentasi proyek yang disepakati adalah:
+Urutan dokumentasi proyek:
 
-1. **PRD** — menentukan produk yang dibuat.
-2. **Business Rules** — menentukan aturan bisnis yang tidak boleh dilanggar.
-3. **User Flow** — menentukan aktivitas user dari awal sampai akhir.
-4. **RBAC / Permission Matrix** — menentukan siapa boleh melakukan apa.
-5. **State / Status Flow** — menentukan lifecycle setiap proses/data.
-6. **Validation Rules** — menentukan data/input yang dianggap valid.
-7. **UI/UX Specification** — menentukan bagaimana user berinteraksi dengan fitur.
-8. **Tech Stack Specification** — menentukan teknologi yang digunakan.
-9. **System Architecture** — menentukan bagaimana teknologi disusun.
-10. **Security Rules** — menentukan batas keamanan sejak awal desain.
-11. **ERD / Database Schema** — membentuk database berdasarkan requirement.
-12. **API Contract** — mendefinisikan komunikasi frontend dan backend.
-13. **Project Structure** — menentukan organisasi source code.
-14. **Environment Specification** — menentukan local/dev/staging/prod.
-15. **Coding Rules / AGENTS.md** — menjadikan keputusan proyek sebagai aturan kerja AI/developer.
-16. **Testing Specification** — menentukan bagaimana requirement diverifikasi.
-17. **Seed / Dummy Data Specification** — menyiapkan data development/testing.
-18. **Definition of Done** — menentukan kapan sebuah task dinyatakan selesai.
-19. **Task / Implementation Plan** — memecah pekerjaan menjadi task yang dapat dieksekusi.
-20. **Deployment Architecture** — finalisasi bagaimana aplikasi dijalankan di production.
-
-Jika terdapat konflik antara PRD ini dan dokumen yang lebih spesifik yang dibuat setelahnya, perubahan harus dikembalikan ke PRD apabila konflik tersebut mengubah **scope atau perilaku produk**, bukan hanya detail implementasi.
+1. PRD
+2. Business Rules
+3. User Flow
+4. RBAC / Permission Matrix
+5. State / Status Flow
+6. Validation Rules
+7. UI/UX Specification
+8. Tech Stack Specification
+9. System Architecture
+10. Security Rules
+11. ERD / Database Schema
+12. API Contract
+13. Project Structure
+14. Environment Specification
+15. Coding Rules / AGENTS.md
+16. Testing Specification
+17. Seed / Dummy Data Specification
+18. Definition of Done
+19. Task / Implementation Plan
+20. Deployment Architecture
 
 ---
 
 ## 2. Executive Summary
 
-NSCMF Digital Form & Workflow System adalah aplikasi web internal untuk mengubah proses NSCMF yang saat ini berorientasi pada **template Excel** menjadi proses digital yang terstruktur, dapat dilacak, dan dapat dicari kembali.
+NSCMF Digital Form & Workflow System adalah aplikasi web internal untuk mengganti proses NSCMF yang berbasis file Excel menjadi record digital yang terstruktur, traceable, dapat direview, di-approve, dicari kembali, dan diekspor.
 
-Produk ini tidak bertujuan mengubah makna bisnis dari NSCMF Form 3.0. Excel tetap menjadi referensi awal mengenai informasi yang harus dikumpulkan. Aplikasi akan mengubah informasi tersebut menjadi form web yang terstruktur sehingga user tidak lagi bergantung pada pengelolaan file Excel secara manual untuk membuat, mengirim, meninjau, menyetujui, menyimpan, dan mengekspor dokumen NSCMF.
+Aplikasi mempertahankan makna bisnis dari NSCMF Form 3.0 tetapi tidak harus menyalin layout spreadsheet secara pixel-perfect.
 
-Pada MVP, aplikasi memiliki dua jenis form utama:
+Dua form family utama:
 
-- **NSCMF - Activation**
-- **NSCMF - Change**
+- **NSCMF - Activation** — konteks instalasi / provisioning;
+- **NSCMF - Change** — konteks maintenance / perubahan pada layanan atau environment yang sudah berjalan.
 
-Alur produk pada level tinggi adalah:
+Core product journey:
 
-`Login → Dashboard → Create New Form / History → Pilih Jenis Form → Isi Form → Submit → Review → Approval → History → Export`
+`Login → Dashboard → Create New Form → Pilih Form Family/Subtype → Draft → Submit → Review → Approval → History / Export`
 
-Fungsi utama aplikasi adalah:
+Flow juga mendukung:
 
-- autentikasi user melalui login;
-- dashboard sederhana dengan CTA untuk membuat form baru;
-- digitalisasi NSCMF Activation dan Change;
-- proses sign-off `Request By → Review By → Approved By`;
-- penyimpanan record NSCMF secara terstruktur;
-- history untuk melihat kembali record;
-- export satu record atau beberapa record sekaligus;
-- menjaga data form agar dapat ditelusuri berdasarkan record dan statusnya.
+- autosave dan Save Draft;
+- Cancel pada Draft;
+- Return for Revision;
+- repeated revision/resubmission;
+- Reviewer/Approver Reject;
+- Reopen oleh authority yang sesuai;
+- Archive tanpa hard delete;
+- detailed audit log;
+- multi-role user;
+- scoped Reviewer/Approver visibility.
 
 ---
 
-## 3. Background
+## 3. Problem Statement
 
-### 3.1 Current Situation
+Workflow berbasis spreadsheet membuat NSCMF bergantung pada file individual sehingga data, status, sign-off, revision history, dan retrieval tidak berada pada satu sistem terpusat.
 
-NSCMF saat ini direpresentasikan oleh **NSCMF Form 3.0 dalam format Excel**. Template tersebut memiliki dua flow bisnis utama, yaitu Activation dan Change, beserta informasi operasional dan bagian sign-off.
+Produk harus menyelesaikan masalah berikut:
 
-Penggunaan spreadsheet sebagai media utama mempunyai beberapa konsekuensi yang secara umum dapat muncul dalam proses operasional berbasis file:
-
-- data tersebar dalam banyak file;
-- sulit mengetahui record mana yang merupakan record terbaru;
-- pencarian histori membutuhkan penelusuran file secara manual;
-- format atau isi file dapat menjadi tidak konsisten apabila diedit secara bebas;
-- sign-off dan status proses sulit dilihat secara terpusat;
-- proses export atau pengumpulan banyak record membutuhkan pekerjaan manual;
-- tidak tersedia satu tampilan yang menjadi sumber informasi terpusat mengenai seluruh NSCMF.
-
-Aplikasi ini dibuat untuk memindahkan proses tersebut dari **file-centric workflow** menjadi **record-centric workflow**.
-
-### 3.2 Business Reference
-
-Struktur informasi bisnis bersumber dari NSCMF Form 3.0.
-
-Secara garis besar:
-
-#### NSCMF - Activation
-
-Mencakup kelompok informasi:
-
-- request type;
-- service information;
-- network / NOC information;
-- IP, DNS, routing, bandwidth, dan konfigurasi terkait yang terdapat pada template;
-- onsite / customer / POP information;
-- sign-off `Request By`, `Review By`, dan `Approved By`.
-
-Request type yang saat ini terlihat pada template meliputi:
-
-- Activation;
-- Upgrade / Downgrade;
-- Deactivation.
-
-#### NSCMF - Change
-
-Mencakup kelompok informasi:
-
-- request type;
-- tujuan atau konteks perubahan;
-- identified problem;
-- service impact;
-- improvement plan;
-- KPI;
-- execution schedule;
-- rollback scenario;
-- announcement;
-- change result;
-- performance;
-- status;
-- sign-off `Request By`, `Review By`, dan `Approved By`.
-
-Request type yang saat ini terlihat pada template meliputi:
-
-- Maintenance;
-- Upgrade;
-- Emergency.
-
-Field-level definition akan dipetakan secara penuh pada dokumen **Validation Rules** dan **UI/UX Specification**, sementara aturan hubungan antardata akan ditetapkan pada **Business Rules**.
+1. membuat NSCMF tanpa membuat file Excel baru secara manual;
+2. menjaga field dan konteks bisnis dari NSCMF Form 3.0;
+3. menyediakan workflow Request → Review → Approval;
+4. mendukung revision tanpa kehilangan history;
+5. menyimpan setiap record secara terpusat;
+6. menyediakan History dan detail record;
+7. menyediakan single/bulk export;
+8. mencatat siapa melihat/mengubah/memproses record sesuai requirement audit;
+9. mencegah hard delete terhadap NSCMF;
+10. menyediakan role/scope configuration yang dapat disesuaikan organisasi.
 
 ---
 
 ## 4. Product Vision
 
-> Menyediakan satu aplikasi internal yang sederhana untuk membuat, memproses, menyimpan, menelusuri, dan mengekspor NSCMF secara konsisten tanpa mengubah makna bisnis dari template NSCMF yang sudah digunakan.
-
-Produk harus terasa sebagai **pengganti proses pengisian dan pengelolaan file**, bukan sebagai platform workflow generik yang kompleks.
+> Menjadi satu source of truth internal untuk membuat, memproses, menelusuri, mengaudit, dan mengekspor NSCMF tanpa menghilangkan proses bisnis inti yang sudah dikenal dari NSCMF Form 3.0.
 
 ---
 
@@ -154,1069 +102,503 @@ Produk harus terasa sebagai **pengganti proses pengisian dan pengelolaan file**,
 
 ### 5.1 Preserve Business Meaning
 
-Digitalisasi tidak boleh menghilangkan informasi bisnis penting dari NSCMF Form 3.0. Struktur UI boleh dibuat lebih mudah digunakan, tetapi makna data harus tetap dipertahankan.
+Field dan konteks bisnis dari workbook harus dipertahankan.
 
-### 5.2 Simple Before Powerful
+### 5.2 Structured Record Is the Source of Truth
 
-MVP harus sederhana. Fitur hanya ditambahkan apabila membantu proses utama NSCMF. Produk tidak boleh berubah menjadi workflow builder atau document management platform yang terlalu luas.
+Record aplikasi adalah sumber data utama. PDF/format export adalah output dari record, bukan master data baru.
 
-### 5.3 Structured Data Over File Storage
+### 5.3 Traceability by Default
 
-Form harus disimpan sebagai record data terstruktur. File hasil export adalah output dari record tersebut, bukan sumber utama data.
+Persisted changes, workflow actions, revision cycles, dan actor/timestamp penting harus dapat ditelusuri.
 
-### 5.4 Traceable Process
+### 5.4 Simple Operational Product
 
-User harus dapat mengetahui sebuah NSCMF berada pada tahapan apa dan siapa yang melakukan sign-off yang relevan sesuai aturan yang nantinya ditetapkan.
+Produk bukan generic BPM, generic form builder, atau full document-management platform.
 
-### 5.5 Excel Is a Reference, Not the Future Interface
+### 5.5 Configurable Where Organization-Specific
 
-Tampilan web tidak harus meniru layout spreadsheet secara pixel-perfect. Yang wajib dipertahankan adalah informasi dan konteks bisnisnya.
+Role mapping, Unit/Division mapping, dan approval scope dapat disesuaikan tanpa melemahkan core business invariants.
 
-### 5.6 Clear Separation Between Confirmed and TBD Behavior
+### 5.6 No Silent Assumptions
 
-Perilaku yang belum disetujui tidak boleh dianggap final hanya karena muncul pada mockup atau diagram. PRD membedakan requirement yang sudah jelas dengan proposal/TBD.
-
----
-
-## 6. Problem Statement
-
-### 6.1 Primary Problem
-
-Proses NSCMF masih bergantung pada template berbasis file sehingga informasi form, status proses, histori, dan hasil akhir tidak berada dalam satu sistem yang konsisten dan mudah ditelusuri.
-
-### 6.2 Problems to Solve
-
-Produk perlu menyelesaikan kebutuhan berikut:
-
-1. Membuat NSCMF tanpa bergantung pada pembuatan file Excel baru secara manual.
-2. Menjaga struktur form agar konsisten dengan NSCMF Form 3.0.
-3. Menyediakan proses sign-off digital yang dapat dilacak.
-4. Menyimpan seluruh record dalam satu history.
-5. Memungkinkan user melihat detail record tanpa membuka banyak file terpisah.
-6. Memungkinkan export satu record.
-7. Memungkinkan export beberapa record sekaligus.
-8. Mengurangi risiko data tidak konsisten akibat penggunaan template/file secara bebas.
-9. Memberikan satu sumber informasi mengenai status sebuah NSCMF.
+Hal yang belum diputuskan harus diberi status TBD, bukan diisi berdasarkan tebakan developer/AI.
 
 ---
 
-## 7. Goals
+## 6. Product Users
 
-### G-01 — Digitalize NSCMF Creation
+### 6.1 Protected Superadmin
 
-User dapat membuat NSCMF Activation atau Change melalui aplikasi web berdasarkan struktur bisnis NSCMF Form 3.0.
+Seeded system account/role dengan authority tertinggi, global visibility, user administration, initial setup, archive, dan protected administration actions.
 
-### G-02 — Centralize NSCMF Records
+Protected Superadmin tidak boleh delete, soft-delete, disable, atau downgrade melalui normal application flow.
 
-Setiap form yang disimpan melalui aplikasi menjadi record terpusat dan tersedia melalui History sesuai permission user.
+### 6.2 Requester
 
-### G-03 — Support Digital Sign-off
+Membuat dan mengelola own NSCMF sesuai current state.
 
-Aplikasi mendukung alur `Request By → Review By → Approved By` dalam bentuk digital.
+### 6.3 Reviewer
 
-### G-04 — Improve Traceability
+Melihat dan memproses record berdasarkan Unit/Division scope. Reviewer tidak dipilih satu per satu oleh requester; semua eligible Reviewer dalam scope dapat melihat record.
 
-Status dan informasi sign-off dapat diketahui dari record yang sama tanpa harus memeriksa file secara manual.
+### 6.4 Approver
 
-### G-05 — Support Single and Bulk Export
+Melakukan approval berdasarkan configured approval scope. Satu Approver dapat memiliki scope beberapa Unit/Division sekaligus.
 
-User yang memiliki permission dapat mengekspor satu atau beberapa NSCMF.
+### 6.5 Multi-Role User
 
-### G-06 — Keep the Product Operationally Simple
-
-Aplikasi harus dapat digunakan sebagai tool internal tanpa memperkenalkan kompleksitas yang tidak diperlukan untuk proses NSCMF.
+Satu user dapat memiliki lebih dari satu role. Current requirement tidak memaksakan segregation of duty.
 
 ---
 
-## 8. Non-Goals for MVP
+## 7. Initial Setup Scope
 
-Kecuali kemudian disetujui sebagai perubahan scope, MVP **tidak ditujukan** untuk:
+Pada first run, protected Superadmin menjalankan setup wizard.
 
-- menjadi generic form builder;
-- menjadi generic BPM/workflow engine;
-- menggantikan tool NOC/network management lainnya;
-- melakukan provisioning konfigurasi jaringan secara otomatis;
-- membuat resource network atau menjalankan perubahan operasional secara otomatis berdasarkan isi form;
-- menjadi portal eksternal untuk customer;
-- menyediakan self-registration untuk user;
-- menyediakan public sharing link tanpa autentikasi;
-- menyediakan mobile application native;
-- mendefinisikan notification engine kompleks sebelum kebutuhan bisnisnya dikonfirmasi;
-- mendefinisikan correction/rejection workflow yang belum disepakati;
-- menjadi sistem penyimpanan dokumen umum di luar NSCMF.
+Wizard minimal mencakup:
 
-Daftar ini dapat berubah setelah Business Rules dan User Flow divalidasi oleh stakeholder.
+1. role configuration: **Use Role Template** atau **Manual Role Configuration**;
+2. Unit/Division: pilih predefined template/mapping atau buat manual;
+3. configure Reviewer/Approver scope;
+4. menyelesaikan initial organization setup.
+
+Template configuration tetap dapat diubah kemudian oleh authorized administrator, kecuali protected invariants.
 
 ---
 
-## 9. Product Users and Actors
-
-PRD menggunakan actor konseptual berikut. Permission final belum ditetapkan di dokumen ini dan akan menjadi tanggung jawab **RBAC / Permission Matrix**.
-
-### 9.1 Requester
-
-User yang memulai NSCMF dan mengisi data yang diperlukan.
-
-Kebutuhan utama:
-
-- login;
-- membuka dashboard;
-- membuat form baru;
-- memilih Activation atau Change;
-- mengisi form;
-- submit form;
-- melihat record yang diperbolehkan;
-- melihat status;
-- melakukan export apabila memiliki permission.
-
-### 9.2 Reviewer
-
-User yang melakukan tahap review terhadap NSCMF yang telah diajukan.
-
-Kebutuhan utama:
-
-- melihat form yang membutuhkan review sesuai permission;
-- memeriksa isi form;
-- memberikan sign-off tahap review;
-- meneruskan form ke tahap approval sesuai business rules.
-
-### 9.3 Approver
-
-User yang melakukan final approval sesuai struktur sign-off NSCMF.
-
-Kebutuhan utama:
-
-- melihat record yang telah melewati review;
-- melakukan final approval;
-- memastikan identitas approver dan waktu approval tercatat.
-
-### 9.4 System
-
-Aplikasi yang menjalankan fungsi:
-
-- authentication;
-- data persistence;
-- validation;
-- status tracking;
-- history;
-- export;
-- enforcement terhadap permission dan business rules setelah rule tersebut didefinisikan.
-
-### 9.5 Administrator / User Provisioning Actor — TBD
-
-Aplikasi tidak memiliki self-registration pada requirement saat ini. Oleh karena itu akun user harus berasal dari mekanisme provisioning tertentu. Mekanisme tersebut belum ditetapkan dalam PRD ini.
-
-Pilihan seperti admin-created account, import account, directory integration, atau metode lain harus diputuskan pada dokumen lanjutan dan tidak boleh diasumsikan pada tahap ini.
-
----
-
-## 10. Product Scope — MVP
-
-### 10.1 Confirmed Core Scope
+## 8. Product Scope — Confirmed MVP
 
 MVP mencakup:
 
-1. Login.
-2. Dashboard sederhana.
-3. CTA `Create New Form`.
-4. Pilihan form `NSCMF - Activation` dan `NSCMF - Change`.
-5. Digital form berdasarkan informasi pada NSCMF Form 3.0.
-6. Submit form.
-7. Sign-off Request / Review / Approval.
-8. Penyimpanan record secara terstruktur.
-9. History.
-10. Melihat detail record dan statusnya.
-11. Single export.
-12. Multi/bulk export.
-13. PDF sebagai format export yang wajib didukung berdasarkan requirement awal.
+1. Login/logout; tanpa self-registration.
+2. Protected seeded Superadmin.
+3. Initial setup wizard.
+4. User administration.
+5. Role template atau manual role configuration.
+6. Unit/Division template/mapping atau manual configuration.
+7. Multi-role assignment.
+8. Dashboard sederhana.
+9. CTA `Create New Form`.
+10. Direct access ke History.
+11. `NSCMF - Activation`.
+12. `NSCMF - Change`.
+13. Pemilihan subtype.
+14. Pilihan nomor NSCMF `Automatic` atau `Manual` setiap membuat form.
+15. Draft.
+16. Autosave.
+17. Manual `Save Draft`.
+18. Optional attachment input.
+19. Cancel Draft sebelum Submit.
+20. Submit.
+21. Review oleh eligible Reviewer.
+22. Multiple Reviewer participation.
+23. Return for Revision.
+24. Unlimited revision/resubmission cycles.
+25. Reviewer Reject.
+26. Approval.
+27. Approver Return to Reviewer.
+28. Approver Return to Requester dan kemudian wajib Review ulang.
+29. Approver Reject.
+30. Authorized Reopen untuk Rejected record.
+31. Highest-authority Reopen/Revert untuk Approved record.
+32. Detailed audit/change history.
+33. History dan detail record.
+34. Scoped visibility.
+35. Single export.
+36. Bulk export.
+37. PDF sebagai minimum confirmed export format.
+38. Archive sebagai pengganti delete.
+39. No hard delete NSCMF.
 
-### 10.2 Proposed but Not Yet Final
+### Draft / Future Capability
 
-Item berikut muncul sebagai desain/usulan produk tetapi harus dikonfirmasi sebelum dianggap mandatory:
-
-- Save Draft;
-- dashboard summary / statistics;
-- recent activity pada dashboard;
-- search pada History;
-- filter pada History;
-- export Excel sebagai format tambahan;
-- correction / return for revision;
-- rejection;
-- audit log yang lebih detail daripada status/sign-off history;
-- notification;
-- additional export formats;
-- user administration screen.
-
-Item tersebut harus diberi keputusan `IN`, `OUT`, atau `POST-MVP` pada proses refinement.
-
----
-
-## 11. High-Level Product Flow
-
-Alur konseptual utama:
-
-```text
-Login
-  |
-  v
-Dashboard
-  |--------------------------|
-  |                          |
-  v                          v
-Create New Form            History
-  |                          |
-  v                          v
-Choose Form Type          View Records
-  |                          |
-  +--> Activation            +--> View Detail
-  |                          +--> Export
-  +--> Change                +--> Bulk Export
-  |
-  v
-Fill Digital Form
-  |
-  v
-Submit
-  |
-  v
-Review
-  |
-  v
-Approval
-  |
-  v
-Stored / Traceable in History
-```
-
-Flow koreksi, rejection, resubmission, atau reopening belum menjadi authoritative flow pada PRD ini.
+Notification hook direncanakan tetapi **bukan execution priority**. Telegram dan WhatsApp/Baileys adalah candidate integration, bukan final MVP technology commitment.
 
 ---
 
-## 12. Functional Requirements
+## 9. Non-Goals
 
-Requirement ID pada PRD digunakan sebagai referensi silang untuk dokumen Business Rules, UI/UX, API, Testing, dan Implementation Plan.
+MVP tidak ditujukan untuk:
 
-### 12.1 Authentication
-
-#### FR-AUTH-001 — Login
-
-Aplikasi harus menyediakan halaman login untuk user yang memiliki akun valid.
-
-**Acceptance intent:** user yang berhasil diautentikasi dapat masuk ke aplikasi dan user yang tidak terautentikasi tidak dapat mengakses halaman internal.
-
-#### FR-AUTH-002 — No Self-Registration
-
-MVP tidak menyediakan self-registration bagi user.
-
-#### FR-AUTH-003 — Authenticated Session
-
-Setelah login berhasil, user harus memiliki session/authentication context yang memungkinkan aplikasi mengidentifikasi user selama penggunaan aplikasi.
-
-Detail session lifetime, login attempt policy, password policy, SSO, dan security control akan ditentukan pada Security Rules dan Tech Stack Specification.
-
-#### FR-AUTH-004 — Logout
-
-Aplikasi harus menyediakan kemampuan logout untuk mengakhiri session user.
+- public/customer portal;
+- self-registration;
+- native mobile app;
+- network provisioning automation;
+- generic workflow designer;
+- generic form builder;
+- hard-delete NSCMF;
+- menjadikan notification integration blocker terhadap core MVP;
+- membuat service-impact/business classification berdasarkan AI guessing;
+- mengubah exported file menjadi source of truth.
 
 ---
 
-### 12.2 Dashboard
+## 10. Form Families
 
-#### FR-DASH-001 — Dashboard as Landing Page
+### 10.1 NSCMF - Activation
 
-Setelah login berhasil, user diarahkan ke Dashboard.
+Business context: instalasi/provisioning.
 
-#### FR-DASH-002 — Create New Form CTA
-
-Dashboard harus memiliki CTA yang jelas untuk memulai pembuatan NSCMF baru.
-
-#### FR-DASH-003 — History Access
-
-User harus dapat membuka History dari area navigasi aplikasi tanpa harus membuat form baru terlebih dahulu.
-
-#### FR-DASH-004 — Minimal Information Architecture
-
-Dashboard harus tetap sederhana dan berfungsi terutama sebagai entry point ke `Create New Form` dan `History`.
-
-Dashboard metrics atau recent activity adalah enhancement yang belum dianggap wajib sampai dikonfirmasi.
-
----
-
-### 12.3 Form Selection
-
-#### FR-FORM-001 — Choose Form Type
-
-Ketika membuat form baru, user harus memilih salah satu jenis:
-
-- NSCMF - Activation;
-- NSCMF - Change.
-
-#### FR-FORM-002 — Form Type Controls Structure
-
-Form yang ditampilkan setelah pemilihan jenis harus menggunakan struktur yang sesuai dengan jenis form tersebut.
-
-User tidak boleh mendapatkan field Change ketika sedang membuat Activation kecuali field tersebut memang didefinisikan sebagai shared field pada business rule final, dan sebaliknya.
-
----
-
-### 12.4 NSCMF - Activation
-
-#### FR-ACT-001 — Activation Request Types
-
-Form Activation harus dapat merepresentasikan request type yang terdapat pada template bisnis saat ini:
+Subtype dari source workbook:
 
 - Activation;
 - Upgrade / Downgrade;
 - Deactivation.
 
-Definisi kapan masing-masing pilihan digunakan akan dijelaskan pada Business Rules.
+Main information groups:
 
-#### FR-ACT-002 — Service Information Section
+- Service Information;
+- Reference;
+- existing/new service data;
+- Service ID/status/description/location;
+- Installation Date / SLA;
+- NOC configuration;
+- IP/DNS/routing;
+- bandwidth;
+- domain/email/hosting;
+- onsite/customer/POP configuration;
+- Request/Review/Approved sign-off.
 
-Form Activation harus memiliki area untuk seluruh Service Information yang diwajibkan oleh NSCMF Form 3.0.
+### 10.2 NSCMF - Change
 
-#### FR-ACT-003 — Network / NOC Information
+Business context: maintenance/perubahan existing service/environment.
 
-Form Activation harus memiliki area terstruktur untuk informasi Network/NOC dan konfigurasi terkait yang terdapat pada template, termasuk kategori seperti IP, DNS, routing, bandwidth, serta field lain yang benar-benar terdapat pada sumber form.
-
-PRD tidak menetapkan tipe data atau mandatory field secara individual; hal tersebut akan ditentukan pada Validation Rules.
-
-#### FR-ACT-004 — Onsite / Customer / POP Information
-
-Form Activation harus dapat merepresentasikan informasi onsite, customer, POP, dan kelompok informasi operasional terkait yang terdapat pada template.
-
-#### FR-ACT-005 — Activation Sign-off
-
-Record Activation harus dapat melewati sign-off pada konsep:
-
-`Request By → Review By → Approved By`.
-
-Exact role mapping akan didefinisikan pada RBAC / Permission Matrix dan Business Rules.
-
----
-
-### 12.5 NSCMF - Change
-
-#### FR-CHG-001 — Change Request Types
-
-Form Change harus dapat merepresentasikan request type yang terdapat pada template bisnis saat ini:
+Subtype:
 
 - Maintenance;
 - Upgrade;
 - Emergency.
 
-#### FR-CHG-002 — Change Context
+Workbook structure yang sudah diverifikasi:
 
-Form Change harus dapat menyimpan tujuan/konteks perubahan dan identified problem sesuai field pada template.
+#### Section A — Purpose of Changes
 
-#### FR-CHG-003 — Service Impact
+`Purpose of Changes` adalah section, bukan option.
 
-Form Change harus dapat merepresentasikan service impact sesuai kebutuhan template.
+Field/area input:
 
-#### FR-CHG-004 — Improvement Plan and KPI
+- Facing Challenges (Upgrade / Emergency);
+- Maintenance Purpose;
+- Identified Problem (Please elaborate).
 
-Form Change harus dapat menyimpan improvement plan dan KPI yang terdapat pada template.
+`Service Impact` menyediakan selectable values:
 
-#### FR-CHG-005 — Execution Plan
+- NOC15;
+- NOC23;
+- NOC361;
+- Regional;
+- POP;
+- Customer;
+- Other.
 
-Form Change harus dapat menyimpan informasi execution schedule dan informasi execution-related lainnya yang terdapat pada template.
+Field lain:
 
-#### FR-CHG-006 — Rollback Scenario
+- Maintenance (Improvement) Plan;
+- Target KPI;
+- Target date of execution;
+- Monitoring period;
+- Rollback scenario;
+- Maintenance Announcement.
 
-Form Change harus dapat menyimpan rollback scenario sesuai kebutuhan bisnis pada template.
+Source workbook memiliki announcement options:
 
-#### FR-CHG-007 — Announcement
+- 1 week before;
+- 2 weeks before;
+- 2 days before (emergency).
 
-Form Change harus dapat menyimpan informasi announcement apabila field tersebut diperlukan oleh struktur template.
+#### Section B — Result of Changes
 
-#### FR-CHG-008 — Change Result and Performance
+- Result summary;
+- Performance information;
+- Status.
 
-Form Change harus dapat menyimpan hasil perubahan, performance, dan status/result-related information yang terdapat pada template.
+Exact timing kapan Result of Changes wajib diisi masih TBD dan akan didefinisikan pada downstream workflow/validation specification.
 
-#### FR-CHG-009 — Change Sign-off
+### 10.3 Upgrade Classification
 
-Record Change harus dapat melewati sign-off:
+Kata `Upgrade` sendiri tidak menentukan form.
 
-`Request By → Review By → Approved By`.
+- installation/provisioning context → Activation;
+- maintenance/existing-service context → Change.
 
----
-
-### 12.6 Form Data Entry
-
-#### FR-ENTRY-001 — Sectioned Web Form
-
-Form harus dibagi ke dalam kelompok/section logis agar user tidak perlu berinteraksi dengan satu lembar spreadsheet besar.
-
-#### FR-ENTRY-002 — Preserve Field Meaning
-
-Label, pilihan, dan konteks field harus mempertahankan makna bisnis dari template sumber.
-
-#### FR-ENTRY-003 — Validation Feedback
-
-Ketika input tidak memenuhi validation rule, aplikasi harus memberikan feedback yang dapat dipahami user dan menunjukkan field yang harus diperbaiki.
-
-Exact rule akan ditetapkan pada Validation Rules.
-
-#### FR-ENTRY-004 — Prevent Invalid Submission
-
-Aplikasi tidak boleh menerima submission yang melanggar mandatory validation rules yang nantinya didefinisikan.
-
-#### FR-ENTRY-005 — Save Draft — TBD
-
-Kemampuan menyimpan form sebelum submit adalah fitur yang diusulkan namun belum final.
-
-Apabila disetujui, perilaku draft harus didefinisikan dalam State / Status Flow dan Business Rules sebelum implementasi.
+System tidak boleh memilih hanya berdasarkan keyword.
 
 ---
 
-### 12.7 Submission
-
-#### FR-SUB-001 — Submit Completed Form
-
-Requester harus dapat mengirimkan form yang memenuhi validation rules untuk masuk ke tahap proses berikutnya.
-
-#### FR-SUB-002 — Persist Submission
-
-Submission harus menghasilkan record persistent di sistem.
-
-#### FR-SUB-003 — Submission Identity
-
-Sistem harus mengetahui siapa user yang melakukan submission dan kapan submission dilakukan.
-
-#### FR-SUB-004 — Immutable vs Editable After Submit — TBD
-
-Kebijakan apakah field masih dapat diedit setelah submission belum ditentukan pada PRD. Hal ini harus menjadi Business Rule dan State Flow yang eksplisit.
-
----
-
-### 12.8 Review
-
-#### FR-REV-001 — Review Eligible Form
-
-User yang memiliki permission sebagai reviewer harus dapat membuka form yang memenuhi kondisi untuk direview.
-
-#### FR-REV-002 — View Complete Relevant Data
-
-Reviewer harus dapat melihat data yang diperlukan untuk melakukan review.
-
-#### FR-REV-003 — Record Review Sign-off
-
-Ketika review diselesaikan sesuai business rule, sistem harus menyimpan identitas reviewer dan waktu tindakan tersebut.
-
-#### FR-REV-004 — Forward to Approval
-
-Form yang berhasil melewati tahap review harus dapat masuk ke tahap approval.
-
-#### FR-REV-005 — Correction / Return Behavior — TBD
-
-Mekanisme mengembalikan form ke requester untuk koreksi belum menjadi requirement final dan harus ditetapkan pada Business Rules serta State Flow.
-
----
-
-### 12.9 Approval
-
-#### FR-APR-001 — Approve Eligible Form
-
-User yang memiliki permission approval harus dapat melakukan approval terhadap form yang sudah memenuhi prasyarat approval.
-
-#### FR-APR-002 — Record Approver
-
-Sistem harus merekam identitas approver dan waktu approval.
-
-#### FR-APR-003 — Prevent Unauthorized Approval
-
-User yang tidak memiliki permission atau record yang belum memenuhi kondisi approval tidak boleh dapat melakukan approval.
-
-Detail kondisi merupakan tanggung jawab Business Rules, RBAC, dan State Flow.
-
-#### FR-APR-004 — Rejection Behavior — TBD
-
-Rejection belum didefinisikan secara final.
-
----
-
-### 12.10 History
-
-#### FR-HIS-001 — Centralized History
-
-Aplikasi harus menyediakan halaman History sebagai daftar record NSCMF yang dapat dilihat user berdasarkan permission.
-
-#### FR-HIS-002 — Record Type Visibility
-
-History harus membedakan sekurang-kurangnya apakah record merupakan Activation atau Change.
-
-#### FR-HIS-003 — Current Status Visibility
-
-History atau halaman detail harus memperlihatkan current status yang relevan untuk mengetahui posisi record pada proses.
-
-#### FR-HIS-004 — Open Record Detail
-
-User harus dapat membuka detail record yang diperbolehkan tanpa bergantung pada file Excel asli.
-
-#### FR-HIS-005 — Persistent Retrieval
-
-Record yang telah dibuat harus tetap dapat ditemukan kembali selama belum melewati retention/deletion policy yang akan didefinisikan kemudian.
-
-#### FR-HIS-006 — Search — Proposed
-
-Kemampuan search merupakan enhancement yang direkomendasikan agar History tetap usable ketika record bertambah, tetapi perlu dikonfirmasi sebagai MVP requirement.
-
-#### FR-HIS-007 — Filter — Proposed
-
-Kemampuan filter berdasarkan atribut seperti type/status/date adalah proposal usability dan belum dianggap business rule final.
-
----
-
-### 12.11 Export
-
-#### FR-EXP-001 — Single Export
-
-User yang memiliki permission harus dapat mengekspor satu record NSCMF.
-
-#### FR-EXP-002 — Bulk Export
-
-User yang memiliki permission harus dapat memilih beberapa record dan menjalankan export dalam satu operasi.
-
-#### FR-EXP-003 — PDF Support
-
-PDF merupakan format export minimum yang harus tersedia berdasarkan requirement saat ini.
-
-#### FR-EXP-004 — Additional Format — TBD
-
-Flow awal menyebut `PDF/etc`. Board proposal saat ini menggunakan PDF/Excel. Oleh karena itu **Excel dianggap proposed secondary export format** sampai dikonfirmasi eksplisit sebagai requirement bisnis.
-
-#### FR-EXP-005 — Export Reflects Stored Record
-
-Isi export harus berasal dari data record yang tersimpan dalam sistem dan tidak boleh menghasilkan nilai bisnis yang berbeda dari data yang user lihat pada detail record.
-
-#### FR-EXP-006 — Export Sign-off Information
-
-Apabila record sudah memiliki Request/Review/Approval sign-off, hasil export harus dapat menampilkan informasi sign-off yang diwajibkan oleh template/output specification.
-
-Exact layout export akan ditentukan pada UI/UX atau export specification lanjutan.
-
-#### FR-EXP-007 — Bulk Packaging — TBD
-
-Mekanisme teknis bulk export, misalnya satu file gabungan atau kumpulan file terpisah, belum ditentukan oleh PRD.
-
----
-
-### 12.12 Record Traceability
-
-#### FR-TRC-001 — Created By
-
-Sistem harus dapat mengasosiasikan sebuah record dengan user yang membuat/mengajukannya sesuai model bisnis final.
-
-#### FR-TRC-002 — Relevant Timestamps
-
-Sistem harus menyimpan timestamp yang diperlukan untuk merekonstruksi milestone utama proses seperti submission, review, dan approval.
-
-#### FR-TRC-003 — Status History / Audit Depth — TBD
-
-Minimal current state dan sign-off harus dapat diketahui. Apakah seluruh perubahan field dan seluruh aksi harus disimpan sebagai immutable audit log akan ditentukan pada Business Rules dan Security Rules.
-
----
-
-## 13. Conceptual Information Model
-
-Bagian ini **bukan ERD**. Tujuannya hanya mendefinisikan objek bisnis utama yang harus ada secara konseptual.
-
-### 13.1 User
-
-Merepresentasikan individu yang login dan melakukan aksi di aplikasi.
-
-### 13.2 NSCMF Record
-
-Representasi satu form NSCMF yang dibuat melalui sistem.
-
-Minimal mempunyai konsep:
-
-- unique identity;
-- form type;
-- request subtype;
-- owner/requester context;
-- current status;
-- created time;
-- submitted time jika sudah submit;
-- relevant form data;
-- review sign-off jika ada;
-- approval sign-off jika ada.
-
-### 13.3 Activation Data
-
-Data khusus yang berasal dari NSCMF - Activation.
-
-### 13.4 Change Data
-
-Data khusus yang berasal dari NSCMF - Change.
-
-### 13.5 Sign-off / Action Record
-
-Konsep yang merepresentasikan tindakan Request, Review, atau Approval. Bentuk database final ditentukan kemudian.
-
-### 13.6 Export
-
-Export adalah output yang dihasilkan dari NSCMF Record, bukan sumber data utama.
-
----
-
-## 14. Product Status Model — Non-Authoritative Preview
-
-State machine final **belum didefinisikan di PRD** karena akan dibuat pada dokumen nomor 5, yaitu State / Status Flow.
-
-Namun untuk menjelaskan kebutuhan produk, proses saat ini setidaknya memiliki konsep tahap:
-
-- form being prepared;
-- submitted;
-- reviewed;
-- approved.
-
-`Draft` saat ini masih proposal.
-
-`Rejected`, `Returned for Revision`, `Cancelled`, `Completed`, atau status lain tidak boleh dianggap ada sampai Business Rules dan State Flow menetapkannya.
-
----
-
-## 15. High-Level Business Constraints
-
-Bagian ini hanya memberi boundary pada produk. Business Rules yang lengkap akan berada pada dokumen berikutnya.
-
-### BR-PREVIEW-001
-
-Activation dan Change adalah dua jenis NSCMF yang berbeda dan aplikasi harus menjaga field/context masing-masing.
-
-### BR-PREVIEW-002
-
-Review dan approval tidak boleh dilakukan oleh user yang tidak memiliki permission yang sesuai.
-
-### BR-PREVIEW-003
-
-Form tidak boleh dinyatakan melewati suatu tahap apabila prasyarat tahap tersebut belum terpenuhi.
-
-### BR-PREVIEW-004
-
-Export tidak boleh mengubah isi record bisnis.
-
-### BR-PREVIEW-005
-
-Field wajib harus lolos validation sebelum aksi yang membutuhkan kelengkapan form dapat dilakukan.
-
-Semua rule di atas harus dipindahkan/diperinci pada dokumen Business Rules sebelum dianggap authoritative.
-
----
-
-## 16. UX Requirements at Product Level
-
-Detail UI akan berada pada UI/UX Specification, namun PRD menetapkan experience berikut:
-
-### UX-001 — Low Learning Curve
-
-User yang sudah familiar dengan NSCMF Excel harus dapat mengenali informasi yang diminta pada versi web tanpa mempelajari domain bisnis dari nol.
-
-### UX-002 — Clear Form Type
-
-User harus selalu dapat mengetahui apakah sedang bekerja pada Activation atau Change.
-
-### UX-003 — Clear Progress Context
-
-User harus dapat mengetahui apakah record masih dalam proses input, sudah dikirim, direview, atau disetujui sesuai state final.
-
-### UX-004 — Clear Error Feedback
-
-Kesalahan input harus ditampilkan dekat dengan konteks data yang salah dan tidak hanya dalam pesan error generik.
-
-### UX-005 — Clear Primary Actions
-
-Action seperti Create New Form, Submit, Review, Approve, History, dan Export harus mudah ditemukan sesuai hak akses user.
-
-### UX-006 — Avoid Spreadsheet-like Overload
-
-Walaupun sumber berasal dari Excel, UI web sebaiknya membagi data menjadi section yang dapat dipahami, bukan menampilkan grid spreadsheet besar jika tidak diperlukan.
-
----
-
-## 17. Product-Level Non-Functional Requirements
-
-Detail teknis dan security control tidak ditetapkan di PRD, tetapi produk harus memenuhi intent berikut.
-
-### NFR-001 — Reliability
-
-Data yang sudah berhasil disimpan tidak boleh hilang karena navigasi normal user.
-
-### NFR-002 — Data Consistency
-
-History, detail form, dan export harus merepresentasikan record yang sama secara konsisten.
-
-### NFR-003 — Authorization
-
-Server-side behavior nantinya harus memastikan user hanya dapat melakukan aksi yang diizinkan. UI hiding saja tidak cukup sebagai security boundary.
-
-### NFR-004 — Usability
-
-Form harus usable pada desktop browser sebagai penggunaan utama internal.
-
-### NFR-005 — Maintainability
-
-Produk harus cukup sederhana untuk dipelihara oleh tim internal tanpa memerlukan arsitektur distributed system yang tidak diperlukan oleh scope.
-
-### NFR-006 — Traceability
-
-Aksi bisnis penting seperti submission, review, dan approval harus dapat ditelusuri ke user dan waktu yang relevan.
-
-### NFR-007 — Export Integrity
-
-Output export tidak boleh mengandung data yang tidak sesuai dengan source record.
-
-### NFR-008 — Performance Target — TBD
-
-Target response time, jumlah concurrent user, volume record, dan ukuran export belum diberikan. Angka final harus ditetapkan sebelum performance testing.
-
-### NFR-009 — Availability Target — TBD
-
-SLA/availability target belum ditentukan.
-
-### NFR-010 — Data Retention — TBD
-
-Lama penyimpanan NSCMF, archive policy, dan deletion policy belum ditentukan.
-
----
-
-## 18. Success Criteria
-
-Produk dianggap memenuhi tujuan awal apabila stakeholder dapat menjalankan skenario berikut tanpa menggunakan file Excel sebagai media proses utama:
-
-1. User login.
-2. User membuka Dashboard.
-3. User membuat NSCMF baru.
-4. User memilih Activation atau Change.
-5. User mengisi informasi sesuai template bisnis.
-6. User submit form yang valid.
-7. Reviewer dapat melakukan review sesuai haknya.
-8. Approver dapat melakukan approval sesuai haknya.
-9. Record tersimpan dan dapat ditemukan kembali.
-10. Current status/sign-off dapat diketahui.
-11. User yang berhak dapat melakukan single export.
-12. User yang berhak dapat melakukan bulk export.
-13. Export merepresentasikan data yang sama dengan record pada aplikasi.
-
----
-
-## 19. Product Metrics
-
-Belum ada target angka bisnis yang disepakati. Namun setelah aplikasi tersedia, indikator berikut dapat digunakan:
-
-| Metric | Purpose | Target |
-|---|---|---|
-| Digital NSCMF adoption rate | Mengukur seberapa banyak NSCMF diproses melalui aplikasi | TBD |
-| Successful form submission rate | Menilai apakah form/validation dapat digunakan dengan baik | TBD |
-| Median time to retrieve an old NSCMF | Mengukur perbaikan kemampuan pencarian dibanding proses file | TBD |
-| Export success rate | Menilai reliability output | TBD |
-| Average processing time from submit to approval | Melihat efisiensi workflow | TBD |
-| Percentage of records with complete sign-off metadata | Mengukur traceability | TBD |
-| Number of duplicate/manual files required outside system | Mengukur keberhasilan pengurangan file-centric process | Target arah: menurun; angka TBD |
-
-Metric dan target final harus dikonfirmasi bersama stakeholder bisnis.
-
----
-
-## 20. Assumptions
-
-PRD dibuat dengan asumsi sementara berikut:
-
-1. Aplikasi adalah aplikasi internal.
-2. Primary usage adalah desktop web browser.
-3. User harus login sebelum menggunakan fitur internal.
-4. Tidak ada self-registration pada MVP.
-5. NSCMF Form 3.0 adalah referensi bisnis untuk data yang didigitalisasi.
-6. Activation dan Change tetap menjadi dua form utama.
-7. Sign-off Request, Review, dan Approval harus dipertahankan.
-8. History merupakan sumber utama untuk menemukan record yang sudah tersimpan.
-9. PDF merupakan minimum export format.
-10. Exact role mapping, correction/rejection flow, field-level validation, dan permission detail belum final.
-
-Apabila salah satu asumsi berubah, PRD harus direview kembali untuk mengetahui dampaknya terhadap scope.
-
----
-
-## 21. Dependencies
-
-### 21.1 Business Dependency
-
-- Final review terhadap NSCMF Form 3.0.
-- Konfirmasi siapa Requester, Reviewer, dan Approver untuk masing-masing kondisi.
-- Konfirmasi correction/rejection behavior.
-- Konfirmasi apakah Save Draft diperlukan.
-- Konfirmasi format export selain PDF.
-- Konfirmasi retention dan audit requirement.
-
-### 21.2 Documentation Dependency
-
-PRD perlu diteruskan dengan dokumen berikut sebelum implementation plan dianggap final:
-
-- Business Rules;
-- User Flow;
-- RBAC / Permission Matrix;
-- State / Status Flow;
-- Validation Rules;
-- UI/UX Specification;
-- Tech Stack Specification;
-- System Architecture;
-- Security Rules;
-- ERD;
-- API Contract.
-
----
-
-## 22. Risks
-
-### RISK-001 — Excel Ambiguity
-
-Beberapa bagian spreadsheet dapat mengandalkan visual layout atau kebiasaan operasional yang tidak terdokumentasi eksplisit.
-
-**Mitigation:** setiap field harus dipetakan dan divalidasi bersama business owner sebelum Validation Rules dianggap selesai.
-
-### RISK-002 — Unclear Approval Rules
-
-Sign-off terlihat pada template, tetapi exact permission, segregation of duty, dan exception behavior belum didefinisikan.
-
-**Mitigation:** Business Rules dan RBAC harus selesai sebelum workflow diimplementasikan penuh.
-
-### RISK-003 — Hidden Manual Process
-
-Ada kemungkinan pekerjaan nyata memiliki langkah tambahan yang tidak terlihat pada form Excel.
-
-**Mitigation:** validasi User Flow dengan user operasional sebelum implementation plan.
-
-### RISK-004 — Scope Expansion
-
-Karena aplikasi menyentuh form, workflow, history, dan export, scope dapat berkembang menjadi document management/workflow platform umum.
-
-**Mitigation:** gunakan Non-Goals dan MVP Scope sebagai boundary.
-
-### RISK-005 — Premature Technical Decisions
-
-Keputusan implementation detail yang dibuat sebelum business rule stabil dapat menyebabkan rework.
-
-**Mitigation:** ikuti urutan dokumentasi 1–20 yang telah disepakati.
-
-### RISK-006 — Export Becomes a Second Source of Truth
-
-User dapat kembali mengedit hasil export dan memperlakukannya sebagai data utama.
-
-**Mitigation:** aplikasi tetap menjadi source record; export diperlakukan sebagai output/snapshot.
-
----
-
-## 23. Open Questions / Decisions Required
-
-Item berikut harus mendapatkan keputusan sebelum spesifikasi downstream selesai:
-
-### Product / Business
-
-- [ ] Apakah `Save Draft` termasuk MVP?
-- [ ] Apakah reviewer dapat mengembalikan form untuk revisi?
-- [ ] Apakah reviewer dapat reject?
-- [ ] Apakah approver dapat reject atau return?
-- [ ] Apakah record Approved masih dapat diedit?
-- [ ] Apakah record dapat dibatalkan/cancelled?
-- [ ] Apakah ada kondisi bypass review/approval tertentu?
-- [ ] Apakah requester hanya dapat melihat record miliknya atau ada visibility berdasarkan unit/divisi?
-- [ ] Siapa yang boleh melihat seluruh History?
-- [ ] Apakah dashboard memerlukan metrics atau hanya navigation/CTA?
-- [ ] Apakah search/filter wajib di MVP?
-
-### User / Permission
-
-- [ ] Exact mapping role `Request By`.
-- [ ] Exact mapping role `Review By`.
-- [ ] Exact mapping role `Approved By`.
-- [ ] Apakah satu user dapat memiliki lebih dari satu role?
-- [ ] Bagaimana user account dibuat karena self-registration tidak tersedia?
-
-### Form
-
-- [ ] Final inventory seluruh field Activation.
-- [ ] Final inventory seluruh field Change.
-- [ ] Field mana yang mandatory?
-- [ ] Field mana yang conditional berdasarkan request subtype?
-- [ ] Apakah attachment dibutuhkan?
-- [ ] Apakah ada numbering format resmi untuk NSCMF record?
-
-### Export
-
-- [ ] Selain PDF, apakah Excel wajib?
-- [ ] Apakah bulk export menghasilkan ZIP, combined PDF, atau opsi lainnya?
-- [ ] Apakah hasil export harus mempertahankan visual layout Excel lama?
-- [ ] Apakah nama reviewer/approver dan timestamp wajib tampil pada export?
-
-### Audit / Retention
-
-- [ ] Apakah semua perubahan field harus memiliki audit trail?
-- [ ] Berapa lama record harus disimpan?
-- [ ] Apakah deletion diperbolehkan?
-- [ ] Siapa yang boleh melakukan archive/delete jika ada?
-
-### Notification
-
-- [ ] Apakah requester/reviewer/approver membutuhkan in-app atau email notification?
-
-Open question tidak boleh diselesaikan dengan asumsi diam-diam pada implementasi. Keputusannya harus masuk ke dokumen downstream yang relevan.
-
----
-
-## 24. Acceptance Criteria — MVP Product Level
-
-MVP dapat dinilai sesuai PRD apabila seluruh kriteria berikut terpenuhi atau secara eksplisit dipindahkan keluar scope oleh stakeholder:
-
-### Authentication
-
-- [ ] User valid dapat login.
-- [ ] User tidak terautentikasi tidak dapat mengakses halaman internal.
-- [ ] Tidak tersedia self-registration.
-- [ ] User dapat logout.
+## 11. Functional Requirements
+
+### Authentication / Administration
+
+**FR-AUTH-001** User valid dapat login.  
+**FR-AUTH-002** Tidak ada self-registration.  
+**FR-AUTH-003** User dapat logout.  
+**FR-ADM-001** Seeded Superadmin dibuat pada initial seeding.  
+**FR-ADM-002** Superadmin menjalankan initial setup wizard.  
+**FR-ADM-003** Authorized admin dapat create/edit/enable/disable normal user, assign role, assign Unit/Division, dan mengelola scope.  
+**FR-ADM-004** Protected Superadmin tidak dapat delete/disable/downgrade.
 
 ### Dashboard
 
-- [ ] Setelah login user masuk ke dashboard.
-- [ ] Dashboard memiliki CTA Create New Form.
-- [ ] History dapat diakses dari navigasi aplikasi.
+**FR-DASH-001** Dashboard menjadi landing page setelah login/setup selesai.  
+**FR-DASH-002** Dashboard memiliki CTA `Create New Form`.  
+**FR-DASH-003** User dapat membuka History tanpa membuat form.
 
-### Form Creation
+### Create Form
 
-- [ ] User dapat memilih Activation.
-- [ ] User dapat memilih Change.
-- [ ] Form Activation merepresentasikan informasi bisnis Activation dari template.
-- [ ] Form Change merepresentasikan informasi bisnis Change dari template.
-- [ ] Invalid mandatory input tidak dapat disubmit setelah Validation Rules final diterapkan.
+**FR-FORM-001** User memilih Activation atau Change.  
+**FR-FORM-002** User memilih subtype.  
+**FR-FORM-003** User memilih Auto atau Manual numbering setiap membuat form.  
+**FR-FORM-004** UI menampilkan struktur field sesuai form family.  
+**FR-FORM-005** Attachment input tersedia dan optional.
 
-### Workflow
+### Draft
 
-- [ ] Form dapat disubmit.
-- [ ] Submission tersimpan sebagai record.
-- [ ] Reviewer yang berhak dapat melakukan review.
-- [ ] Approver yang berhak dapat melakukan approval.
-- [ ] Identitas dan waktu sign-off penting tersimpan.
-- [ ] Unauthorized user tidak dapat menjalankan action yang dilindungi.
+**FR-DRAFT-001** New record dapat berada pada Draft.  
+**FR-DRAFT-002** Draft dapat diedit requester.  
+**FR-DRAFT-003** Draft mendukung autosave.  
+**FR-DRAFT-004** Tombol `Save Draft` tetap tersedia.  
+**FR-DRAFT-005** Persisted draft changes masuk audit.  
+**FR-DRAFT-006** Requester dapat Cancel hanya selama Draft sebelum Submit.  
+**FR-DRAFT-007** Cancelled record permanent dan tidak dapat Reopen.
 
-### History
+### Submit / Review
 
-- [ ] Record yang tersimpan dapat ditemukan melalui History sesuai permission.
-- [ ] User dapat membuka detail record.
-- [ ] Jenis form dapat diketahui.
-- [ ] Status/sign-off relevant dapat diketahui.
+**FR-SUB-001** Valid Draft dapat Submit.  
+**FR-SUB-002** Setelah Submit, requester tidak dapat normal edit.  
+**FR-REV-001** Submitted record terlihat oleh semua eligible Reviewer dalam Unit/Division scope.  
+**FR-REV-002** Requester tidak perlu memilih Reviewer.  
+**FR-REV-003** View Reviewer dapat dicatat sebagai viewer activity.  
+**FR-REV-004** Reviewer yang melakukan action dicatat sebagai actor/assigned-or-modified context.  
+**FR-REV-005** Lebih dari satu Reviewer dapat berpartisipasi pada record yang sama.  
+**FR-REV-006** Reviewer dapat Forward, Return for Revision, atau Reject.
 
-### Export
+### Revision
 
-- [ ] Single PDF export berfungsi.
-- [ ] Multi/bulk export berfungsi.
-- [ ] Data hasil export konsisten dengan record tersimpan.
-- [ ] Sign-off yang diwajibkan tampil dengan benar sesuai specification final.
+**FR-REVISION-001** Return ke Requester mengaktifkan kembali editing.  
+**FR-REVISION-002** Revision cycle dapat berulang tanpa fixed maximum.  
+**FR-REVISION-003** Resubmit mempertahankan reviewer continuity tetapi tetap visible oleh reviewer lain.  
+**FR-REVISION-004** Seluruh revision history dipertahankan.
 
-### Traceability
+### Approval
 
-- [ ] Created/submitted/reviewed/approved action yang relevan dapat dihubungkan ke user dan timestamp yang sesuai requirement final.
+**FR-APR-001** Approver melihat record berdasarkan configured scope.  
+**FR-APR-002** Satu Approver dapat memiliki scope beberapa unit.  
+**FR-APR-003** Review wajib sebelum Approval, termasuk Emergency.  
+**FR-APR-004** Approver dapat Approve, Return to Reviewer, Return to Requester, atau Reject.  
+**FR-APR-005** Jika Return ke Requester, revision yang di-Resubmit wajib melalui Review lagi sebelum Approval.
 
----
+### Reopen
 
-## 25. Post-MVP Candidates
+**FR-REOPEN-001** Rejected record dapat Reopen oleh authorized highest role atau explicit permission sesuai RBAC.  
+**FR-REOPEN-002** Approved record dapat Reopen/Revert oleh highest authority.  
+**FR-REOPEN-003** Reopen membutuhkan reason.  
+**FR-REOPEN-004** Reopen actor memilih valid target destination.  
+**FR-REOPEN-005** Historical Reject/Approval tidak dihapus.
 
-Daftar berikut bukan komitmen scope dan hanya candidate apabila business value-nya terbukti:
+### History / Export / Archive
 
-- advanced dashboard analytics;
-- advanced search and saved filters;
-- notifications;
-- configurable workflow;
-- richer audit viewer;
-- advanced bulk operations;
-- additional export formats;
-- integration dengan corporate identity/SSO;
-- integration dengan system lain;
-- automated reporting;
-- record archival management.
+**FR-HIS-001** History menampilkan records sesuai visibility.  
+**FR-HIS-002** Requester melihat own records; Reviewer berdasarkan Unit/Division; Approver berdasarkan scope; Superadmin global.  
+**FR-HIS-003** Record detail menyediakan status/history yang relevan.  
+**FR-EXP-001** View access memberikan export access terhadap record yang sama.  
+**FR-EXP-002** Bulk export hanya memasukkan records yang visible.  
+**FR-EXP-003** PDF minimum supported format.  
+**FR-ARC-001** NSCMF tidak dapat hard delete.  
+**FR-ARC-002** Highest authority dapat Archive record.  
+**FR-ARC-003** Archive mengeluarkan record dari default active view tetapi mempertahankan business history.
 
-Tidak ada item Post-MVP yang boleh menghalangi MVP kecuali stakeholder memindahkannya menjadi requirement resmi.
+### Audit
 
----
-
-## 26. Requirement Traceability Strategy
-
-Dokumen lanjutan sebaiknya mereferensikan ID PRD agar keputusan tetap traceable.
-
-Contoh:
-
-- Business Rule `BR-APR-003` dapat menyatakan kondisi spesifik untuk memenuhi `FR-APR-001`.
-- Permission `RBAC-REV-002` dapat mendefinisikan siapa yang dapat menjalankan `FR-REV-003`.
-- Validation Rule `VAL-ACT-010` dapat mendefinisikan mandatory field yang mendukung `FR-ENTRY-004`.
-- API `POST /...` nantinya dapat mereferensikan functional requirement yang dilayaninya.
-- Test Case `TC-APR-001` dapat memverifikasi `FR-APR-003`.
-
-Tujuannya adalah mencegah implementasi yang tidak memiliki requirement asal serta mencegah requirement yang tidak memiliki test.
-
----
-
-## 27. Source of Truth and Document Precedence
-
-Untuk menjaga proyek tetap konsisten:
-
-1. **PRD** menjadi source of truth untuk tujuan, scope, dan functional product requirement.
-2. **Business Rules** menjadi source of truth untuk aturan bisnis.
-3. **User Flow** menjadi source of truth untuk urutan interaksi user.
-4. **RBAC** menjadi source of truth permission.
-5. **State / Status Flow** menjadi source of truth lifecycle.
-6. **Validation Rules** menjadi source of truth validitas input.
-7. **UI/UX Specification** menjadi source of truth interaction/display behavior.
-8. Dokumen teknis setelahnya menjadi source of truth implementasi sesuai domain masing-masing.
-9. **NSCMF Form 3.0** tetap menjadi referensi domain untuk field yang sedang didigitalisasi sampai seluruh mapping bisnisnya telah ditransfer ke dokumentasi proyek.
-
-Jika implementasi berbeda dari dokumen karena requirement berubah, dokumentasi harus diperbarui; perubahan tidak boleh hanya hidup di source code.
+**FR-AUD-001** Persisted business changes memiliki detailed audit.  
+**FR-AUD-002** Field change audit dapat menyimpan actor, timestamp, field, old value, new value, dan event context.  
+**FR-AUD-003** Workflow event dan revision cycle tidak boleh overwrite historical event.  
+**FR-AUD-004** Reviewer viewer activity harus dapat dibedakan dari modifier/action actor.
 
 ---
 
-## 28. PRD Review Checklist
+## 12. Product-Level Workflow
 
-Sebelum PRD berstatus `Approved`, stakeholder sebaiknya memastikan:
+```text
+Draft
+  |-- Autosave / Save Draft
+  |-- Cancel -> Cancelled (permanent)
+  |
+  +-- Submit
+        |
+        v
+      Review
+        |-- Return -> Requester Revision -> Resubmit -> Review
+        |-- Reject -> Rejected -> Authorized Reopen (optional)
+        |
+        +-- Forward
+              |
+              v
+           Approval
+              |-- Return to Reviewer -> Review
+              |-- Return to Requester -> Revision -> Resubmit -> Review
+              |-- Reject -> Rejected -> Authorized Reopen (optional)
+              |
+              +-- Approve -> Approved
+                               |
+                               +-- Highest-authority Reopen/Revert with reason
+```
 
-- [ ] Product vision benar.
-- [ ] Dua form utama Activation dan Change sudah benar.
-- [ ] Scope MVP sudah benar.
-- [ ] Non-goals tidak menghilangkan kebutuhan bisnis penting.
-- [ ] Request → Review → Approval benar sebagai high-level sign-off.
-- [ ] History dan export sesuai kebutuhan.
-- [ ] Semua proposed/TBD item sudah dikenali dan tidak dianggap final diam-diam.
-- [ ] Open Questions sudah memiliki owner untuk dijawab.
-- [ ] Tidak ada field atau proses penting pada NSCMF Form 3.0 yang terlewat pada conceptual scope.
+Emergency mengikuti Review dan Approval yang sama.
+
+Exact state names/transitions tetap menjadi tanggung jawab `05_State_Status_Flow.md`.
 
 ---
 
-## 29. Approval Status
+## 13. Visibility Model — Product Intent
 
-| Role | Name | Decision | Date | Notes |
-|---|---|---|---|---|
-| Product / Business Owner | TBD | Pending | — | — |
-| Operational Representative | TBD | Pending | — | — |
-| Technical Representative | TBD | Pending | — | — |
+| Actor Context | Visibility Intent |
+|---|---|
+| Requester | Own records |
+| Reviewer | Records dalam assigned Unit/Division scope |
+| Approver | Records dalam configured approval scope; dapat multi-unit |
+| Protected Superadmin | Seluruh records |
+| Multi-role user | Gabungan visibility sesuai role/scope |
 
-> Dokumen tetap berstatus **Draft for Business Review** sampai keputusan produk dan open questions utama divalidasi.
+Permission final akan difinalisasi pada RBAC.
 
 ---
 
-## 30. Next Document
+## 14. Non-Functional Product Requirements
 
-Setelah PRD direview, dokumen berikutnya adalah:
+### NFR-001 — Reliability
+Persisted data tidak hilang karena normal navigation.
 
-**`02_Business_Rules.md`**
+### NFR-002 — Consistency
+Form detail, History, audit, dan export harus merepresentasikan record yang konsisten.
 
-Tujuannya adalah mengubah requirement produk yang masih high-level menjadi aturan bisnis yang tegas, termasuk:
+### NFR-003 — Server-Side Authorization
+UI hiding bukan authorization boundary.
 
-- siapa dapat memulai masing-masing jenis request;
-- kondisi submission;
-- urutan review dan approval;
-- kondisi edit setelah submission;
-- correction/rejection/resubmission;
-- ownership dan visibility;
-- aturan sign-off;
-- aturan perubahan status;
-- aturan export;
-- exception dan edge case bisnis.
+### NFR-004 — Desktop-First Internal UX
+Primary target adalah internal desktop web browser.
 
-Business Rules tidak boleh dibuat dengan mengasumsikan jawaban atas seluruh TBD di PRD. Open Questions harus dikonfirmasi terlebih dahulu atau ditandai eksplisit sebagai unresolved rule.
+### NFR-005 — Traceability
+Critical workflow actions dan changes dapat ditelusuri.
+
+### NFR-006 — Maintainability
+Arsitektur MVP tidak boleh dibuat lebih kompleks dari kebutuhan bisnis.
+
+### NFR-007 — Performance Target — TBD
+Concurrency, latency target, data volume, dan export performance belum ditentukan.
+
+### NFR-008 — Availability / Retention — TBD
+Availability target dan retention period belum ditentukan.
+
+---
+
+## 15. Success Criteria
+
+Produk memenuhi tujuan awal jika stakeholder dapat:
+
+1. login sebagai authorized user;
+2. menyelesaikan first-time setup;
+3. membuat user/role/scope;
+4. membuat Activation atau Change;
+5. memilih numbering mode;
+6. menyimpan Draft melalui autosave/manual Save Draft;
+7. Submit valid form;
+8. melakukan Review melalui eligible Reviewer;
+9. melakukan revision cycle berulang bila diperlukan;
+10. melakukan Approval;
+11. menjalankan Return/Reject sesuai business rules;
+12. mengetahui viewer/modifier/workflow history yang relevan;
+13. Reopen record sesuai authority;
+14. menemukan record pada History sesuai scope;
+15. export visible records;
+16. Archive tanpa menghapus history;
+17. memastikan tidak tersedia hard-delete NSCMF.
+
+---
+
+## 16. Confirmed vs Deferred
+
+### Confirmed
+
+- Save Draft + autosave;
+- multi-role users;
+- initial setup wizard;
+- template/manual role config;
+- template/manual Unit/Division mapping;
+- multiple-unit Approver scope;
+- Reviewer non-exclusive visibility;
+- multiple Reviewer participation;
+- detailed audit;
+- Return/Reject/Reopen flows;
+- Cancel Draft-only and permanent;
+- no hard delete;
+- Archive;
+- optional attachment;
+- view implies export;
+- Emergency does not bypass workflow.
+
+### Deferred / TBD
+
+- auto-number format;
+- exact Unit/Division default template entries;
+- exact permission matrix;
+- exact workflow state names;
+- exact validation/cardinality per field;
+- timing requirement for Change Result of Changes;
+- export format selain PDF;
+- notification implementation/provider;
+- attachment limits;
+- audit retention;
+- performance/SLA/retention targets.
+
+---
+
+## 17. Notification Roadmap Note
+
+Notification merupakan future capability. Candidate yang disebut dalam requirement discussion:
+
+- Telegram;
+- WhatsApp menggunakan Baileys.
+
+Ini hanya roadmap/draft note. Notification tidak boleh menjadi dependency yang menghambat implementasi core workflow pada tahap awal.
+
+---
+
+## 18. Document Precedence
+
+- PRD → product scope dan functional intent.
+- Business Rules → aturan bisnis authoritative.
+- User Flow → urutan interaksi user authoritative.
+- RBAC → permission authoritative.
+- State Flow → lifecycle authoritative.
+- Validation Rules → validitas input authoritative.
+- UI/UX → presentation/interactions authoritative.
+- Dokumen teknis → implementation detail.
+
+Jika requirement berubah, dokumen yang terkait harus disinkronkan; perubahan tidak boleh hanya hidup di code.
+
+---
+
+## 19. Open Product Decisions
+
+- [ ] Automatic NSCMF number format.
+- [ ] Exact default Unit/Division template data.
+- [ ] Exact permission matrix.
+- [ ] Exact state names dan Reopen targets.
+- [ ] Result of Changes timing/ownership.
+- [ ] Return/Reject/Cancel/Archive reason requirement selain Reopen.
+- [ ] Search/filter requirement final.
+- [ ] Additional export format dan bulk packaging.
+- [ ] Audit retention dan export audit.
+- [ ] Attachment constraints.
+- [ ] Notification implementation.
+
+---
+
+## 20. Next Documentation
+
+Business Rules sudah tersedia pada `02_Business_Rules.md`.
+
+Dokumen berikutnya adalah:
+
+**`03_User_Flow.md`** — menerjemahkan product scope dan rules menjadi urutan interaksi user dari initial setup sampai record lifecycle selesai.
