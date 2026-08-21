@@ -4,9 +4,9 @@
 
 > **Document ID:** NSCMF-UF-003  
 > **Document Order:** 03 / 20  
-> **Status:** Draft — Synchronized through Validation Rules  
+> **Status:** Draft — Synchronized through Tech Stack Specification  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Last Updated:** 2026-08-21
 
@@ -21,6 +21,8 @@ Dokumen ini mendefinisikan **apa yang dilakukan user dari awal sampai akhir** ke
 - RBAC → siapa boleh melakukan apa;
 - State Flow → authoritative lifecycle;
 - Validation Rules → validitas input/action;
+- UI/UX → presentation/interaction behavior;
+- Tech Stack → implementation technology;
 - User Flow → urutan interaksi user dan respons sistem.
 
 Canonical business states mengikuti `05_State_Status_Flow.md`:
@@ -88,7 +90,7 @@ Dashboard
   └── History
         ├── View Record
         ├── View Timeline
-        ├── Export
+        ├── Export exact-template XLSX/PDF
         └── Bulk Export
 ```
 
@@ -115,8 +117,8 @@ CANCELLED
 ## 4. UF-SETUP-001 — Seeded Superadmin First Login
 
 1. Protected Superadmin membuka Login.
-2. Memasukkan credential valid.
-3. System mengautentikasi account.
+2. Memasukkan username + password valid.
+3. System mengautentikasi account menggunakan standalone session authentication.
 4. Jika initial setup belum selesai, System mengarahkan ke Setup Wizard.
 5. Protected Superadmin tidak dapat delete/disable/downgrade.
 
@@ -160,10 +162,11 @@ System menampilkan summary, Superadmin mengonfirmasi, setup ditandai selesai, la
 ## 9. UF-AUTH-001 — Normal Login
 
 1. User membuka Login.
-2. User mengisi credential.
+2. User mengisi **username** dan **password**.
 3. System memverifikasi account aktif + credential.
-4. Jika valid, session dibuat dan user masuk Dashboard.
+4. Jika valid, Laravel session dibuat dan user masuk Dashboard.
 5. Tidak ada self-registration.
+6. External SSO/LDAP tidak menjadi bagian flow MVP.
 
 ---
 
@@ -617,7 +620,7 @@ Archived records tidak bercampur dalam default active view; user dapat mengakses
 
 User yang legitimate melihat form detail, relevant attachments, current business status, separate archive treatment, dan timeline siapa melakukan apa. Timeline read-only untuk normal user.
 
-Recommended record-detail information architecture untuk UI downstream:
+Recommended record-detail information architecture:
 
 - Form Detail;
 - Timeline;
@@ -625,19 +628,31 @@ Recommended record-detail information architecture untuk UI downstream:
 
 ---
 
-## 38. UF-EXPORT-001 — Single Export
+## 38. UF-EXPORT-001 — Single Exact-Template Export
 
-1. User memilih visible record.
-2. System memverifikasi visibility.
-3. Export dibuat dari stored record.
-4. PDF minimum required format.
-5. Export tidak mengubah state.
+1. User memilih visible record dan Export.
+2. System memverifikasi `nscmf.export`/visibility.
+3. System membaca **stored structured record** sebagai business data source.
+4. System mengambil **approved official NSCMF XLSX template version** sebagai visual/export source of truth.
+5. System membuat copy export sementara dari template; original template tidak dimodifikasi.
+6. System mengisi/mengganti **hanya mapped business fields dan native control states** pada template.
+7. System MUST mempertahankan layout, formatting, merged cells, row/column dimensions, drawings/media, print settings, dan native Form Controls yang tidak ditargetkan.
+8. Filled XLSX divalidasi agar tidak kehilangan/merusak expected template structure.
+9. Untuk PDF, System merender **filled XLSX/template representation**, bukan HTML/Vue/Blade redesign.
+10. Concrete spreadsheet renderer MUST merupakan renderer yang telah lulus exact-fidelity golden qualification menurut `08_Tech_Stack_Specification.md`.
+11. Jika renderer tidak dapat menghasilkan approved exact representation, export PDF MUST dianggap gagal/renderer tidak qualified; System tidak boleh diam-diam memberikan approximate redesign.
+12. Export tidak mengubah business state.
 
 ---
 
 ## 39. UF-EXPORT-002 — Bulk Export
 
-System melakukan visibility check per selected record. Inaccessible record MUST NOT bocor melalui bulk operation. Packaging final downstream.
+1. User memilih multiple visible records.
+2. System melakukan visibility/export eligibility check **per selected record**.
+3. Inaccessible record MUST NOT bocor melalui bulk operation.
+4. Setiap generated XLSX/PDF menggunakan exact-template export rule yang sama seperti single export.
+5. Export generation MAY diproses melalui background queue sesuai `08_Tech_Stack_Specification.md`.
+6. Final packaging/additional format beyond confirmed XLSX/PDF remains downstream.
 
 ---
 
@@ -784,9 +799,21 @@ Technical locking/transaction mechanism ditentukan downstream.
 
 ---
 
+## 49. UF-ERROR-005 — Export Fidelity / Renderer Failure
+
+Jika generated XLSX merusak expected template structure atau PDF renderer tidak menghasilkan approved exact template representation:
+
+1. System MUST NOT menandai export sebagai successful final artifact;
+2. user menerima export failure/retry feedback yang tidak mengekspos internal sensitive detail;
+3. business record/state tidak berubah;
+4. failed export MAY dicatat sebagai technical/export event sesuai audit policy final;
+5. system MUST NOT fallback ke redesigned HTML PDF yang berbeda dari official template.
+
+---
+
 # PART P — USER FLOW SUMMARY BY ACTOR
 
-## 49. Requester
+## 50. Requester
 
 ```text
 Login
@@ -799,12 +826,12 @@ Login
    ├─ if Change: may Update Result via narrow result-only flow
    ├─ if Returned: REVISION_REQUIRED → edit → Resubmit → PENDING_REVIEW
    ├─ if Rejected: normal flow stops
-   └─ if Approved: read-only/history/export
+   └─ if Approved: read-only/history/exact-template export
 ```
 
 ---
 
-## 50. Reviewer
+## 51. Reviewer
 
 ```text
 Open PENDING_REVIEW queue
@@ -816,7 +843,7 @@ Reviewer non-exclusive; multiple contributors allowed.
 
 ---
 
-## 51. Approver
+## 52. Approver
 
 ```text
 Open PENDING_APPROVAL queue
@@ -828,7 +855,7 @@ Approver non-exclusive; one successful final Approve sufficient.
 
 ---
 
-## 52. Authorized Lifecycle Actor
+## 53. Authorized Lifecycle Actor
 
 ```text
 Visible eligible record
@@ -844,11 +871,12 @@ Default Superadmin memiliki permissions; role lain MAY mendapatkannya explicitly
 
 # PART Q — CONFIRMED FLOW DECISIONS
 
-## 53. Confirmed Decisions
+## 54. Confirmed Decisions
 
 | Area | Decision |
 |---|---|
 | Setup | Wizard |
+| Authentication | standalone username + password; no self-registration |
 | Multi-role | Allowed |
 | Family selection | family → subtype → numbering → fields |
 | Numbering | Auto/manual; provisional formats in Validation Rules |
@@ -878,35 +906,37 @@ Default Superadmin memiliki permissions; role lain MAY mendapatkannya explicitly
 | Change Result | Requester/owner `nscmf.change.result.edit`; minimum one complete row before Forward; no new state |
 | Attachment | Optional; max 10 files, 20 MB/file, current allowlist |
 | Timeline | Legitimate viewer sees activity |
-| Export | View implies export |
+| Export | View implies export; XLSX/PDF preserve official XLSX template exactly; PDF comes from filled spreadsheet representation |
 | Emergency | Same Review + Approval flow |
 | Concurrency | Stale state-changing action rejected server-side |
+| Tech baseline | Laravel + Inertia + Vue + MySQL modular monolith per `08` |
 
 ---
 
 # PART R — OPEN ITEMS
 
-## 54. Explicit Downstream TBDs
+## 55. Explicit Downstream TBDs
 
 - exact Unit/Division template entries;
 - official company NSCMF numbering SOP/sample;
-- search/filter UI details beyond confirmed baseline;
-- export packaging/additional format;
+- search/filter details beyond confirmed baseline;
+- additional export format/bulk packaging beyond exact XLSX/PDF requirement;
 - audit retention/export audit;
 - notification provider/timing;
 - technical transaction/version mechanism;
 - malware scanning/storage architecture;
 - e-signature technology if ever required;
-- performance/availability/retention targets.
+- performance/availability/retention targets;
+- exact deployment topology/provider.
 
-Resolved Validation Rules are no longer TBD.
+Exact XLSX/PDF template fidelity is **not TBD**. Concrete PDF renderer remains qualification-gated according to `08`.
 
 ---
 
-## 55. Current Documentation Progress
+## 56. Current Documentation Progress
 
-`05_State_Status_Flow.md` mengunci lifecycle authoritative dan `06_Validation_Rules.md` mengunci input/action validity.
+`05_State_Status_Flow.md` mengunci lifecycle authoritative, `06_Validation_Rules.md` mengunci input/action validity, `07_UI_UX_Specification.md` mengunci UI behavior, dan `08_Tech_Stack_Specification.md` mengunci technology baseline.
 
 Dokumen berikutnya:
 
-**`07_UI_UX_Specification.md`**.
+**`09_System_Architecture.md`**.
