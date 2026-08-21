@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-BR-002  
 > **Document Order:** 02 / 20  
-> **Status:** Draft — Synchronized through State / Status Flow  
+> **Status:** Draft — Synchronized through Validation Rules  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `project_doc/01_PRD.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
@@ -16,14 +16,15 @@
 
 Dokumen ini mendefinisikan aturan bisnis yang wajib dipatuhi seluruh implementasi NSCMF Digital Form & Workflow System.
 
-Aturan berlaku lintas UI, backend, database, API, automation, dan AI coding agent. Frontend tidak boleh menjadi satu-satunya enforcement layer; business rules mengenai permission, scope, state, editability, dan workflow MUST divalidasi server-side.
+Aturan berlaku lintas UI, backend, database, API, automation, dan AI coding agent. Frontend tidak boleh menjadi satu-satunya enforcement layer; business rules mengenai permission, scope, state, editability, validation, dan workflow MUST divalidasi server-side.
 
 Dokumen bekerja bersama:
 
 - `03_User_Flow.md` — urutan interaksi user;
 - `04_RBAC_Permission_Matrix.md` — siapa boleh melakukan apa;
 - `05_State_Status_Flow.md` — authoritative state machine;
-- `06_Validation_Rules.md` — validitas field/input/action.
+- `06_Validation_Rules.md` — validitas field/input/action;
+- `07_UI_UX_Specification.md` — presentation dan interaction detail.
 
 Normative language:
 
@@ -31,7 +32,8 @@ Normative language:
 - **MUST NOT** — dilarang;
 - **MAY** — diperbolehkan;
 - **SHOULD** — direkomendasikan;
-- **TBD** — belum final dan tidak boleh ditebak implementation.
+- **TBD** — belum final dan tidak boleh ditebak implementation;
+- **PROVISIONAL** — rule sementara yang berlaku untuk MVP sampai SOP resmi menggantikannya.
 
 ---
 
@@ -168,7 +170,7 @@ Kasus ambigu harus dikonfirmasi business owner.
 ### BR-CHG-004
 `Identified Problem (Please elaborate)` adalah field naratif.
 
-### BR-CHG-005 — Service Impact Options
+### BR-CHG-005 — Service Impact
 Source workbook menyediakan:
 
 - NOC15;
@@ -179,10 +181,15 @@ Source workbook menyediakan:
 - Customer;
 - Other.
 
-Single vs multi-select dikunci pada Validation/UI specification.
+Confirmed treatment:
+
+- Service Impact MUST bersifat **multi-select**;
+- minimum satu selection wajib pada Submit/Resubmit;
+- jika `Other` dipilih, Other Impact Description menjadi wajib;
+- exact field validation mengikuti `06_Validation_Rules.md`.
 
 ### BR-CHG-006
-`Maintenance (Improvement) Plan` dan `Target KPI` adalah input.
+`Maintenance (Improvement) Plan` dan `Target KPI` adalah paired input. Current validation mewajibkan minimum satu complete pair pada Submit/Resubmit.
 
 ### BR-CHG-007
 Change MUST merepresentasikan Target date of execution, Monitoring period, Rollback scenario, dan Maintenance Announcement. Source workbook menunjukkan `1 week before`, `2 weeks before`, `2 days before (emergency)`.
@@ -197,12 +204,24 @@ Current requirement MUST NOT menambahkan `EXECUTION_PENDING`, `RESULT_PENDING`, 
 Applicable Result of Changes MUST selesai sebelum record dapat meninggalkan `PENDING_REVIEW` melalui `Forward to Approval`.
 
 ### BR-CHG-011 — Initial Submit Does Not Automatically Require Final Result
-Keberadaan Result section tidak dengan sendirinya membuat seluruh Result wajib pada first Submit. Exact first-submit validation berada di `06_Validation_Rules.md`.
+Keberadaan Result section tidak dengan sendirinya membuat seluruh Result wajib pada first Submit. First Submit MAY memiliki zero Result rows; row yang sudah mulai diisi harus internally complete sesuai Validation Rules.
 
 ### BR-CHG-012 — Narrow Result Capture During Review
-Normal Requester editing locked setelah Submit, tetapi sistem MUST menyediakan narrow authorized mechanism untuk mengisi applicable `Result of Changes` selama `PENDING_REVIEW` tanpa membuka seluruh form atau memaksa fake `Return for Revision`.
+Normal Requester editing locked setelah Submit, tetapi sistem MUST menyediakan narrow authorized mechanism untuk Result capture selama `PENDING_REVIEW` tanpa membuka seluruh form atau memaksa fake `Return for Revision`.
 
-Exact actor/permission dan editable fields untuk mechanism tersebut masih TBD downstream karena source workbook tidak menetapkan siapa pengisi Result secara eksplisit.
+Confirmed default actor/permission:
+
+```text
+Requester/owner
++ nscmf.change.result.edit
++ own visible Change record
++ business_status = PENDING_REVIEW
+```
+
+Hanya field `Result of Changes` yang editable melalui capability ini. Planning/submitted fields lain tetap locked.
+
+### BR-CHG-013 — Result Forward Gate
+Sebelum Reviewer Forward, Change MUST memiliki minimal satu complete Result row. Source menyediakan maksimum lima rows; lima adalah capacity, bukan mandatory count.
 
 ---
 
@@ -219,11 +238,20 @@ Creation order: family → subtype → numbering mode → form fields.
 ### BR-REC-003
 Setiap record menawarkan Automatic Number Generation atau Manual Number Entry.
 
-### BR-REC-004
-Automatic number format/uniqueness scope masih TBD.
+### BR-REC-004 — Provisional Automatic Numbering
+Sampai official company numbering SOP/sample diberikan, Automatic Number menggunakan PROVISIONAL current rule:
 
-### BR-REC-005
-Manual number harus divalidasi sesuai `06_Validation_Rules.md`.
+```text
+NSCMF-YYYYMM-#####
+```
+
+Sequence global per calendar month, server-generated, globally unique, concurrency-safe, gap allowed, dan nomor yang pernah dialokasikan tidak digunakan ulang. Detail authoritative ada di `06_Validation_Rules.md`.
+
+### BR-REC-005 — Manual Number
+Manual number MUST mengikuti provisional character/length rule dan globally unique sesuai `06_Validation_Rules.md`.
+
+### BR-REC-006 — Number Immutability
+Request No MAY dikoreksi pada `DRAFT`, tetapi setelah first successful Submit MUST immutable melalui normal workflow. Revision/Reopen tidak menghasilkan nomor baru.
 
 ---
 
@@ -244,6 +272,9 @@ Persisted Draft changes MUST diaudit.
 ### BR-DRAFT-005
 Draft MAY incomplete.
 
+### BR-DRAFT-006
+Draft persistence MUST NOT diblok hanya karena submission-required fields belum lengkap. Structural/safety/file validations tetap dapat berlaku sesuai `06_Validation_Rules.md`.
+
 ---
 
 ## 9. Cancellation
@@ -261,7 +292,7 @@ Cancel menghasilkan `CANCELLED`, permanent terminal, MUST NOT Reopen.
 Cancel bukan delete; record tetap History/audit.
 
 ### BR-CAN-005
-Cancel MUST mencatat actor/timestamp/record. Mandatory reason selain Reopen masih ditentukan di Validation Rules.
+Cancel MUST mencatat actor/timestamp/record. Cancel reason Optional; jika diisi mengikuti safe-text/max-length validation.
 
 ---
 
@@ -276,8 +307,19 @@ Attachment optional pada current requirement.
 ### BR-ATT-003
 Add/remove/replace attachment reference MUST diaudit.
 
-### BR-ATT-004
-Type/size/count/scanning/storage ditentukan downstream.
+### BR-ATT-004 — Current MVP Limits
+Current MVP validation:
+
+- maximum 10 files per NSCMF record;
+- maximum 20 MB per file;
+- zero-byte file rejected;
+- allowed baseline: PDF, XLS/XLSX, DOC/DOCX, PNG, JPG/JPEG, TXT, CSV;
+- executable/script/macro-enabled formats outside allowlist MUST be rejected.
+
+Storage and malware scanning architecture remain downstream concerns.
+
+### BR-ATT-005 — Upgrade/Emergency Reminder
+Missing attachment on Change Upgrade/Emergency produces non-blocking Warning, not a blocking error.
 
 ---
 
@@ -314,7 +356,7 @@ DRAFT -> PENDING_REVIEW
 ```
 
 ### BR-SUB-003
-Setelah Submit, general Requester editing locked sampai `REVISION_REQUIRED`, kecuali narrow Change Result capture yang explicitly authorized.
+Setelah Submit, general Requester editing locked sampai `REVISION_REQUIRED`, kecuali narrow Change Result capture melalui `nscmf.change.result.edit`.
 
 ### BR-SUB-004
 Requester tidak memilih Reviewer tertentu. Semua matching Reviewer mendapatkan visibility.
@@ -349,7 +391,10 @@ Dari `PENDING_REVIEW`, eligible Reviewer MAY:
 Emergency Change tetap wajib Review.
 
 ### BR-REV-008 — Change Result Gate
-Untuk Change, Forward to Approval MUST gagal apabila applicable Result-of-Changes validation belum terpenuhi.
+Untuk Change, Forward to Approval MUST gagal apabila Result-of-Changes validation belum terpenuhi.
+
+### BR-REV-009 — Reviewer Reason Rules
+Reviewer Return dan Reviewer Reject MUST memiliki mandatory reason. Reviewer Forward comment Optional.
 
 ---
 
@@ -420,6 +465,9 @@ Satu final approval dari satu eligible Approver cukup membuat record `APPROVED`.
 ### BR-APR-010
 Setelah state menjadi `APPROVED`, stale Approver tidak dapat menghasilkan final approval kedua pada iteration yang sama.
 
+### BR-APR-011 — Approver Reason Rules
+Approver Return to Reviewer, Return to Requester, dan Reject MUST memiliki mandatory reason. Approve comment Optional.
+
 ---
 
 # PART G — REJECT / REOPEN / REVERT
@@ -437,6 +485,9 @@ Reviewer dapat Reject dari `PENDING_REVIEW`; Approver dapat Reject dari `PENDING
 
 ### BR-REJ-004
 `REJECTED` MAY Reopen oleh protected Superadmin atau actor dengan explicit `nscmf.reopen`, valid visibility/scope.
+
+### BR-REJ-005
+Reject MUST memiliki mandatory reason sesuai Validation Rules.
 
 ---
 
@@ -500,6 +551,9 @@ Bulk export MUST check setiap selected record.
 
 ### BR-EXP-004
 Export tidak mengubah business state.
+
+### BR-EXP-005
+PDF adalah minimum confirmed format. Additional formats/bulk packaging remain downstream decisions.
 
 ---
 
@@ -595,6 +649,9 @@ Archive/Unarchive MUST diaudit.
 ### BR-DEL-010
 Archived record MUST NOT menjalankan normal business workflow-changing action sampai Unarchive.
 
+### BR-DEL-011 — Lifecycle Reasons
+Archive dan Unarchive MUST memiliki mandatory reason, minimum/maximum mengikuti `06_Validation_Rules.md`.
+
 ---
 
 # PART K — NOTIFICATIONS
@@ -669,22 +726,23 @@ Emergency follows the same Review + Approval sequence.
 | Roles | Template/manual; ongoing delegated admin allowed except protected settings |
 | Multi-role | Allowed |
 | Form family | Activation = provisioning; Change = maintenance/existing environment |
-| Numbering | Auto/manual per form |
+| Numbering | Auto/manual per form; provisional current format defined in Validation Rules |
 | Canonical states | `DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL`, `REJECTED`, `APPROVED`, `CANCELLED` |
 | Submitted/Reviewed/Reopened/Archived | Events/treatment, not persistent business states |
-| Draft | Editable, autosave + Save Draft, audited |
-| Cancel | Draft-only, permanent |
+| Draft | Editable, autosave + Save Draft, audited, may be incomplete |
+| Cancel | Draft-only, permanent; reason optional |
 | Reviewer | Shared/non-exclusive, multiple contributors |
 | Revision | Unlimited; Resubmit always Review |
 | Approver | Shared/non-exclusive; one final Approver sufficient |
 | Reopen | `REJECTED`/`APPROVED` only; reason mandatory; destination Review or Revision only |
 | Emergency | No bypass |
-| Change Result | Completed before Forward/Approval; no extra state |
-| Attachment | Optional |
+| Change Service Impact | Multi-select; Other requires description |
+| Change Result | Requester/owner narrow edit in `PENDING_REVIEW`; minimum one complete Result row before Forward; no extra state |
+| Attachment | Optional; 10 files max, 20 MB/file, current allowlist |
+| Return/Reject | Mandatory reason |
+| Archive/Unarchive | Independent flag; mandatory reason; only Approved/Rejected/Cancelled archive-eligible |
 | Timeline | Legitimate viewer can see activity |
 | Audit | Detailed old/new + actor + timestamp + context |
-| Archive | Independent flag; only Approved/Rejected/Cancelled |
-| Unarchive | Allowed with `nscmf.archive` + visibility; status unchanged |
 | Export | View implies export |
 | Concurrency | Server rechecks current state; stale actions rejected |
 | Impersonation | Not required |
@@ -697,16 +755,16 @@ Emergency follows the same Review + Approval sequence.
 Intentionally deferred:
 
 - exact Unit/Division template entries;
-- automatic numbering format/uniqueness scope;
-- exact mandatory/conditional fields;
-- Service Impact cardinality;
-- exact actor/permission for Change Result capture during `PENDING_REVIEW`;
-- mandatory reason untuk Return, Reject, Cancel, Archive, Unarchive selain confirmed Reopen;
+- official NSCMF numbering SOP/sample that may replace/confirm provisional rules;
 - audit retention/export audit;
-- attachment type/size/count;
 - notification provider/timing;
 - export additional format/bulk packaging;
-- technical transaction/version/locking strategy.
+- technical transaction/version/locking strategy;
+- malware scanning/storage implementation;
+- e-signature technology if later required;
+- performance/availability/retention targets.
+
+Resolved Validation Rules MUST NOT be treated as TBD unless an explicit requirement change occurs.
 
 ---
 
@@ -731,23 +789,27 @@ Developer/AI agent MUST NOT:
 15. menghapus historical cycle;
 16. membuat Change Purpose/Identified Problem sebagai selector tanpa rule;
 17. klasifikasi Upgrade hanya dari keyword;
-18. membuat attachment mandatory tanpa rule;
-19. mengarang auto-number format;
+18. membuat attachment mandatory;
+19. mempresentasikan provisional numbering sebagai official company SOP;
 20. menjadikan Telegram/WhatsApp blocker;
 21. menambahkan impersonation;
 22. menganggap Spatie sudah final;
-23. membuat `SUBMITTED`, `UNDER_REVIEW`, `REVIEWED`, `REOPENED`, atau `ARCHIVED` sebagai persistent state bertentangan dengan State Flow;
+23. membuat `SUBMITTED`, `UNDER_REVIEW`, `REVIEWED`, `REOPENED`, atau `ARCHIVED` sebagai persistent state;
 24. mengizinkan Reopen ke `DRAFT` atau `PENDING_APPROVAL`;
 25. Archive active-work states;
 26. menjalankan Reopen pada archived record tanpa Unarchive;
-27. membuat state execution/result tambahan hanya untuk Change Result pada current requirement.
+27. membuat state execution/result tambahan hanya untuk Change Result;
+28. membuat Service Impact single-select;
+29. membuka seluruh form pada `PENDING_REVIEW` hanya untuk Result capture;
+30. menghilangkan mandatory reason pada Return/Reject/Reopen/Archive/Unarchive;
+31. mewajibkan seluruh lima Result rows.
 
 ---
 
 ## 29. Current Documentation Status
 
-`05_State_Status_Flow.md` sekarang menjadi lifecycle source of truth authoritative.
+`05_State_Status_Flow.md` tetap lifecycle source of truth authoritative. `06_Validation_Rules.md` telah mengunci validation yang sebelumnya deferred.
 
 Dokumen proyek berikutnya:
 
-**`06_Validation_Rules.md`** — mengunci first Submit, Resubmit, Forward, Change Result gate, conditional fields, reasons, numbering, attachment, dan field-level editability.
+**`07_UI_UX_Specification.md`** — menerjemahkan rules tersebut menjadi presentation, screen hierarchy, components, interaction behavior, validation feedback, dan responsive UX.
