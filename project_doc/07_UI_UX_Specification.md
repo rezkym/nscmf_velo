@@ -4,12 +4,12 @@
 
 > **Document ID:** NSCMF-UIUX-007  
 > **Document Order:** 07 / 20  
-> **Status:** Draft — Confirmed UX Direction + Explicit Tech Boundary  
+> **Status:** Draft — Confirmed UX Direction + Synchronized Tech Implementation Boundary  
 > **Repository:** `rezkym/nscmf_velo`  
-> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`  
+> **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `08_Tech_Stack_Specification.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Visual/Flow Reference:** NSCMF FigJam proposal  
-> **UI Reference:** shadcn/ui design language and component patterns  
+> **UI Implementation Reference:** Vue 3 + TypeScript + Inertia 3 + shadcn-vue + Tailwind CSS 4  
 > **Last Updated:** 2026-08-21
 
 ---
@@ -34,11 +34,14 @@ Dokumen menerjemahkan product scope, business rules, user flow, permission, stat
 - attachment interaction;
 - Review/Approval queues;
 - History/timeline/archive treatment;
+- exact-template export interaction;
 - responsive behavior;
 - accessibility expectations;
 - loading/empty/error/stale states.
 
-UI/UX MUST NOT mengubah business rule, permission, validation, atau lifecycle yang telah dikunci pada dokumen sebelumnya.
+UI/UX MUST NOT mengubah business rule, permission, validation, lifecycle, atau exact-export requirement yang telah dikunci pada dokumen authoritative lain.
+
+Technology implementation mengikuti `08_Tech_Stack_Specification.md`; component/library default MUST menyesuaikan UX spec ini, bukan sebaliknya.
 
 ---
 
@@ -117,9 +120,9 @@ Mobile MUST NOT silently gain fewer authorization checks; responsive simplificat
 
 ---
 
-## 6. Preserve Business Meaning, Not Spreadsheet Layout
+## 6. Preserve Business Meaning, Not Spreadsheet Layout — Web UI Boundary
 
-The application MUST preserve Excel business fields/sections but MUST NOT copy spreadsheet layout pixel-for-pixel.
+The **web application UI** MUST preserve Excel business fields/sections but SHOULD NOT copy spreadsheet layout pixel-for-pixel when a clearer operational interface is possible.
 
 Examples:
 
@@ -127,6 +130,16 @@ Examples:
 - source sign-off cells become digital workflow evidence;
 - long technical fields may be grouped into readable form sections;
 - table-like repeated structures may be represented using repeatable structured rows/cards if more usable.
+
+### Critical Export Exception
+
+This principle applies to **interactive web UI only**.
+
+Export has a separate, stricter business requirement from `01`, `02`, `03`, and `08`:
+
+> Generated XLSX and PDF MUST preserve the official NSCMF XLSX template representation exactly. Only mapped business fields and native control states are filled/replaced.
+
+Therefore UI implementation MUST NOT interpret “do not copy spreadsheet pixel-for-pixel” as permission to redesign exported XLSX/PDF.
 
 ---
 
@@ -219,11 +232,25 @@ MUST:
 
 ---
 
-## 12. UI Framework / Component Direction
+## 12. Confirmed UI Framework / Component Technology
 
-Preferred design language and component patterns: **shadcn/ui**.
+`08_Tech_Stack_Specification.md` has resolved the former technology boundary.
 
-Useful pattern families include:
+Final UI implementation baseline:
+
+```text
+Vue 3
+TypeScript
+Inertia 3
+shadcn-vue
+Tailwind CSS 4
+Vite
+Lucide / lucide-vue-next icon family
+```
+
+The design language remains shadcn-style, implemented with **shadcn-vue**, not the canonical React package.
+
+Useful component families include:
 
 - Button;
 - Input;
@@ -251,17 +278,12 @@ Useful pattern families include:
 - Calendar/Date Picker patterns;
 - Popover/Command patterns where searchable selection is needed.
 
-### Critical Technology Boundary
+Rules:
 
-This document defines **UI/UX direction**, not final frontend runtime technology.
-
-Current project diagrams previously reference a **Vue Frontend**, while shadcn/ui's canonical library implementation is React-oriented. Therefore:
-
-- `07` MUST NOT silently switch the application from Vue to React;
-- direct adoption of the canonical shadcn package is NOT considered final until `08_Tech_Stack_Specification.md` resolves frontend technology;
-- if `08` chooses a compatible React stack, canonical shadcn/ui MAY be adopted directly;
-- if `08` retains Vue, implementation SHOULD use a Vue-compatible component approach that preserves the agreed shadcn-like design language, interaction behavior, accessibility, tokens, and composition principles;
-- implementation MUST NOT introduce a second frontend runtime only to claim shadcn usage.
+- MUST NOT add React as a second frontend runtime merely to use canonical shadcn/ui;
+- MUST NOT change business interaction to fit a component default;
+- generated/copied shadcn-vue components MAY be customized to the confirmed NSCMF design tokens and behavior;
+- backend remains authoritative for permissions, validation, and workflow state.
 
 ---
 
@@ -271,7 +293,7 @@ Primary typography SHOULD use a modern, highly readable sans-serif suitable for 
 
 Preferred baseline: **Inter-compatible metrics / modern system sans**.
 
-Exact font asset/package selection can be finalized in Tech Stack/implementation, but hierarchy MUST remain consistent.
+Exact font asset/package selection remains an implementation refinement, but hierarchy MUST remain consistent.
 
 Recommended hierarchy intent:
 
@@ -301,6 +323,8 @@ Cards SHOULD NOT look like floating tiles everywhere. For dense operational info
 ---
 
 ## 15. Iconography
+
+Preferred implementation icon family = **Lucide / lucide-vue-next**, consistent with the shadcn-vue stack.
 
 Icons SHOULD:
 
@@ -432,12 +456,15 @@ Login MUST be simple and internal-tool oriented.
 Include:
 
 - product/organization identity;
-- credential fields;
+- **Username** field;
+- **Password** field;
 - primary Login button;
 - clear invalid-credential/error feedback;
 - no self-registration link.
 
 MUST NOT show `Create account`.
+
+Standalone MVP authentication does not require Microsoft/Google/SSO/LDAP controls.
 
 Loading Login SHOULD disable duplicate submission and show clear progress state.
 
@@ -504,7 +531,7 @@ Recommended cards:
 
 Cards MUST reflect only records the current user can legitimately see.
 
-Do not show global totals to scoped users merely because dashboard API can compute them.
+Do not show global totals to scoped users merely because dashboard backend can compute them.
 
 ### Card Color Rule
 Cards SHOULD remain mostly neutral/white.
@@ -1414,7 +1441,7 @@ If later business requires formal e-signature, specification must be revised.
 
 ---
 
-# PART S — SEARCH, FILTER, TABLE BEHAVIOR
+# PART S — SEARCH, FILTER, TABLE & EXPORT BEHAVIOR
 
 ## 83. Table Principles
 
@@ -1431,7 +1458,22 @@ Avoid horizontal overload; lower-priority columns may be hidden/adaptive at narr
 
 ---
 
-## 84. Bulk Export UX
+## 84. Exact-Template Export UX
+
+Export controls MUST reflect the confirmed export contract, not imply a redesigned report.
+
+### Single Export
+
+Eligible record detail/list MAY expose explicit choices such as:
+
+- `Export XLSX`;
+- `Export PDF`.
+
+Both outputs use the **official NSCMF XLSX template** as the visual/export source of truth.
+
+User does not edit template layout from the web UI.
+
+### Bulk Export
 
 Bulk select MUST only select visible/eligible records.
 
@@ -1439,9 +1481,20 @@ On export:
 
 - backend validates each record;
 - inaccessible record cannot leak;
-- if some selection becomes stale/inaccessible, UI should report which operation failed without implying unauthorized data details.
+- export MAY be queued/background-generated;
+- UI SHOULD display processing/success/failure state;
+- each file must follow the same exact-template rule as single export;
+- if some selection becomes stale/inaccessible, UI should report operation failure without leaking unauthorized details.
 
-PDF = minimum confirmed format. Additional formats/packaging remain downstream.
+### Fidelity Failure
+
+If XLSX/template integrity validation or PDF renderer fidelity fails:
+
+- UI MUST NOT present the artifact as successfully generated final export;
+- show clear retry/failure feedback;
+- MUST NOT silently substitute an HTML-generated PDF with different layout.
+
+Additional formats and bulk packaging remain downstream TBD; exact XLSX/PDF behavior is already confirmed.
 
 ---
 
@@ -1661,7 +1714,7 @@ Use transient toast for completed non-critical operations such as:
 - Result saved;
 - export queued/generated if applicable.
 
-Do not rely on toast as the only place for blocking validation errors.
+Do not rely on toast as the only place for blocking validation/export errors.
 
 ---
 
@@ -1675,7 +1728,7 @@ Do not rely on toast as the only place for blocking validation errors.
 | Input | short text/manual Request No |
 | Textarea | narrative/reason/result |
 | Select / Radio Group | single-select enum |
-| Checkbox Group | current Service Impact multi-select/reference multi-select |
+| Checkbox Group | Service Impact/reference multi-select |
 | Number Input + Unit | bandwidth/capacity/latency/duration |
 | Date Picker/Input | date fields |
 | Sidebar | primary navigation |
@@ -1696,8 +1749,9 @@ Do not rely on toast as the only place for blocking validation errors.
 | File Uploader | attachments |
 | Section Navigator | long NSCMF forms |
 | Timeline Item | audit/workflow activity |
+| Export Status / Job Feedback | queued exact-template export state |
 
-Exact implementation component library is finalized by `08_Tech_Stack_Specification.md`.
+Implementation baseline is now confirmed by `08` as **Vue 3 + TypeScript + Inertia 3 + shadcn-vue + Tailwind CSS 4**, with Lucide-family icons.
 
 ---
 
@@ -1778,19 +1832,23 @@ Use explicit verbs:
 - `Update Result of Changes`;
 - `Reopen NSCMF`;
 - `Archive`;
-- `Unarchive`.
+- `Unarchive`;
+- `Export XLSX`;
+- `Export PDF`.
 
 Avoid generic `Process`, `Execute`, `OK`, or ambiguous labels for workflow-changing actions.
 
 ---
 
-## 108. Validation Copy
+## 108. Validation / Error Copy
 
 Copy SHOULD say:
 
 - what is wrong;
 - what user needs to do;
 - where relevant, why action cannot continue.
+
+For export failure, distinguish record-validation/access failure from technical renderer/fidelity failure without exposing sensitive internals.
 
 Avoid exposing backend field names such as database column identifiers to normal users.
 
@@ -1802,31 +1860,36 @@ Avoid exposing backend field names such as database column identifiers to normal
 
 UI implementation MUST NOT:
 
-1. copy Excel pixel-for-pixel when a clearer structured UI is possible;
-2. add a fourth subtype from overlapping source checkbox controls;
-3. make Service Impact single-select;
-4. show `Archived` as replacement business status;
-5. expose Reopen destination Draft/Pending Approval;
-6. make Reviewer/Approver first viewer look like exclusive owner;
-7. hide other eligible Reviewer/Approver access after first view;
-8. show general Edit Form on `PENDING_REVIEW` for Requester;
-9. let Result-only edit expose unrelated submitted fields;
-10. visually require all five Result rows;
-11. show all incomplete Draft fields as errors before appropriate validation;
-12. treat warning as blocking error;
-13. make Upgrade/Emergency attachment mandatory;
-14. show Request/Review/Approved sign-off as manually typed workflow identity;
-15. invent freehand/e-signature requirement;
-16. present Cancelled as Reopen-able;
-17. allow Archive button on active-work state;
-18. hide timeline from a legitimate record viewer;
-19. show inaccessible records through filter/search/count leakage;
-20. rely on hidden buttons as security;
-21. overuse brand colors on every surface;
-22. render all dashboard cards with saturated backgrounds;
-23. use red for normal primary actions or blue for destructive Reject solely for brand consistency;
-24. silently switch Vue/React technology in this UI document;
-25. claim canonical shadcn React package is implementation-final before `08_Tech_Stack_Specification.md`.
+1. copy Excel pixel-for-pixel for the **interactive web form** when a clearer structured UI is possible;
+2. interpret rule #1 as permission to redesign exported XLSX/PDF — exports MUST remain exact-template;
+3. add a fourth subtype from overlapping source checkbox controls;
+4. make Service Impact single-select;
+5. show `Archived` as replacement business status;
+6. expose Reopen destination Draft/Pending Approval;
+7. make Reviewer/Approver first viewer look like exclusive owner;
+8. hide other eligible Reviewer/Approver access after first view;
+9. show general Edit Form on `PENDING_REVIEW` for Requester;
+10. let Result-only edit expose unrelated submitted fields;
+11. visually require all five Result rows;
+12. show all incomplete Draft fields as errors before appropriate validation;
+13. treat warning as blocking error;
+14. make Upgrade/Emergency attachment mandatory;
+15. show Request/Review/Approved sign-off as manually typed workflow identity;
+16. invent freehand/e-signature requirement;
+17. present Cancelled as Reopen-able;
+18. allow Archive button on active-work state;
+19. hide timeline from a legitimate record viewer;
+20. show inaccessible records through filter/search/count leakage;
+21. rely on hidden buttons as security;
+22. overuse brand colors on every surface;
+23. render all dashboard cards with saturated backgrounds;
+24. use red for normal primary actions or blue for destructive Reject solely for brand consistency;
+25. switch the confirmed Vue/Inertia runtime to React without specification change;
+26. introduce canonical React shadcn/ui as a second runtime instead of shadcn-vue;
+27. let shadcn-vue default styling override confirmed NSCMF brand/semantic hierarchy;
+28. provide HTML/Blade/Vue PDF as a fallback that differs from official XLSX template;
+29. label a fidelity-failed/renderer-failed export as successfully generated;
+30. expose internal renderer/storage paths in export error UI.
 
 ---
 
@@ -1847,6 +1910,7 @@ UI implementation MUST NOT:
 - [ ] Green/yellow/red communicate semantic success/warning/destructive meaning.
 - [ ] Status meaning is not color-only.
 - [ ] Focus state is visible.
+- [ ] shadcn-vue components respect the confirmed design tokens/semantic hierarchy.
 
 ## 112. Draft / Form
 
@@ -1907,13 +1971,17 @@ UI implementation MUST NOT:
 - [ ] Invalid file gives specific failure reason.
 - [ ] Remove action only available in editable attachment state.
 
-## 119. Responsive / Accessibility
+## 119. Responsive / Accessibility / Export
 
 - [ ] Desktop full workflow is optimized.
 - [ ] Tablet remains operational.
 - [ ] Mobile can view record/timeline and basic controls responsively.
 - [ ] Keyboard/focus/labels are usable.
 - [ ] No critical meaning depends on color alone.
+- [ ] Export UI clearly exposes XLSX/PDF without implying a separate redesigned report.
+- [ ] Queued export state is understandable.
+- [ ] Export/fidelity failure is not reported as success.
+- [ ] UI never offers approximate HTML PDF fallback against the exact-template requirement.
 
 ---
 
@@ -1928,7 +1996,8 @@ It SHOULD reflect:
 - canonical lifecycle;
 - current scope;
 - remaining TBDs;
-- high-level interaction architecture.
+- confirmed high-level technology architecture;
+- exact-template export direction at high level.
 
 FigJam is not required to contain every field-level UI rule in this document.
 
@@ -1947,9 +2016,10 @@ When actual application screens/wireframes are created, they SHOULD use this doc
 - validation;
 - status badges;
 - Result-only flow;
+- export interaction;
 - responsive layouts.
 
-Actual screen creation is separate from merely updating existing FigJam flow documentation.
+Actual screen creation is separate from updating existing FigJam flow/system documentation.
 
 ---
 
@@ -1966,7 +2036,8 @@ Actual screen creation is separate from merely updating existing FigJam flow doc
 | State/lifecycle | `05_State_Status_Flow.md` |
 | Validation | `06_Validation_Rules.md` |
 | **Presentation/interaction** | **`07_UI_UX_Specification.md`** |
-| Frontend/backend technology | `08_Tech_Stack_Specification.md` |
+| Technology implementation | `08_Tech_Stack_Specification.md` |
+| Component/system topology | `09_System_Architecture.md` |
 
 UI cannot override upstream authority.
 
@@ -1981,12 +2052,23 @@ The following may be refined without changing core UX principles:
 - exact breakpoint pixel values;
 - table default page size;
 - exact autosave trigger/interval;
-- final icon library;
 - exact toast duration;
 - exact animation duration;
 - official Unit/Division options when provided;
 - official numbering UI copy once company SOP is provided;
-- additional export format controls if later confirmed.
+- additional export format controls if later confirmed;
+- exact progress/polling UX for queued export, subject to System Architecture/API.
+
+No longer TBD in UI implementation:
+
+```text
+Vue 3 + TypeScript
+Inertia 3
+shadcn-vue
+Tailwind CSS 4
+Lucide-family icon direction
+exact-template XLSX/PDF export contract
+```
 
 These details MUST NOT be guessed into business rules.
 
@@ -1994,18 +2076,22 @@ These details MUST NOT be guessed into business rules.
 
 ## 124. Next Document
 
+`08_Tech_Stack_Specification.md` has resolved the frontend/backend/runtime/component/testing baseline.
+
 Next document in fixed project order:
 
-**`08_Tech_Stack_Specification.md`**
+**`09_System_Architecture.md`**
 
-It must resolve, among other items:
+It must translate the confirmed stack and UX into component boundaries and interactions, including:
 
-- final frontend framework/runtime;
-- whether canonical shadcn/ui can be used directly or must be represented through a compatible equivalent;
-- backend/runtime;
-- database;
-- auth/RBAC packages;
-- form/validation implementation libraries;
-- build tooling;
-- testing/tooling baseline;
-- compatibility with the already-confirmed UI/UX behavior in this document.
+- Browser / Vue-Inertia flow;
+- Laravel application/domain boundaries;
+- auth/RBAC enforcement;
+- MySQL persistence;
+- queue/export processing;
+- private attachment storage;
+- exact-template XLSX patching subsystem;
+- qualified PDF renderer boundary;
+- audit subsystem;
+- concurrency/transaction boundary;
+- Docker-compatible topology without premature distributed infrastructure.
