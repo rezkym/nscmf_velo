@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-BR-002  
 > **Document Order:** 02 / 20  
-> **Status:** Draft — Synchronized through Tech Stack Specification  
+> **Status:** Draft — Synchronized through System Architecture  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `project_doc/01_PRD.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
@@ -25,7 +25,8 @@ Dokumen bekerja bersama:
 - `05_State_Status_Flow.md` — authoritative state machine;
 - `06_Validation_Rules.md` — validitas field/input/action;
 - `07_UI_UX_Specification.md` — presentation dan interaction detail;
-- `08_Tech_Stack_Specification.md` — technology implementation baseline.
+- `08_Tech_Stack_Specification.md` — technology implementation baseline;
+- `09_System_Architecture.md` — component boundaries, concurrency, audit separation, queue/export/signing architecture.
 
 Normative language:
 
@@ -75,6 +76,11 @@ Approver MAY memiliki Approval Scope mencakup beberapa Unit/Division.
 
 ### BR-SETUP-008 — Core System Settings Protected
 Initial/system-level settings seperti setup mode, global numbering configuration, dan notification integration settings hanya protected Superadmin. Ongoing role/user/unit administration MAY didelegasikan secara granular.
+
+### BR-SETUP-009 — Single Organization
+Current application model MUST menggunakan **single organization / single installation**.
+
+Unit/Division dan Approval Scope adalah organizational/authorization scope di dalam organization yang sama, bukan tenant boundary. Current MVP MUST NOT menambahkan hidden multi-tenant behavior tanpa requirement change.
 
 ---
 
@@ -278,6 +284,9 @@ Draft MAY incomplete.
 ### BR-DRAFT-006
 Draft persistence MUST NOT diblok hanya karena submission-required fields belum lengkap. Structural/safety/file validations tetap dapat berlaku sesuai `06_Validation_Rules.md`.
 
+### BR-DRAFT-007 — Optimistic Concurrency
+Draft/Revision persistence MUST detect stale version conflict and MUST NOT silently overwrite a newer persisted edit. Exact version field/API representation mengikuti `09`, ERD, dan API Contract.
+
 ---
 
 ## 9. Cancellation
@@ -375,7 +384,7 @@ Semua Reviewer dengan required permission + matching Unit/Division scope MAY mel
 Reviewer access non-exclusive; first viewer tidak menjadi owner lock.
 
 ### BR-REV-003
-Viewer activity MUST dapat dibedakan dari modifier/workflow action.
+Viewer/access evidence MUST dapat dibedakan dari modifier/workflow action dan MUST NOT mengubah business state.
 
 ### BR-REV-004
 Satu record MAY memiliki beberapa Reviewer contributor sepanjang lifecycle.
@@ -539,7 +548,9 @@ Archived `REJECTED`/`APPROVED` MUST di-Unarchive sebelum Reopen.
 
 ## 19. Timeline
 
-Semua legitimate record viewer MUST dapat melihat timeline siapa melakukan apa. Timeline read access tidak memberi audit mutation permission.
+Semua legitimate record viewer MUST dapat melihat **business timeline** siapa melakukan business mutation/workflow/lifecycle action. Timeline read access tidak memberi audit mutation permission.
+
+Routine record `View`/access evidence MUST NOT memenuhi business timeline. Access evidence disimpan melalui separate Access Audit concern sesuai `09_System_Architecture.md`.
 
 ## 20. Export
 
@@ -570,8 +581,58 @@ Native checkbox/control MUST NOT diganti dengan text symbol/image hanya karena l
 ### BR-EXP-007 — Renderer Fidelity Gate
 Concrete PDF renderer hanya boleh digunakan production jika lulus approved golden fidelity test terhadap official XLSX/template output. Perbedaan visual yang tidak diizinkan MUST diperlakukan sebagai export failure/renderer qualification failure, bukan alasan untuk menurunkan business requirement.
 
-### BR-EXP-008
-Additional export format/bulk packaging selain current XLSX/PDF behavior remain downstream decisions.
+### BR-EXP-008 — User-Facing Formats
+Current confirmed user-facing export choices:
+
+```text
+XLSX
+PDF
+```
+
+Additional format beyond XLSX/PDF remains future/deferred.
+
+### BR-EXP-009 — Asynchronous Export
+Single dan bulk export generation MUST diproses asynchronously. HTTP/UI request tidak perlu menunggu spreadsheet patch/render/signing selesai.
+
+### BR-EXP-010 — Deterministic Snapshot
+Queued export MUST merepresentasikan deterministic logical record snapshot/version yang bound saat export request dibuat. Worker MUST NOT silently export a later record version merely because processing started later.
+
+### BR-EXP-011 — XLSX Treatment
+XLSX export:
+
+- menggunakan exact filled official template;
+- MAY diedit oleh recipient setelah download;
+- local edit tidak mengubah source record di aplikasi;
+- tidak melalui cryptographic PDF signing flow.
+
+### BR-EXP-012 — Approved PDF Cryptographic Signature
+Jika export format = PDF dan bound snapshot berstatus `APPROVED`, generated PDF MUST cryptographically signed.
+
+Logical signer identity = **System/Organization**.
+
+`Approved By` tetap human Approver yang melakukan final workflow transition; cryptographic signer MUST NOT mengganti business approval identity.
+
+### BR-EXP-013 — Non-Approved PDF
+PDF dari snapshot yang bukan `APPROVED` tidak memiliki mandatory organization/system cryptographic signature pada current rule.
+
+### BR-EXP-014 — No Unsigned Fallback for Approved PDF
+Jika renderer berhasil tetapi mandatory cryptographic signing pada Approved PDF gagal, export MUST gagal. System MUST NOT memberikan unsigned PDF sebagai silent fallback.
+
+### BR-EXP-015 — Temporary Artifact Retention
+Generated XLSX/PDF artifact tersedia privately untuk authorized re-download selama:
+
+```text
+168 hours
+= 7 × 24 hours
+```
+
+Setelah expiry, artifact binary MUST dibersihkan otomatis oleh scheduled cleanup. Expiry export artifact MUST NOT menghapus NSCMF source record/business audit.
+
+### BR-EXP-016 — Re-Export After Expiry
+Setelah artifact expired/deleted, eligible user MAY membuat export request baru. New export menghasilkan artifact baru dari snapshot/version yang bound pada request baru.
+
+### BR-EXP-017 — Signing Security Detail Deferred
+Certificate/private-key/provider/trust/rotation/revocation implementation adalah security concern yang dikunci di `10_Security_Rules.md`; requirement bahwa Approved PDF harus cryptographically signed bukan lagi TBD.
 
 ---
 
@@ -579,20 +640,19 @@ Additional export format/bulk packaging selain current XLSX/PDF behavior remain 
 
 ## 21. Detailed Audit
 
-### BR-AUD-001
-Setiap persisted business change MUST logged, termasuk Draft dan authorized result capture.
+### BR-AUD-001 — Business Audit
+Setiap persisted business change MUST logged, termasuk Draft dan authorized Result capture.
 
 ### BR-AUD-002
 Minimum field audit dapat merepresentasikan record, actor, timestamp, field/data element, old/new value, event context.
 
-### BR-AUD-003
-Minimal workflow/lifecycle events:
+### BR-AUD-003 — Business Workflow/Lifecycle Events
+Minimal business audit events:
 
 - create;
 - autosave/save persistence;
 - cancel;
 - submit/resubmit;
-- viewer activity yang diwajibkan;
 - reviewer actions;
 - return;
 - reject;
@@ -604,17 +664,33 @@ Minimal workflow/lifecycle events:
 - attachment mutation;
 - relevant administrative changes.
 
+Routine `View` bukan business workflow/lifecycle event.
+
 ### BR-AUD-004
-Viewer dan modifier/workflow actor MUST distinguishable.
+Viewer/access actor dan modifier/workflow actor MUST distinguishable.
 
 ### BR-AUD-005
-Historical revisions/rejections/approvals/viewers MUST never overwrite.
+Historical revisions/rejections/approvals/business changes MUST never overwrite.
 
 ### BR-AUD-006
 Normal user MUST NOT edit historical audit.
 
-### BR-AUD-007
-Mandatory logging setiap export/download masih TBD.
+### BR-AUD-007 — Separate Access Audit
+Record view/protected-resource access evidence MUST be represented through a logically separate **Access Audit** concern, not inserted as routine rows in the business timeline.
+
+### BR-AUD-008 — Three Concerns Must Remain Separate
+System MUST distinguish:
+
+```text
+Business Audit  → business data/workflow changed
+Access Audit    → protected record/resource accessed
+Technical Logs  → software/runtime behavior
+```
+
+Technical logs MUST NOT substitute authoritative Business Audit or Access Audit.
+
+### BR-AUD-009 — Access Audit Retention/Visibility
+Exact Access Audit retention, privileged visibility, and strict failure policy remain Security/ERD decisions. Separation from Business Timeline is confirmed.
 
 ---
 
@@ -699,7 +775,15 @@ Karena Reviewer/Approver non-exclusive, backend MUST revalidate current state se
 Jika actor lain sudah mengubah state, stale conflicting action MUST ditolak.
 
 ### BR-INT-005 — Atomic Business Action
-Conceptually, permission/scope/state/validation check + state update + audit evidence MUST terjadi sebagai satu consistent business action. Technical locking/transaction strategy ditentukan downstream.
+Permission/scope/state/validation check + state update + required Business Audit evidence MUST terjadi sebagai satu consistent atomic business action.
+
+### BR-INT-006 — Workflow Locking Strategy
+Workflow/lifecycle transition MUST menggunakan short database transaction + row-level pessimistic locking/current-state revalidation sebagaimana didefinisikan di `09_System_Architecture.md`.
+
+Lock MUST NOT ditahan selama browser interaction, attachment upload, renderer execution, atau long-running external work.
+
+### BR-INT-007 — Editable Optimistic Concurrency
+Draft/Revision dan narrow Result persistence MUST menggunakan optimistic version conflict detection. Stale client MUST NOT silently overwrite newer persisted data.
 
 ---
 
@@ -740,6 +824,7 @@ Emergency follows the same Review + Approval sequence.
 
 | Area | Confirmed Decision |
 |---|---|
+| Organization | Single organization / single application installation |
 | Initial setup | Wizard |
 | Roles | Template/manual; ongoing delegated admin allowed except protected settings |
 | Multi-role | Allowed |
@@ -759,10 +844,17 @@ Emergency follows the same Review + Approval sequence.
 | Attachment | Optional; 10 files max, 20 MB/file, current allowlist |
 | Return/Reject | Mandatory reason |
 | Archive/Unarchive | Independent flag; mandatory reason; only Approved/Rejected/Cancelled archive-eligible |
-| Timeline | Legitimate viewer can see activity |
-| Audit | Detailed old/new + actor + timestamp + context |
-| Export | View implies export; XLSX/PDF must preserve official XLSX template exactly |
-| Concurrency | Server rechecks current state; stale actions rejected |
+| Timeline | Business timeline focuses on business mutation/workflow/lifecycle actions |
+| Access Audit | Separate from Business Timeline |
+| Business Audit | Detailed old/new + actor + timestamp + context |
+| Export | View implies export; user chooses XLSX/PDF; exact official-template fidelity |
+| Export execution | All single/bulk generation asynchronous |
+| Export snapshot | Deterministic logical record snapshot/version |
+| XLSX | Editable local output, no PDF-signing flow |
+| Approved PDF | Cryptographic signature required; logical signer System/Organization |
+| Export retention | Private READY artifact 168 hours / 7 days, then scheduled cleanup |
+| Workflow concurrency | Short transaction + row-level lock/current-state revalidation |
+| Draft/Result concurrency | Optimistic version conflict detection |
 | Impersonation | Not required |
 | Notification | Future, not priority |
 
@@ -774,17 +866,16 @@ Intentionally deferred:
 
 - exact Unit/Division template entries;
 - official NSCMF numbering SOP/sample that may replace/confirm provisional rules;
-- audit retention/export audit;
+- business/access audit retention and privileged visibility policy;
 - notification provider/timing;
-- additional export format/bulk packaging;
-- technical transaction/version/locking strategy;
-- malware scanning/storage implementation;
-- e-signature technology if later required;
-- performance/availability/retention targets.
+- additional export formats/bulk packaging beyond XLSX/PDF;
+- malware scanning/storage security implementation;
+- PDF signing certificate/private-key/provider/trust/rotation/revocation implementation;
+- performance/availability/general data-retention targets.
 
-Concrete PDF renderer is technology qualification-gated by `08`; **exact template fidelity itself is not TBD**.
+Concrete PDF renderer remains technology qualification-gated by `08`; **exact template fidelity, Approved-PDF signing requirement, export retention, and concurrency architecture are not TBD**.
 
-Resolved Validation Rules MUST NOT be treated as TBD unless an explicit requirement change occurs.
+Resolved Validation/Architecture Rules MUST NOT be treated as TBD unless an explicit requirement change occurs.
 
 ---
 
@@ -825,14 +916,27 @@ Developer/AI agent MUST NOT:
 31. mewajibkan seluruh lima Result rows;
 32. membuat PDF dari desain HTML yang berbeda dari official XLSX template;
 33. mengganti native template checkbox/control dengan symbol/image demi kemudahan export;
-34. menerima PDF yang berbeda dari approved template representation hanya karena renderer yang dipilih tidak mampu mempertahankan fidelity.
+34. menerima PDF yang berbeda dari approved template representation hanya karena renderer yang dipilih tidak mampu mempertahankan fidelity;
+35. menambahkan tenant/multi-organization layer tanpa approved requirement;
+36. memasukkan routine View ke business timeline sehingga operational history dipenuhi access noise;
+37. memakai technical logs sebagai authoritative Business/Access Audit;
+38. menjalankan export rendering/signing synchronously di workflow/HTTP transaction;
+39. membiarkan queued export silently memakai record version yang berbeda dari requested snapshot;
+40. memberi unsigned Approved PDF sebagai fallback ketika mandatory signing gagal;
+41. menganggap organization/system PDF signer sama dengan human `Approved By`;
+42. mewajibkan personal certificate tiap Approver tanpa requirement;
+43. menyimpan generated export binary permanen secara default;
+44. melayani expired artifact setelah 168-hour window;
+45. menghapus NSCMF source record karena temporary export artifact expired;
+46. menjalankan workflow transition tanpa row-level current-state revalidation;
+47. silently overwrite Draft/Result yang lebih baru dari stale client.
 
 ---
 
 ## 29. Current Documentation Status
 
-`05_State_Status_Flow.md` tetap lifecycle source of truth authoritative. `06_Validation_Rules.md` mengunci validation. `07_UI_UX_Specification.md` mengunci presentation/interaction. `08_Tech_Stack_Specification.md` mengunci technology baseline termasuk exact-template export implementation direction.
+`05_State_Status_Flow.md` tetap lifecycle source of truth authoritative. `06_Validation_Rules.md` mengunci validation. `07_UI_UX_Specification.md` mengunci presentation/interaction. `08_Tech_Stack_Specification.md` mengunci technology baseline. `09_System_Architecture.md` mengunci component topology, hybrid concurrency, audit separation, queue/export retention, dan Approved-PDF signing architecture.
 
 Dokumen proyek berikutnya:
 
-**`09_System_Architecture.md`** — menerjemahkan seluruh requirement dan stack menjadi component/topology architecture tanpa mengubah business rules.
+**`10_Security_Rules.md`** — mengunci password/session/security controls, attachment security, sensitive audit access, private artifact delivery, dan certificate/private-key security untuk organization/system PDF signing.
