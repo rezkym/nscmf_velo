@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-UIUX-007  
 > **Document Order:** 07 / 20  
-> **Status:** Draft — Confirmed UX Direction + Synchronized through Security Decisions  
+> **Status:** Draft — Confirmed UX Direction + Team/Permission Synchronization  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
@@ -18,34 +18,42 @@
 
 Dokumen ini menjadi **source of truth untuk presentation dan interaction behavior** NSCMF Digital Form & Workflow System.
 
-UI/UX menerjemahkan product scope, business rules, user flow, RBAC, state, validation, architecture, dan confirmed security controls menjadi:
+UI/UX menerjemahkan product scope, business rules, user flow, permission-centric RBAC, state, validation, architecture, dan security controls menjadi:
 
 - application shell/navigation;
 - screen hierarchy;
 - form layout/component behavior;
-- visual/status/action hierarchy;
 - validation/error/warning UX;
-- autosave/optimistic-conflict UX;
-- attachment upload + malware-scan feedback;
-- Review/Approval queues;
-- Business Timeline + privileged audit-access presentation;
-- queued exact XLSX/PDF export UX;
+- autosave/conflict UX;
+- attachment malware-scan feedback;
+- permission-based Review/Approval queues;
+- Business Timeline + privileged audit presentation;
+- asynchronous exact XLSX/PDF export UX;
 - Approved-PDF signing/readiness feedback;
 - public PDF validation UX;
 - temporary-password/re-auth/session-expiry UX;
-- responsive/accessibility/loading/empty/error/stale states.
+- Team/user/role administration UX;
+- responsive/accessibility/loading/stale states.
 
-UI MUST NOT redefine business rules, permissions, lifecycle, validation, security, audit separation, concurrency, or exact-export fidelity.
+UI MUST NOT redefine business rules, permissions, lifecycle, validation, security, audit, concurrency, or exact-export fidelity.
+
+Important current correction:
+
+- organization uses **Team**, not Unit/Division;
+- Team is organizational/profile data only;
+- Team MUST NOT determine Reviewer/Approver eligibility;
+- no Reviewer Scope / Approval Scope administration UI exists;
+- Spatie Teams feature is not represented in UI.
 
 ---
 
 ## 2. Normative Language
 
-- **MUST** — wajib.
-- **MUST NOT** — dilarang.
+- **MUST** — mandatory.
+- **MUST NOT** — forbidden.
 - **SHOULD** — strong default.
-- **MAY** — diperbolehkan.
-- **TBD** — belum final dan tidak boleh ditebak.
+- **MAY** — allowed.
+- **TBD** — unresolved and must not be guessed.
 
 ---
 
@@ -66,19 +74,21 @@ Priorities:
 9. accessibility;
 10. consistency.
 
-Use neutral surfaces by default and color only for purposeful brand/semantic emphasis.
-
 ## 4. Desktop-First
 
-Desktop is primary heavy-workflow/form target; tablet remains operational; mobile supports responsive viewing/basic action where practical. Responsive simplification never removes server-side authorization/security requirements.
+Desktop primary; tablet operational; mobile supports responsive view/basic action where practical. Responsive simplification never removes server-side authorization/security requirements.
 
-## 5. Preserve Business Meaning, Not Spreadsheet Layout — Web UI Only
+## 5. Preserve Business Meaning, Not Spreadsheet Layout
 
-Interactive web UI may restructure Excel fields into clearer sections. **Export is the exception:** XLSX/PDF must preserve the official XLSX template exactly and only fill mapped fields/native controls.
+Interactive web UI may restructure Excel fields. Export remains exact official-template representation.
 
-## 6. Progressive Disclosure
+## 6. Permission-Centric Simplicity
 
-Conditional fields/actions appear only when relevant. Examples: Other Impact Description, subtype-specific required sections, role-specific navigation, and security-only controls.
+UI SHOULD present actions based on backend-provided permission/action eligibility and current state, not expose organizational scope concepts.
+
+Role names are useful labels for administration. Runtime action visibility SHOULD follow effective permissions.
+
+Team MAY appear as user/profile/business context but MUST NOT imply access entitlement.
 
 ---
 
@@ -88,18 +98,18 @@ Conditional fields/actions appear only when relevant. Examples: Other Impact Des
 
 | Intent | HEX |
 |---|---|
-| `brand-950` | `#091540` |
-| `brand-700` | `#1B2CC1` |
-| `brand-400` | `#7692FF` |
-| `brand-200` | `#ABD2FA` |
+| brand-950 | `#091540` |
+| brand-700 | `#1B2CC1` |
+| brand-400 | `#7692FF` |
+| brand-200 | `#ABD2FA` |
 | white | `#FFFFFF` |
 | black | `#000000` |
 
-Semantic success=green, warning=amber/yellow, destructive/error=red, primary/info=brand blue, neutral=gray/black/white. Meaning MUST NOT rely on color alone.
+Semantic success=green, warning=amber/yellow, destructive/error=red, primary/info=brand blue, neutral=gray. Meaning never relies on color alone.
 
 ## 8. Accessibility / Typography / Spacing
 
-Target WCAG-AA-like readability: visible focus, labels, associated errors, readable contrast, keyboard-accessible dialogs/actions. Use restrained enterprise typography, borders/radius/shadows, not marketing-style oversized/decorative UI.
+Target WCAG-AA-like readability, visible focus, labels/errors, keyboard-accessible dialogs/actions, restrained enterprise visual treatment.
 
 ## 9. Component Baseline
 
@@ -112,13 +122,11 @@ Tailwind CSS 4
 Lucide / lucide-vue-next
 ```
 
-Useful primitives: Button/Input/Textarea/Select/Checkbox/Radio/Dialog/AlertDialog/Sidebar/Table/Tabs/Badge/Alert/Toast/Skeleton/Breadcrumb/Pagination/Progress/Popover/File Uploader.
-
-Component defaults never override NSCMF business/security semantics.
+Component defaults never override NSCMF semantics.
 
 ---
 
-# PART C — APPLICATION SHELL & NAVIGATION
+# PART C — SHELL & NAVIGATION
 
 ## 10. Shell
 
@@ -135,19 +143,19 @@ History
 Administration
 ```
 
-No tenant switcher current single-org model. Hidden menu is UX convenience, not authorization.
+No tenant switcher. No Team switcher for authorization. Hidden menu is UX convenience only.
 
-## 11. Context
+## 11. Record Context
 
-Deep screens expose breadcrumb/context such as History / Request No or Review / Request No. Record header shows Request No, family/subtype, canonical business-status badge, separate Archived badge, requester/Unit context as useful, and save state while editable.
+Record header SHOULD show Request No, family/subtype, business-status badge, separate Archived badge, Requester, Team context where useful, and editable save state.
+
+Displaying Team does not imply record scope or permission.
 
 ---
 
 # PART D — SCREEN INVENTORY
 
 ## 12. MVP Screens
-
-At minimum:
 
 1. Login;
 2. Mandatory Temporary Password Change;
@@ -168,23 +176,25 @@ At minimum:
 17. Business Timeline;
 18. Attachments;
 19. Archived view/filter;
-20. Export status/download surface;
+20. Export status/download;
 21. Public PDF Verification;
 22. User Administration;
 23. Role/Permission Administration;
-24. Unit/Division & Scope Administration;
-25. Sensitive-Action Password Re-authentication dialog/surface;
-26. Core Settings for protected Superadmin where applicable.
+24. Team Administration;
+25. Sensitive-Action Password Re-authentication;
+26. Core Settings where applicable.
+
+There is no Unit/Division & Scope Administration screen.
 
 ---
 
-# PART E — AUTHENTICATION / SESSION / SETUP UX
+# PART E — AUTH / SESSION / SETUP
 
 ## 13. Login
 
-Include product identity, Username, Password, primary Login button, generic invalid-credential feedback, throttling/progressive-delay feedback without leaking limiter internals, and **no self-registration**.
+Include product identity, Username, Password, Login, generic invalid-credential feedback, throttling/progressive-delay feedback, no self-registration.
 
-Confirmed policy surfaced consistently:
+Policy:
 
 ```text
 password-only
@@ -193,64 +203,61 @@ no composition requirement
 no MFA
 ```
 
-UI MUST NOT add uppercase/lowercase/number/symbol requirements or MFA prompts.
-
-Duplicate Login submission is disabled while pending. Error MUST NOT reveal whether username exists.
+`session.login`/`session.logout` are not exposed as RBAC permissions.
 
 ## 14. Temporary Password Change
 
-When backend indicates temporary credential:
+When temporary credential active:
 
-- normal app navigation remains blocked;
-- show clear `Create New Password` screen;
-- new password helper states only the confirmed minimum 6-character rule;
+- normal navigation blocked;
+- show `Create New Password`;
+- helper says minimum 6 only;
 - no composition checklist;
-- success invalidates temporary credential and proceeds according to session policy;
-- plaintext temporary/new password never appears in timeline/audit UI.
+- success invalidates temporary credential;
+- plaintext credentials never enter timeline/audit UI.
 
 ## 15. Session UX
 
-Confirmed server policy:
+Server policy:
 
 ```text
-idle timeout = 30 minutes
-absolute lifetime = 8 hours
-max active sessions = 2
+idle = 30m
+absolute = 8h
+max sessions = 2/account
 ```
 
-UI MAY warn shortly before idle expiration where practical, but server timer is authority. After expiration/revocation, redirect to Login with clear non-sensitive message. Persisted Draft remains saved; UI MUST NOT claim unsaved local input was persisted when it was not.
+UI may warn before expiry. Revoked/expired session returns to Login. Never claim local unsaved data was persisted.
 
 ## 16. Setup Wizard
 
-Suggested steps:
+Recommended steps:
 
 ```text
-1 Role Setup
-2 Unit / Division
-3 Users / Scope
-4 Review Configuration
-5 Complete
+1. Role Setup
+2. Team Setup
+3. Users & Role Assignment
+4. Complete
 ```
 
-Role template/manual configuration and scope setup remain non-exclusive Reviewer/Approver models. No tenant step.
+Role setup includes role-permission mapping. Team setup is organizational only. User setup assigns Team + one/multiple Roles.
 
-Required signing-identity readiness may be surfaced as a critical environment/readiness condition, not as a user-created personal signature wizard.
+No Reviewer Scope, Approval Scope, or Team-based permission configuration step.
 
----
-
-# PART F — DASHBOARD
-
-## 17. Dashboard Purpose
-
-Operational landing page: current attention + quick Create + History. Recommended neutral summary cards: My Draft, Revision Required, Pending Review if eligible, Pending Approval if eligible. Counts must respect visibility/scope.
-
-Empty state explains nothing currently needs attention and shows only permitted next CTA.
+Required signing readiness may be surfaced as critical system readiness, not personal-signature wizard.
 
 ---
 
-# PART G — CREATE / NUMBERING
+# PART F — DASHBOARD / CREATE
 
-## 18. Flow
+## 17. Dashboard
+
+Operational landing page with current attention + quick Create + History.
+
+Recommended cards: My Draft, Revision Required, Pending Review if effective Review permission exists, Pending Approval if effective Approval permission exists.
+
+Counts obey backend resource authorization and permissions. Team does not grant queue access.
+
+## 18. Create Flow
 
 ```text
 Create NSCMF
@@ -260,29 +267,29 @@ Create NSCMF
 → Draft
 ```
 
-Activation and Change are described by business context so `Upgrade` ambiguity is reduced.
-
 ## 19. Subtype
 
-Activation: Activation / Upgrade-Downgrade / Deactivation. Change: Maintenance / Upgrade / Emergency. Single-choice UI; no fourth option from Excel checkbox artifacts.
+Activation: Activation / Upgrade-Downgrade / Deactivation.
+
+Change: Maintenance / Upgrade / Emergency.
+
+Single choice; no extra checkbox-artifact subtype.
 
 ## 20. Numbering
 
-Automatic or Manual. Automatic provisional number appears read-only after creation; Manual gets inline format/uniqueness feedback. After first successful Submit, Request No is read-only.
+Automatic/Manual. Automatic provisional value read-only after creation except allowed Draft correction model; Manual validates format/uniqueness. After first Submit Request No read-only.
 
 ---
 
-# PART H — FORM LAYOUT / VALIDATION / AUTOSAVE
+# PART G — FORM / AUTOSAVE / VALIDATION
 
 ## 21. Form Layout
 
-Use multi-section single-page operational form with section navigator, not spreadsheet replica. Required/conditional/optional meaning follows `06`.
+Multi-section single-page operational form + section navigator. Web form is not spreadsheet replica.
 
 ## 22. Draft Validation
 
-Draft may be incomplete. Do not paint every untouched required field red. Full errors appear on Submit/Resubmit action, with top summary + inline errors. Warnings remain visually distinct/non-blocking.
-
-Security failures such as malware-scan failure are **not** warning-style optional feedback.
+Draft may be incomplete. Avoid showing every untouched required field as blocking error. Full errors appear on Submit/Resubmit with summary + inline errors. Warning distinct.
 
 ## 23. Autosave / Save Draft
 
@@ -295,50 +302,46 @@ Save failed — retry
 A newer version exists — review latest version
 ```
 
-No false Saved on optimistic conflict. No toast for every autosave. Manual Save Draft remains visible in editable state.
+No false Saved after optimistic conflict.
 
 ---
 
-# PART I — ACTIVATION / CHANGE / RESULT UX
+# PART H — ACTIVATION / CHANGE / RESULT
 
 ## 24. Activation
 
 Recommended sections: General/Service, Reference, Existing Service, New Service, RFS/SLA, NOC/Network, Bandwidth, Domain/DNS/Email/Hosting, Onsite Direct, Onsite POP, Attachments.
 
-Subtype controls Existing/New requiredness. Service Status is single choice. Repeated max-3 fields may use add/remove rows. Units (Mbps/GB/ms/%) remain visible but separate from raw numeric value.
+Subtype controls requiredness. Repeated max-3 fields may use add/remove row patterns. Units visible separately from numeric values.
 
 ## 25. Change
 
-Recommended sections: General, Purpose, Service Impact, Improvement Plan/KPI, Execution/Monitoring, Rollback/Announcement, Attachments, Result of Changes.
+Recommended: General, Purpose, Service Impact, Plan/KPI, Execution/Monitoring, Rollback/Announcement, Attachments, Result of Changes.
 
-Service Impact = checkbox-style multi-select; Other reveals required description. Plan/KPI shown as paired rows. Monitoring uses amount + unit. Announcement exactly one choice. Upgrade/Emergency missing attachment = Warning only.
+Service Impact is checkbox-style multi-select. Its options such as NOC15/NOC23/etc are **form impact values**, not authorization Team values.
 
 ## 26. Result of Changes
 
-Initial Draft may leave Result empty. Eligible owner during `PENDING_REVIEW` sees **Update Result of Changes**, not `Edit Form`.
+Initial Draft may leave Result empty. Eligible owner at `PENDING_REVIEW` sees **Update Result of Changes**, not Edit Form.
 
-Result-only UI exposes only Result Summary, Performance Information, Status, max five rows; general submitted planning fields remain read-only. Optimistic conflict rules apply. Reviewer sees readiness indicator and backend remains authority for Forward.
+Only Result Summary, Performance Information, Status, max five rows. General planning fields read-only. Optimistic conflict applies. Reviewer sees readiness indicator; backend controls Forward.
 
 ---
 
-# PART J — ATTACHMENT SECURITY UX
+# PART I — ATTACHMENT SECURITY UX
 
 ## 27. Uploader
 
-Show drag/drop + browse and constraints:
+Show:
 
 ```text
 Up to 10 files • 20 MB each
 PDF, XLS/XLSX, DOC/DOCX, PNG, JPG/JPEG, TXT, CSV
 ```
 
-Each item shows filename/type/size/status and remove only in allowed context. Never expose storage path.
+Never expose storage path.
 
-## 28. Security Scan States
-
-A structurally accepted upload MUST NOT immediately appear as normal usable attachment.
-
-User-facing states SHOULD distinguish:
+## 28. Scan States
 
 ```text
 Uploading…
@@ -348,45 +351,58 @@ Rejected — malware detected
 Security scan failed — file not available
 ```
 
-Rules:
-
-- only backend ClamAV `CLEAN` → `Ready`;
-- `INFECTED`, timeout, scanner unavailable, scan error MUST NOT show Ready;
-- no Download action while not CLEAN;
-- rejected/scan-failed item must not look successfully attached;
-- Result-only edit does not allow attachment mutation current MVP.
-
-Upgrade/Emergency missing attachment remains only a business Warning; that does not weaken scan safety for files that are uploaded.
+Only backend CLEAN → Ready. No download while not CLEAN. Result-only edit cannot mutate attachment current MVP.
 
 ---
 
-# PART K — REVIEW / APPROVAL
+# PART J — REVIEW / APPROVAL
 
-## 29. Queues
+## 29. Review Queue
 
-Use data tables, not card grids. Useful fields: Request No, family/subtype, Requester, Unit/Division, status, relevant dates. Search/filter remains scoped and paginated.
+Use data table, not card grid.
+
+Useful columns MAY include Request No, family/subtype, Requester, Team as informational context, status, dates.
+
+**Queue eligibility is permission-based, not Team-filtered.** Backend returns only candidates permitted by current authorization policy/state.
 
 ## 30. Review Detail
 
-Read-only Form Detail | Timeline | Attachments. Actions: Return for Revision, Reject, Forward to Approval. Forward primary positive, Return warning/secondary, Reject destructive. Opening record does not assign/lock reviewer.
+Read-only Form Detail | Timeline | Attachments.
 
-## 31. Approval Detail
+Actions according to exact effective permissions and state:
 
-Read-only detail with easy-to-find Result for Change. Actions: Return Reviewer, Return Requester, Reject, Approve. Approve primary; Reject destructive.
+- Return for Revision;
+- Reject;
+- Forward to Approval.
+
+Opening record does not assign/lock Reviewer.
+
+## 31. Approval Queue / Detail
+
+Data table and read-only detail. Team may be displayed informationally but cannot affect eligibility.
+
+Actions according to exact permissions/current state:
+
+- Return Reviewer;
+- Return Requester;
+- Reject;
+- Approve.
+
+One valid Approve sufficient.
 
 ---
 
-# PART L — WORKFLOW DIALOGS / STATUS
+# PART K — WORKFLOW DIALOGS / STATUS
 
 ## 32. Mandatory Reason Dialogs
 
-Reviewer Return/Reject, Approver Returns/Reject, Reopen, Archive, Unarchive require reason. Dialog clearly states Request No, destination/consequence, reason, explicit confirm label.
+Reviewer Return/Reject, Approver Returns/Reject, Reopen, Archive, Unarchive require reason. Dialog shows Request No, consequence/destination, reason, explicit confirm label.
 
-Reopen only offers Revision Required or Pending Review. Archived Approved/Rejected must Unarchive first. Cancel reason optional and confirmation states Cancelled is permanent but data/history remain.
+Reopen only offers Revision Required or Pending Review. Reopen starts next workflow iteration, but iteration number need not be exposed prominently unless useful for history/audit.
 
 ## 33. Business Status Labels
 
-Canonical display only:
+Only:
 
 - Draft
 - Pending Review
@@ -396,19 +412,21 @@ Canonical display only:
 - Approved
 - Cancelled
 
-Archived is separate badge, e.g. `[Approved] [Archived]`.
+Archived separate badge.
 
 ---
 
-# PART M — HISTORY / TIMELINE / AUDIT UX
+# PART L — HISTORY / TIMELINE / AUDIT
 
 ## 34. History
 
-Data table optimized for retrieval; archived records separated from default active view. Single/bulk export selection only on visible/eligible records.
+Data table optimized for retrieval. Archived separate from active default view. Export selection only authorized records.
+
+Team MAY be a display/filter criterion if product later finds it useful, but Team filter MUST NOT imply authorization boundary.
 
 ## 35. Record Detail
 
-Recommended:
+Recommended tabs/sections:
 
 1. Form Detail
 2. Timeline
@@ -416,44 +434,33 @@ Recommended:
 
 ## 36. Business Timeline
 
-Shows actor, business mutation/workflow/lifecycle action, timestamp, states, reason/comment, meaningful field-change context where allowed.
+Shows actor, business mutation/workflow/lifecycle action, timestamp, states, reason/comment, meaningful changes.
 
-Routine View/download/export-access evidence MUST NOT flood Business Timeline.
+Routine View/download/export-access evidence does not flood Business Timeline.
 
-## 37. Privileged Access / Security Audit UX
+Workflow iteration SHOULD be available in history/audit context where needed to distinguish old vs current approval cycles.
 
-Raw Access Audit visibility is no longer generic TBD:
+## 37. Privileged Audit UX
 
-```text
-Protected Superadmin by default
-or explicit audit.access.view + valid underlying scope
-```
-
-Security Audit:
+Raw Access Audit:
 
 ```text
 Protected Superadmin by default
-or explicit audit.security.view + applicable security/admin scope
+or explicit audit.access.view
++ applicable resource/admin authorization
 ```
 
-Exact page placement may be refined, but UI MUST:
+Security Audit similarly uses `audit.security.view` + applicable authorization.
 
-- not expose raw audit merely because user can view Business Timeline;
-- present audit evidence read-only;
-- never provide normal delete/purge-by-age action;
-- avoid showing plaintext credential/private-key/secret data.
-
-Authoritative Business/Access/Security Audit evidence has **no age-based expiry**. UI MUST NOT show “kept for 12 months” or purge controls based on age.
+No Team/scope prerequisite. Audit UI read-only; no purge-by-age; no credential/private-key secrets.
 
 ---
 
-# PART N — SIGN-OFF / EXPORT UX
+# PART M — SIGN-OFF / EXPORT
 
-## 38. Sign-Off Presentation
+## 38. Sign-Off
 
-Show system-derived Requested By, Reviewed By, Approved By + timestamps. Freehand/manual signature is not required.
-
-Approved PDF distinction:
+Show system-derived Requested By, Reviewed By, Approved By + timestamps.
 
 ```text
 Approved By = human final workflow actor
@@ -462,9 +469,9 @@ Digital signer = System/Organization
 
 ## 39. Export Choice / Queue
 
-Expose `Export XLSX` and `Export PDF`. All generation queued/asynchronous.
+Expose `Export XLSX` and `Export PDF`. All generation asynchronous.
 
-User-facing technical statuses may be:
+Technical statuses:
 
 ```text
 Queued
@@ -474,60 +481,39 @@ Failed
 Expired
 ```
 
-They MUST NOT become NSCMF business badges.
+Never business badges.
 
-## 40. Ready / Expiry
+## 40. Immutable Snapshot UX
 
-READY shows format, download, useful timestamp, and `Available until <date/time>`. Re-download allowed within 168h/7d. After expiry show Expired + Generate new export if eligible.
+When export is requested, backend binds immutable deterministic snapshot. UI does not need to expose internal snapshot JSON, but it MUST NOT imply that a queued export automatically follows later record edits.
 
-## 41. Signing UX
+If useful, user-facing export detail MAY show record version / requested time.
 
-For Approved PDF READY, indicate document is cryptographically signed by System/Organization. Do not label XLSX signed.
+## 41. Ready / Expiry
 
-If mandatory signing fails:
+READY shows format/download/time/`Available until`. Re-download until 168h. Expired offers Generate new export if eligible.
 
-- show export Failed;
-- do not offer unsigned intermediate PDF;
-- do not change Approved state;
-- provide retry when issue resolved.
+## 42. Signing UX
 
-## 42. Critical Signing Configuration State
+Approved PDF READY indicates cryptographically signed by System/Organization. XLSX never labeled signed under this flow.
 
-Required server signing identity is a readiness prerequisite.
+Signing failure → Failed, no unsigned intermediate, Approval state unchanged, safe retry guidance.
 
-If backend reports signing identity missing/unusable:
+## 43. Critical Signing Configuration
 
-- surface a **critical configuration/readiness** message to appropriate administrative/operator-facing UI;
-- do not falsely show signing subsystem Healthy/Ready;
-- do not offer/label an unsigned Approved PDF as valid final output;
-- do not expose private-key path/content/passphrase in UI.
-
-Exact health/status placement is downstream Environment/Deployment UX, but silent fallback is forbidden.
+Missing/unusable required signing identity → critical configuration/readiness message to appropriate admin/operator surface. Never expose key path/content/passphrase.
 
 ---
 
-# PART O — PUBLIC PDF VERIFICATION UX
+# PART N — PUBLIC PDF VERIFICATION
 
-## 43. Public Verification Page
+## 44. Public Verification Page
 
-Conceptual public route: `/ispdfvalid`.
+Conceptual `/ispdfvalid`, no login. Narrow verification utility, not public History.
 
-No login required. Page is a narrow verification utility and MUST NOT look/behave like public History/record portal.
+Include explanation, PDF-only uploader, size guidance, progress, result, retry/new verification.
 
-Include:
-
-- concise explanation;
-- PDF-only uploader;
-- relevant upload-size guidance;
-- progress state;
-- safe validation result;
-- retry/new verification action.
-
-Do not expose internal Request No search/browser as an alternate public lookup unless future requirement explicitly approves it.
-
-## 44. Public Upload States
-
-Conceptual:
+## 45. Public Upload States
 
 ```text
 Uploading…
@@ -536,99 +522,78 @@ Verifying signature and issuance…
 Result
 ```
 
-If ClamAV fails/detects malware, show safe failure and do not continue deep verification. Temporary upload is not a normal NSCMF attachment and is deleted after processing.
+Only ClamAV CLEAN proceeds.
 
-## 45. Canonical Result Presentation
-
-Backend semantic values map to user-facing labels:
+## 46. Canonical Results
 
 | Semantic | Display |
 |---|---|
-| `VALID_CURRENT` | **Valid — Current** |
-| `VALID_SUPERSEDED` | **Valid — Superseded** |
-| `INVALID_MODIFIED` | **Invalid — Modified** |
-| `UNKNOWN` | **Unknown / Not recognized** |
+| `VALID_CURRENT` | Valid — Current |
+| `VALID_SUPERSEDED` | Valid — Superseded |
+| `INVALID_MODIFIED` | Invalid — Modified |
+| `UNKNOWN` | Unknown / Not recognized |
 
-### Valid — Current
-Explain that uploaded PDF is recognized as an exact NSCMF-issued artifact and is still the current Approved issuance.
+Superseded = authentic exact issued PDF but no longer current due later Reopen/newer approved issuance. Never call it modified solely for supersession.
 
-### Valid — Superseded
-Explain clearly:
+## 47. Minimum Disclosure
 
-> The file is an authentic exact NSCMF-issued PDF, but it is no longer the current approval issuance because the NSCMF was subsequently Reopened/Reverted or superseded by a newer approved issuance.
-
-Do NOT call it modified/forged solely because it is superseded.
-
-### Invalid — Modified
-Explain that file integrity/signature/hash evidence does not match the exact issued artifact. Avoid technical secret/path detail.
-
-### Unknown
-Explain that NSCMF cannot recognize/validate it as a known issued artifact. Do not automatically accuse user of forgery/malice.
-
-## 46. Minimum Disclosure
-
-Public result MUST NOT expose:
-
-- full private form content;
-- attachments;
-- Business Timeline;
-- raw Access/Security Audit;
-- internal storage paths;
-- private key/certificate secret material;
-- unnecessary private actor details.
-
-No TSA badge/claim current MVP. UI MUST NOT say `trusted third-party timestamp` because no TSA is required.
+No private form content, attachments, Business Timeline, raw audits, storage paths, private-key details, unnecessary actor information. No TSA claim current MVP.
 
 ---
 
-# PART P — ADMINISTRATION / RE-AUTH / SESSION REVOCATION UX
+# PART O — ADMINISTRATION / RE-AUTH
 
-## 47. Administration
+## 48. Administration
 
-Group Users, Roles/Permissions, Unit/Division, Reviewer/Approval Scope, privileged audit surfaces, Core Settings where eligible. Protected Superadmin destructive/downgrade controls absent/disabled and backend-denied.
+Group:
 
-## 48. Sensitive-Action Password Re-authentication
+- Users;
+- Roles/Permissions;
+- Teams;
+- privileged audit surfaces;
+- Core Settings where eligible.
 
-Before password reset, role/permission changes, protected security settings, and equivalent sensitive admin actions, show password re-auth dialog/surface:
+No Unit/Division, Reviewer Scope, Approval Scope, or Spatie Teams UI.
 
-- state action being confirmed;
-- ask **current password** only;
-- no MFA control;
-- failed re-auth leaves action unapplied;
-- do not retain/show password after submit;
-- do not use ambiguous `OK`; use explicit confirm label.
+Normal permission assignment flow:
 
-## 49. Target Session Revocation Feedback
+```text
+Permission → Role → User
+```
 
-When admin changes another user's password/role/permission/access state, UI MAY confirm that target active sessions were revoked; administrator is not logged out solely because target changed.
+Direct permission-to-user assignment is not offered in current MVP.
 
-If current user changes their own applicable security-sensitive access/credential and backend revokes their session, UI MUST return to Login cleanly rather than leave a stale authenticated shell.
+## 49. Sensitive Action Re-authentication
 
-Max 2 active sessions is enforced server-side; exact third-login eviction presentation remains downstream.
+Before password reset, role assignment/removal, role-permission changes, protected security settings, ask acting user's current password.
+
+No MFA. Failed re-auth = no mutation.
+
+## 50. Target Session Revocation Feedback
+
+After effective authorization-changing role/permission mutation, UI MAY tell admin affected target sessions were revoked. Team change alone MUST NOT be described as a permission/access revocation.
 
 ---
 
-# PART Q — LOADING / ERROR / STALE
+# PART P — LOADING / ERROR / STALE
 
-## 50. Loading / Empty
+## 51. Loading / Empty
 
-Use content skeletons, not full-shell spinner when only table/content loads. Disable duplicate destructive/workflow submission. Export/security long work uses persistent status, not indefinite blocking spinner.
+Use skeletons; prevent duplicate destructive/workflow submissions. Long export/security work uses persistent status.
 
-## 51. Unauthorized
+## 52. Unauthorized
 
-Generic access-denied/not-available without leaking record existence/details. Backend authority remains final.
+Generic denied/not-available without leaking resource details.
 
-## 52. Stale Workflow
+## 53. Stale Workflow
 
-If backend says state changed by another actor, show clear state-change message, refresh latest state, disable stale controls. Do not show generic validation failure.
+Backend state changed → clear message + refresh latest state + disable stale controls.
 
-## 53. Save Conflict
+## 54. Save Conflict
 
-Network save failure vs optimistic-version conflict must be distinguishable. Preserve current typed values where feasible, never auto-overwrite newer persisted version.
+Network failure vs optimistic conflict distinguishable; never auto-overwrite newer persisted version.
 
-## 54. Security Failure Copy
-
-Security error should explain what user can do without exposing internals.
+## 55. Security Failure Copy
 
 Examples:
 
@@ -637,207 +602,161 @@ Examples:
 - `Your access changed. Please sign in again.`
 - `Approved PDF signing is temporarily unavailable due to a required system configuration issue.`
 
-Do not show private-key path, stack trace, ClamAV socket details, DB details, or secrets.
+Never expose internals/secrets.
 
 ---
 
-# PART R — RESPONSIVE / ACCESSIBILITY / MICROINTERACTIONS
+# PART Q — RESPONSIVE / ACCESSIBILITY
 
-## 55. Responsive
+## 56. Responsive
 
-Desktop: persistent sidebar, section nav, multi-column fields, sticky Review/Approval actions, full tables.
+Desktop full workflow; tablet reduced columns; mobile stacked and prioritized. Required reason/re-auth/security confirmation never dropped.
 
-Tablet: collapsible navigation, reduced columns, compact section nav.
+## 57. Keyboard / Labels / Motion
 
-Mobile: drawer, stacked fields, prioritized table content, usable record/timeline/export/public-validator screens. Required reason/re-auth/security confirmation cannot be dropped for small viewport.
+All controls labeled, placeholder not sole label, dialogs manage focus, icon-only actions accessible, reduced-motion respected where practical.
 
-## 56. Keyboard / Labels / Motion
+## 58. Toast
 
-All controls labeled; placeholder not sole label; dialogs manage focus; icon-only actions accessible. Motion subtle/functional and respects reduced-motion where practical.
-
-## 57. Toast
-
-Use for non-critical completion such as Save Draft/Result saved/export queued. Durable conditions (export READY/Failed, critical signing readiness, security scan failure) require persistent visible state; toast alone is insufficient.
+Toast for non-critical completion. Durable conditions such as export READY/Failed, signing readiness, scan failure require persistent visible state.
 
 ---
 
-# PART S — ACTION VISIBILITY
+# PART R — ACTION VISIBILITY
 
-## 58. Requester State Matrix
+## 59. Requester Matrix
 
-| State | General Edit | Save | Submit/Resubmit | Update Change Result | Cancel |
+| State | General Edit | Save | Submit/Resubmit | Change Result | Cancel |
 |---|---:|---:|---:|---:|---:|
-| Draft | Yes | Yes | Submit | normal form | Yes |
-| Pending Review | No | No | No | Yes if eligible Change owner | No |
-| Revision Required | Yes | Yes | Resubmit | normal form | No |
+| Draft | Yes own | Yes | Submit | normal form | Yes own |
+| Pending Review | No | No | No | Yes eligible owner | No |
+| Revision Required | Yes own | Yes | Resubmit | normal form | No |
 | Pending Approval | No | No | No | No | No |
 | Rejected | No | No | No | No | No |
 | Approved | No | No | No | No | No |
 | Cancelled | No | No | No | No | No |
 
-## 59. Reviewer / Approver / Lifecycle
+## 60. Reviewer / Approver / Lifecycle
 
-Reviewer at scoped `PENDING_REVIEW`: read-only detail + Return/Reject/Forward.
+Reviewer with required permission at `PENDING_REVIEW` → read-only detail + permitted Review actions.
 
-Approver at scoped `PENDING_APPROVAL`: read-only + Return Reviewer/Requester, Reject, Approve.
+Approver with required permission at `PENDING_APPROVAL` → read-only detail + permitted Approval actions.
 
-Visible unarchived Approved/Rejected with `nscmf.reopen`: Reopen. Eligible terminal with `nscmf.archive`: Archive/Unarchive. Archived Approved/Rejected must Unarchive before Reopen.
+No Team/scope matching.
 
----
-
-# PART T — COPY PRINCIPLES
-
-## 60. Explicit Labels
-
-Use action verbs: Submit for Review, Save Draft, Forward to Approval, Return for Revision, Return to Reviewer, Return to Requester, Reject NSCMF, Approve NSCMF, Update Result of Changes, Reopen NSCMF, Archive, Unarchive, Export XLSX/PDF, Download, Generate new export, Verify PDF.
-
-Avoid generic `OK`, `Process`, `Execute` for important actions.
-
-## 61. Error Copy
-
-Say what failed and what user can do. Avoid DB column names/internal exceptions/security secrets. `Unknown` validator result is not an accusation. `Superseded` is not `Modified`.
+Authorized unarchived Approved/Rejected with `nscmf.reopen` → Reopen. Eligible terminal with `nscmf.archive` → Archive/Unarchive.
 
 ---
 
-# PART U — UI GUARDRAILS
+# PART S — COPY / GUARDRAILS
 
-## 62. Developer / AI Must Not
+## 61. Explicit Labels
+
+Use Submit for Review, Save Draft, Forward to Approval, Return for Revision, Return to Reviewer, Return to Requester, Reject NSCMF, Approve NSCMF, Update Result of Changes, Reopen NSCMF, Archive, Unarchive, Export XLSX/PDF, Verify PDF.
+
+## 62. Developer / AI MUST NOT
 
 UI MUST NOT:
 
-1. copy Excel pixel-perfect for interactive form while reducing usability;
-2. redesign official XLSX/PDF export;
-3. add extra subtype from checkbox artifacts;
+1. replicate Excel pixel-perfect as interactive form;
+2. redesign official export;
+3. add extra subtype;
 4. make Service Impact single-select;
-5. replace canonical status with Archived;
+5. replace business state with Archived;
 6. expose invalid Reopen destination;
 7. imply first Reviewer/Approver viewer owns record;
-8. expose general Requester edit during `PENDING_REVIEW`;
+8. expose general Requester edit during Pending Review;
 9. require all five Result rows;
-10. treat Draft incomplete fields as immediate blocking errors;
-11. treat warnings as errors;
+10. block incomplete Draft;
+11. treat Warning as Error;
 12. make attachment mandatory;
-13. show uploaded file Ready before ClamAV CLEAN;
-14. allow Download for scan-failed/unscanned file;
-15. present manual/freehand signature as required workflow identity;
-16. equate System/Organization signer with human Approved By;
-17. claim unsigned Approved PDF is final after signing failure;
-18. label XLSX digitally signed under PDF rule;
-19. inject routine View into Business Timeline;
-20. expose raw Access/Security Audit to normal viewer without privileged permission/scope;
-21. provide audit delete/purge-by-age control;
-22. state audit retention is 12 months;
-23. expose inaccessible records through search/counts;
-24. rely on hidden button as authorization;
-25. overuse brand color;
-26. switch Vue/Inertia to React;
-27. offer HTML PDF fallback;
-28. call fidelity/signing failure success;
-29. block page synchronously for renderer/signing;
-30. display export technical state as NSCMF state;
-31. hide 7-day export-binary expiry;
-32. show Saved after optimistic conflict;
-33. show private storage/key/renderer/scanner paths in errors;
-34. add tenant switcher;
-35. add MFA control current MVP;
-36. show password-composition checklist beyond minimum 6;
-37. expose plaintext temporary/current/new password in UI logs/history;
-38. allow sensitive admin action after failed password re-auth;
-39. keep current user in stale authenticated shell after own session revocation;
-40. make public validator a public record/history browser;
-41. call `VALID_SUPERSEDED` modified/forged;
-42. claim TSA/trusted third-party timestamp current MVP;
-43. expose private key/certificate secret material in public/admin UI.
+13. show Ready before ClamAV CLEAN;
+14. allow download of unclean file;
+15. require freehand signature;
+16. equate System signer with Approved By;
+17. offer unsigned Approved PDF after signing failure;
+18. label XLSX digitally signed;
+19. put routine View in Business Timeline;
+20. expose raw audit without privileged permission/authorization;
+21. offer audit purge-by-age;
+22. state 12-month audit retention;
+23. rely on hidden button as authorization;
+24. add tenant switcher;
+25. add MFA current MVP;
+26. show password composition checklist;
+27. expose plaintext credentials/private key;
+28. allow failed re-auth mutation;
+29. make public validator a public record browser;
+30. call Superseded modified;
+31. claim TSA current MVP;
+32. show Unit/Division UI;
+33. show Reviewer/Approval Scope UI;
+34. use Team to explain why Review/Approval is allowed/denied;
+35. expose Spatie Teams switch/configuration;
+36. expose direct permission-to-user assignment as normal MVP feature.
 
 ---
 
-# PART V — TESTABLE UX ACCEPTANCE
+# PART T — ACCEPTANCE
 
 ## 63. Authentication / Session
 
-- [ ] Login shows username/password only; no self-register/MFA.
-- [ ] Password UI says minimum 6 only; no composition checklist.
-- [ ] generic login failure does not enumerate username.
-- [ ] temporary password forces password-change screen.
-- [ ] session expiry/revocation returns to Login.
-- [ ] no security screen invents new NSCMF business status.
+- [ ] username/password only, no register/MFA;
+- [ ] min6 only;
+- [ ] temp password forced change;
+- [ ] expiry/revocation returns Login.
 
-## 64. Forms / Concurrency
+## 64. Organization / Authorization UX
 
-- [ ] Draft can save incomplete data.
-- [ ] autosave states accurate.
-- [ ] optimistic conflict is not Saved and does not overwrite.
-- [ ] Service Impact multi-select; Result-only remains narrow.
-- [ ] warnings/errors visually distinct.
+- [ ] Team administration exists;
+- [ ] no Unit/Division/Scope administration exists;
+- [ ] Team shown as organizational info, not entitlement;
+- [ ] Review menu/actions follow effective permissions/current state;
+- [ ] Approval menu/actions follow effective permissions/current state;
+- [ ] direct-user permission UI absent;
+- [ ] Spatie Teams UI absent.
 
-## 65. Attachments
+## 65. Forms / Concurrency
 
-- [ ] limits/types visible.
-- [ ] unsupported/oversized/zero-byte specific failure.
-- [ ] structural success enters Scanning, not Ready.
-- [ ] only CLEAN becomes Ready/downloadable.
-- [ ] malware/error/timeout/unavailable never looks successful.
+- [ ] Draft incomplete save;
+- [ ] optimistic conflict accurate;
+- [ ] Service Impact multi-select;
+- [ ] Result-only narrow;
+- [ ] warnings/errors distinct.
 
-## 66. Workflow / History / Audit
+## 66. Attachments
 
-- [ ] Review/Approval queues use table pattern and remain non-exclusive.
-- [ ] mandatory reason dialogs work.
-- [ ] Business Timeline excludes routine access noise.
-- [ ] raw Access/Security Audit appears only for privileged eligible actor.
-- [ ] audit UI has no age-based purge/delete.
-- [ ] Archived remains separate badge.
+- [ ] constraints visible;
+- [ ] only CLEAN Ready/downloadable;
+- [ ] scan failure never success.
 
-## 67. Export / Signing
+## 67. Workflow / Audit
 
-- [ ] XLSX/PDF choices explicit.
-- [ ] queued/processing/ready/failed/expired not business states.
-- [ ] 7-day binary expiry shown.
-- [ ] Approved PDF shows System/Organization signing when READY.
-- [ ] signing failure offers no unsigned equivalent.
-- [ ] critical missing signing identity is surfaced safely to appropriate admin/operator UI.
+- [ ] Review/Approval non-exclusive and permission-based;
+- [ ] mandatory reason dialogs;
+- [ ] Business Timeline excludes access noise;
+- [ ] audit privilege works without Team scope;
+- [ ] workflow iteration can distinguish reopened approval cycles where needed.
 
-## 68. Public Validator
+## 68. Export / Validator
 
-- [ ] works without Login.
-- [ ] PDF-only upload.
-- [ ] shows scan/verification progress.
-- [ ] displays Valid—Current / Valid—Superseded / Invalid—Modified / Unknown correctly.
-- [ ] Superseded explanatory copy says authentic but no longer current.
-- [ ] no private record/audit/attachment leakage.
-- [ ] no TSA claim.
-- [ ] temporary upload not shown as persisted attachment.
-
-## 69. Administration
-
-- [ ] sensitive role/permission/password reset requests current-password re-auth.
-- [ ] failed re-auth leaves action unapplied.
-- [ ] target-session revocation feedback is understandable.
-- [ ] own-session revocation returns actor to Login.
-- [ ] Protected Superadmin invariant remains visible/enforced.
+- [ ] XLSX/PDF explicit;
+- [ ] queue statuses technical only;
+- [ ] immutable snapshot behavior not misleading;
+- [ ] 7-day binary expiry shown;
+- [ ] Approved PDF signer distinction;
+- [ ] no unsigned fallback;
+- [ ] public current/superseded/modified/unknown correct.
 
 ---
 
-# PART W — FIGJAM ALIGNMENT
+# PART U — FIGJAM / AUTHORITY / NEXT
 
-## 70. FigJam Role
+## 69. FigJam Alignment
 
-Existing FigJam remains product/system-flow proposal board and SHOULD reflect:
+Existing FigJam remains a product/system-flow reference. It currently requires a later synchronization pass to reflect the confirmed Team/permission simplification. **This document does not perform or imply that FigJam has already been updated.**
 
-- canonical lifecycle;
-- current scope;
-- only genuinely remaining TBDs;
-- architecture/export direction;
-- confirmed security baseline at high level.
-
-Current board has been synchronized with a dedicated **Security Baseline — Confirmed** section covering identity/session, credential admin, ClamAV, permanent audit, Approved-PDF trust, and public PDF validation.
-
-FigJam does not need every field-level UI rule.
-
----
-
-# PART X — AUTHORITY MATRIX / REMAINING UI TBD
-
-## 71. Authority Matrix
+## 70. Authority Matrix
 
 | Concern | Authority |
 |---|---|
@@ -852,48 +771,21 @@ FigJam does not need every field-level UI rule.
 | Architecture | `09_System_Architecture.md` |
 | Security | `10_Security_Rules.md` |
 
-## 72. Still Refinable / TBD Without Changing Core UX
+## 71. Still Refinable / TBD
 
-- exact neutral grayscale/font assets/breakpoints;
-- default table page size;
-- autosave trigger interval;
+- neutral grayscale/font assets/breakpoints;
+- table page size;
+- autosave interval;
 - toast/animation duration;
-- exact Unit/Division options;
+- exact Team master-data options;
 - official numbering copy after SOP;
-- additional export controls if later approved;
-- export polling interval;
-- exact placement/layout of privileged Access/Security Audit pages;
-- exact admin/operator placement of signing-readiness health state;
-- exact visual certificate/signature indicator;
-- exact third-login/max-2 session replacement UX;
-- exact public-validator metadata fields subject to minimum-disclosure API contract.
+- additional export controls if approved;
+- exact placement of audit/readiness pages;
+- third-login UX;
+- public validator minimum-disclosure metadata fields.
 
-Not TBD anymore:
+## 72. Next Document
 
-```text
-min 6 password / no composition
-no MFA
-temporary password + mandatory change
-30m idle / 8h absolute / max2 sessions
-sensitive admin password re-auth + target session revocation
-ClamAV CLEAN attachment gate
-no age-based Business/Access/Security Audit purge
-Approved-PDF System/Organization signing + critical key readiness
-public PDF validator result semantics
-no TSA MVP
-exact-template XLSX/PDF
-async export
-168-hour export binary window
-Business Timeline vs Access Audit separation
-optimistic conflict behavior
-```
+Next fixed-order document:
 
----
-
-## 73. Next Document
-
-Next document in fixed order:
-
-**`10_Security_Rules.md`**
-
-It is authoritative for security-control behavior reflected by these UI states.
+**`11_ERD_Database_Schema.md`**.

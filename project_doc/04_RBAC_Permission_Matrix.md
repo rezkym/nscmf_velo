@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-RBAC-004  
 > **Document Order:** 04 / 20  
-> **Status:** Draft — Synchronized through Confirmed Security Decisions  
+> **Status:** Draft — Confirmed Permission-Centric Authorization + Spatie Alignment  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
 > **Last Updated:** 2026-08-21
@@ -18,44 +18,34 @@ Dokumen ini mendefinisikan **siapa boleh melakukan apa** pada NSCMF Digital Form
 Dokumen menjadi source of truth untuk:
 
 - default role template;
-- permission catalog;
-- record visibility;
-- Unit/Division Reviewer Scope;
-- Approval Scope;
+- canonical permission catalog;
+- permission-based authorization behavior;
+- ownership rules yang memang secara eksplisit berlaku pada Requester;
 - multi-role behavior;
 - custom role behavior;
 - delegated administration;
 - protected Superadmin restrictions;
 - privileged audit visibility permissions;
-- authorization guardrails.
+- Team sebagai organizational metadata yang **bukan** authorization scope;
+- boundary antara aplikasi dan `spatie/laravel-permission`;
+- authorization guardrails untuk implementation dan AI coding agent.
 
-Business Rules menentukan invariant. User Flow menentukan urutan interaction. State Flow menentukan lifecycle yang valid. Validation Rules menentukan apakah input/action valid. RBAC menentukan apakah actor tertentu berhak melakukan action pada current record/state. `10_Security_Rules.md` menambahkan security preconditions seperti re-authentication/session revocation tanpa mengubah business permission semantics.
-
-Technology implementation boundary telah dikunci pada `08_Tech_Stack_Specification.md`:
-
-```text
-Spatie Laravel Permission 8.x
-+ Laravel Policies / Gates
-+ custom ownership / Unit / Approval scope logic
-+ domain state / invariant checks
-```
-
-Spatie menangani role/permission primitives, **bukan seluruh business authorization model**.
-
-`09_System_Architecture.md` mengunci bahwa routine record/resource access evidence berada pada **Access Audit** terpisah, sedangkan `nscmf.timeline.view` mengacu pada **Business Timeline** yang berisi business mutation/workflow/lifecycle evidence. `10_Security_Rules.md` mengunci permanent audit preservation dan protected raw Access/Security Audit visibility.
+Business Rules menentukan invariant. User Flow menentukan urutan interaction. State Flow menentukan lifecycle yang valid. Validation Rules menentukan apakah input/action valid. RBAC menentukan apakah actor mempunyai capability yang dibutuhkan. Security Rules menambahkan security preconditions seperti re-authentication dan session revocation tanpa mengubah business permission semantics.
 
 ---
 
-## 2. Core Authorization Model
+## 2. Confirmed Authorization Direction
+
+Current authorization model sengaja dibuat sederhana dan permission-centric:
 
 ```text
-Effective Access
+Effective Action Eligibility
 =
-Permission
+Valid Authenticated Session
 +
-Record Visibility
+Required Permission
 +
-Scope / Ownership
+Ownership (only where an explicit business rule requires it)
 +
 Current Business State
 +
@@ -68,341 +58,469 @@ Validation Rules
 Protected Invariants
 +
 Security Preconditions
++
+Concurrency / Current-State Revalidation
 ```
 
-Permission saja tidak cukup.
+Tidak ada lagi Reviewer Scope, Approval Scope, Unit/Division Scope, atau Team-based authorization.
+
+### 2.1 Permission Answers Capability
+
+Permission menjawab:
+
+> Apakah actor memiliki capability untuk melakukan action ini?
 
 Contoh:
 
-- `nscmf.approve` tetapi record bukan `PENDING_APPROVAL` → DENY;
-- `nscmf.review.forward` tetapi record bukan `PENDING_REVIEW` → DENY;
-- `nscmf.change.result.edit` tetapi actor bukan owner/visible authorized actor atau record bukan Change `PENDING_REVIEW` → DENY;
-- `nscmf.reopen` tetapi record archived → DENY sampai Unarchive;
-- `nscmf.archive` tetapi record `DRAFT` → DENY;
-- `users.reset_password` tanpa successful password re-authentication → DENY;
-- `audit.access.view` tanpa underlying eligible audit/resource scope → DENY unless future explicit global-auditor mandate exists;
-- global Superadmin visibility tetap tidak memberi hard-delete NSCMF.
+```text
+nscmf.review.forward
+```
+
+berarti actor dapat mencoba menjalankan `Forward to Approval`.
+
+### 2.2 State and Business Rules Still Apply
+
+Permission bukan bypass terhadap state/business rules.
+
+Contoh:
+
+- actor punya `nscmf.approve` tetapi record bukan `PENDING_APPROVAL` → **DENY**;
+- actor punya `nscmf.review.reject` tetapi record bukan `PENDING_REVIEW` → **DENY**;
+- actor punya `nscmf.change.result.edit` tetapi record bukan Change `PENDING_REVIEW` → **DENY**;
+- actor punya `nscmf.archive` tetapi record `DRAFT` → **DENY**;
+- actor punya `nscmf.reopen` tetapi record `CANCELLED` → **DENY**;
+- actor punya `users.reset_password` tetapi sensitive-action password re-authentication gagal → **DENY**.
+
+### 2.3 Team Is Not Authorization
+
+Organization menggunakan **Team**, misalnya Team NOC, Team CS, Team Fulfillment, dan team lain sesuai konfigurasi organisasi.
+
+Team adalah organizational/profile data. Team MUST NOT:
+
+- menentukan apakah user boleh Review;
+- menentukan apakah user boleh Approve;
+- membatasi Review queue;
+- membatasi Approval queue;
+- membuat role berbeda per Team;
+- membuat permission berbeda per Team;
+- menjadi hidden tenant boundary;
+- menjadi pengganti permission.
+
+Jika user Team NOC memiliki `nscmf.review.forward`, maka Team NOC itu sendiri tidak menambah atau mengurangi capability tersebut.
 
 ---
 
-## 3. Authorization Principles
+# PART A — AUTHORIZATION PRINCIPLES
+
+## 3. Core Principles
 
 ### RBAC-PRINCIPLE-001 — Deny by Default
-Action yang tidak diberikan atau tidak memenuhi scope/state MUST ditolak.
+Action tanpa required permission atau tanpa prerequisite domain/security yang valid MUST ditolak.
 
 ### RBAC-PRINCIPLE-002 — Server-Side Enforcement
-Permission, visibility, ownership/scope, archive flag, current state, validation, dan required security preconditions MUST diverifikasi backend.
+Permission, ownership requirement, archive flag, current state, validation, protected invariant, security precondition, dan stale-state protection MUST diverifikasi backend.
 
 ### RBAC-PRINCIPLE-003 — Multi-Role Allowed
 Satu user MAY memiliki beberapa role.
 
-### RBAC-PRINCIPLE-004 — Permission Union
-Effective permission multi-role pada dasarnya union seluruh role, tetap tunduk state/scope/invariants/security preconditions.
+### RBAC-PRINCIPLE-004 — Role Groups Permissions
+Role digunakan untuk mengelompokkan permission dan memudahkan administrasi. Application authorization SHOULD memeriksa permission capability, bukan hard-code role name.
 
-### RBAC-PRINCIPLE-005 — Scope Independent From Role Name
-Reviewer/Approver role tidak otomatis global.
+### RBAC-PRINCIPLE-005 — Permission Union
+Effective permission user merupakan union dari permission yang diperoleh melalui seluruh assigned roles.
 
-### RBAC-PRINCIPLE-006 — Custom Roles Supported
-Custom role MAY memperoleh kombinasi permission granular selama tidak melanggar protected invariant.
+### RBAC-PRINCIPLE-006 — No Reviewer/Approver Scope
+Reviewer dan Approver tidak memiliki organizational scope. Actor yang memiliki required permission dapat bertindak pada record dengan state yang eligible, subject to domain/security rules.
 
-### RBAC-PRINCIPLE-007 — No Impersonation
+### RBAC-PRINCIPLE-007 — Team Has No Authorization Effect
+Team membership adalah informational/organizational relationship dan MUST NOT dimasukkan ke permission decision.
+
+### RBAC-PRINCIPLE-008 — Custom Roles Supported
+Custom role MAY memperoleh kombinasi granular permissions selama protected invariant tetap dipatuhi.
+
+### RBAC-PRINCIPLE-009 — No Impersonation
 Tidak ada user impersonation/login-as-user.
 
-### RBAC-PRINCIPLE-008 — Narrow Permission Stays Narrow
-Permission yang dibuat untuk field subset seperti `nscmf.change.result.edit` MUST NOT ditafsirkan sebagai general form edit capability.
+### RBAC-PRINCIPLE-010 — Narrow Permission Stays Narrow
+Permission seperti `nscmf.change.result.edit` MUST NOT ditafsirkan sebagai general submitted-form edit capability.
 
-### RBAC-PRINCIPLE-009 — Package Does Not Override Domain Scope
-Spatie role/permission success MUST NOT bypass ownership, Unit/Division scope, Approval Scope, state, archive treatment, security preconditions, or protected invariants.
+### RBAC-PRINCIPLE-011 — Security Preconditions Are Not Permissions
+Password re-authentication, valid session, malware gate, signing readiness, dan equivalent security controls bukan business permission baru.
 
-### RBAC-PRINCIPLE-010 — Security Preconditions Are Not New Business Permissions
-Password re-authentication, session validity, malware gate, dan signing readiness are security preconditions. Mereka tidak menciptakan alternate route untuk memperoleh business permission atau persistent NSCMF state baru.
-
----
-
-# PART A — DEFAULT ROLE TEMPLATE
-
-## 4. Default Roles
-
-| Role | Purpose | Default Scope |
-|---|---|---|
-| `Superadmin` | Protected authority tertinggi | Global |
-| `Requester` | Membuat/mengajukan NSCMF | Own records |
-| `Reviewer` | Review | Assigned Unit/Division(s) |
-| `Approver` | Final approval | Assigned Approval Scope; may span units |
-
-Role template adalah starting point, bukan batas custom roles.
+### RBAC-PRINCIPLE-012 — Package Does Not Override Domain Rules
+Successful Spatie permission resolution MUST NOT bypass business state, ownership where required, archive treatment, validation, protected invariant, security precondition, atau current-state concurrency check.
 
 ---
 
-## 5. Protected Superadmin
+# PART B — SPATIE LARAVEL PERMISSION BOUNDARY
+
+## 4. Package Authority
+
+Confirmed package:
+
+```text
+spatie/laravel-permission ^8
+```
+
+Package digunakan untuk role/permission primitives dan Laravel Gate integration.
+
+Application MUST use the package's standard schema rather than creating a second RBAC schema.
+
+Package-owned tables:
+
+```text
+roles
+permissions
+model_has_roles
+model_has_permissions
+role_has_permissions
+```
+
+`11_ERD_Database_Schema.md` MUST reference these tables as package-owned and MUST NOT create duplicate alternatives such as:
+
+```text
+user_roles
+user_permissions
+role_permissions
+reviewer_roles
+approver_roles
+effective_permissions
+```
+
+unless a future explicit package replacement decision occurs.
+
+## 5. Spatie Teams Feature MUST Be Disabled
+
+The package has a feature also named `teams`. It is **not** the same thing as NSCMF organizational Team.
+
+Required configuration:
+
+```php
+'permissions.teams' / config('permission.teams') = false
+```
+
+Conceptually, current `config/permission.php` MUST preserve:
+
+```php
+'teams' => false,
+```
+
+Implementation MUST NOT:
+
+- enable Spatie Teams to represent Team NOC/CS/Fulfillment;
+- add Spatie `team_id` to role/permission pivots for current MVP;
+- call `setPermissionsTeamId()` for normal authorization;
+- create team-scoped role instances;
+- create team-scoped permission assignments.
+
+Business `teams` data belongs to the application domain and stays separate from Spatie authorization tables.
+
+## 6. Direct User Permission Policy
+
+Spatie supports direct permission assignment through `model_has_permissions`. The table remains part of the package schema.
+
+However, current MVP administration model is:
+
+```text
+Permission → Role → User
+```
+
+Therefore:
+
+- normal admin UI MUST NOT expose direct permission-to-user assignment as an MVP feature;
+- user authorization normally inherits permissions through assigned roles;
+- `model_has_permissions` MUST NOT be deleted or repurposed because it belongs to the package;
+- future direct-user permission usage requires explicit specification change.
+
+## 7. Wildcard Permission Policy
+
+Current MVP does not enable Spatie wildcard permissions.
+
+Required direction:
+
+```php
+'enable_wildcard_permission' => false
+```
+
+Notation such as:
+
+```text
+nscmf.review.*
+```
+
+MAY appear only as human-readable shorthand in documentation. It MUST NOT be interpreted as a seeded wildcard permission row.
+
+Actual permissions remain explicit, for example:
+
+```text
+nscmf.review
+nscmf.review.forward
+nscmf.review.return
+nscmf.review.reject
+```
+
+## 8. Guard
+
+Current session-authenticated web application uses the normal single `web` guard context for Spatie role/permission resolution. Additional permission guards MUST NOT be introduced without an explicit authentication architecture change.
+
+---
+
+# PART C — DEFAULT ROLE TEMPLATE
+
+## 9. Default Roles
+
+| Role | Purpose |
+|---|---|
+| `Superadmin` | Protected administrative authority tertinggi |
+| `Requester` | Membuat dan mengelola own NSCMF workflow participation |
+| `Reviewer` | Melakukan Review pada eligible `PENDING_REVIEW` record |
+| `Approver` | Melakukan final Approval pada eligible `PENDING_APPROVAL` record |
+
+Role template adalah starting point. Custom role dapat dibuat dengan different permission bundle.
+
+## 10. Protected Superadmin
 
 Protected Superadmin:
 
-- seeded saat initial setup;
-- global NSCMF visibility, termasuk archived;
-- default memiliki normal NSCMF/admin permissions;
+- seeded pada initial setup;
+- protected role assignment MUST remain present;
+- default menerima seluruh application permissions yang memang tersedia;
+- memiliki global operational visibility;
 - default eligible melihat privileged Access Audit dan Security Audit;
 - tidak dapat disable/delete/downgrade/lose protected role;
-- tidak memiliki NSCMF hard-delete capability karena capability tersebut tidak tersedia.
+- tidak memiliki NSCMF hard-delete karena capability itu tidak tersedia;
+- tetap tunduk canonical state machine, validation, security preconditions, dan protected business invariants.
 
-Delegated administrator tidak dapat melewati protection ini.
+### 10.1 No Universal Business-Invariant Bypass
+
+Implementation SHOULD use normal permission checks/Policies for application actions. Protected Superadmin MUST NOT memperoleh generic bypass yang membuat invalid business action valid.
+
+Contoh yang tetap forbidden untuk Superadmin:
+
+- Approve record yang bukan `PENDING_APPROVAL` melalui normal Approve action;
+- Reopen `CANCELLED`;
+- hard-delete NSCMF;
+- bypass mandatory reason;
+- bypass mandatory Approved-PDF signing by declaring unsigned output valid.
 
 ---
 
-# PART B — PERMISSION CATALOG
+# PART D — AUTHENTICATION IS NOT A SPATIE PERMISSION
 
-## 6. Naming Convention
+## 11. Login / Logout
 
-Conceptual naming:
+`session.login` dan `session.logout` are **not** Spatie business permissions.
+
+Login/logout merupakan authentication/session operations yang dikelola oleh Laravel Fortify/session security rules.
+
+Enabled account dengan credential/session conditions yang valid dapat menjalani authentication flow tanpa membutuhkan row `session.login` pada table `permissions`.
+
+Current authentication remains:
 
 ```text
-<domain>.<action>[.<qualifier>]
+username + password
+minimum 6 characters
+no composition requirement
+no MFA
 ```
 
-Code naming MAY berbeda sedikit selama mapping terdokumentasi.
-
 ---
 
-## 7. Authentication / Session
+# PART E — NSCMF PERMISSION CATALOG
 
-| Permission | Purpose |
-|---|---|
-| `session.login` | Login account valid |
-| `session.logout` | Logout own session |
-
-Disabled normal account tidak dapat login. Protected Superadmin tidak dapat disabled.
-
-Authentication policy itself is not granted by permission: current MVP is password-only, minimum 6 characters, no composition requirement, no MFA, and session controls follow `10_Security_Rules.md`.
-
----
-
-## 8. NSCMF Core Permissions
+## 12. NSCMF Core
 
 | Permission | Description |
 |---|---|
 | `nscmf.create` | Membuat record NSCMF baru |
-| `nscmf.draft.edit` | Edit eligible `DRAFT` / `REVISION_REQUIRED` own record |
-| `nscmf.submit` | Submit `DRAFT` atau Resubmit `REVISION_REQUIRED` |
+| `nscmf.draft.edit` | Edit eligible own `DRAFT` / `REVISION_REQUIRED` |
+| `nscmf.submit` | Submit own `DRAFT` atau Resubmit own `REVISION_REQUIRED` |
 | `nscmf.cancel` | Cancel own `DRAFT` sebelum first Submit |
-| `nscmf.change.result.edit` | Narrow edit untuk `NSCMF - Change / Result of Changes` pada eligible `PENDING_REVIEW` record |
-| `nscmf.view` | View record yang lolos visibility |
-| `nscmf.view.history` | Access History berdasarkan visibility |
-| `nscmf.attachment.manage` | Manage attachment pada editable/authorized context |
-| `nscmf.export` | Export visible record |
-| `nscmf.export.bulk` | Bulk export visible records |
-| `nscmf.timeline.view` | View Business Timeline pada visible record |
+| `nscmf.change.result.edit` | Narrow edit Result of Changes pada eligible Change `PENDING_REVIEW` |
+| `nscmf.view` | View NSCMF subject to applicable resource/ownership rules |
+| `nscmf.view.history` | Access History subject to applicable resource rules |
+| `nscmf.attachment.manage` | Manage attachment pada editable authorized context |
+| `nscmf.export` | Export an authorized visible record |
+| `nscmf.export.bulk` | Bulk export authorized selected records |
+| `nscmf.timeline.view` | View Business Timeline pada authorized record |
 
-### RBAC-CORE-001 — View Implies Business Timeline
-Legitimate viewer MUST dapat melihat **Business Timeline** record tersebut.
+### RBAC-CORE-001 — Requester Ownership
+Requester mutation rules remain ownership-bound where the Business Rules say `own record`.
 
-Routine view/download/access evidence sendiri mengikuti separate Access Audit architecture dan tidak wajib muncul sebagai Business Timeline row.
-
-### RBAC-CORE-002 — Export Requires View
-Export tidak dapat digunakan untuk inaccessible record.
-
-### RBAC-CORE-003 — State-Neutral View
-View/opening record tidak mengubah business state atau membuat exclusive assignee.
-
-### RBAC-CORE-004 — Result Permission Eligibility
-Default `nscmf.change.result.edit` behavior:
+Examples:
 
 ```text
-actor has nscmf.change.result.edit
-+ record family = CHANGE
-+ business_status = PENDING_REVIEW
-+ actor owns record OR has explicitly configured valid visibility for delegated custom use
-+ record not archived
-= may edit Result-of-Changes fields only
+nscmf.draft.edit + owns record + editable state
+nscmf.submit + owns record + submit/resubmit state
+nscmf.cancel + owns record + DRAFT + never submitted
+nscmf.change.result.edit + owns Change + PENDING_REVIEW
 ```
 
-Default Requester role menggunakan own-record scope. General submitted fields tetap locked.
+### RBAC-CORE-002 — View Does Not Change State
+Opening/viewing record never creates exclusive ownership or workflow state.
+
+### RBAC-CORE-003 — Export Requires Authorized View
+An inaccessible record MUST NOT become accessible through export ID, bulk selection, or download endpoint.
+
+### RBAC-CORE-004 — Result Permission Is Narrow
+`nscmf.change.result.edit` permits only Result-of-Changes fields in the exact state/family/ownership context defined by `06_Validation_Rules.md`.
 
 ---
 
-## 9. Review Permissions
+## 13. Review Permissions
 
 | Permission | Description | Eligible State |
 |---|---|---|
-| `nscmf.review` | Melakukan review activity | `PENDING_REVIEW` |
-| `nscmf.review.forward` | Forward ke Approval | `PENDING_REVIEW` |
-| `nscmf.review.return` | Return ke Requester | `PENDING_REVIEW` |
-| `nscmf.review.reject` | Reject pada Review | `PENDING_REVIEW` |
+| `nscmf.review` | Review activity/readiness | `PENDING_REVIEW` |
+| `nscmf.review.forward` | Forward to Approval | `PENDING_REVIEW` |
+| `nscmf.review.return` | Return to Requester | `PENDING_REVIEW` |
+| `nscmf.review.reject` | Reject at Review | `PENDING_REVIEW` |
 
-### RBAC-REV-001 — Scope Required
-Reviewer action membutuhkan matching Unit/Division scope.
+Rules:
 
-### RBAC-REV-002 — Non-Exclusive Reviewer
-Reviewer A tidak mengunci Reviewer B/C yang juga eligible.
+- no Team/scope match is required;
+- Reviewer A does not lock Reviewer B/C;
+- multiple Reviewer contributors may exist;
+- opening a candidate does not assign it;
+- Return/Reject reason requirements remain authoritative in Validation Rules;
+- Forward comment remains optional;
+- Change Forward requires Result gate.
 
-### RBAC-REV-003 — Multiple Contributors
-Satu NSCMF MAY memiliki beberapa Reviewer contributors sepanjang lifecycle.
+Conceptual eligibility:
 
-### RBAC-REV-004 — Tracking Is Not Ownership Lock
-`assigned`, `modified by`, `reviewed by`, viewer/contributor metadata tidak boleh menjadi exclusive authorization lock.
+```text
+required review permission
++ record business_status = PENDING_REVIEW
++ record not blocked by applicable lifecycle/security rule
++ action validation
+= eligible review action
+```
 
-### RBAC-REV-005 — Reviewer Access Logging
-Reviewer view/access MUST mengikuti Access Audit requirement tanpa state transition. Routine access evidence MUST NOT diperlakukan sebagai business workflow action pada normal Business Timeline.
-
-### RBAC-REV-006 — Change Result Is Not Reviewer Ownership
-Change Result capture tidak otomatis menjadi Reviewer permission. Default actor adalah Requester/owner melalui `nscmf.change.result.edit`. Reviewer tetap memvalidasi Result melalui Forward gate.
-
-### RBAC-REV-007 — Review Reasons
-Return dan Reject membutuhkan mandatory reason menurut `06_Validation_Rules.md`. Reason requirement bukan permission baru.
-
----
-
-## 10. Approval Permissions
+## 14. Approval Permissions
 
 | Permission | Description | Eligible State |
 |---|---|---|
 | `nscmf.approve` | Final Approve | `PENDING_APPROVAL` |
-| `nscmf.approval.return_reviewer` | Return ke Review | `PENDING_APPROVAL` |
-| `nscmf.approval.return_requester` | Return ke Requester revision | `PENDING_APPROVAL` |
-| `nscmf.approval.reject` | Reject pada Approval | `PENDING_APPROVAL` |
+| `nscmf.approval.return_reviewer` | Return to Review | `PENDING_APPROVAL` |
+| `nscmf.approval.return_requester` | Return to Requester revision | `PENDING_APPROVAL` |
+| `nscmf.approval.reject` | Reject at Approval | `PENDING_APPROVAL` |
 
-### RBAC-APR-001 — Scope Required
-Approver action membutuhkan matching Approval Scope.
+Rules:
 
-### RBAC-APR-002 — Multi-Unit Scope
-Satu Approver MAY mencakup beberapa Unit/Division.
+- no Team/scope match is required;
+- Approver pool is non-exclusive;
+- one successful eligible Approve is sufficient;
+- `Approved By` is the actor who successfully commits `PENDING_APPROVAL -> APPROVED`;
+- stale second Approve/Return/Reject is denied after state changes;
+- Return/Reject reasons remain mandatory where defined;
+- Approve comment remains optional.
 
-### RBAC-APR-003 — Non-Exclusive Approver
-Semua eligible Approver dalam scope dapat melihat/bertindak selama state valid.
+Conceptual eligibility:
 
-### RBAC-APR-004 — Single Final Approval
-Satu successful final Approve cukup membuat record `APPROVED`.
+```text
+required approval permission
++ record business_status = PENDING_APPROVAL
++ current-state/business/security prerequisites
+= eligible approval action
+```
 
-### RBAC-APR-005 — Approved By
-`Approved By` = actor yang berhasil melakukan transition `PENDING_APPROVAL -> APPROVED`.
-
-### RBAC-APR-006 — Activity Evidence
-Approver workflow/lifecycle actions dari iteration sebelumnya MAY muncul pada Business Timeline. Routine Approver view/access evidence berada pada separate Access Audit dan tidak membuat viewer menjadi owner/assignee.
-
-### RBAC-APR-007 — No Duplicate Final Approval
-Setelah state `APPROVED`, stale Approve kedua MUST ditolak.
-
-### RBAC-APR-008 — Approval Reasons
-Return to Reviewer, Return to Requester, dan Reject membutuhkan mandatory reason menurut Validation Rules. Approve comment Optional.
-
----
-
-## 11. Recovery / Lifecycle Permissions
+## 15. Recovery / Lifecycle
 
 | Permission | Description |
 |---|---|
-| `nscmf.reopen` | Reopen/Revert eligible `REJECTED` / `APPROVED` record |
-| `nscmf.archive` | Archive **dan Unarchive** eligible NSCMF lifecycle treatment |
+| `nscmf.reopen` | Reopen/Revert eligible `REJECTED` / `APPROVED` |
+| `nscmf.archive` | Archive and Unarchive eligible terminal/protected record |
 
-### RBAC-LIFE-001 — Reopen Default
-Protected Superadmin memiliki `nscmf.reopen` default.
-
-### RBAC-LIFE-002 — Reopen Delegable
-Role lain MAY memperoleh explicit `nscmf.reopen`.
-
-### RBAC-LIFE-003 — Reopen Is Not Global View
-`nscmf.reopen` tidak otomatis memberikan `nscmf.view.all`.
-
-### RBAC-LIFE-004 — Reopen State Rules
-Reopen hanya valid jika:
+Reopen requires:
 
 ```text
-business_status in {REJECTED, APPROVED}
-AND is_archived = false
-AND mandatory reason
-AND destination in {REVISION_REQUIRED, PENDING_REVIEW}
+nscmf.reopen
++ authorized record access
++ business_status in {REJECTED, APPROVED}
++ is_archived = false
++ mandatory reason
++ destination in {REVISION_REQUIRED, PENDING_REVIEW}
 ```
 
-Reopen tidak boleh menuju `DRAFT` atau `PENDING_APPROVAL`.
-
-### RBAC-LIFE-005 — Archive Delegable
-`nscmf.archive` MAY diberikan ke role selain Superadmin.
-
-### RBAC-LIFE-006 — Archive State Rules
-Archive hanya valid jika:
-
-```text
-business_status in {APPROVED, REJECTED, CANCELLED}
-AND is_archived = false
-AND mandatory reason
-```
-
-Archive dilarang pada `DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL`.
-
-### RBAC-LIFE-007 — Unarchive Uses Lifecycle Permission
-Unarchive menggunakan `nscmf.archive` pada current conceptual permission model:
+Archive requires:
 
 ```text
 nscmf.archive
-+ valid visibility
-+ is_archived = true
++ authorized record access
++ business_status in {APPROVED, REJECTED, CANCELLED}
++ is_archived = false
 + mandatory reason
 ```
 
-Unarchive tidak mengubah `business_status`.
+Unarchive uses `nscmf.archive`, requires authorized record access + `is_archived=true` + mandatory reason, and does not change `business_status`.
 
-### RBAC-LIFE-008 — Archived Workflow Lock
-Archived record tidak menerima normal business workflow-changing action. Untuk `APPROVED`/`REJECTED`, Unarchive diperlukan sebelum Reopen.
-
-### RBAC-LIFE-009 — No Delete Permission
-Tidak ada `nscmf.delete` / `nscmf.force_delete`.
+There is no `nscmf.delete` or `nscmf.force_delete` permission.
 
 ---
 
-# PART C — USER / ROLE / ORGANIZATION / SETTINGS ADMINISTRATION
+# PART F — ADMINISTRATION PERMISSIONS
 
-## 12. User Management Permissions
+## 16. User Management
 
 | Permission | Description |
 |---|---|
-| `users.view` | View user |
-| `users.create` | Create user |
-| `users.update` | Update eligible user |
-| `users.enable` | Enable eligible user |
-| `users.disable` | Disable eligible normal user |
-| `users.reset_password` | Reset credential according to temporary-password security flow |
+| `users.view` | View users |
+| `users.create` | Create normal users |
+| `users.update` | Update eligible normal users |
+| `users.enable` | Enable eligible normal users |
+| `users.disable` | Disable eligible normal users |
+| `users.reset_password` | Reset credential through temporary-password flow |
 | `users.assign_roles` | Assign/remove roles |
-| `users.assign_units` | Assign/move Unit/Division |
-| `users.assign_scopes` | Configure eligible reviewer/approval scope |
+| `users.assign_team` | Assign/move user to organizational Team |
 
-User administration MAY didelegasikan, tetapi protected Superadmin invariants tetap berlaku.
+User Team change is an organizational/profile mutation. It MUST NOT alter effective authorization merely because Team changed.
 
-Sensitive credential/role/permission actions additionally require acting-user password re-authentication. Password reset and role/permission/access-changing identity mutations revoke all target-user active sessions according to `10_Security_Rules.md`; permission presence alone is insufficient.
+Sensitive role/permission/credential actions require password re-authentication and target-session revocation according to Security Rules. Team membership change by itself is not an authorization change and MUST NOT be falsely treated as a permission grant/revoke.
 
----
-
-## 13. Role / Permission Administration
+## 17. Role / Permission Administration
 
 | Permission | Description |
 |---|---|
 | `roles.view` | View role mapping |
 | `roles.create` | Create custom role |
 | `roles.update` | Update eligible role |
-| `roles.archive` | Archive eligible role jika model final mengizinkan |
-| `permissions.assign` | Assign permission to role |
+| `roles.archive` | Archive eligible non-protected role if final data model supports it |
+| `permissions.assign` | Assign/sync permission to role |
 
-Role administration MAY didelegasikan. Protected Superadmin role tidak dapat dihapus/archive/downgrade. Role/permission mutations that change effective access require password re-authentication and target-session revocation.
+Rules:
 
----
+- permissions are normally assigned to roles;
+- roles are assigned to users;
+- direct permission-to-user UI is not part of current MVP;
+- protected Superadmin role cannot be removed/archive/downgraded;
+- effective access-changing mutations require security side effects from `10_Security_Rules.md`.
 
-## 14. Unit / Division Administration
+## 18. Team Administration
 
 | Permission | Description |
 |---|---|
-| `org_units.view` | View Unit/Division |
-| `org_units.create` | Create Unit/Division |
-| `org_units.update` | Update Unit/Division |
-| `org_units.archive` | Archive eligible Unit/Division |
-| `org_units.assign_users` | Map users |
-| `org_units.assign_reviewer_scope` | Configure Reviewer Scope |
-| `org_units.assign_approver_scope` | Configure Approval Scope |
+| `teams.view` | View Team master data |
+| `teams.create` | Create Team |
+| `teams.update` | Update Team |
+| `teams.archive` | Archive eligible Team if final model permits |
+| `teams.assign_users` | Assign/move users between Teams |
 
-These MAY be delegated through explicit permission. If a scope mutation changes effective access for a target user, session-revocation security policy applies.
+Team administration MUST NOT create reviewer/approval scope semantics.
 
----
+There are intentionally no permissions such as:
 
-## 15. System Settings
+```text
+org_units.*
+users.assign_scopes
+teams.assign_reviewer_scope
+teams.assign_approver_scope
+```
 
-Core system settings tetap protected Superadmin-only, termasuk initial setup mode, global numbering configuration, notification integration settings, dan protected security/signing configuration where exposed through application administration.
+under the current requirement.
+
+## 19. System Settings
+
+Core system settings remain protected Superadmin-only.
 
 Conceptual permission:
 
@@ -410,346 +528,146 @@ Conceptual permission:
 system.settings.manage
 ```
 
-Current requirement tidak mendelegasikan permission ini.
+Sensitive protected settings require password re-authentication.
 
-Sensitive protected settings require password re-authentication according to `10_Security_Rules.md`.
-
----
-
-## 15A. Privileged Audit Permissions
+## 20. Privileged Audit Permissions
 
 | Permission | Description |
 |---|---|
-| `audit.access.view` | View privileged/raw Access Audit evidence within underlying authorized resource/audit scope |
-| `audit.security.view` | View privileged Security Audit evidence within applicable administrative/security scope |
+| `audit.access.view` | View privileged/raw Access Audit evidence subject to resource/admin authorization |
+| `audit.security.view` | View privileged Security Audit evidence subject to administrative/security authorization |
 
 Rules:
 
-- Protected Superadmin receives both by default.
-- Permissions MAY be explicitly delegated to an eligible custom role.
-- `audit.access.view` and `audit.security.view` MUST NOT by themselves grant ordinary NSCMF record visibility, Review scope, Approval Scope, export permission, or business Timeline mutation.
-- A future explicit global-auditor requirement MAY define broader audit scope, but it does not exist implicitly today.
-- No normal role has permission to edit/delete historical authoritative audit evidence.
+- Protected Superadmin receives both by default;
+- explicit eligible custom role MAY receive them;
+- audit permissions do not grant NSCMF Review/Approval/Reopen/Archive capability;
+- audit permissions do not create Team/scope semantics;
+- normal roles cannot edit/delete authoritative historical audit evidence.
 
 ---
 
-# PART D — SCOPE MODEL
+# PART G — DEFAULT ROLE PERMISSION MATRIX
 
-## 16. Requester Scope
-
-Requester default = own records. Additional roles extend visibility additively.
-
-For `nscmf.change.result.edit`, default Requester eligibility tetap own record only.
-
-## 17. Reviewer Scope
-
-```text
-review permission
-+ matching assigned Unit/Division(s)
-+ PENDING_REVIEW
-= eligible review action
-```
-
-Reviewer MAY have multiple units. No implicit global Reviewer scope.
-
-## 18. Approver Scope
-
-```text
-approval permission
-+ matching Approval Scope
-+ PENDING_APPROVAL
-= eligible approval action
-```
-
-Scope MAY span multiple Unit/Division(s). No implicit global Approver scope.
-
-Exact data representation of scope is deferred to ERD/Architecture.
-
-## 19. Global Scope
-
-Protected Superadmin global.
-
-Optional conceptual future/custom permission:
-
-```text
-nscmf.view.all
-```
-
-If granted, it only affects visibility, not automatic Review/Approve/Reopen/Archive/admin capability.
-
----
-
-# PART E — DEFAULT ROLE PERMISSION MATRIX
-
-## 20. Core Matrix
+## 21. Core Matrix
 
 Legend:
 
-- ✅ default permission;
-- 🔒 protected/inherent;
-- Scope = required matching scope;
-- Own = own-record condition;
-- — not default but MAY be custom-granted if rule allows;
-- ❌ capability unavailable.
+- ✅ default permission/capability;
+- 🔒 protected/inherent application authority;
+- `Own` = explicit ownership condition;
+- — not default but MAY be custom-granted if business rule permits;
+- ❌ unavailable.
 
 | Capability | Superadmin | Requester | Reviewer | Approver |
 |---|---:|---:|---:|---:|
-| Login / Logout | ✅ | ✅ | ✅ | ✅ |
+| Login / Logout | Authentication | Authentication | Authentication | Authentication |
 | Create NSCMF | ✅ | ✅ | — | — |
-| Edit own `DRAFT` | ✅ | ✅ | — | — |
-| Edit own `REVISION_REQUIRED` | ✅ | ✅ | — | — |
-| Autosave / Save editable record | ✅ | ✅ | — | — |
-| Edit Change Result in `PENDING_REVIEW` | ✅ | ✅ Own | — | — |
-| Cancel own `DRAFT` | ✅ | ✅ | — | — |
-| Submit/Resubmit own eligible record | ✅ | ✅ | — | — |
-| View own NSCMF | ✅ | ✅ | Scope | Scope |
-| View scoped NSCMF | ✅ | — | ✅ Unit/Division | ✅ Approval Scope |
-| View all NSCMF | 🔒 | — | — | — |
-| View Business Timeline on visible record | ✅ | ✅ | ✅ | ✅ |
+| Edit own `DRAFT` | ✅ | ✅ Own | — | — |
+| Edit own `REVISION_REQUIRED` | ✅ | ✅ Own | — | — |
+| Autosave / Save editable own record | ✅ | ✅ Own | — | — |
+| Edit own Change Result in `PENDING_REVIEW` | ✅ | ✅ Own | — | — |
+| Cancel own `DRAFT` | ✅ | ✅ Own | — | — |
+| Submit/Resubmit own eligible record | ✅ | ✅ Own | — | — |
+| View authorized NSCMF | ✅ | ✅ | ✅ | ✅ |
+| View Business Timeline on authorized record | ✅ | ✅ | ✅ | ✅ |
 | View raw Access Audit | ✅ | — | — | — |
 | View Security Audit | ✅ | — | — | — |
-| Manage attachment while authorized | ✅ | ✅ | — | — |
-| Review `PENDING_REVIEW` | ✅ | — | ✅ Scope | — |
-| Forward to Approval | ✅ | — | ✅ Scope | — |
-| Return Review to Requester | ✅ | — | ✅ Scope | — |
-| Reject at Review | ✅ | — | ✅ Scope | — |
-| Approve `PENDING_APPROVAL` | ✅ | — | — | ✅ Scope |
-| Return Approval to Reviewer | ✅ | — | — | ✅ Scope |
-| Return Approval to Requester | ✅ | — | — | ✅ Scope |
-| Reject at Approval | ✅ | — | — | ✅ Scope |
+| Manage attachment while authorized/editable | ✅ | ✅ Own | — | — |
+| Review `PENDING_REVIEW` | ✅ | — | ✅ | — |
+| Forward to Approval | ✅ | — | ✅ | — |
+| Return Review to Requester | ✅ | — | ✅ | — |
+| Reject at Review | ✅ | — | ✅ | — |
+| Approve `PENDING_APPROVAL` | ✅ | — | — | ✅ |
+| Return Approval to Reviewer | ✅ | — | — | ✅ |
+| Return Approval to Requester | ✅ | — | — | ✅ |
+| Reject at Approval | ✅ | — | — | ✅ |
 | Reopen/Revert Approved/Rejected | ✅ | — | — | — |
 | Archive/Unarchive eligible record | ✅ | — | — | — |
-| Single Export visible record | ✅ | ✅ | ✅ | ✅ |
-| Bulk Export visible records | ✅ | ✅ | ✅ | ✅ |
+| Single Export authorized record | ✅ | ✅ | ✅ | ✅ |
+| Bulk Export authorized records | ✅ | ✅ | ✅ | ✅ |
 | Hard Delete NSCMF | ❌ | ❌ | ❌ | ❌ |
 
-`Reopen`, `Archive/Unarchive`, `audit.access.view`, and `audit.security.view` MAY be custom-granted explicitly to eligible non-Superadmin roles while all underlying scope/security restrictions remain mandatory.
+The table intentionally has **no Team/Unit/Division/Review Scope/Approval Scope column**.
 
-`nscmf.change.result.edit` MAY also be custom-granted, but field/state/family/visibility restrictions remain mandatory.
-
----
-
-## 21. Administration Matrix
+## 22. Administration Matrix
 
 | Capability | Superadmin | Requester | Reviewer | Approver |
 |---|---:|---:|---:|---:|
 | View/Create/Edit eligible Users | ✅ | — | — | — |
 | Enable/Disable eligible Users | ✅ | — | — | — |
 | Reset Password | ✅ | — | — | — |
-| Assign Roles/Units/Scopes | ✅ | — | — | — |
-| Manage Roles/Permissions | ✅ | — | — | — |
-| Manage Unit/Division | ✅ | — | — | — |
+| Assign Roles | ✅ | — | — | — |
+| Assign Team | ✅ | — | — | — |
+| Manage Roles/Role Permissions | ✅ | — | — | — |
+| Manage Teams | ✅ | — | — | — |
 | View raw Access Audit | ✅ | — | — | — |
 | View Security Audit | ✅ | — | — | — |
 | Manage Core System Settings | 🔒 | — | — | — |
 | Impersonate User | ❌ | ❌ | ❌ | ❌ |
 
-All administration capability except Core System Settings MAY be delegated by explicit permissions. Delegation does not remove re-authentication/session-revocation security preconditions.
+Administrative permissions MAY be delegated except protected Core System Settings and protected invariants.
 
 ---
 
-# PART F — RECORD ACTION DECISION MATRIX
+# PART H — RECORD ACTION DECISION MATRIX
 
-## 22. Requester Actions
+## 23. Requester Actions
 
 | Action | Permission | State / Condition |
 |---|---|---|
-| Create | `nscmf.create` | authenticated eligible user |
-| Edit general form | `nscmf.draft.edit` | own + `DRAFT` or `REVISION_REQUIRED` |
-| Autosave / Save | `nscmf.draft.edit` | own + editable state |
-| Update Change Result | `nscmf.change.result.edit` | own visible Change + `PENDING_REVIEW` + only Result fields |
-| Cancel | `nscmf.cancel` | own + `DRAFT` + never submitted |
-| Submit | `nscmf.submit` | own + `DRAFT` + validation passes |
-| Resubmit | `nscmf.submit` | own + `REVISION_REQUIRED` + validation passes |
-| View | `nscmf.view` | own or additional scoped visibility |
-| Export | `nscmf.export` | visible record |
+| Create | `nscmf.create` | active authenticated user |
+| Edit general form | `nscmf.draft.edit` | owns record + `DRAFT` or `REVISION_REQUIRED` |
+| Autosave / Save | `nscmf.draft.edit` | owns record + editable state + optimistic version valid |
+| Update Change Result | `nscmf.change.result.edit` | owns Change + `PENDING_REVIEW` + Result fields only |
+| Cancel | `nscmf.cancel` | owns record + `DRAFT` + never submitted |
+| Submit | `nscmf.submit` | owns record + `DRAFT` + validation passes |
+| Resubmit | `nscmf.submit` | owns record + `REVISION_REQUIRED` + validation passes |
+| View | `nscmf.view` | authorized resource access |
+| Export | `nscmf.export` | authorized record |
 
-Normal Requester general edit remains unavailable in `PENDING_REVIEW`; Result permission is the only current narrow exception.
-
----
-
-## 23. Reviewer Actions
+## 24. Reviewer Actions
 
 | Action | Permission | State / Condition |
 |---|---|---|
-| View review candidate | `nscmf.view` | matching Unit/Division + `PENDING_REVIEW` |
-| Review activity | `nscmf.review` | matching scope + `PENDING_REVIEW` |
-| Forward | `nscmf.review.forward` | matching scope + `PENDING_REVIEW` + Forward validation |
-| Return | `nscmf.review.return` | matching scope + `PENDING_REVIEW` + mandatory reason |
-| Reject | `nscmf.review.reject` | matching scope + `PENDING_REVIEW` + mandatory reason |
-| Business Timeline | implicit from valid view | matching visibility |
-| Export | `nscmf.export` | visible record |
+| View review candidate | `nscmf.view` | authorized + candidate state |
+| Review activity | `nscmf.review` | `PENDING_REVIEW` |
+| Forward | `nscmf.review.forward` | `PENDING_REVIEW` + Forward validation |
+| Return | `nscmf.review.return` | `PENDING_REVIEW` + mandatory reason |
+| Reject | `nscmf.review.reject` | `PENDING_REVIEW` + mandatory reason |
+| Business Timeline | `nscmf.timeline.view` / valid viewer treatment | authorized record |
+| Export | `nscmf.export` | authorized record |
 
-For Change, Forward additionally requires Result-of-Changes gate to pass.
+No Team/scope condition exists.
 
----
-
-## 24. Approver Actions
+## 25. Approver Actions
 
 | Action | Permission | State / Condition |
 |---|---|---|
-| View candidate | `nscmf.view` | matching Approval Scope + `PENDING_APPROVAL` |
-| Approve | `nscmf.approve` | matching scope + `PENDING_APPROVAL` |
-| Return Reviewer | `nscmf.approval.return_reviewer` | matching scope + `PENDING_APPROVAL` + mandatory reason |
-| Return Requester | `nscmf.approval.return_requester` | matching scope + `PENDING_APPROVAL` + mandatory reason |
-| Reject | `nscmf.approval.reject` | matching scope + `PENDING_APPROVAL` + mandatory reason |
-| Business Timeline | implicit from valid view | matching visibility |
-| Export | `nscmf.export` | visible record |
+| View candidate | `nscmf.view` | authorized + candidate state |
+| Approve | `nscmf.approve` | `PENDING_APPROVAL` |
+| Return Reviewer | `nscmf.approval.return_reviewer` | `PENDING_APPROVAL` + mandatory reason |
+| Return Requester | `nscmf.approval.return_requester` | `PENDING_APPROVAL` + mandatory reason |
+| Reject | `nscmf.approval.reject` | `PENDING_APPROVAL` + mandatory reason |
+| Business Timeline | `nscmf.timeline.view` / valid viewer treatment | authorized record |
+| Export | `nscmf.export` | authorized record |
+
+No Team/scope condition exists.
 
 ---
 
-# PART G — REOPEN / ARCHIVE DECISION MATRIX
+# PART I — MULTI-ROLE RESOLUTION
 
-## 25. Reopen
-
-Required:
-
-```text
-nscmf.reopen
-+ visible record
-+ business_status in {REJECTED, APPROVED}
-+ is_archived = false
-+ mandatory reason
-+ destination in {REVISION_REQUIRED, PENDING_REVIEW}
-```
-
-Protected Superadmin gets it by default; other roles MAY receive it explicitly.
-
----
-
-## 26. Archive / Unarchive
-
-Archive:
-
-```text
-nscmf.archive
-+ visible record
-+ status in {APPROVED, REJECTED, CANCELLED}
-+ is_archived = false
-+ mandatory reason
-```
-
-Unarchive:
-
-```text
-nscmf.archive
-+ visible record
-+ is_archived = true
-+ mandatory reason
-```
-
-Both are administrative lifecycle actions and do not alter `business_status`.
-
----
-
-# PART H — MULTI-ROLE RESOLUTION
-
-## 27. Effective Permission Examples
+## 26. Examples
 
 ### Requester + Reviewer
-Own record actions + Result capture on own eligible Change + Review access within Reviewer Scope. No automatic Approval.
+User receives Requester permissions plus Reviewer permissions. Own-record editing remains ownership-bound; Review capability applies according to permission + state without Team scope.
 
 ### Reviewer + Approver
-May Review records only in Reviewer Scope and Approve records only in separate Approval Scope; scopes need not be identical.
+User may Review when required Review permission/state is valid and may Approve when required Approval permission/state is valid. No organizational scope matching is performed.
 
 ### Custom NOC Lead
-May receive mixed `review`, `approve`, `reopen`, `archive`, `export`, and optionally `change.result.edit` permissions with matching visibility/scope, without user administration.
-
----
-
-## 28. Same Person Across Workflow Stages
-
-No mandatory segregation of duties. Same user MAY perform different stage actions if permission/scope/current state allow. Each action remains separate audit evidence.
-
----
-
-# PART I — COLLABORATION MODEL
-
-## 29. Reviewer Collaboration
-
-```text
-Shared visibility
-+
-Non-exclusive state-action eligibility
-+
-Multi-actor business audit trail
-```
-
-No permanent single Reviewer assignment.
-
-## 30. Approver Collaboration
-
-```text
-Shared eligibility within scope
-+
-Non-exclusive access
-+
-Single successful final approval actor
-```
-
----
-
-# PART J — AUDIT VISIBILITY
-
-## 31. Business Timeline and Privileged Audit Visibility
-
-Legitimate record viewer can see **Business Timeline** sesuai record visibility. Timeline dapat memuat creator, modifier, submit/resubmit, Result capture, review/forward, return, reject, approve, reopen, archive/unarchive, timestamp, dan required reason/comment yang relevan.
-
-Routine record `View`, attachment access/download, export request/download evidence **tidak menjadi routine Business Timeline row**. Evidence tersebut berada pada separate Access Audit concern menurut `09_System_Architecture.md`.
-
-Raw/privileged audit visibility is now confirmed:
-
-```text
-Business Timeline
-→ normal legitimate record viewer, via record visibility
-
-Raw Access Audit
-→ Protected Superadmin by default
-→ or explicit audit.access.view + valid underlying audit/resource scope
-
-Security Audit
-→ Protected Superadmin by default
-→ or explicit audit.security.view + applicable security/admin scope
-```
-
-These permissions do not imply `nscmf.view.all` and do not alter Reviewer/Approver scope.
-
-Authoritative Business/Access/Security Audit evidence has no time-based automatic purge according to `10_Security_Rules.md`. No normal role may mutate/delete historical authoritative audit evidence.
-
----
-
-# PART K — CUSTOM ROLE GUARDRAILS
-
-## 32. Custom Role Rules
-
-Examples:
-
-### Read-Only Auditor
-
-```text
-nscmf.view
-nscmf.timeline.view
-nscmf.export
-```
-
-If raw Access Audit is explicitly required and underlying scope is authorized:
-
-```text
-audit.access.view
-```
-
-### NOC Reviewer
-
-```text
-nscmf.view
-nscmf.review
-nscmf.review.forward
-nscmf.review.return
-nscmf.review.reject
-nscmf.export
-```
-
-### NOC Lead
+A role called `NOC Lead` MAY receive, for example:
 
 ```text
 nscmf.view
@@ -767,73 +685,108 @@ nscmf.export
 nscmf.export.bulk
 ```
 
-Optional custom-grant where business ownership allows:
+The name `NOC Lead` has no special authorization effect. Its permissions do.
+
+## 27. Same Person Across Workflow Stages
+
+No mandatory segregation of duties. Same user MAY perform different stage actions when the user has the required permissions and all current state/business/security conditions pass.
+
+Each successful action remains separate audit evidence.
+
+---
+
+# PART J — COLLABORATION MODEL
+
+## 28. Reviewer Collaboration
 
 ```text
-nscmf.change.result.edit
+Permission-based shared eligibility
++
+Non-exclusive state-action eligibility
++
+Multi-actor Business Audit trail
 ```
 
-State/family/visibility restrictions continue to apply.
+No permanent single Reviewer assignment and no reviewer scope.
+
+## 29. Approver Collaboration
+
+```text
+Permission-based shared eligibility
++
+Non-exclusive access
++
+Single successful final approval actor
+```
+
+No approval scope.
 
 ---
 
-# PART L — PROTECTED / NON-DELEGABLE CAPABILITIES
+# PART K — AUDIT VISIBILITY
 
-## 33. Protected Capabilities
+## 30. Business Timeline and Privileged Audit
 
-| Capability | Rule |
-|---|---|
-| Hard-delete NSCMF | Unavailable |
-| Delete/disable/downgrade protected Superadmin | Unavailable |
-| User impersonation | Out of scope |
-| Bypass audit | Unavailable |
-| Delete authoritative audit because of age | Unavailable |
-| Bypass Review | Unavailable |
-| Bypass Approval | Unavailable |
-| Reopen directly to Approval | Unavailable |
-| Archive active-work state | Unavailable |
-| General edit through Result-only permission | Unavailable |
-| Core system settings for normal role | Not delegated |
-| Bypass sensitive-action password re-authentication | Unavailable |
-| Bypass target-session revocation after access-changing identity mutation | Unavailable |
+Legitimate record viewer can see Business Timeline according to normal record authorization.
+
+Routine record view/download/export-access evidence stays in separate Access Audit.
+
+Raw Access Audit:
+
+```text
+Protected Superadmin by default
+or explicit audit.access.view
++ applicable resource/admin authorization
+```
+
+Security Audit:
+
+```text
+Protected Superadmin by default
+or explicit audit.security.view
++ applicable security/admin authorization
+```
+
+There is no organizational scope requirement for these permissions. Team membership itself never grants audit access.
+
+Authoritative Business/Access/Security Audit has no age-based purge and no normal edit/delete capability.
 
 ---
 
-# PART M — AUTHORIZATION DECISION ORDER
+# PART L — AUTHORIZATION DECISION ORDER
 
-## 34. Decision Evaluation
+## 31. Evaluation
 
-Backend SHOULD/MUST conceptually evaluate:
+Backend SHOULD conceptually evaluate:
 
 ```text
 1. authenticated + active account + valid session?
 2. protected invariant satisfied?
 3. required permission?
-4. record/resource visibility?
-5. ownership / matching scope where required?
+4. ownership condition, only if this action explicitly requires ownership?
+5. record/resource access authorized?
 6. archive flag compatible with action?
 7. current business state eligible?
 8. input/action validation passes?
 9. destination allowed?
-10. field subset restriction satisfied for narrow edit?
-11. required password re-auth/security precondition satisfied for sensitive admin action?
-12. execute atomically / with architecture-appropriate concurrency control.
-13. write required Business Audit / Access Audit / Security Audit evidence to the correct concern.
+10. narrow-field restriction satisfied where applicable?
+11. security precondition / re-authentication satisfied where applicable?
+12. concurrency/current-state check satisfied?
+13. execute through required transaction/version strategy.
+14. write required Business / Access / Security Audit evidence to the correct concern.
 ```
 
-Routine access logging follows separate Access Audit path and MUST NOT be mistaken for workflow mutation.
+**Team is intentionally absent from this decision order.**
 
 Any failed prerequisite → DENY.
 
 ---
 
-# PART N — DEFAULT PERMISSION BUNDLES
+# PART M — DEFAULT PERMISSION BUNDLES
 
-## 35. Requester Bundle
+## 32. Requester Bundle
 
 ```text
-session.login
-session.logout
 nscmf.create
 nscmf.view
 nscmf.view.history
@@ -847,15 +800,11 @@ nscmf.export
 nscmf.export.bulk
 ```
 
-Default scope: own records. `nscmf.change.result.edit` only applies to own Change `PENDING_REVIEW` Result fields.
+Ownership restrictions remain for Requester mutations as defined above.
 
----
-
-## 36. Reviewer Bundle
+## 33. Reviewer Bundle
 
 ```text
-session.login
-session.logout
 nscmf.view
 nscmf.view.history
 nscmf.review
@@ -867,15 +816,11 @@ nscmf.export
 nscmf.export.bulk
 ```
 
-Default scope: assigned Unit/Division(s).
+No Reviewer Scope.
 
----
-
-## 37. Approver Bundle
+## 34. Approver Bundle
 
 ```text
-session.login
-session.logout
 nscmf.view
 nscmf.view.history
 nscmf.approve
@@ -887,197 +832,191 @@ nscmf.export
 nscmf.export.bulk
 ```
 
-Default scope: assigned Approval Scope; may span Unit/Division(s).
+No Approval Scope.
 
----
+## 35. Superadmin Bundle
 
-## 38. Superadmin Bundle
+Protected Superadmin receives all defined application permissions required for normal administrative/NSCMF operation, including:
 
-Protected Superadmin default:
-
-- all normal NSCMF permissions, including `nscmf.change.result.edit`;
-- global visibility;
+- all NSCMF permissions;
 - `nscmf.reopen`;
-- `nscmf.archive` (Archive + Unarchive);
+- `nscmf.archive`;
 - `audit.access.view`;
 - `audit.security.view`;
-- eligible user/role/permission/org administration;
+- eligible users/roles/permissions/teams administration;
 - `system.settings.manage`;
-- protected invariants.
+- protected Superadmin invariants.
 
-Does not include hard-delete NSCMF, protected-account deletion/downgrade/disable, impersonation, atau bypass of sensitive-action password re-authentication.
+This does not create hard-delete, impersonation, invalid state transition, audit bypass, or security-precondition bypass.
 
 ---
 
-# PART O — IMPLEMENTATION BOUNDARY / DOWNSTREAM ITEMS
+# PART N — SPATIE / APPLICATION IMPLEMENTATION MAPPING
 
-## 39. Authorization Technology Mapping
-
-Confirmed by `08_Tech_Stack_Specification.md`:
+## 36. Required Mapping
 
 ```text
 Spatie Laravel Permission 8.x
-→ role / permission primitives
+→ roles
+→ permissions
+→ model_has_roles
+→ model_has_permissions (package-owned; direct-user permission UI unused in MVP)
+→ role_has_permissions
+→ Gate permission resolution
 
 Laravel Policies / Gates
-→ resource authorization boundary
+→ resource/action authorization boundary
 
-Custom domain scope/query logic
-→ ownership / Unit / Reviewer / Approval visibility
+Domain/Application Services
+→ ownership where required
+→ state eligibility
+→ archive treatment
+→ validation
+→ protected invariants
+→ concurrency
+→ required audit orchestration
 
-Domain/application services
-→ state / archive / validation / workflow invariant enforcement
+Team Domain
+→ organizational profile/master data only
+→ NO permission scoping
 ```
 
-Spatie `teams` MUST NOT silently replace Unit/Division atau Approval Scope semantics.
+## 37. Mutation Orchestration
 
-Confirmed by `09_System_Architecture.md`:
+Sensitive role/permission changes MUST NOT be scattered as uncoordinated controller calls.
+
+Application administration actions MUST ensure required side effects:
 
 ```text
-workflow/lifecycle transition
-→ short DB transaction + row-level current-state lock
-
-Draft/Revision/Result persistence
-→ optimistic version conflict detection
-
-routine access evidence
-→ separate Access Audit
-
-Business Timeline
-→ business mutation/workflow/lifecycle evidence
+password re-authentication
+→ Spatie role/permission mutation
+→ determine affected users
+→ revoke affected target sessions as required by Security Rules
+→ Security Audit
 ```
 
-Confirmed by `10_Security_Rules.md`:
+Spatie remains the role/permission data authority; application orchestration exists to satisfy security/business side effects, not to create another RBAC database.
 
-```text
-password policy
-→ minimum 6, no composition rule, no MFA
+## 38. User Primary Key Compatibility
 
-session
-→ 30m idle, 8h absolute, max 2 active sessions
+ERD SHOULD use Laravel conventional bigint user IDs unless a later approved schema decision requires otherwise. This aligns cleanly with Spatie's standard morph/pivot migration and avoids unnecessary custom package schema changes.
 
-sensitive admin mutation
-→ password re-auth + target-session revocation
+---
 
-raw Access/Security Audit
-→ protected permissions + no age-based purge
-```
+# PART O — IMPLEMENTATION GUARDRAILS
 
-### Still Deferred to Data / Security / Code Organization
+## 39. Developer / AI MUST NOT
 
-- exact scope storage representation;
-- reviewer contributor + Access Audit physical data model;
-- final `approved_by` versus event-history field representation;
-- archive flag physical representation;
-- workflow iteration/version column/table representation;
-- middleware/policy class organization;
-- exact re-auth proof lifetime/implementation;
-- exact session persistence/eviction physical representation.
+Implementation MUST NOT:
 
-Validation decisions regarding Result actor, Result fields, first Submit/Resubmit, mandatory reasons, attachment, numbering, dan Service Impact are **no longer TBD** and follow `06_Validation_Rules.md`.
-
-Hybrid concurrency and Business Timeline/Access Audit separation are **no longer TBD** and follow `09_System_Architecture.md`.
-
-Security policy, audit preservation/visibility, and session/re-auth controls are **no longer TBD** and follow `10_Security_Rules.md`.
+1. recreate Spatie role/permission tables under different names as a second RBAC model;
+2. enable Spatie `teams` for current NSCMF Team data;
+3. add `team_id` to Spatie role/permission pivots to restrict Review/Approval;
+4. create Reviewer Scope or Approval Scope tables;
+5. create `Unit`, `Division`, `org_units`, or Unit/Division authorization models;
+6. use Team membership to allow/deny Review or Approval;
+7. call `setPermissionsTeamId()` in normal authorization;
+8. expose direct-user permission assignment as normal MVP admin feature;
+9. enable wildcard permissions by default;
+10. seed `nscmf.review.*` or similar shorthand as an actual wildcard permission row;
+11. hard-code routine feature authorization against role names when a permission capability exists;
+12. treat permission success as bypass for business state/invariants;
+13. use a universal Superadmin bypass that makes forbidden domain actions valid;
+14. add `session.login`/`session.logout` rows to the Spatie permission catalog;
+15. introduce hidden multi-tenancy;
+16. introduce NSCMF hard-delete;
+17. create exclusive Reviewer/Approver ownership;
+18. bypass mandatory reasons/validation/security preconditions;
+19. let direct URLs/IDs bypass resource authorization;
+20. let frontend button visibility become the security boundary.
 
 ---
 
 # PART P — TESTABLE RBAC ACCEPTANCE CRITERIA
 
-## 40. Acceptance Criteria
+## 40. Package / Team Alignment
 
-- [ ] Requester default visibility = own records.
-- [ ] Requester receives default narrow `nscmf.change.result.edit` for own Change `PENDING_REVIEW`.
-- [ ] Result-only permission cannot modify unrelated submitted fields.
-- [ ] Reviewer only acts on matching scope + `PENDING_REVIEW`.
-- [ ] Reviewer A does not create an exclusive lock/ownership that removes Reviewer B/C eligibility.
-- [ ] Multiple Reviewer contributors are retained.
-- [ ] Approver only acts on matching scope + `PENDING_APPROVAL`.
-- [ ] Approver may cover multiple units.
-- [ ] Approval is non-exclusive.
-- [ ] One valid final Approve creates `APPROVED` and final `Approved By`.
+- [ ] Spatie 8.x is used for role/permission primitives.
+- [ ] Package-owned tables are `roles`, `permissions`, `model_has_roles`, `model_has_permissions`, `role_has_permissions`.
+- [ ] ERD does not duplicate package-owned RBAC tables.
+- [ ] `config('permission.teams')` remains false.
+- [ ] Business Team exists independently from Spatie Teams.
+- [ ] Changing user Team alone does not grant/revoke Review/Approval permission.
+- [ ] No reviewer/approver scope table exists.
+- [ ] Wildcard permission support remains disabled.
+- [ ] Direct-user permission assignment is not exposed as normal MVP admin flow.
+- [ ] Login/logout do not require Spatie permission rows.
+
+## 41. Permission / Workflow
+
+- [ ] Multi-role user receives union of role permissions through Spatie.
+- [ ] App checks required permissions rather than depending on role name for normal actions.
+- [ ] Requester own mutation actions enforce ownership.
+- [ ] Reviewer with required permission can act on eligible `PENDING_REVIEW` without Team/scope matching.
+- [ ] Reviewer lacking required permission cannot act even if Team is NOC.
+- [ ] Approver with required permission can act on eligible `PENDING_APPROVAL` without Team/scope matching.
+- [ ] Approver lacking required permission cannot act even if Team would otherwise appear relevant.
+- [ ] Reviewer A does not create an exclusive lock that removes Reviewer B/C eligibility.
+- [ ] Multiple Reviewer contributors are preserved.
+- [ ] One successful valid Approve creates `APPROVED`.
 - [ ] Stale second Approve is denied.
-- [ ] Return/Reject actions fail without required reason even if permission exists.
-- [ ] `nscmf.reopen` can be delegated but only works on visible unarchived `REJECTED`/`APPROVED`.
-- [ ] Reopen target is only `REVISION_REQUIRED`/`PENDING_REVIEW`.
-- [ ] `nscmf.archive` can be delegated.
-- [ ] Archive only works on `APPROVED`/`REJECTED`/`CANCELLED` and requires reason.
-- [ ] Unarchive uses lifecycle permission, requires reason, and preserves business status.
-- [ ] Archived `APPROVED`/`REJECTED` must Unarchive before Reopen.
-- [ ] Legitimate record viewer can see Business Timeline and export.
-- [ ] Routine View/access evidence does not pollute Business Timeline and is represented through separate Access Audit architecture.
-- [ ] Raw Access Audit requires Protected Superadmin default or explicit `audit.access.view` plus valid underlying scope.
-- [ ] Security Audit requires Protected Superadmin default or explicit `audit.security.view` plus valid security/admin scope.
-- [ ] Audit permissions do not implicitly grant `nscmf.view.all`, Review, Approval, Reopen, or export capability.
-- [ ] Inaccessible record cannot be exported through API/ID manipulation.
-- [ ] Protected Superadmin remains protected/global.
-- [ ] Delegated administrators cannot bypass protected invariants.
-- [ ] Custom granular roles work within state/scope boundaries.
-- [ ] Core System Settings remain Superadmin-only.
-- [ ] No impersonation or NSCMF hard-delete capability.
-- [ ] Server-side state revalidation rejects stale conflicting workflow actions.
-- [ ] Spatie role/permission success alone cannot bypass ownership/scope/state/security rules.
-- [ ] Optimistic concurrency does not grant extra edit permission or allow stale Draft/Result overwrite.
-- [ ] Sensitive password/role/permission mutation requires acting-user password re-authentication.
-- [ ] Password/role/permission/access-changing target mutation revokes all target-user active sessions.
-- [ ] Authoritative audit evidence cannot be normal-user modified/deleted and is not age-purged.
+- [ ] Result-only permission cannot modify unrelated submitted fields.
+- [ ] Return/Reject/Reopen/Archive/Unarchive rules remain enforced independent of permission possession.
+- [ ] Protected Superadmin remains protected but cannot bypass forbidden domain invariants.
+- [ ] No impersonation or NSCMF hard-delete exists.
+
+## 42. Security / Audit
+
+- [ ] Sensitive role/permission mutation requires acting-user password re-authentication.
+- [ ] Effective access-changing mutation revokes required target-user sessions.
+- [ ] Role/permission mutations are reflected in Security Audit.
+- [ ] Team change alone is not falsely treated as an authorization grant/revoke.
+- [ ] Routine View evidence remains Access Audit, not Business Timeline.
+- [ ] Raw Access/Security Audit remains permission-protected.
+- [ ] Authoritative audit cannot be normal-user modified/deleted and is not age-purged.
 
 ---
 
-# PART Q — TRACEABILITY / NEXT DOCUMENT
+# PART Q — RELATIONSHIP TO OTHER DOCUMENTS
 
-## 41. Relationship to State, Validation, Tech Stack, Architecture, and Security
+## 43. Authority Matrix
 
-`05_State_Status_Flow.md` is authoritative for:
+| Concern | Authority |
+|---|---|
+| Product scope | `01_PRD.md` |
+| Business invariants | `02_Business_Rules.md` |
+| User interaction | `03_User_Flow.md` |
+| **Role/permission authorization** | **`04_RBAC_Permission_Matrix.md`** |
+| State/lifecycle | `05_State_Status_Flow.md` |
+| Validation | `06_Validation_Rules.md` |
+| UI/UX | `07_UI_UX_Specification.md` |
+| Technology/package selection | `08_Tech_Stack_Specification.md` |
+| Logical architecture | `09_System_Architecture.md` |
+| Security controls | `10_Security_Rules.md` |
+| Physical RBAC/Team/domain schema | `11_ERD_Database_Schema.md` |
 
-- canonical state identifiers;
-- allowed transitions;
-- Reopen destinations;
-- terminal/recoverable classification;
-- Archive/Unarchive state treatment;
-- concurrency/current-state requirements.
-
-`06_Validation_Rules.md` is authoritative for:
-
-- field/action validity;
-- mandatory reasons;
-- Result gate;
-- attachment/numbering validation;
-- Service Impact cardinality;
-- narrow Result field edit constraints.
-
-`08_Tech_Stack_Specification.md` is authoritative for authorization implementation technology:
-
-- Spatie Laravel Permission 8.x;
-- Laravel Policies/Gates;
-- custom domain scope and invariant enforcement.
-
-`09_System_Architecture.md` is authoritative for:
-
-- hybrid concurrency execution model;
-- Business Audit vs Access Audit separation;
-- application/module interaction boundaries;
-- asynchronous export/storage execution topology.
-
-`10_Security_Rules.md` is authoritative for:
-
-- password/session/security policy;
-- sensitive action re-authentication;
-- target-session revocation;
-- privileged audit security and no-time-based audit purge;
-- attachment malware security;
-- signing credential protection/public PDF verification.
-
-This RBAC document remains authoritative for actor permission/scope eligibility and business authorization semantics.
+`04` is authoritative that **Team is not authorization scope** and **Spatie Teams is disabled**.
 
 ---
 
-## 42. Next Document
+## 44. Downstream ERD Requirements
 
-Current fixed project order is synchronized through confirmed Security decisions.
+`11_ERD_Database_Schema.md` MUST:
 
-The next project document to be created is:
+- reuse Spatie-owned RBAC tables exactly as the package contract requires;
+- model business Team separately from Spatie role/permission tables;
+- not create Reviewer/Approver scope tables;
+- not add Unit/Division tables;
+- keep Team membership outside permission evaluation;
+- preserve ownership relationships needed for own-record rules;
+- preserve workflow/audit/export/security data requirements from other authorities.
 
-**`10_Security_Rules.md`**
+---
 
-It MUST consume this permission model without changing Reviewer/Approver/Requester/Superadmin business eligibility.
+## 45. Next Document
+
+The next document in the fixed project order is:
+
+**`11_ERD_Database_Schema.md`**.
+
+It MUST materialize this permission-centric model without duplicating Spatie schema or reintroducing organizational authorization scope.

@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-SEC-010  
 > **Document Order:** 10 / 20  
-> **Status:** Draft — Confirmed Security Baseline  
+> **Status:** Draft — Confirmed Security Baseline + Team/Permission Synchronization  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`  
 > **Organization Model:** Single organization / single application installation  
@@ -17,72 +17,50 @@
 
 Dokumen ini menjadi **source of truth authoritative untuk security policy dan security-control behavior** NSCMF Digital Form & Workflow System.
 
-Security Rules mengamankan requirement yang telah dikunci pada `01–09` tanpa mengubah:
+Security Rules mengamankan decisions 01–09 tanpa mengubah product scope, business invariants, permission semantics, canonical lifecycle, business-field validation, UI business meaning, technology selection, atau logical architecture.
 
-- product scope;
-- business invariant;
-- actor permission/scope semantics;
-- canonical NSCMF lifecycle;
-- business-field validation;
-- UI business meaning;
-- technology selection;
-- logical architecture/concurrency model.
+Current authorization synchronization:
 
-Dokumen ini mengunci:
+- Team is organizational/profile data only;
+- there is no Unit/Division;
+- there is no Reviewer Scope or Approval Scope;
+- required permission is the RBAC capability gate;
+- explicit ownership remains only where business rule requires own-record behavior;
+- current state/archive/validation/protected invariants/security/concurrency remain additional gates;
+- Spatie Teams is disabled and MUST NOT be introduced through security middleware;
+- Team changes alone do not change authorization.
 
-- authentication/password policy;
-- temporary credential/reset behavior;
-- login throttling;
-- session lifetime dan concurrent-session policy;
-- password re-authentication untuk sensitive administration;
-- server-side authorization hardening;
-- browser/request security baseline;
-- input/query/error-handling security;
-- private attachment handling;
-- ClamAV malware scanning;
-- permanent authoritative audit evidence;
-- privileged Access/Security Audit visibility;
-- secret/private-key handling;
-- private export delivery;
-- Approved-PDF signing identity/custody/readiness;
-- public PDF validation;
-- exact final-file SHA-256 verification;
-- signing/verification failure behavior;
-- security logging and safe disclosure.
-
-Physical database tables/columns belong to `11_ERD_Database_Schema.md`. Exact HTTP payload/status codes belong to `12_API_Contract.md`. Exact folder/class placement belongs to `13_Project_Structure.md`. Exact environment variable names/server paths belong to `14_Environment_Specification.md`. Exact production topology belongs to `20_Deployment_Architecture.md`.
+Security Rules cover authentication/password, temporary credentials, throttling, sessions, sensitive-action re-authentication, backend authorization hardening, browser/request security, attachment/ClamAV, permanent audits, secrets, private export, Approved-PDF signing, public PDF validation, final-file SHA-256, safe errors/logging.
 
 ---
 
 ## 2. Normative Language
 
-- **MUST** — wajib.
-- **MUST NOT** — dilarang.
-- **SHOULD** — strong default recommendation unless an explicit confirmed project decision says otherwise.
-- **MAY** — diperbolehkan.
-- **FAIL CLOSED** — failure/uncertainty results in denial/unavailability rather than permissive fallback.
-- **AUTHORITATIVE AUDIT** — durable Business Audit, Access Audit, or Security Audit evidence that must remain preserved.
-- **SIGNING IDENTITY** — private signing key plus corresponding public certificate/public verification material used by the System/Organization PDF signer.
+- **MUST** — mandatory.
+- **MUST NOT** — forbidden.
+- **SHOULD** — strong default unless explicit project decision differs.
+- **MAY** — allowed.
+- **FAIL CLOSED** — uncertainty results in denial/unavailability.
+- **AUTHORITATIVE AUDIT** — durable Business/Access/Security evidence with no age-based purge.
+- **SIGNING IDENTITY** — private signing key + corresponding public certificate/verification material.
 
 ---
 
-# PART A — SECURITY AUTHORITY AND TRUST MODEL
+# PART A — SECURITY AUTHORITY / TRUST
 
 ## 3. Authority Precedence
 
-`10_Security_Rules.md` is authoritative for security controls but MUST NOT redefine:
+Security MUST NOT redefine:
 
-1. `01_PRD.md` — product scope;
-2. `02_Business_Rules.md` — business invariants;
-3. `03_User_Flow.md` — interaction sequence, except security gates surrounding interactions;
-4. `04_RBAC_Permission_Matrix.md` — business permission/scope eligibility;
-5. `05_State_Status_Flow.md` — canonical persistent lifecycle;
-6. `06_Validation_Rules.md` — business/form validation;
-7. `07_UI_UX_Specification.md` — presentation/interaction meaning;
-8. `08_Tech_Stack_Specification.md` — selected technology baseline;
-9. `09_System_Architecture.md` — component/concurrency/execution topology.
-
-Security checks are additional gates. A security condition/failure MUST NOT create an additional NSCMF business status.
+1. Product scope (`01`);
+2. Business invariants (`02`);
+3. User Flow (`03`) except security gates;
+4. permission-centric authorization (`04`);
+5. State/workflow iteration (`05`);
+6. business validation (`06`);
+7. UI meaning (`07`);
+8. technology/package baseline (`08`);
+9. architecture/concurrency (`09`).
 
 Canonical business states remain exactly:
 
@@ -96,361 +74,223 @@ APPROVED
 CANCELLED
 ```
 
-Examples that MUST NOT become NSCMF business states:
+Authentication/session/malware/export/signing/verification conditions are not NSCMF states.
 
-```text
-AUTH_REQUIRED
-SESSION_EXPIRED
-MFA_REQUIRED
-SCANNING
-QUARANTINED
-MALWARE_DETECTED
-SIGNING_FAILED
-VALID_CURRENT
-VALID_SUPERSEDED
-INVALID_MODIFIED
-UNKNOWN
-```
-
----
-
-## 4. Core Trust Boundaries
+## 4. Untrusted Inputs
 
 Treat as untrusted until validated/authorized:
 
-- browser/user input;
-- URL/path/query/body identifiers;
-- filenames;
-- browser-declared MIME/content type;
-- uploaded file content;
-- public PDF-validator uploads;
-- client-supplied business state;
-- client-supplied role/permission/scope values;
-- client-supplied audit actor/timestamp;
-- client-supplied version/concurrency values until checked against persisted record;
-- export/download identifiers;
-- user-controlled text rendered by Vue/Inertia.
+- browser input, IDs, URL/query/body;
+- filenames/MIME/file contents;
+- public PDF uploads;
+- client-supplied state/version;
+- client-supplied actor/timestamp;
+- client-supplied role/permission/Team assignment admin inputs;
+- export/download IDs/keys;
+- user text rendered in Vue.
 
 Trusted authority resides in:
 
-- authenticated server-side identity/session state;
-- Laravel Policies/Gates and domain authorization;
+- authenticated server session;
+- Spatie/Laravel permission resolution;
+- Policies/Gates + domain authorization;
 - MySQL persisted business/security state;
 - application/domain services;
-- protected official template registry;
-- protected server signing configuration;
-- explicit trusted scanner response from private ClamAV/`clamd` boundary.
+- protected template registry;
+- protected signing configuration;
+- explicit trusted ClamAV CLEAN response.
 
----
+Team membership is trusted data only after validation but is **not authorization authority**.
 
-## 5. Fail-Closed Security Principle
-
-Where security correctness cannot be established, default is denial/unavailability.
+## 5. Fail Closed
 
 Examples:
 
 ```text
-authorization uncertain    → DENY
-record scope uncertain     → DENY
-session invalid/expired    → REQUIRE LOGIN
-ClamAV no CLEAN result     → FILE NOT USABLE
-Approved PDF sign failure  → EXPORT FAILED
-signing identity missing   → CRITICAL NOT-READY CONDITION
-validator evidence unclear → MUST NOT RETURN VALID_CURRENT
+authorization uncertain      → DENY
+required permission missing  → DENY
+resource/ownership uncertain → DENY
+session invalid/expired      → REQUIRE LOGIN
+ClamAV no CLEAN              → FILE NOT USABLE
+Approved PDF sign failure    → EXPORT FAILED
+signing identity missing     → CRITICAL NOT-READY
+verification unclear         → MUST NOT RETURN VALID_CURRENT
 ```
-
-Fail-closed behavior MUST NOT be used as a reason to alter or erase existing business history.
 
 ---
 
-# PART B — AUTHENTICATION AND PASSWORD POLICY
+# PART B — AUTHENTICATION / PASSWORD
 
-## 6. Authentication Model — Confirmed Final Decision
+## 6. Authentication Model
 
-Current MVP authentication is exactly:
+Exactly:
 
 ```text
-username
-+ password
+username + password
 ```
-
-Confirmed boundaries:
 
 - no self-registration;
 - no mandatory SSO/LDAP/OAuth;
-- **no MFA**;
-- no OTP/authenticator requirement;
-- no security implementation may silently add MFA without an approved project requirement change.
+- no MFA;
+- no OTP/authenticator requirement.
 
----
+Login/logout are authentication/session operations and MUST NOT depend on Spatie `session.login`/`session.logout` permission rows.
 
-## 7. Password Policy — Confirmed Final Product Decision
+## 7. Password Policy
 
-Password rule is intentionally simple and MUST be implemented exactly:
+Final product decision:
 
-- minimum length = **6 characters**;
-- no mandatory uppercase;
-- no mandatory lowercase;
-- no mandatory number;
-- no mandatory symbol;
-- no mandatory combination/composition requirement;
-- any character composition is acceptable if all other credential checks succeed;
-- application MUST NOT add a complexity checklist merely because a framework/starter template recommends one;
-- no periodic forced password change solely because a fixed amount of time has passed.
+- minimum length **6**;
+- no required uppercase;
+- no required lowercase;
+- no required number;
+- no required symbol;
+- no composition combination;
+- no periodic forced expiry solely by age.
 
-This rule is a confirmed project decision and MUST NOT be reopened or strengthened by implementation preference without an explicit product requirement change.
+Implementation MUST NOT strengthen this policy by preference without explicit requirement change.
 
----
+## 8. Password Storage / Disclosure
 
-## 8. Password Storage and Disclosure
-
-Regardless of the intentionally simple password composition policy, implementation MUST:
+MUST:
 
 - never persist plaintext password;
-- use Laravel-supported secure password hashing;
-- never log plaintext password;
-- never expose password hash to browser/Inertia/API;
-- never include current/new/temporary password in Business Audit, Access Audit, Security Audit, stack trace, diagnostic dump, or export;
-- never write real passwords into seed code, repository fixtures, README examples, GitHub Actions logs, or screenshots.
+- use Laravel-supported secure hashing;
+- never log plaintext;
+- never expose password hash to browser/API;
+- never include current/new/temp password in Business/Access/Security Audit, stack trace, dump, export;
+- never commit real passwords to repository/fixtures/docs.
 
-Password hashing implementation/configuration is security infrastructure and does not change the min-6/no-composition business decision.
+## 9. Password Change Triggers
 
----
-
-## 9. No Periodic Password Expiry
-
-Current MVP does not require users to change password every N days merely because time elapsed.
-
-Password change is required when:
-
-- temporary credential must be replaced;
-- administrator resets credential;
-- user changes password intentionally;
-- a future approved security incident/process explicitly requires reset.
+Required for temporary credential replacement, admin reset, intentional user password change, or future approved incident process. Not time-based periodic expiration.
 
 ---
 
-# PART C — ACCOUNT CREATION, RESET, TEMPORARY PASSWORD
+# PART C — ACCOUNT CREATION / RESET
 
 ## 10. No Self-Service Registration
 
-Normal users cannot create their own account. Account creation is an administrative action protected by RBAC + security preconditions.
+Normal users cannot create own account.
 
----
-
-## 11. Admin-Created User Credential Flow
-
-Conceptual flow:
+## 11. Admin-Created User Flow
 
 ```text
-authorized administrator
-→ password re-authenticate
-→ create eligible normal account
-→ system/administrative flow establishes temporary password
-→ target authenticates with temporary password
-→ mandatory password-change gate
-→ normal application access only after successful replacement
+authorized admin
+→ current-password re-auth
+→ create eligible account
+→ establish temporary password
+→ target authenticates
+→ forced password replacement
+→ normal app access
 ```
 
-Temporary password:
+Temporary password sensitive, no plaintext audit/log/repository storage.
 
-- is sensitive;
-- MUST NOT appear in audit/log plaintext;
-- MUST NOT remain valid after successful replacement;
-- MUST NOT be stored in repository/source;
-- MUST NOT bypass normal disabled-account/session/security controls.
+## 12. Admin Password Reset
 
-Exact secure delivery/display mechanism of the temporary password is finalized in API/UI/Environment implementation, but it MUST not create a permanent plaintext credential store.
+1. acting admin re-authenticates current password;
+2. target eligibility/protected invariant checked;
+3. temp reset credential created;
+4. **all target active sessions revoked**;
+5. target authenticates with temporary credential;
+6. mandatory password change;
+7. safe Security Audit.
 
----
-
-## 12. Administrative Password Reset
-
-Password reset by authorized administrator:
-
-1. acting admin passes current-password re-authentication;
-2. target account eligibility/protected invariant is checked;
-3. temporary password/reset credential is created;
-4. **all active sessions of target user are revoked**;
-5. target user authenticates using temporary credential;
-6. mandatory password change is completed;
-7. security event is audited without plaintext credential content.
-
-Self-service `Forgot Password` email flow is not part of current MVP.
+No self-service Forgot Password email baseline.
 
 ---
 
-# PART D — LOGIN THROTTLING / AUTHENTICATION FAILURE
+# PART D — LOGIN THROTTLING
 
-## 13. Login Throttling
+## 13. Throttling
 
-Login MUST apply server-side rate limiting/progressive delay to repeated failed authentication attempts.
+Server-side rate limiting/progressive temporary delay for repeated failures. Context SHOULD combine username/account key and source/IP where appropriate. No permanent hard-lock solely for wrong attempts. Successful login MAY reset applicable counters.
 
-Confirmed intent:
+## 14. Enumeration Resistance
 
-- repeated failures are throttled;
-- context SHOULD combine target username/account key and source/IP context where technically appropriate;
-- use progressive/temporary throttling rather than permanent hard-lock solely because wrong password attempts occurred;
-- a successful login MAY reset applicable failure counters;
-- exact limiter bucket numbers/decay implementation can be finalized in `12`/`14` while preserving this behavior.
+Failure must not disclose username existence vs wrong password. Public Login remains generic.
 
----
+## 15. Auth Security Audit
 
-## 14. Credential Enumeration Resistance
-
-Authentication failure response MUST NOT disclose whether:
-
-- username exists;
-- password alone is wrong;
-- account existence can be inferred from materially different error text.
-
-Normal user-facing response remains generic.
-
-Protected administrators may see appropriate security/audit context through privileged Security Audit; public Login UI does not.
-
----
-
-## 15. Authentication Security Audit
-
-Security Audit SHOULD capture relevant authentication evidence such as:
-
-- successful authentication where required by audit design;
-- failed authentication;
-- throttling/security delay events;
-- disabled-account login attempt where appropriate;
-- credential reset/security changes;
-- forced temporary-password replacement completion.
-
-Audit MUST NOT store supplied password.
+Capture appropriate success/failure/throttling/disabled-account/reset/temp-password-replacement evidence without supplied password.
 
 ---
 
 # PART E — SESSION SECURITY
 
-## 16. Session Policy — Confirmed Final Decision
+## 16. Confirmed Policy
 
 ```text
-idle timeout       = 30 minutes
-absolute lifetime  = 8 hours
-maximum sessions   = 2 active sessions per account
+idle timeout      = 30 minutes
+absolute lifetime = 8 hours
+maximum sessions  = 2 active sessions/account
 ```
 
-All values are server-enforced.
-
----
+Server enforced.
 
 ## 17. Idle Timeout
 
-If no qualifying authenticated activity occurs for 30 minutes, the session becomes invalid and user must authenticate again.
+After 30m qualifying inactivity session invalid → login required. Persisted Draft not deleted.
 
-Frontend warning/countdown MAY improve UX but is not authoritative.
+## 18. Absolute Lifetime
 
-Persisted Draft is not deleted because session expires.
+No session valid beyond 8h security-defined creation/auth point even if active.
 
----
+## 19. Max Two Sessions
 
-## 18. Absolute Session Lifetime
-
-A session cannot remain valid beyond 8 hours from its security-defined creation/authentication point even if user remains active.
-
-Activity MUST NOT indefinitely extend the session beyond absolute lifetime.
-
-At expiration, re-login is required.
-
----
-
-## 19. Maximum Two Active Sessions
-
-An account MUST NOT retain more than two active authenticated sessions.
-
-Exact behavior when a third valid login is attempted may be finalized downstream as either deterministic existing-session replacement or denial of the new session, but the result MUST respect:
-
-```text
-active_session_count <= 2
-```
-
-No implementation may silently permit unlimited sessions.
-
----
+Account MUST NOT retain >2 active authenticated sessions. Exact third-login replacement/denial policy downstream, invariant `active_session_count <= 2`.
 
 ## 20. Session Regeneration
 
-Session identifier MUST be regenerated after successful authentication and after security-sensitive authentication-state changes where appropriate.
-
-Session fixation protections MUST remain enabled.
-
----
+Regenerate identifier after successful authentication and security-sensitive auth-state changes as appropriate.
 
 ## 21. Logout
 
-Logout MUST invalidate current session server-side.
-
-Deleting only a browser cookie without invalidating authoritative server session is insufficient.
-
----
+Invalidate current server-side session; deleting browser cookie only is insufficient.
 
 ## 22. Mandatory Session Revocation
 
 All active sessions of target user MUST be revoked after:
 
-- administrator password reset;
+- admin password reset;
 - role assignment/removal;
-- direct permission assignment/removal;
-- access-changing scope/identity change where effective authorization changes;
+- role-permission mutation that changes target user's effective permissions;
+- direct permission assignment/removal **if a future approved feature uses it**;
 - disabling target account;
-- equivalent approved security-sensitive access change.
+- equivalent authorization-changing identity/security mutation.
 
-If acting user changes their own applicable password/role/permission/security access, their own sessions are revoked as applicable and UI returns them to Login.
+**Team assignment/change alone is not an authorization change and MUST NOT be treated as a permission revocation/grant.**
 
-Administrator changing another user is not logged out solely because target sessions were revoked.
+If acting user changes own applicable credential/effective authorization, own sessions revoked as applicable.
 
 ---
 
-# PART F — PASSWORD RE-AUTHENTICATION
+# PART F — SENSITIVE-ACTION PASSWORD RE-AUTH
 
 ## 23. Definition
 
-There is no MFA.
+No MFA. Re-auth means acting authenticated user enters current password again before sensitive administration.
 
-**Re-authentication means the currently authenticated actor must enter their current password again** before a sensitive administrative action is executed.
-
----
-
-## 24. Actions Requiring Re-authentication
+## 24. Actions Requiring Re-auth
 
 At minimum:
 
 - password reset of another user;
 - role assignment/removal;
-- permission assignment/removal;
-- security-sensitive access/scope changes;
-- protected signing/security configuration change if exposed through application;
-- other equivalent privilege-changing actions later classified as sensitive.
+- permission assignment/removal on roles;
+- protected signing/security configuration mutation if exposed;
+- other equivalent privilege-changing actions.
 
----
+Team-only organizational changes do not need to be classified as privilege-changing merely because Team changes, although ordinary admin authorization still applies.
 
-## 25. Re-authentication Failure
+## 25. Failure
 
-If current-password re-auth fails:
+Failed re-auth → action unapplied, no partial role/permission/reset mutation; failure MAY be Security Audited.
 
-- sensitive action MUST remain unapplied;
-- no partial role/permission/password reset is persisted;
-- protected Superadmin invariant remains unchanged;
-- failure MAY be recorded in Security Audit;
-- user receives non-sensitive failure feedback.
+## 26. Proof Lifetime
 
----
-
-## 26. Re-authentication Proof Lifetime
-
-Implementation MAY issue a short-lived server-side proof after successful re-auth to avoid asking password repeatedly within one tightly scoped sensitive operation.
-
-The proof:
-
-- MUST be short-lived;
-- MUST be scoped/validated server-side;
-- MUST NOT authorize unrelated sensitive actions indefinitely;
-- exact duration belongs to API/implementation spec.
+MAY issue short-lived server-side proof scoped to tightly related sensitive operations. Exact duration downstream.
 
 ---
 
@@ -458,1358 +298,647 @@ The proof:
 
 ## 27. Deny by Default
 
-Effective authorization remains:
+Effective authorization:
 
 ```text
-valid authenticated session
+valid session
 + required permission
-+ record/resource visibility
-+ ownership / Unit / Reviewer / Approval scope
++ resource authorization
++ explicit ownership where the business rule requires ownership
 + current business state
 + archive treatment
 + validation
-+ protected Superadmin invariant
++ protected invariant
 + security preconditions
++ concurrency/current-state revalidation
 ```
 
-Any failed prerequisite → DENY.
-
----
+**Team is intentionally absent.**
 
 ## 28. Backend Enforcement
 
-Every protected operation MUST be authorized server-side, including:
+Every protected operation server-authorized, including:
 
-- record detail direct URL;
-- History/search/filter results;
-- Review/Approval queues;
+- direct record URL;
+- History/search/filter;
+- Review/Approval queue and action;
 - attachment view/download;
 - export request/status/download;
 - Business Timeline;
-- raw Access Audit;
-- Security Audit;
-- user/role/unit/scope administration;
+- raw Access/Security Audit;
+- user/role/permission/Team administration;
 - Reopen/Archive/Unarchive;
 - Result-only mutation;
 - queued artifact retrieval.
 
-Hidden/disabled frontend controls never replace backend authorization.
+Hidden frontend controls never replace backend checks.
 
----
+## 29. IDOR Protection
 
-## 29. IDOR / Broken Object Authorization Protection
+Knowing/manipulating record/attachment/export/audit/storage IDs never grants access. Backend rechecks related resource authorization.
 
-Knowing or manipulating a record ID, attachment ID, export ID, audit ID, or object-storage key MUST NOT grant access.
+## 30. Mass Assignment / Whitelisting
 
-Backend re-checks parent resource and current effective access on every protected fetch/download/mutation.
-
----
-
-## 30. Mass Assignment / Field Whitelisting
-
-Backend MUST accept only fields allowed for the specific action/profile.
+Specific action whitelist only.
 
 Examples:
 
-- `nscmf.change.result.edit` only accepts Result fields;
-- Requester cannot set canonical `business_status` directly;
-- normal user cannot inject `approved_by`;
-- actor/timestamp/audit identity are server-derived;
-- client-supplied role/permission/scope values are validated as administrative inputs, not trusted authority;
-- protected flags cannot be mass-assigned through generic payload.
+- Result endpoint accepts only Result fields;
+- Requester cannot set business status;
+- normal user cannot inject approved_by;
+- actor/timestamp/audit identity server-derived;
+- role/permission/Team admin inputs validated but not trusted authority;
+- protected flags not generic mass-assigned.
 
----
+## 31. Protected Superadmin
 
-## 31. Protected Superadmin Invariant
+No API/bulk/security path may delete/disable/remove protected role/downgrade protected Superadmin.
 
-Security/admin endpoints MUST preserve existing protected Superadmin rules across direct request/API/bulk paths.
+Protected Superadmin authority MUST NOT bypass impossible domain actions such as Reopen Cancelled or hard-delete NSCMF.
 
-No credential reset/role assignment/security path may become a workaround to:
+## 32. Team / Spatie Boundary
 
-- delete protected Superadmin;
-- disable protected Superadmin;
-- remove protected role;
-- downgrade protected authority contrary to confirmed invariant.
+Security implementation MUST preserve:
+
+```text
+business Team = organizational data only
+Spatie teams = false
+```
+
+MUST NOT:
+
+- enable Spatie Teams;
+- use Team ID in Review/Approval permission decisions;
+- call `setPermissionsTeamId()` for normal authorization;
+- add scope middleware based on Team;
+- infer privilege from Team name such as `NOC`.
 
 ---
 
 # PART H — BROWSER / REQUEST SECURITY
 
-## 32. HTTPS
+## 33. HTTPS
 
-Production authenticated/private application traffic MUST use HTTPS.
+Production private app and public PDF verification MUST use HTTPS.
 
-Public PDF verification route MUST also use HTTPS in production because users upload documents and receive authenticity results.
+## 34. Session Cookies
 
----
+Appropriate HttpOnly, Secure in production, SameSite, constrained domain/path.
 
-## 33. Session Cookie Security
+## 35. CSRF
 
-Authentication/session cookies MUST use appropriate protected settings including:
+Authenticated state-changing browser requests use Laravel CSRF protection. No global disablement.
 
-- `HttpOnly`;
-- `Secure` in production HTTPS;
-- appropriate `SameSite` policy for same-site Laravel/Inertia application;
-- appropriately constrained path/domain scope.
+## 36. XSS / Rendering
 
-Session token SHOULD remain inaccessible to Vue JavaScript where HttpOnly cookie is sufficient.
+User-controlled text rendered safely by default; avoid raw `v-html` without explicit sanitization. Protect reasons/comments, customer/service values, filenames, audit text, results, validation reflections.
 
----
+## 37. Headers
 
-## 34. CSRF
+Tested baseline CSP, anti-clickjacking/frame-ancestors, nosniff, safe Referrer Policy, HSTS after correct HTTPS deployment.
 
-Authenticated state-changing browser requests MUST use Laravel CSRF protection or equivalent correctly scoped same-origin mechanism.
+## 38. CORS
 
-Global CSRF disablement for convenience is forbidden.
-
-Public PDF verification is not an authenticated business mutation, but it still requires upload/rate/security protections.
+No permissive cross-origin CORS needed for same-app Inertia. No wildcard credentialed origins.
 
 ---
 
-## 35. XSS / Safe Rendering
+# PART I — INPUT / DB / ERROR SECURITY
 
-User-controlled values MUST render as text by default.
+## 39. Server Validation
 
-Avoid raw `v-html`/equivalent for untrusted content unless explicit sanitization requirement exists.
+`06` remains business validation authority. Security may add gates but never weaken it.
 
-Particularly protect:
+## 40. SQL Safety
 
-- workflow reasons/comments;
-- customer/service values;
-- filenames;
-- audit text;
-- result narratives;
-- validation/error reflections.
+Eloquent/Query Builder/parameter binding only; no user-value SQL concatenation.
 
----
+## 41. DB Application Account
 
-## 36. Security Headers
+Production app uses dedicated least-privilege MySQL account, not root.
 
-Production SHOULD use tested baseline headers including:
+## 42. Error Handling
 
-- Content Security Policy appropriate for Vue/Inertia assets;
-- `frame-ancestors`/anti-clickjacking control unless approved embedding exists;
-- `X-Content-Type-Options: nosniff`;
-- safe Referrer Policy;
-- HSTS after correct HTTPS deployment is established.
-
-Exact values must be tested against actual application resources.
-
----
-
-## 37. CORS
-
-Current same-application Inertia architecture does not require permissive cross-origin CORS.
-
-MUST NOT configure wildcard credentialed origins.
-
-Future integrations require explicit origin/policy change.
-
----
-
-# PART I — INPUT / DATABASE / ERROR SECURITY
-
-## 38. Server Validation
-
-All business/form validation remains authoritative in `06`. Security validation may add additional gates but MUST NOT weaken business validation.
-
-Browser validation is UX only.
-
----
-
-## 39. SQL Safety
-
-Use Eloquent, Query Builder, parameter binding, or parameterized raw SQL.
-
-User-controlled values MUST NOT be concatenated into executable SQL.
-
----
-
-## 40. Database Application Account
-
-Production application uses dedicated least-privilege MySQL account.
-
-Normal application MUST NOT connect as MySQL `root`.
-
-Exact grants/TLS/backup credential details belong to ERD/Environment/Deployment while preserving least privilege.
-
----
-
-## 41. Error Handling
-
-Production user responses MUST NOT disclose:
-
-- stack traces;
-- filesystem paths;
-- object-storage paths/credentials;
-- DB credentials;
-- raw SQL containing sensitive values;
-- signing private-key path/content/passphrase;
-- application secret keys;
-- ClamAV socket/internal daemon details unnecessary to user;
-- internal exception data not required for remediation.
-
-User gets actionable but non-sensitive error; protected technical logs get appropriate diagnostic detail.
+Production response never discloses stack traces, filesystem/object paths, DB credentials/raw sensitive SQL, signing key path/content/passphrase, app secrets, unnecessary ClamAV internals.
 
 ---
 
 # PART J — ATTACHMENT SECURITY
 
-## 42. Existing Attachment Business Rules Remain
+## 43. Existing Business Rules
 
-From `06`:
+Attachment optional; max10/record; max20MB/file; zero-byte rejected; allowlist PDF/XLS/XLSX/DOC/DOCX/PNG/JPG/JPEG/TXT/CSV; executable/script/macro-enabled types outside allowlist rejected.
 
-- attachment optional;
-- max 10 files/record;
-- max 20 MB/file;
-- zero-byte rejected;
-- allowlist: PDF/XLS/XLSX/DOC/DOCX/PNG/JPG/JPEG/TXT/CSV;
-- executable/script/macro-enabled formats outside allowlist rejected.
+## 44. File-Type Validation
 
-Security adds controls and never turns attachment mandatory.
+Do not trust extension/browser MIME alone. Combine normalized allowlist, detected MIME/content, signatures where reliable, size/count/zero-byte.
 
----
-
-## 43. File-Type Validation
-
-Do not trust extension or browser MIME alone.
-
-Backend SHOULD combine where technically reliable:
-
-- normalized extension allowlist;
-- detected MIME/content type;
-- expected file signature/structure;
-- file size/count;
-- zero-byte check.
-
-Original filename is metadata, not filesystem identity.
-
-Stored object SHOULD use system-generated opaque identifier.
-
----
-
-## 44. Private Quarantine
-
-Untrusted upload MUST NOT immediately become a normal usable attachment.
-
-Flow:
+## 45. Private Quarantine
 
 ```text
 upload
 → structural validation
-→ private quarantine/temp
-→ ClamAV scan
+→ private quarantine
+→ ClamAV
 → explicit CLEAN only
-→ promote/persist as normal private attachment
+→ promote private attachment
 ```
 
-Files MUST NOT be executable from public webroot.
+No public executable path.
 
----
+## 46. ClamAV
 
-## 45. ClamAV / clamd — Confirmed Baseline
+`MalwareScanner → ClamAvScanner → clamd`, private endpoint. Community package may be transport glue only.
 
-Confirmed malware engine:
+## 47. Fail Closed
 
-```text
-ClamAV / clamd
-```
+Only explicit CLEAN passes. INFECTED/timeout/unavailable/error/unreadable → no normal usability/download.
 
-Recommended application boundary:
+## 48. Download
 
-```text
-MalwareScanner
-  ↓
-ClamAvScanner
-  ↓
-clamd
-```
-
-A Laravel/community package MAY be used as a client/transport helper, but it MUST NOT define NSCMF business/security semantics.
-
-The `clamd` socket/TCP service MUST remain infrastructure-private and MUST NOT be exposed publicly to the internet.
-
-Virus-definition update/health operation belongs to Environment/Deployment.
-
----
-
-## 46. ClamAV Fail-Closed Rule
-
-Only explicit scanner result `CLEAN` may make file usable.
-
-These MUST NOT be considered clean:
-
-- malware/infected result;
-- scanner timeout;
-- ClamAV unavailable;
-- scanner/client/protocol error;
-- file cannot be scanned/read as required.
-
-Result behavior:
-
-```text
-CLEAN              → may promote
-INFECTED            → reject/quarantine; no normal download
-ERROR/TIMEOUT/DOWN  → fail closed; no normal download
-```
-
-Scanner failure MUST NOT silently create a successful attachment.
-
----
-
-## 47. Attachment Download
-
-Download always re-checks parent NSCMF visibility/authorization.
-
-Only an attachment that completed the required security gate is eligible for normal download.
-
-Private object path/key is never authorization.
-
-Download/view access MAY create Access Audit evidence according to audit policy.
+Always recheck parent record authorization. Storage key is never authorization. Download MAY create Access Audit.
 
 ---
 
 # PART K — AUTHORITATIVE AUDIT SECURITY
 
-## 48. Audit Classes
-
-Four concerns are explicitly separated:
+## 49. Audit Classes
 
 ```text
-Business Audit
-→ business data/workflow/lifecycle mutation evidence
-
-Access Audit
-→ protected resource view/download/access evidence
-
-Security Audit
-→ authentication/credential/authorization/security-control evidence
-
-Technical Logs
-→ software/runtime diagnostics
+Business Audit → business mutation/workflow/lifecycle
+Access Audit   → protected resource access
+Security Audit → auth/credential/authorization/security-control
+Technical Logs→ runtime diagnostics
 ```
 
-Technical logs are not authoritative audit replacement.
+## 50. No Age-Based Deletion
 
----
+Business/Access/Security Audit:
 
-## 49. No Time-Based Audit Deletion — Confirmed Final Decision
+- stored regardless of age;
+- no 12-month or 24-month automatic purge;
+- scheduler MUST NOT age-delete;
+- no routine delete/purge-by-age UI;
+- append-oriented.
 
-There is **no 12-month retention policy** and no other age-based expiry for authoritative audit evidence.
-
-Business Audit, Access Audit, and Security Audit:
-
-- MUST remain stored regardless of age;
-- MUST NOT be deleted automatically after 12 months;
-- MUST NOT be deleted automatically after 24 months;
-- MUST NOT be purged by scheduler because old;
-- MUST NOT expose routine normal application delete/purge-by-age action;
-- SHOULD be append-oriented so history is not overwritten by current value.
-
-This is a final confirmed project decision.
-
----
-
-## 50. Audit Preservation vs Export Binary Cleanup
-
-These are intentionally different:
+## 51. Different Lifetimes
 
 ```text
-Generated XLSX/PDF binary
-→ temporary
-→ 168 hours / 7 days
-→ delete binary
-
-Business/Access/Security Audit
-→ authoritative evidence
-→ no age-based deletion
-
-Issued-PDF verification metadata
-→ required historical evidence
-→ preserved beyond export binary cleanup
+Generated XLSX/PDF binary → 168h/7d then cleanup
+Business/Access/Security Audit → no age purge
+PDF issuance/verification metadata → preserve for historical validation
+Technical Logs → separate downstream operational retention
 ```
 
-Deleting expired generated binary MUST NOT delete audit or issuance evidence.
+## 52. Business Audit
 
----
+Historical business evidence read-only to normal user.
 
-## 51. Business Audit
+## 53. Access Audit
 
-Business Audit contains authoritative persisted business change/workflow/lifecycle evidence as defined in `02/09`.
+Configured events include record view, attachment view/download, export request/download, privileged audit access. Does not become Business Timeline row.
 
-Normal application users MUST NOT edit/delete historical rows.
-
----
-
-## 52. Access Audit
-
-Access Audit SHOULD capture configured events such as:
-
-- record detail view;
-- attachment view/download;
-- export request;
-- export artifact download;
-- privileged audit access where applicable.
-
-Access Audit does not become a Business Timeline workflow row.
-
----
-
-## 53. Access Audit Visibility
-
-Raw/privileged Access Audit is not automatically visible to every user who can view a record.
-
-Baseline:
+## 54. Access Audit Visibility
 
 ```text
-Protected Superadmin
-→ default eligible
-
-explicit audit.access.view
-→ MAY be delegated
-→ still requires applicable underlying audit/resource scope
+Protected Superadmin default
+or audit.access.view
++ applicable resource/admin authorization
 ```
 
-The permission does not by itself grant `nscmf.view.all`, Review, Approval, Reopen, or export authority.
+No Team scope.
 
----
+## 55. Security Audit
 
-## 54. Security Audit
+Capture login/security events, credential reset, temp-password replacement, role/permission changes, session revocation, enable/disable, malware failures, signing readiness/failure, privileged security access.
 
-Security Audit SHOULD capture at least relevant:
+Team changes MAY be audited as administrative/business data changes as appropriate but MUST NOT be labeled an authorization grant/revoke solely due Team membership.
 
-- login success/failure/throttling;
-- credential reset;
-- temporary-password replacement completion;
-- role/permission/access changes;
-- session revocation;
-- enable/disable security events;
-- malware detection/scan-security failures;
-- signing-identity readiness/failure events;
-- privileged security/audit access where appropriate.
-
-Never store plaintext password/private key/secret.
-
----
-
-## 55. Security Audit Visibility
-
-Baseline:
+## 56. Security Audit Visibility
 
 ```text
-Protected Superadmin
-→ default eligible
-
-explicit audit.security.view
-→ MAY be delegated
-→ applicable administrative/security scope required
+Protected Superadmin default
+or audit.security.view
++ applicable admin/security authorization
 ```
 
-No normal application role can edit/delete authoritative Security Audit.
+No Team scope.
+
+## 57. Technical Logs
+
+Operational, not authoritative audit replacement. Retention downstream.
 
 ---
 
-## 56. Technical Log Retention
+# PART L — PRIVATE EXPORT
 
-Technical application logs remain operational, not authoritative audit evidence.
+## 58. Export Authorization
 
-The user's permanent-audit decision applies to Business/Access/Security Audit, not automatically to every runtime log file forever.
+Export request/status/download rechecks `nscmf.export` + related record authorization. Bulk checks each record. Team not authorization.
 
-Exact technical-log rotation/retention is finalized downstream in Environment/Deployment.
+## 59. Immutable Snapshot Security
 
----
+Export request MUST bind to immutable deterministic record snapshot/version/workflow-iteration/template context. Worker MUST NOT export later mutable record data.
 
-# PART L — PRIVATE EXPORT SECURITY
+Snapshot is immutable after creation. Later export request creates a new snapshot rather than overwriting old one.
 
-## 57. Export Authorization
+## 60. Private Artifacts
 
-Export request/status/download re-checks current user authorization against related NSCMF record.
+Generated XLSX/PDF private. No predictable public URL as authorization.
 
-Knowing export ID or storage key is insufficient.
+## 61. Seven-Day Binary Lifetime
 
-Bulk export checks every selected record individually.
-
----
-
-## 58. Deterministic Snapshot Security
-
-Queued export MUST remain bound to the deterministic record snapshot/version established when the export request is created.
-
-Worker MUST NOT silently export a newer record version because processing happens later.
-
----
-
-## 59. Private Generated Artifacts
-
-Generated XLSX/PDF remain private.
-
-They MUST NOT be served from predictable public URL as authorization mechanism.
-
-Download uses authorized application response or appropriately scoped/time-limited storage delivery after backend authorization.
-
----
-
-## 60. Seven-Day Binary Lifetime
-
-Confirmed:
-
-```text
-READY generated binary
-→ authorized re-download for 168 hours / 7 days
-→ binary removed automatically after expiry
-```
-
-The expiry does not delete:
-
-- NSCMF source record;
-- business history;
-- Business Audit;
-- Access Audit;
-- Security Audit;
-- Approval evidence;
-- issuance/verification metadata required for historical signed-PDF verification.
+READY binary authorized re-download 168h/7d then binary cleanup. Cleanup does not delete source/history/audits/approval/issuance metadata.
 
 ---
 
 # PART M — APPROVED PDF SIGNING
 
-## 61. Signing Scope
+## 62. Scope
 
-Confirmed:
+- XLSX not signed by PDF flow;
+- non-Approved PDF no mandatory organization signature;
+- Approved snapshot PDF MUST be cryptographically signed;
+- logical signer System/Organization;
+- human Approved By remains human actor.
 
-- XLSX is not cryptographically signed by this PDF signing flow;
-- non-Approved PDF does not receive mandatory organization signature under current rule;
-- PDF representing an `APPROVED` snapshot MUST be cryptographically signed;
-- logical signer identity = **System/Organization**;
-- human `Approved By` remains the human Approver who successfully performed final workflow transition.
+## 63. Human vs Cryptographic Identity
 
----
+Never merge/impersonate. `Approved By` and System signer remain separate evidence.
 
-## 62. Human Approver vs Cryptographic Signer
+## 64. Signing Identity
 
-These identities MUST remain separate:
+Private key + corresponding public certificate/verification material.
 
-```text
-Approved By
-= human workflow actor
+## 65. Manual Provisioning
 
-PDF signer
-= System / Organization signing identity
-```
+Signing identity manually installed/provisioned protected server/environment. Private key never GitHub/source/ordinary config/deployment artifact/ordinary DB/browser/public validator. Runtime-only minimum access.
 
-The organization certificate/private key MUST NOT overwrite or impersonate human Approval evidence.
+## 66. Required Readiness
 
----
+Missing private key/cert, unreadable key, unusable cert, mismatch, invalid config → critical not-ready/configuration failure. No unsigned Approved PDF fallback.
 
-## 63. Signing Identity Components
+## 67. Development/Test Identity
 
-Conceptually:
+Use dedicated non-production test signing identity; never casually reuse production key.
 
-```text
-private key
-+ corresponding public certificate / public verification material
-```
+## 68. Signing Failure
 
-- private key is secret and used for signing;
-- public certificate/key is used for verification and is not treated as the private secret.
+If record already Approved and export signing fails:
 
-Exact certificate/key file format may be PEM/PFX/PKCS#12 or another suitable form chosen downstream, provided this security model is preserved.
+- business status stays Approved;
+- approval audit remains;
+- export becomes Failed;
+- unsigned intermediate not delivered as final;
+- retry allowed after technical fix.
 
----
+## 69. Issuance Metadata
 
-## 64. Manual Server Provisioning — Confirmed Final Decision
+Preserve at least conceptual issuance/export ID, record, immutable snapshot/version, workflow iteration, issued timestamp, signer/cert identity/fingerprint/reference, SHA-256 of final signed bytes, currentness resolution data.
 
-Signing identity MUST be provisioned/uploaded/installed manually on the target server/environment by an authorized operator.
+## 70. Rotation
 
-Private key:
+Historical public verification material remains resolvable after active key rotation.
 
-- MUST NOT be committed to GitHub;
-- MUST NOT be embedded in source code;
-- MUST NOT be stored inside ordinary repository configuration;
-- MUST NOT travel as an ordinary application deployment artifact;
-- MUST NOT be persisted as ordinary application DB content;
-- MUST NOT be exposed to browser/public validator;
-- MUST be readable only by the runtime identity/process that requires signing.
+## 71. TSA
 
-Repository templates/examples use placeholders only.
-
-Exact protected file path/mount and ownership/mode belong to `14`/`20`.
-
----
-
-## 65. Required Signing Readiness — Confirmed Final Decision
-
-The application requires usable configured signing identity to be considered **normal-ready/healthy for its intended production operation**.
-
-Readiness/startup configuration check MUST detect at least, where technically applicable:
-
-- missing private key;
-- missing public certificate/verification material;
-- unreadable key;
-- unusable certificate;
-- private key/certificate mismatch;
-- invalid signing configuration.
-
-Required behavior:
-
-```text
-missing/unusable required signing identity
-→ CRITICAL configuration/readiness failure
-→ application MUST NOT silently advertise normal-ready signing capability
-→ Approved PDF MUST NOT fall back to unsigned output
-```
-
-Exact decision whether the HTTP process literally refuses startup versus starts only in explicit critical-not-ready mode is finalized in Environment/Deployment; either implementation MUST preserve the user's intent that the system cannot operate as normally healthy while required signing identity is absent.
-
----
-
-## 66. Development / Test Signing Identity
-
-Development/test MAY use a dedicated non-production self/test signing identity.
-
-Rules:
-
-- never reuse production private key casually in local/CI;
-- test material must be clearly non-production;
-- production readiness may require different trust/configuration;
-- tests still verify same signing/verification semantics.
-
----
-
-## 67. Approved-PDF Signing Failure
-
-If business record is already `APPROVED` and later export signing fails:
-
-- business status remains `APPROVED`;
-- final Approver Business Audit remains intact;
-- export request becomes `FAILED`;
-- unsigned intermediate PDF MUST NOT be delivered as equivalent final Approved PDF;
-- error is logged/audited appropriately;
-- user MAY retry after technical/security issue is resolved.
-
-Security/export failure does not retroactively undo valid Approval.
-
----
-
-## 68. Issuance Metadata
-
-For each successful Approved signed PDF issuance, system MUST preserve enough authoritative metadata for future validation.
-
-Conceptually includes:
-
-- issuance/export identifier;
-- NSCMF record identity;
-- bound record version/snapshot;
-- approval iteration/context;
-- issued timestamp;
-- signer/certificate identity/fingerprint/reference;
-- SHA-256 of **final signed PDF bytes**;
-- information required to resolve current/superseded status later.
-
-Exact schema belongs to `11`.
-
----
-
-## 69. Key Rotation / Historical Validation
-
-Future rotation MUST NOT make previously issued PDFs unverifiable merely because active signing key changed.
-
-Historical public verification material/certificate reference required to validate old issuances MUST remain resolvable.
-
-Retired private key handling/rotation ceremony is downstream operational detail.
-
----
-
-## 70. TSA — Not Required for Current MVP
-
-Trusted Timestamp Authority (TSA) is **not required** for current MVP.
-
-Current issuer/validator model uses application issuance timestamp + signature + exact final SHA-256 + authoritative issuance metadata.
-
-System/UI/documentation MUST NOT claim an independent trusted third-party timestamp if no TSA is used.
-
-A TSA may be introduced only through future approved compliance/legal/long-term independent timestamp requirement.
+Not required current MVP; no independent timestamp claim.
 
 ---
 
 # PART N — PUBLIC PDF VALIDATION
 
-## 71. Purpose
+## 72. Purpose / Boundary
 
-NSCMF acts as both:
+NSCMF = issuer + authoritative application validator. Public no-login narrow `/ispdfvalid`-style capability, not public record portal.
 
-- **issuer** of Approved signed PDF;
-- **authoritative application validator** for NSCMF-issued PDFs.
+## 73. Upload Safety
 
-Application MUST expose a narrow public no-login validation capability conceptually like:
+PDF only, rate limited, safe size, private temp/quarantine, ClamAV CLEAN before deep parsing, cleanup afterward.
 
-```text
-/ispdfvalid
-```
+## 74. Layer A — Cryptographic Issuer
 
-Exact route may be finalized in API/UI, but capability itself is confirmed.
+Validate PDF signature and recognized current/historical System/Organization public certificate material. Private key not used.
 
----
+## 75. Layer B — Exact SHA-256
 
-## 72. Public Access Boundary
-
-Validator:
-
-- does not require account login;
-- accepts PDF only;
-- is rate-limited;
-- does not grant History/record/attachment/audit access;
-- uses private temporary upload processing;
-- deletes temporary validation upload after processing;
-- MUST NOT store uploaded public validation file as normal NSCMF attachment.
-
----
-
-## 73. Upload Safety Before PDF Parsing
-
-Before deep PDF parsing/verification:
-
-1. validate request/file type and safe size;
-2. write into private temporary/quarantine area;
-3. scan with ClamAV;
-4. continue only on explicit `CLEAN`.
-
-`INFECTED`, timeout, scanner error, scanner unavailable → verification request fails closed.
-
-The validator MUST NOT become a convenient public malware upload storage service.
-
----
-
-## 74. Verification Layer A — Recognized Cryptographic Issuer
-
-Validator checks:
-
-- PDF signature structure/verification;
-- signer/public certificate material is recognized as an NSCMF System/Organization issuer identity;
-- signature verification does not indicate invalid unauthorized modification;
-- historical certificate/public material may be selected based on issuance metadata when key rotation exists.
-
-Private signing key is NOT needed to verify.
-
----
-
-## 75. Verification Layer B — Exact Final Artifact SHA-256
-
-At successful issuance, system calculates:
+Issuance stores:
 
 ```text
-SHA-256(final signed PDF bytes)
+SHA-256(final signed PDF exact bytes)
 ```
 
-Public validator calculates SHA-256 of uploaded PDF exact bytes and compares with authoritative issuance metadata.
+Validator hashes uploaded exact bytes and compares. One-byte difference changes hash.
 
-This deliberately makes validation strict:
+## 76. Layer C — Issuance / Workflow Currentness
 
-```text
-one-byte difference
-→ different SHA-256
-→ not the exact issued artifact
-```
+Resolve issuance, record, immutable snapshot/version, workflow iteration, issued time, certificate reference, stored hash, current approval/issuance context.
 
-This exact-hash layer complements PDF signature verification and avoids relying solely on permissive incremental-update semantics.
-
----
-
-## 76. Verification Layer C — Issuance / Workflow Currentness
-
-Validator resolves, as applicable:
-
-- issuance identity;
-- record identity;
-- bound snapshot/version;
-- approval iteration;
-- issued timestamp;
-- signer/certificate reference;
-- stored final SHA-256;
-- current NSCMF approval/issuance context.
-
-This is required because a genuine PDF can remain byte-for-byte authentic while later becoming outdated after Reopen/Revert or newer Approved issuance.
-
----
-
-## 77. Canonical Public Verification Outcomes
+## 77. Outcomes
 
 ### `VALID_CURRENT`
-
-All required conditions hold:
-
-- recognized NSCMF issuer;
-- signature valid;
-- exact SHA-256 matches issued final artifact;
-- issuance metadata matches;
-- related Approved issuance is still current.
-
-User-facing meaning: **Valid — Current**.
+Recognized issuer + valid signature + exact hash + known issuance + still-current Approved issuance.
 
 ### `VALID_SUPERSEDED`
-
-- recognized genuine issued artifact;
-- signature valid;
-- exact SHA-256 matches;
-- issuance known;
-- but related approval/issuance is no longer current because record was Reopened/Reverted or a newer Approved issuance superseded it.
-
-User-facing meaning: **Valid — Superseded**.
-
-A superseded PDF MUST NOT be classified as modified/forged solely because workflow later changed.
+Exact genuine issued artifact, but old workflow iteration/issuance is no longer current after Reopen/new Approved issuance.
 
 ### `INVALID_MODIFIED`
-
-Integrity/signature/hash evidence indicates uploaded file is not the exact issued artifact or invalid modification occurred.
-
-User-facing meaning: **Invalid — Modified**.
+Integrity/signature/hash indicates not the exact issued artifact / invalid modification.
 
 ### `UNKNOWN`
+Cannot recognize/match as known issued artifact. Not automatically accusation of forgery.
 
-System cannot match/validate file as a known NSCMF-issued artifact/recognized issuer.
+## 78. Minimum Disclosure
 
-User-facing meaning: **Unknown / Not recognized**.
+No full private fields, attachments, timeline, raw audits, storage paths, private key details, unnecessary actor info.
 
-`UNKNOWN` is not automatically a claim of malicious forgery.
+## 79. Abuse Controls
 
----
-
-## 78. Minimum Public Disclosure
-
-Public validation result MUST NOT disclose private application information merely because a PDF is uploaded.
-
-Do not expose:
-
-- full private NSCMF fields;
-- attachments;
-- History/Business Timeline;
-- raw Access Audit;
-- Security Audit;
-- storage paths;
-- private signing-key details;
-- unnecessary private actor information.
-
-Exact safe public response fields belong to `12_API_Contract.md`.
+Rate limit, PDF-only, file-size/resource limits, private temp, CLEAN gate, timeout, cleanup, safe non-enumerating errors.
 
 ---
 
-## 79. Public Validator Abuse Controls
+# PART O — SECRET MANAGEMENT / LOGGING
 
-At minimum:
+## 80. Repository Secrets
 
-- rate limiting;
-- PDF-only allowlist;
-- safe maximum request/file size;
-- private temporary storage;
-- ClamAV CLEAN gate;
-- request timeout/resource limits where appropriate;
-- cleanup after processing;
-- safe non-enumerating/minimum-disclosure errors.
+Never commit production DB password, Laravel app key, real passwords/temp passwords, signing private key/passphrase, storage credentials, third-party secrets.
 
-Public endpoint MUST NOT allow arbitrary file retrieval or arbitrary server path access.
+## 81. Environment Provisioning
 
----
+Real secrets outside source control via protected environment/file/mount or future secret manager/KMS/HSM if needed.
 
-# PART O — SECRET MANAGEMENT
+## 82. Least Secret Access
 
-## 80. Repository Secret Rule
-
-The following MUST NOT be committed to GitHub/source control:
-
-- production DB password;
-- Laravel production secret/application key;
-- real user password;
-- temporary password;
-- signing private key;
-- signing-key passphrase;
-- production storage credentials;
-- future third-party secret tokens;
-- any equivalent production secret.
-
-`.env.example` or documentation uses placeholders only.
-
----
-
-## 81. Environment Secret Provisioning
-
-Real environment secrets are provisioned outside source control.
-
-Exact mechanism may be:
-
-- protected server environment/config;
-- protected file/mount;
-- future secret manager/KMS/HSM if deployment requires it.
-
-Current signing-key decision explicitly uses manual protected server/environment provisioning; adding KMS/HSM later must preserve logical signer behavior and does not change Approved By semantics.
-
----
-
-## 82. Secret Access Scope
-
-Runtime/process/service identity receives only secrets it requires.
-
-Examples:
-
-- public validator needs public certificate/issuance metadata, **not private signing key**;
-- browser never receives DB credentials/private key;
-- ClamAV does not need application DB root credential;
-- renderer does not decide authorization.
-
----
-
-# PART P — LOGGING AND SAFE DIAGNOSTICS
+Public verifier needs public cert/issuance metadata, not private key. Browser never DB credentials/private key. Renderer/ClamAV do not decide authorization.
 
 ## 83. Logging Sanitization
 
-Do not indiscriminately log full request payloads for:
+Do not indiscriminately log full Login/password/re-auth/secret/signing/public-upload/attachment payloads.
 
-- Login;
-- password change/reset;
-- re-authentication;
-- secret/settings endpoints;
-- signing operations;
-- public validator uploads;
-- attachment uploads.
+## 84. Correlation
 
-Sensitive fields are redacted/omitted.
+Safe correlation IDs allowed, never secret/token.
+
+## 85. Debug
+
+Production debug/stack trace exposure disabled.
 
 ---
 
-## 84. Technical Error Correlation
+# PART P — FAILURE MATRIX
 
-Implementation MAY use correlation/request identifiers to connect safe user-facing error with protected technical logs.
+## 86. Required Behavior
 
-Correlation identifier MUST NOT itself expose a secret or authorization token.
-
----
-
-## 85. Debug Mode
-
-Production MUST NOT expose Laravel debug pages/stack traces to normal users.
-
-Production debug configuration must remain disabled/appropriately controlled.
-
----
-
-# PART Q — SECURITY FAILURE BEHAVIOR
-
-## 86. Failure Matrix
-
-| Failure | Required Security Behavior |
+| Failure | Behavior |
 |---|---|
-| Invalid/expired session | Require authentication; no NSCMF state change |
+| Invalid/expired session | Login required; no state change |
 | Failed sensitive re-auth | Action unapplied |
-| Unauthorized object ID | Deny without data leakage |
-| ClamAV infected | File not usable/downloadable |
-| ClamAV error/timeout/unavailable | Fail closed; file not clean |
-| Missing required signing identity | Critical not-ready/configuration failure |
-| Approved PDF signing failure | Export FAILED; no unsigned fallback |
-| Public signature/hash mismatch | Never return `VALID_CURRENT` |
-| Unknown PDF | Return minimum-disclosure UNKNOWN |
-| Audit write failure inside required atomic business transition | Transaction must not claim successful business transition if audit is mandatory in same atomic action |
-
----
+| Missing permission | Deny |
+| Team mismatch/difference | **No authorization effect** |
+| Unauthorized resource ID | Deny without leak |
+| ClamAV infected/error/timeout/down | file not usable |
+| Missing signing identity | critical not-ready |
+| Approved signing failure | export Failed, no unsigned fallback |
+| Signature/hash mismatch | never Valid Current |
+| Unknown PDF | minimum-disclosure Unknown |
+| Required atomic audit write failure | transaction cannot claim success |
 
 ## 87. Business History Preservation
 
-A later technical/security side-effect failure MUST NOT erase a business action that already validly committed outside that side-effect transaction.
-
-Example:
-
-```text
-record already APPROVED
-→ later export/sign job fails
-→ business status stays APPROVED
-→ export FAILED
-```
+Later technical/security side-effect failure never erases already valid business action outside that side-effect transaction.
 
 ---
 
-# PART R — SECURITY TEST REQUIREMENTS
+# PART Q — SECURITY TEST REQUIREMENTS
 
-## 88. Password / Authentication Tests
+## 88. Password / Auth
 
-- [ ] length 5 is rejected.
-- [ ] length 6 is accepted regardless of uppercase/lowercase/number/symbol composition when all other checks pass.
-- [ ] application does not require any composition combination.
-- [ ] no MFA step is required.
-- [ ] plaintext password/hash is not exposed.
-- [ ] repeated failed login is throttled/progressively delayed.
-- [ ] login error does not enumerate username existence.
-- [ ] disabled account cannot login.
+- [ ] length5 rejected; length6 accepted regardless composition;
+- [ ] no composition/MFA;
+- [ ] no plaintext/hash exposure;
+- [ ] repeated failure throttled;
+- [ ] no username enumeration;
+- [ ] disabled account denied;
+- [ ] Login/logout do not require Spatie permission rows.
 
----
+## 89. Temporary Credential
 
-## 89. Temporary Credential Tests
+- [ ] admin create/reset temp flow;
+- [ ] normal navigation blocked until replacement;
+- [ ] replacement invalidates temp;
+- [ ] reset revokes sessions;
+- [ ] no plaintext audit/log.
 
-- [ ] admin-created/reset credential enters temporary-password flow.
-- [ ] normal application navigation is blocked until mandatory replacement.
-- [ ] successful replacement invalidates temporary credential.
-- [ ] password reset revokes all target sessions.
-- [ ] plaintext temporary password is absent from audit/log payload.
+## 90. Session
 
----
+- [ ] 30m idle;
+- [ ] 8h absolute;
+- [ ] max2;
+- [ ] server-side logout;
+- [ ] role change revokes affected sessions;
+- [ ] role-permission change revokes affected sessions;
+- [ ] Team-only change does not falsely change authorization.
 
-## 90. Session Tests
+## 91. Re-auth
 
-- [ ] idle session expires after 30 minutes inactivity.
-- [ ] active session cannot exceed 8-hour absolute lifetime.
-- [ ] account never retains >2 active sessions.
-- [ ] logout invalidates server-side session.
-- [ ] role change revokes all target sessions.
-- [ ] permission change revokes all target sessions.
-- [ ] disable/access-changing identity mutation revokes applicable target sessions.
+- [ ] password reset requires current-password re-auth;
+- [ ] role/permission mutation requires re-auth;
+- [ ] failure leaves action unapplied;
+- [ ] no MFA.
 
----
+## 92. Authorization / Team
 
-## 91. Re-authentication Tests
+- [ ] direct URL/ID cannot bypass authorization;
+- [ ] attachment/export/audit endpoints recheck authorization;
+- [ ] Result endpoint field whitelist;
+- [ ] protected fields server-derived;
+- [ ] protected Superadmin invariant;
+- [ ] Reviewer/Approver permissions are not Team-scoped;
+- [ ] Team name/membership alone never grants Review/Approval;
+- [ ] Spatie Teams remains disabled.
 
-- [ ] password reset requires acting-user current-password re-auth.
-- [ ] role/permission sensitive mutation requires re-auth.
-- [ ] failed re-auth leaves action unapplied.
-- [ ] no MFA is introduced into re-auth flow.
+## 93. Browser / Request
 
----
+CSRF, cookie flags, safe rendering, headers, no debug secrets.
 
-## 92. Authorization Tests
+## 94. Attachment
 
-- [ ] direct URL/ID manipulation cannot bypass visibility.
-- [ ] attachment/export/audit endpoints re-check authorization.
-- [ ] Result-only endpoint cannot modify planning fields.
-- [ ] client cannot assign canonical state/approved_by/audit actor.
-- [ ] protected Superadmin cannot be disabled/downgraded through alternate path.
+Limits/type/zero-byte; private untrusted state; CLEAN promotion; malware/failure blocked; no download before CLEAN; clamd private.
 
----
+## 95. Audit
 
-## 93. Browser / Request Tests
+No age purge across three authoritative classes; binary cleanup does not remove audit; no normal edit/delete; privileged visibility uses permission + resource/admin authorization without Team scope.
 
-- [ ] CSRF remains active on authenticated mutations.
-- [ ] session cookie flags correct in production profile.
-- [ ] dangerous untrusted text renders safely.
-- [ ] security headers do not break required Vue/Inertia resources.
-- [ ] production does not expose debug stack trace/secrets.
+## 96. Signing
 
----
+Private key absent repo; missing identity critical; no unsigned fallback; human Approved By distinct; final hash stored; historical cert resolvable; no TSA claim.
 
-## 94. Attachment / ClamAV Tests
+## 97. Public Verification
 
-- [ ] invalid count/size/type/zero-byte rejected.
-- [ ] accepted upload starts non-usable private state.
-- [ ] explicit ClamAV CLEAN permits promotion.
-- [ ] malware detection blocks file.
-- [ ] timeout/unavailable/error fails closed.
-- [ ] unscanned/failed file cannot be downloaded normally.
-- [ ] `clamd` is not publicly exposed in deployment tests.
+No-login; rate limit; PDF-only; CLEAN before deep verify; temp deleted; Current/Superseded/Modified/Unknown semantics; one-byte modification not current-valid; no private leakage.
 
 ---
 
-## 95. Audit Tests
+# PART R — LOCKED SECURITY DECISIONS
 
-- [ ] Business Audit not age-purged.
-- [ ] Access Audit not age-purged.
-- [ ] Security Audit not age-purged.
-- [ ] seven-day export binary cleanup does not remove audit.
-- [ ] normal user cannot edit/delete audit evidence.
-- [ ] raw Access Audit follows `audit.access.view` + scope.
-- [ ] Security Audit follows `audit.security.view` + applicable scope.
-- [ ] technical logs remain separate.
+## 98. Confirmed
 
----
-
-## 96. Approved PDF Signing Tests
-
-- [ ] production private key absent from repository.
-- [ ] required signing identity absence/unreadability/mismatch produces critical not-ready/configuration outcome.
-- [ ] Approved-PDF signing failure never exposes unsigned equivalent.
-- [ ] human Approved By remains distinct from cryptographic signer.
-- [ ] final signed PDF SHA-256 saved at issuance.
-- [ ] historical public verification material can resolve old issuance after key rotation scenario.
-- [ ] no TSA is required/claimed current MVP.
-
----
-
-## 97. Public PDF Verification Tests
-
-- [ ] page works without account Login.
-- [ ] route is rate-limited.
-- [ ] non-PDF rejected.
-- [ ] uploaded PDF passes ClamAV before deep verification.
-- [ ] temporary upload is deleted after processing.
-- [ ] current exact issued PDF → `VALID_CURRENT`.
-- [ ] genuine old exact PDF after Reopen/new Approved issuance → `VALID_SUPERSEDED` where applicable.
-- [ ] one-byte modified exact-issued file cannot remain current-valid because SHA-256 differs.
-- [ ] signature/hash/integrity modification path → `INVALID_MODIFIED`.
-- [ ] unrecognized file → `UNKNOWN`.
-- [ ] public response does not expose private NSCMF data/audit/storage secrets.
-
----
-
-# PART S — CONFIRMED SECURITY DECISIONS
-
-## 98. Locked Decisions
-
-The following are confirmed and MUST NOT return to TBD without explicit requirement change:
-
-1. password minimum 6 characters;
-2. no password-composition requirement;
+1. password min6;
+2. no composition;
 3. no MFA;
 4. no self-registration;
-5. temporary password + mandatory change for admin create/reset;
-6. login throttling/progressive delay;
-7. idle session 30 minutes;
-8. absolute session lifetime 8 hours;
-9. max 2 active sessions/account;
-10. current-password re-authentication for sensitive administration;
-11. target-session revocation after password/role/permission/access-changing identity mutation;
-12. server-side deny-by-default authorization;
-13. private attachment storage/quarantine;
-14. ClamAV/`clamd` malware scanner baseline;
-15. only explicit CLEAN makes file usable;
-16. Business Audit has no age-based purge;
-17. Access Audit has no age-based purge;
-18. Security Audit has no age-based purge;
-19. raw Access Audit protected by `audit.access.view`, Protected Superadmin default;
-20. Security Audit protected by `audit.security.view`, Protected Superadmin default;
-21. generated export binary remains temporary 168h/7d;
-22. audit/issuance evidence survives binary cleanup;
-23. Approved PDF signer = System/Organization;
-24. human Approved By remains separate;
-25. signing identity manually provisioned server-side/environment;
-26. private key never in GitHub/source/ordinary deployment artifact/ordinary DB/browser;
-27. missing/unusable required signing identity = critical not-ready/configuration condition;
-28. no unsigned Approved-PDF fallback;
-29. final signed PDF SHA-256 stored as issuance evidence;
-30. NSCMF acts as issuer + authoritative application validator;
-31. public no-login PDF validation capability;
-32. public validator verifies signature + exact SHA-256 + issuance/currentness;
-33. canonical validator results current/superseded/modified-invalid/unknown;
-34. genuine superseded PDF is not considered modified merely because workflow later changed;
-35. TSA is not required for current MVP.
+5. temp password + mandatory change;
+6. login throttling;
+7. idle30m;
+8. absolute8h;
+9. max2 sessions;
+10. password re-auth for sensitive privilege admin;
+11. affected-session revocation after password/role/effective-permission/disablement changes;
+12. Team-only change does not modify authorization;
+13. server-side deny-by-default permission/resource/state security;
+14. no Unit/Division/Reviewer Scope/Approval Scope;
+15. Spatie Teams disabled;
+16. private attachment/quarantine;
+17. ClamAV baseline;
+18. CLEAN only usability;
+19. Business Audit no age purge;
+20. Access Audit no age purge;
+21. Security Audit no age purge;
+22. privileged audit permission model without Team scope;
+23. generated binary 168h/7d;
+24. audit/issuance survives binary cleanup;
+25. Approved PDF System/Organization signer;
+26. human Approved By separate;
+27. signing identity manual protected provisioning;
+28. private key never source/ordinary DB/browser;
+29. missing identity critical;
+30. no unsigned fallback;
+31. final signed SHA-256 issuance evidence;
+32. public no-login validation;
+33. signature + exact hash + issuance/workflow-currentness;
+34. current/superseded/modified/unknown semantics;
+35. superseded not modified solely due Reopen;
+36. no TSA MVP;
+37. immutable export snapshot prevents worker from using later data.
 
 ---
 
-# PART T — INTENTIONALLY DOWNSTREAM / NOT INVENTED HERE
+# PART S — DOWNSTREAM / RETENTION / GUARDRAILS
 
-## 99. Data / API / Environment Details Still Downstream
+## 99. Exact Details Downstream
 
-Security behavior is confirmed, but these exact implementation details remain downstream:
+- exact user/session/audit/signing/schema/index definitions;
+- immutable snapshot physical structure;
+- exact API payload/status codes;
+- limiter numeric buckets;
+- re-auth proof lifetime;
+- third-login behavior;
+- signing key/cert format/path/provider;
+- key rotation ceremony;
+- technical-log retention;
+- ClamAV topology/sizing;
+- production object storage;
+- backup/DR;
+- hosting topology;
+- performance/SLA;
+- notification;
+- public validator safe metadata.
 
-- exact user/session/audit/signing tables/columns/indexes;
-- exact username pattern/length if not already finalized elsewhere;
-- exact API payload/status-code names;
-- exact Login limiter numeric bucket/decay values while preserving progressive throttling;
-- exact short-lived re-auth proof lifetime;
-- exact behavior for selecting which existing session is replaced/denied on third login, while preserving max 2;
-- exact certificate/private-key file/container format;
-- exact protected signing-key server path/mount;
-- exact certificate provider/CA if external trust outside NSCMF's issuer/validator model is later required;
-- exact cryptographic signing library/implementation chosen after compatibility/testing;
-- exact private-key rotation/retirement ceremony;
-- exact technical-log retention;
-- exact ClamAV process/container topology and resource allocation;
-- exact production object-storage provider;
-- exact backup/restore/DR/RPO/RTO;
-- exact production hosting/cloud/on-prem topology;
-- exact performance/SLA/availability targets;
-- notification provider/timing/events;
-- exact public validator safe response metadata fields;
-- exact public-validator polling/interaction implementation.
-
-These downstream choices MUST NOT weaken the confirmed rules in this document.
-
----
-
-# PART U — RETENTION TERMINOLOGY CLARIFICATION
-
-## 100. Do Not Merge Different Retention Concepts
-
-The system has intentionally different lifetime policies:
+## 100. Retention Classes
 
 ```text
-AUTHORITATIVE BUSINESS / ACCESS / SECURITY AUDIT
-→ no age-based automatic deletion
-
-HISTORICAL PDF ISSUANCE / VERIFICATION METADATA
-→ preserved beyond temporary binary cleanup so distributed PDFs remain verifiable
-
-GENERATED XLSX/PDF BINARY IN APPLICATION STORAGE
-→ 168 hours / 7 days
-→ scheduled binary cleanup after expiry
-
-TECHNICAL APPLICATION LOGS
-→ separate operational concern
-→ exact retention downstream
+Business/Access/Security Audit → no age deletion
+PDF issuance/verification metadata → preserved beyond binary cleanup
+Generated XLSX/PDF binary → 168h/7d then cleanup
+Technical logs → separate downstream retention
 ```
 
-No generic `retention_days` setting may be applied indiscriminately to all four concerns.
+No generic `retention_days` applied to all.
+
+## 101. Developer / AI MUST NOT
+
+1. increase password min by preference;
+2. add composition/MFA/register;
+3. store plaintext credential;
+4. allow unlimited/expired sessions;
+5. execute sensitive mutation after failed re-auth;
+6. preserve affected sessions after effective permission/credential disablement change;
+7. treat Team change as permission grant/revoke;
+8. enable Spatie Teams;
+9. reintroduce Unit/Division/scope security middleware;
+10. trust frontend authorization;
+11. allow IDOR;
+12. mass-assign protected fields;
+13. disable CSRF globally;
+14. render untrusted HTML unsafely;
+15. public-store normal attachments;
+16. trust MIME/extension alone where stronger checking feasible;
+17. expose attachment before CLEAN;
+18. treat scanner failure as CLEAN;
+19. expose clamd publicly;
+20. make attachment mandatory;
+21. age-purge authoritative audit;
+22. claim 12-month audit retention;
+23. delete audit/issuance with binary expiry;
+24. expose raw audit merely because normal record view exists;
+25. put production private signing key in source/DB/browser;
+26. consider missing signing identity healthy;
+27. provide unsigned Approved PDF fallback;
+28. equate signer with Approved By;
+29. claim TSA current MVP;
+30. expose private data through public validator;
+31. use private key in browser/validator;
+32. classify genuine superseded PDF as modified solely due later workflow;
+33. return Valid Current without all required evidence;
+34. retain public uploads as attachments;
+35. expose stack/key path/secrets in errors;
+36. create new business state from security condition;
+37. let async export worker ignore bound immutable snapshot.
 
 ---
 
-# PART V — IMPLEMENTATION GUARDRAILS
-
-## 101. Developer / AI Must Not
-
-Implementation MUST NOT:
-
-1. increase password minimum beyond 6 by default implementation preference;
-2. require uppercase/lowercase/number/symbol composition;
-3. add MFA current MVP;
-4. enable self-registration;
-5. store/log plaintext password;
-6. allow unlimited active sessions;
-7. ignore 30m idle/8h absolute session policy;
-8. execute sensitive admin mutation after failed password re-auth;
-9. preserve target sessions after password/role/permission/access-changing mutation;
-10. treat frontend button hiding as authorization;
-11. allow IDOR through record/attachment/export/audit IDs;
-12. mass-assign state/approved_by/protected fields;
-13. disable CSRF globally for convenience;
-14. render untrusted HTML/script unsafely;
-15. store normal attachments in publicly executable path;
-16. trust extension/MIME claim alone where stronger checking is feasible;
-17. make structurally valid upload usable before ClamAV CLEAN;
-18. treat ClamAV error/timeout/unavailable as CLEAN;
-19. expose `clamd` publicly;
-20. change attachment optionality into mandatory due security scanning;
-21. age-purge Business Audit;
-22. age-purge Access Audit;
-23. age-purge Security Audit;
-24. present 12-month audit retention as current rule;
-25. delete audit/issuance evidence when 7-day export binary expires;
-26. expose raw Access Audit merely because user can view Business Timeline;
-27. put production private signing key in GitHub/source/ordinary deployment artifact/ordinary DB/browser;
-28. consider application normal-ready while required signing identity is silently absent/unusable;
-29. provide unsigned Approved PDF fallback;
-30. equate cryptographic signer with human Approved By;
-31. claim TSA/trusted independent timestamp current MVP;
-32. let public validator expose private History/form/audit/attachment data;
-33. use private signing key in browser/public validation path;
-34. classify genuine superseded PDF as modified solely because Reopen/new approval happened;
-35. return `VALID_CURRENT` when signature/hash/issuance/currentness cannot all be established;
-36. retain public-validator uploads as normal attachments;
-37. expose stack trace/private key path/secrets in user errors;
-38. let Security Rules introduce a new NSCMF business state.
-
----
-
-# PART W — TRACEABILITY
+# PART T — TRACEABILITY / NEXT
 
 ## 102. Authority Matrix
 
-| Concern | Authoritative Source |
+| Concern | Authority |
 |---|---|
-| Product scope | `01_PRD.md` |
-| Business invariant | `02_Business_Rules.md` |
-| User interaction | `03_User_Flow.md` |
-| Permission/scope | `04_RBAC_Permission_Matrix.md` |
-| Lifecycle/state | `05_State_Status_Flow.md` |
-| Business/input validation | `06_Validation_Rules.md` |
-| Presentation/interaction | `07_UI_UX_Specification.md` |
+| Product | `01_PRD.md` |
+| Business | `02_Business_Rules.md` |
+| User Flow | `03_User_Flow.md` |
+| Permission/Spatie/Team boundary | `04_RBAC_Permission_Matrix.md` |
+| State/iteration | `05_State_Status_Flow.md` |
+| Validation | `06_Validation_Rules.md` |
+| UI | `07_UI_UX_Specification.md` |
 | Technology | `08_Tech_Stack_Specification.md` |
-| Logical architecture/concurrency | `09_System_Architecture.md` |
-| **Security controls** | **`10_Security_Rules.md`** |
-| Database schema | `11_ERD_Database_Schema.md` |
-| API | `12_API_Contract.md` |
-| Project structure | `13_Project_Structure.md` |
-| Environment | `14_Environment_Specification.md` |
-| Coding rules | `15_Coding_Rules_AGENTS.md` |
-| Testing | `16_Testing_Specification.md` |
-| Seed data | `17_Seed_Dummy_Data_Specification.md` |
-| Definition of Done | `18_Definition_of_Done.md` |
-| Implementation plan | `19_Task_Implementation_Plan.md` |
-| Deployment | `20_Deployment_Architecture.md` |
-
----
+| Architecture | `09_System_Architecture.md` |
+| **Security** | **`10_Security_Rules.md`** |
+| Schema | `11_ERD_Database_Schema.md` |
 
 ## 103. Security-to-Architecture Mapping
 
 ```text
-Password/session policy
-→ Identity & Authentication Module
-
-Sensitive re-auth + session revocation
-→ Identity/Admin/Authorization boundary
-
-ClamAV
-→ Attachment MalwareScanner boundary
-
-Permanent Business/Access/Security Audit
-→ separate authoritative audit modules/tables
-
-Approved-PDF key custody/readiness
-→ PdfSigningService + protected environment configuration
-
-Public PDF verification
-→ public route + temporary upload + ClamAV + PdfVerificationService
-
-Exact SHA-256 issuance evidence
-→ persistent issuance metadata
+Password/session → Identity module
+Sensitive re-auth/session revocation → Identity/Admin/Authorization
+Spatie permissions → RBAC primitives
+Team → ordinary organization/profile data, no security scope
+ClamAV → MalwareScanner boundary
+Permanent audits → separate authoritative audit modules
+Approved-PDF key custody → PdfSigningService + protected environment
+Public verification → public route + temp upload + CLEAN + PdfVerificationService
+Final SHA-256 → issuance metadata
+Immutable export snapshot → persistent export snapshot boundary
 ```
 
----
+## 104. Security Does Not Change Workflow
 
-## 104. Security-to-UI Mapping
+No MFA step, extra Review level, exclusive Reviewer/Approver, extra NSCMF state, mandatory attachment, personal Approver certificate, public record portal, TSA, permanent export binary storage, Unit/Division, or Team-based authorization.
 
-UI must represent, without becoming authority:
+## 105. Next Document
 
-- temporary password change;
-- Login throttling feedback;
-- session expiry/revocation;
-- password re-auth dialog;
-- attachment `Scanning/Ready/Rejected` states;
-- privileged audit read-only surfaces;
-- signing critical readiness/failure;
-- queued export/expiry;
-- public validator result semantics.
+Next fixed-order document:
 
----
+**`11_ERD_Database_Schema.md`**.
 
-# PART X — FINAL CONSISTENCY STATEMENTS
-
-## 105. Security Does Not Change Workflow
-
-This document does **not** introduce:
-
-- MFA step in business workflow;
-- extra Review/Approval level;
-- exclusive Reviewer/Approver ownership;
-- additional NSCMF state;
-- mandatory attachment;
-- personal Approver certificate;
-- public NSCMF portal;
-- TSA requirement;
-- permanent generated export binary storage.
-
----
-
-## 106. Audit and Export Lifetimes Are Intentionally Different
-
-Final explicit interpretation:
-
-> Audit evidence is permanent from an age-retention perspective. Generated export binaries are temporary for 7 days. These rules are not contradictory because they apply to different data classes.
-
----
-
-## 107. Issuer and Validator Model
-
-Final explicit interpretation:
-
-> NSCMF signs Approved PDFs using the System/Organization signing identity and also provides its own public validation service. The public validator uses public verification material, exact final-file SHA-256, issuance metadata, and current business context; it never requires the private signing key in the public/browser path.
-
----
-
-## 108. Superseded Is a Business-Currentness Result
-
-Final explicit interpretation:
-
-> A genuine byte-exact signed PDF can remain cryptographically authentic but become `VALID_SUPERSEDED` after Reopen/Revert or a newer Approved issuance. Superseded does not mean the PDF was modified.
-
----
-
-## 109. Next Document
-
-Next document in the fixed project sequence:
-
-**`11_ERD_Database_Schema.md`**
-
-ERD MUST materialize these confirmed security requirements without merging Business Audit, Access Audit, Security Audit, export binary storage, issuance metadata, session records, and NSCMF business state into ambiguous structures.
+ERD MUST materialize these security rules while reusing Spatie package-owned authorization tables, modeling Team separately, and avoiding all Reviewer/Approval scope schema.

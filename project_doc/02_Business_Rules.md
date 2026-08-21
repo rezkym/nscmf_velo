@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-BR-002  
 > **Document Order:** 02 / 20  
-> **Status:** Draft — Synchronized through Confirmed Security Decisions  
+> **Status:** Draft — Synchronized through Confirmed Team/Permission/Spatie Decisions  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `project_doc/01_PRD.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
@@ -16,18 +16,18 @@
 
 Dokumen ini mendefinisikan aturan bisnis yang wajib dipatuhi seluruh implementasi NSCMF Digital Form & Workflow System.
 
-Aturan berlaku lintas UI, backend, database, API, automation, dan AI coding agent. Frontend tidak boleh menjadi satu-satunya enforcement layer; business rules mengenai permission, scope, state, editability, validation, dan workflow MUST divalidasi server-side.
+Aturan berlaku lintas UI, backend, database, API, automation, dan AI coding agent. Frontend tidak boleh menjadi satu-satunya enforcement layer; business rules mengenai permission, ownership, state, editability, validation, workflow, Team treatment, audit, dan security MUST divalidasi server-side sesuai authority masing-masing.
 
 Dokumen bekerja bersama:
 
 - `03_User_Flow.md` — urutan interaksi user;
-- `04_RBAC_Permission_Matrix.md` — siapa boleh melakukan apa;
-- `05_State_Status_Flow.md` — authoritative state machine;
+- `04_RBAC_Permission_Matrix.md` — permission-centric authorization dan Spatie/Team boundary;
+- `05_State_Status_Flow.md` — authoritative state machine dan workflow-iteration rules;
 - `06_Validation_Rules.md` — validitas field/input/action;
 - `07_UI_UX_Specification.md` — presentation dan interaction detail;
 - `08_Tech_Stack_Specification.md` — technology implementation baseline;
 - `09_System_Architecture.md` — component boundaries, concurrency, audit separation, queue/export/signing architecture;
-- `10_Security_Rules.md` — authentication/session, authorization hardening, malware scanning, permanent audit security, secrets, signing-key custody, dan public PDF verification.
+- `10_Security_Rules.md` — authentication/session, authorization hardening, malware scanning, permanent audit security, secrets, signing-key custody, public PDF verification.
 
 Normative language:
 
@@ -61,27 +61,35 @@ Template minimum:
 - `Reviewer`
 - `Approver`
 
-Exact permission mengikuti RBAC.
+Exact permission mengikuti `04_RBAC_Permission_Matrix.md`.
 
 ### BR-SETUP-004 — Template Remains Configurable
 Eligible role/permission MAY diubah setelah setup oleh actor yang memiliki permission administrasi, kecuali protected Superadmin invariants.
 
-### BR-SETUP-005 — Unit/Division Setup Mode
-Wizard MUST menyediakan predefined template/mapping atau manual configuration. Exact default entries masih TBD.
+### BR-SETUP-005 — Team Setup
+Organization menggunakan **Team**, bukan Unit/Division.
 
-### BR-SETUP-006 — User Organizational Mapping
-User MAY dipetakan ke Unit/Division sebagai dasar scope/visibility.
+Wizard MUST menyediakan Team configuration/mapping. Exact default Team entries masih TBD dan MUST NOT ditebak.
 
-### BR-SETUP-007 — Multi-Unit Approver Scope
-Approver MAY memiliki Approval Scope mencakup beberapa Unit/Division.
+Contoh nama yang diberikan business owner hanya menunjukkan konsep, misalnya Team NOC, Team CS, Team Fulfillment; exact initial production master data tetap harus mengikuti konfigurasi organisasi.
+
+### BR-SETUP-006 — User Team Mapping
+Normal user memiliki organizational Team association sesuai data model final.
+
+Team association adalah profile/organization data dan MUST NOT menjadi authorization scope.
+
+### BR-SETUP-007 — No Reviewer / Approval Scope
+Current product MUST NOT menyediakan Reviewer Scope, Approval Scope, Unit Scope, Division Scope, atau Team-based permission scope.
+
+Review/Approval eligibility ditentukan oleh required permission + current business state + other domain/security prerequisites.
 
 ### BR-SETUP-008 — Core System Settings Protected
-Initial/system-level settings seperti setup mode, global numbering configuration, dan notification integration settings hanya protected Superadmin. Ongoing role/user/unit administration MAY didelegasikan secara granular.
+Initial/system-level settings seperti setup mode, global numbering configuration, dan protected security/signing configuration hanya protected Superadmin. Ongoing eligible role/user/Team administration MAY didelegasikan secara granular.
 
 ### BR-SETUP-009 — Single Organization
 Current application model MUST menggunakan **single organization / single installation**.
 
-Unit/Division dan Approval Scope adalah organizational/authorization scope di dalam organization yang sama, bukan tenant boundary. Current MVP MUST NOT menambahkan hidden multi-tenant behavior tanpa requirement change.
+Team bukan tenant boundary. Current MVP MUST NOT menambahkan hidden multi-tenant behavior.
 
 ---
 
@@ -91,52 +99,89 @@ Unit/Division dan Approval Scope adalah organizational/authorization scope di da
 Initial seeding MUST membuat setidaknya satu protected Superadmin.
 
 ### BR-SUPER-002
-Protected Superadmin adalah authority tertinggi pada standard role template dan memiliki global NSCMF visibility.
+Protected Superadmin adalah authority tertinggi pada standard role template dan memiliki global operational visibility.
 
 ### BR-SUPER-003
 Protected Superadmin MUST NOT dapat hard-delete, soft-delete, disable, kehilangan protected role, atau didowngrade.
 
 ### BR-SUPER-004
-Protection berlaku melalui UI, API, import, bulk action, dan administrative flow lain.
+Protection berlaku melalui UI, API, import, bulk action, seed/update flow, dan administrative flow lain.
 
 ### BR-SUPER-005
 Protected identity tidak berarti plaintext credential/secret di source code.
 
+### BR-SUPER-006 — No Invalid-Domain Bypass
+Protected Superadmin tetap tunduk canonical business state, validation, mandatory reasons, signing/security requirements, dan unavailable capabilities seperti NSCMF hard delete.
+
 ---
 
-## 4. User and Permission Administration
+## 4. User, Role, Team, Permission Administration
 
 ### BR-USER-001 — No Self-Registration
 Normal user MUST NOT self-register.
 
 ### BR-USER-002 — Administrative Creation
-Account dibuat melalui administrative flow oleh Superadmin atau actor dengan permission user-management.
+Account dibuat melalui administrative flow oleh Superadmin atau actor dengan applicable user-management permission.
 
 ### BR-USER-003 — Delegated Administration
-Actor dengan permission yang tepat MAY mengelola eligible normal user, role assignment, Unit/Division, scope, credential reset, enable/disable, role/permission, dan organization configuration.
+Actor dengan required permission MAY mengelola eligible normal user, Team assignment, role assignment, credential reset, enable/disable, dan role-permission configuration.
 
 ### BR-USER-004 — Multi-Role
 Satu user MAY memiliki beberapa role.
 
 ### BR-USER-005 — No Mandatory Segregation of Duty
-Current business decision tidak mewajibkan `Requester != Reviewer != Approver`. Actor yang memiliki permission/scope/state eligibility MAY berpartisipasi pada beberapa tahap record yang sama.
+Current business decision tidak mewajibkan `Requester != Reviewer != Approver`. Actor yang memiliki required permission dan valid state/domain prerequisites MAY berpartisipasi pada beberapa tahap record yang sama.
 
 ### BR-USER-006 — No Impersonation
 User impersonation/login-as-user tidak termasuk scope.
 
 ### BR-USER-007 — Authorization Technology Boundary
-`08_Tech_Stack_Specification.md` mengunci **Spatie Laravel Permission 8.x** sebagai role/permission primitive, dengan Laravel Policies/Gates dan custom ownership/Unit/Approval scope logic untuk authorization domain NSCMF.
+`08_Tech_Stack_Specification.md` mengunci **Spatie Laravel Permission 8.x** sebagai role/permission primitive.
 
-Business authorization tetap mengikuti `04_RBAC_Permission_Matrix.md`; package MUST NOT mengganti semantics RBAC, scope, state, atau protected invariants.
+Business authorization menggunakan:
 
-### BR-USER-008 — Confirmed Authentication Security Boundary
-Current product policy MUST remain password-only for MVP: minimum password length **6 characters**, no mandatory character-composition rule, dan no MFA. Login throttling/progressive delay, session controls, password hashing, dan related implementation controls mengikuti `10_Security_Rules.md`.
+```text
+Spatie role/permission primitives
++ Laravel Policies/Gates
++ explicit ownership checks where a business rule requires ownership
++ domain state/archive/validation/invariant checks
++ security preconditions
+```
 
-### BR-USER-009 — Administrative Credential Flow
-Admin-created/reset credential MUST use a temporary password and force the target user to replace it before normal application use. Sensitive role/permission/password-reset administrative actions require password re-authentication of the acting user.
+There is **no custom organizational scope layer** for Reviewer/Approver.
 
-### BR-USER-010 — Security Change Session Revocation
-Password reset, role change, permission change, disablement, atau equivalent access-changing identity action MUST revoke all active sessions of the affected target user according to `10_Security_Rules.md`.
+### BR-USER-008 — Team Is Not Authorization
+Team MUST NOT:
+
+- grant Review permission;
+- revoke Review permission;
+- grant Approval permission;
+- revoke Approval permission;
+- filter Review candidates based on Team membership;
+- filter Approval candidates based on Team membership;
+- create role/permission variants per Team;
+- become a hidden tenant boundary.
+
+### BR-USER-009 — Spatie Teams Disabled
+The `teams` feature from `spatie/laravel-permission` MUST remain disabled for current MVP.
+
+Business Team and Spatie Teams are different concepts and MUST NOT be merged.
+
+### BR-USER-010 — Role-First Permission Administration
+Current MVP normally assigns permissions to roles and roles to users.
+
+Direct user permissions supported internally by Spatie MUST NOT be exposed as a normal MVP administration workflow without specification change.
+
+### BR-USER-011 — Confirmed Authentication Security Boundary
+Current product policy remains password-only: minimum password length **6 characters**, no mandatory character-composition rule, no MFA.
+
+### BR-USER-012 — Administrative Credential Flow
+Admin-created/reset credential MUST use a temporary password and force replacement before normal application use. Sensitive role/permission/password-reset administrative actions require password re-authentication of acting user.
+
+### BR-USER-013 — Security Change Session Revocation
+Password reset, role assignment/removal, permission changes to a role that alter affected users' effective access, disablement, or equivalent access-changing authorization mutation MUST revoke applicable active sessions according to `10_Security_Rules.md`.
+
+Changing Team alone is an organizational data mutation and MUST NOT be treated as an authorization grant/revoke.
 
 ---
 
@@ -190,57 +235,47 @@ Kasus ambigu harus dikonfirmasi business owner.
 `Identified Problem (Please elaborate)` adalah field naratif.
 
 ### BR-CHG-005 — Service Impact
-Source workbook menyediakan:
-
-- NOC15;
-- NOC23;
-- NOC361;
-- Regional;
-- POP;
-- Customer;
-- Other.
+Source workbook menyediakan NOC15, NOC23, NOC361, Regional, POP, Customer, Other.
 
 Confirmed treatment:
 
-- Service Impact MUST bersifat **multi-select**;
-- minimum satu selection wajib pada Submit/Resubmit;
-- jika `Other` dipilih, Other Impact Description menjadi wajib;
+- Service Impact MUST multi-select;
+- minimum satu selection pada Submit/Resubmit;
+- `Other` requires Other Impact Description;
 - exact field validation mengikuti `06_Validation_Rules.md`.
 
 ### BR-CHG-006
-`Maintenance (Improvement) Plan` dan `Target KPI` adalah paired input. Current validation mewajibkan minimum satu complete pair pada Submit/Resubmit.
+`Maintenance (Improvement) Plan` dan `Target KPI` adalah paired input. Current validation minimum satu complete pair pada Submit/Resubmit.
 
 ### BR-CHG-007
 Change MUST merepresentasikan Target date of execution, Monitoring period, Rollback scenario, dan Maintenance Announcement. Source workbook menunjukkan `1 week before`, `2 weeks before`, `2 days before (emergency)`.
 
-### BR-CHG-008 — Result of Changes Is a Distinct Data Section
-`(B) Result of Changes` adalah section data terpisah dengan Result summary, Performance information, dan Status.
+### BR-CHG-008 — Result of Changes Is Distinct Data
+`(B) Result of Changes` adalah section data terpisah dengan Result summary, Performance information, Status.
 
-### BR-CHG-009 — Result Does Not Create a New State
-Current requirement MUST NOT menambahkan `EXECUTION_PENDING`, `RESULT_PENDING`, atau `COMPLETED` hanya karena Result of Changes ada.
+### BR-CHG-009 — No New Result State
+MUST NOT menambahkan `EXECUTION_PENDING`, `RESULT_PENDING`, atau `COMPLETED` hanya karena Result section ada.
 
-### BR-CHG-010 — Result Before Final Approval
+### BR-CHG-010 — Result Before Forward
 Applicable Result of Changes MUST selesai sebelum record dapat meninggalkan `PENDING_REVIEW` melalui `Forward to Approval`.
 
-### BR-CHG-011 — Initial Submit Does Not Automatically Require Final Result
-Keberadaan Result section tidak dengan sendirinya membuat seluruh Result wajib pada first Submit. First Submit MAY memiliki zero Result rows; row yang sudah mulai diisi harus internally complete sesuai Validation Rules.
+### BR-CHG-011 — First Submit May Have Zero Results
+First Submit MAY memiliki zero Result rows; started row must be internally complete according to Validation Rules.
 
-### BR-CHG-012 — Narrow Result Capture During Review
-Normal Requester editing locked setelah Submit, tetapi sistem MUST menyediakan narrow authorized mechanism untuk Result capture selama `PENDING_REVIEW` tanpa membuka seluruh form atau memaksa fake `Return for Revision`.
-
-Confirmed default actor/permission:
+### BR-CHG-012 — Narrow Result Capture
+Normal Requester editing locked setelah Submit, tetapi system MUST provide narrow mechanism:
 
 ```text
 Requester/owner
 + nscmf.change.result.edit
-+ own visible Change record
++ own Change record
 + business_status = PENDING_REVIEW
 ```
 
-Hanya field `Result of Changes` yang editable melalui capability ini. Planning/submitted fields lain tetap locked.
+Only Result-of-Changes fields editable; planning/submitted fields stay locked.
 
 ### BR-CHG-013 — Result Forward Gate
-Sebelum Reviewer Forward, Change MUST memiliki minimal satu complete Result row. Source menyediakan maksimum lima rows; lima adalah capacity, bukan mandatory count.
+Sebelum Reviewer Forward, Change MUST memiliki minimum satu complete Result row. Maximum five rows from template is capacity, not mandatory count.
 
 ---
 
@@ -258,98 +293,95 @@ Creation order: family → subtype → numbering mode → form fields.
 Setiap record menawarkan Automatic Number Generation atau Manual Number Entry.
 
 ### BR-REC-004 — Provisional Automatic Numbering
-Sampai official company numbering SOP/sample diberikan, Automatic Number menggunakan PROVISIONAL current rule:
+Until official numbering SOP/sample is supplied:
 
 ```text
 NSCMF-YYYYMM-#####
 ```
 
-Sequence global per calendar month, server-generated, globally unique, concurrency-safe, gap allowed, dan nomor yang pernah dialokasikan tidak digunakan ulang. Detail authoritative ada di `06_Validation_Rules.md`.
+Sequence global per calendar month, server-generated, globally unique, concurrency-safe, gap allowed, allocated number never reused.
 
 ### BR-REC-005 — Manual Number
-Manual number MUST mengikuti provisional character/length rule dan globally unique sesuai `06_Validation_Rules.md`.
+Manual number MUST follow provisional character/length/uniqueness rules from `06_Validation_Rules.md`.
 
 ### BR-REC-006 — Number Immutability
-Request No MAY dikoreksi pada `DRAFT`, tetapi setelah first successful Submit MUST immutable melalui normal workflow. Revision/Reopen tidak menghasilkan nomor baru.
+Request No MAY dikoreksi pada `DRAFT`, tetapi after first successful Submit MUST immutable through normal workflow. Revision/Reopen does not generate new number.
 
 ---
 
 ## 8. Draft and Autosave
 
 ### BR-DRAFT-001
-New record memiliki business state `DRAFT`.
+New record has `DRAFT`.
 
 ### BR-DRAFT-002
-Requester MAY edit own eligible Draft.
+Requester MAY edit own eligible Draft with required permission.
 
 ### BR-DRAFT-003
-Editable Draft MUST mendukung autosave dan manual `Save Draft`.
+Editable Draft MUST support autosave and manual `Save Draft`.
 
 ### BR-DRAFT-004
-Persisted Draft changes MUST diaudit.
+Persisted Draft changes MUST be Business Audited.
 
 ### BR-DRAFT-005
 Draft MAY incomplete.
 
 ### BR-DRAFT-006
-Draft persistence MUST NOT diblok hanya karena submission-required fields belum lengkap. Structural/safety/file validations tetap dapat berlaku sesuai `06_Validation_Rules.md`.
+Draft persistence MUST NOT be blocked only because submission-required fields are incomplete.
 
 ### BR-DRAFT-007 — Optimistic Concurrency
-Draft/Revision persistence MUST detect stale version conflict and MUST NOT silently overwrite a newer persisted edit. Exact version field/API representation mengikuti `09`, ERD, dan API Contract.
+Draft/Revision persistence MUST detect stale version conflict and MUST NOT silently overwrite newer persisted edit.
 
 ---
 
 ## 9. Cancellation
 
 ### BR-CAN-001
-Requester MAY Cancel own record hanya dari `DRAFT` dan sebelum first Submit.
+Requester MAY Cancel own record only from `DRAFT` and before first Submit.
 
 ### BR-CAN-002
-First Submit menghilangkan normal Cancel right.
+First Submit removes normal Cancel right.
 
 ### BR-CAN-003
-Cancel menghasilkan `CANCELLED`, permanent terminal, MUST NOT Reopen.
+Cancel → `CANCELLED`, permanent terminal, MUST NOT Reopen.
 
 ### BR-CAN-004
-Cancel bukan delete; record tetap History/audit.
+Cancel is not delete; record remains History/audit.
 
 ### BR-CAN-005
-Cancel MUST mencatat actor/timestamp/record. Cancel reason Optional; jika diisi mengikuti safe-text/max-length validation.
+Cancel records actor/timestamp; reason Optional.
 
 ---
 
 ## 10. Attachments
 
 ### BR-ATT-001
-Attachment input MUST tersedia secara visual.
+Attachment input MUST exist visually.
 
 ### BR-ATT-002
-Attachment optional pada current requirement.
+Attachment optional current MVP.
 
 ### BR-ATT-003
-Add/remove/replace attachment reference MUST diaudit.
+Add/remove/replace attachment reference MUST be audited.
 
-### BR-ATT-004 — Current MVP Limits
-Current MVP validation:
+### BR-ATT-004 — Current Limits
 
-- maximum 10 files per NSCMF record;
-- maximum 20 MB per file;
-- zero-byte file rejected;
-- allowed baseline: PDF, XLS/XLSX, DOC/DOCX, PNG, JPG/JPEG, TXT, CSV;
-- executable/script/macro-enabled formats outside allowlist MUST be rejected.
+- maximum 10 files/record;
+- maximum 20 MB/file;
+- zero-byte rejected;
+- allowlist PDF, XLS/XLSX, DOC/DOCX, PNG, JPG/JPEG, TXT, CSV;
+- executable/script/macro-enabled formats outside allowlist rejected.
 
-Attachment storage MUST remain private. Uploaded file MUST pass the security malware-scanning boundary defined in `10_Security_Rules.md`; only explicit ClamAV `CLEAN` may make an attachment normally usable. Malware detected, scanner error, timeout, atau unavailable scanner MUST NOT be treated as clean.
+Storage private. Only explicit ClamAV `CLEAN` makes attachment usable. Malware detected, scanner error, timeout, or unavailable scanner fail closed.
 
-### BR-ATT-005 — Upgrade/Emergency Reminder
-Missing attachment on Change Upgrade/Emergency produces non-blocking Warning, not a blocking error. This business warning does not bypass attachment security scanning when a file is actually uploaded.
+### BR-ATT-005
+Missing attachment on Change Upgrade/Emergency = non-blocking Warning, not blocking error.
 
 ---
 
 # PART D — AUTHORITATIVE WORKFLOW SEMANTICS
 
 ## 11. Canonical States
-
-Canonical business states dari `05_State_Status_Flow.md`:
 
 ```text
 DRAFT
@@ -361,134 +393,146 @@ APPROVED
 CANCELLED
 ```
 
-`SUBMITTED`, `UNDER_REVIEW`, `REVIEWED`, `REOPENED`, dan `ARCHIVED` bukan persistent business states pada current design.
+`SUBMITTED`, `UNDER_REVIEW`, `REVIEWED`, `REOPENED`, `ARCHIVED` are not persistent business states.
 
 ---
 
 ## 12. Submit
 
 ### BR-SUB-001
-Requester hanya MAY Submit jika submission validation terpenuhi.
+Requester MAY Submit only if submission validation passes.
 
 ### BR-SUB-002
-Successful first Submit:
+First Submit:
 
 ```text
 DRAFT -> PENDING_REVIEW
 ```
 
 ### BR-SUB-003
-Setelah Submit, general Requester editing locked sampai `REVISION_REQUIRED`, kecuali narrow Change Result capture melalui `nscmf.change.result.edit`.
+After Submit, general Requester edit locked until `REVISION_REQUIRED`, except narrow Change Result capture.
 
 ### BR-SUB-004
-Requester tidak memilih Reviewer tertentu. Semua matching Reviewer mendapatkan visibility.
+Requester does not choose a Reviewer. Every actor with required Review permission is part of the shared permission-based Reviewer pool for eligible records. Team does not filter this pool.
 
 ---
 
-## 13. Reviewer Visibility and Participation
+## 13. Reviewer Participation
 
-### BR-REV-001
-Semua Reviewer dengan required permission + matching Unit/Division scope MAY melihat `PENDING_REVIEW`.
+### BR-REV-001 — Permission-Based Reviewer Eligibility
+Reviewer action requires the exact Review permission required by the action and an eligible `PENDING_REVIEW` state. No Team/organizational scope match exists.
 
 ### BR-REV-002
-Reviewer access non-exclusive; first viewer tidak menjadi owner lock.
+Reviewer access non-exclusive; first viewer is not owner lock.
 
 ### BR-REV-003
-Viewer/access evidence MUST dapat dibedakan dari modifier/workflow action dan MUST NOT mengubah business state.
+Viewer/access evidence distinguishable from modifier/workflow action and never changes state.
 
 ### BR-REV-004
-Satu record MAY memiliki beberapa Reviewer contributor sepanjang lifecycle.
+One record MAY have multiple Reviewer contributors throughout lifecycle.
 
 ### BR-REV-005
-Opening/viewing record MUST NOT mengubah business state.
+Opening/viewing MUST NOT change business state.
 
 ### BR-REV-006 — Reviewer State Actions
-Dari `PENDING_REVIEW`, eligible Reviewer MAY:
+From `PENDING_REVIEW`, with action-specific permission:
 
 - Return for Revision → `REVISION_REQUIRED`;
 - Reject → `REJECTED`;
 - Forward to Approval → `PENDING_APPROVAL`.
 
 ### BR-REV-007
-Emergency Change tetap wajib Review.
+Emergency Change still requires Review.
 
-### BR-REV-008 — Change Result Gate
-Untuk Change, Forward to Approval MUST gagal apabila Result-of-Changes validation belum terpenuhi.
+### BR-REV-008
+Change Forward MUST fail if Result validation not satisfied.
 
-### BR-REV-009 — Reviewer Reason Rules
-Reviewer Return dan Reviewer Reject MUST memiliki mandatory reason. Reviewer Forward comment Optional.
+### BR-REV-009
+Reviewer Return/Reject mandatory reason; Forward comment Optional.
 
 ---
 
-# PART E — REVISION LOOP
+# PART E — REVISION LOOP AND WORKFLOW ITERATION
 
 ## 14. Return for Revision
 
 ### BR-RET-001
-Return kepada Requester menghasilkan `REVISION_REQUIRED` dan mengaktifkan Requester editing.
+Return to Requester → `REVISION_REQUIRED` and enables Requester editing.
 
 ### BR-RET-002
-Requester Resubmit selalu:
+Requester Resubmit always:
 
 ```text
 REVISION_REQUIRED -> PENDING_REVIEW
 ```
 
 ### BR-RET-003
-Revision cycles MAY repeat tanpa fixed maximum.
+Revision cycles MAY repeat without fixed maximum.
 
 ### BR-RET-004
-Same Reviewer context SHOULD dipertahankan untuk continuity, tetapi Reviewer lain dalam scope tetap eligible.
+Previous/current Reviewer activity MAY be retained for continuity, but no Reviewer gets exclusive ownership and any actor with the required Review permission remains eligible when state permits.
 
 ### BR-RET-005
-Setiap iteration dan field change MUST dipertahankan di history/audit.
+Field change and workflow evidence MUST remain in audit/history.
 
 ### BR-RET-006
-Transition `REVISION_REQUIRED -> PENDING_APPROVAL` MUST NOT tersedia. Revision oleh Requester selalu harus Review ulang.
+`REVISION_REQUIRED -> PENDING_APPROVAL` MUST NOT exist.
+
+## 14A. Workflow Iteration Semantics
+
+### BR-ITER-001 — First Submit Establishes Iteration
+First successful Submit establishes workflow iteration 1 for workflow/approval-history purposes.
+
+### BR-ITER-002 — Normal Return/Revision Stays in Same Iteration
+Reviewer Return, Approver Return, Requester Revision, and Resubmit within the same ongoing workflow cycle MUST NOT create a new workflow iteration.
+
+### BR-ITER-003 — Reopen Creates New Iteration
+Reopen from `REJECTED` or `APPROVED` starts the next workflow iteration.
+
+This distinction is required so historical rejection/approval/sign-off and previously issued Approved PDFs can remain attributable to the correct iteration.
 
 ---
 
 # PART F — APPROVAL
 
-## 15. Approver Scope and Actions
+## 15. Approver Eligibility and Actions
 
-### BR-APR-001
-Approver action membutuhkan permission + matching Approval Scope.
+### BR-APR-001 — Permission-Based Eligibility
+Approver action requires the exact Approval permission required by the action + current `PENDING_APPROVAL` state + all applicable domain/security prerequisites.
+
+No Approval Scope or Team match exists.
 
 ### BR-APR-002
-Approval Scope MAY mencakup beberapa Unit/Division.
+`PENDING_APPROVAL` only reached by successful Reviewer Forward.
 
 ### BR-APR-003
-`PENDING_APPROVAL` hanya dapat dicapai dari successful Reviewer Forward.
-
-### BR-APR-004
-Dari `PENDING_APPROVAL`, eligible Approver MAY:
+From `PENDING_APPROVAL`, action-specific permitted actor MAY:
 
 - Return to Reviewer → `PENDING_REVIEW`;
 - Return to Requester → `REVISION_REQUIRED`;
 - Reject → `REJECTED`;
 - Approve → `APPROVED`.
 
+### BR-APR-004
+Return to Requester → revision → Resubmit MUST return `PENDING_REVIEW`.
+
 ### BR-APR-005
-Return to Requester → revision → Resubmit MUST kembali ke `PENDING_REVIEW`, bukan langsung Approval.
+Approval MUST be audited.
 
 ### BR-APR-006
-Approval MUST diaudit.
+Approver pool non-exclusive; all users with required permission remain eligible while state valid.
 
 ### BR-APR-007
-Approver pool non-exclusive; semua eligible Approver dapat melihat/action selama state valid.
+One successful final approval is sufficient.
 
 ### BR-APR-008
-Satu final approval dari satu eligible Approver cukup membuat record `APPROVED`.
+`Approved By` = actor who successfully commits `PENDING_APPROVAL -> APPROVED`.
 
 ### BR-APR-009
-`Approved By` adalah actor yang berhasil melakukan transition final `PENDING_APPROVAL -> APPROVED`.
+Stale second Approve cannot create another final approval for same iteration.
 
 ### BR-APR-010
-Setelah state menjadi `APPROVED`, stale Approver tidak dapat menghasilkan final approval kedua pada iteration yang sama.
-
-### BR-APR-011 — Approver Reason Rules
-Approver Return to Reviewer, Return to Requester, dan Reject MUST memiliki mandatory reason. Approve comment Optional.
+Return/Reject reasons mandatory; Approve comment Optional.
 
 ---
 
@@ -497,35 +541,33 @@ Approver Return to Reviewer, Return to Requester, dan Reject MUST memiliki manda
 ## 16. Rejection
 
 ### BR-REJ-001
-Reject bukan delete; record tetap History.
+Reject is not delete; record remains History.
 
 ### BR-REJ-002
-Reviewer dapat Reject dari `PENDING_REVIEW`; Approver dapat Reject dari `PENDING_APPROVAL`.
+Reviewer may Reject from `PENDING_REVIEW`; Approver may Reject from `PENDING_APPROVAL` with respective permissions.
 
 ### BR-REJ-003
-`REJECTED` adalah closed normal-flow state; normal Requester edit/resubmit locked.
+`REJECTED` stops normal Requester edit/resubmit.
 
 ### BR-REJ-004
-`REJECTED` MAY Reopen oleh protected Superadmin atau actor dengan explicit `nscmf.reopen`, valid visibility/scope.
+`REJECTED` MAY Reopen by actor with `nscmf.reopen`, authorized record access, and valid Reopen prerequisites. Team membership is irrelevant.
 
 ### BR-REJ-005
-Reject MUST memiliki mandatory reason sesuai Validation Rules.
-
----
+Reject requires mandatory reason.
 
 ## 17. Approved Reopen/Revert
 
 ### BR-REOPEN-001
-`APPROVED` protected/read-only melalui normal workflow.
+`APPROVED` protected/read-only through normal workflow.
 
 ### BR-REOPEN-002
-`APPROVED` MAY Reopen/Revert oleh protected Superadmin atau actor dengan explicit `nscmf.reopen`, matching visibility/scope.
+`APPROVED` MAY Reopen/Revert by actor with `nscmf.reopen`, authorized record access, and valid prerequisites.
 
 ### BR-REOPEN-003
-Reopen dari `REJECTED` maupun `APPROVED` MUST memiliki mandatory reason.
+Reopen from `REJECTED`/`APPROVED` requires mandatory reason.
 
 ### BR-REOPEN-004
-Valid Reopen destinations hanya:
+Destination only:
 
 ```text
 REVISION_REQUIRED
@@ -533,122 +575,96 @@ PENDING_REVIEW
 ```
 
 ### BR-REOPEN-005
-Reopen MUST NOT menuju `DRAFT` atau `PENDING_APPROVAL`.
+Reopen MUST NOT target `DRAFT` or `PENDING_APPROVAL`.
 
 ### BR-REOPEN-006
-Reopen adalah action/event, bukan persistent `REOPENED` state.
+Reopen is event/action, not persistent state.
 
 ### BR-REOPEN-007
-Previous rejection/approval evidence MUST dipertahankan.
+Previous rejection/approval evidence preserved.
 
 ### BR-REOPEN-008
-Archived `REJECTED`/`APPROVED` MUST di-Unarchive sebelum Reopen.
+Archived `REJECTED`/`APPROVED` MUST Unarchive before Reopen.
+
+### BR-REOPEN-009
+Successful Reopen starts a new workflow iteration.
 
 ---
 
-# PART H — VISIBILITY, HISTORY, EXPORT
+# PART H — RECORD ACCESS, HISTORY, EXPORT
 
-## 18. Visibility
+## 18. Record Access Model
 
-- Requester → own records;
-- Reviewer → matching Unit/Division scope;
-- Approver → matching Approval Scope;
-- Superadmin → global;
-- multi-role → additive union sesuai permission/scope.
+Team is not used in record authorization.
+
+Authorization follows permission + applicable resource/ownership/domain rules.
+
+Requester-specific mutating actions remain own-record constrained where explicitly defined. Reviewer/Approver workflow eligibility is permission + state based.
+
+No `Reviewer Scope`, `Approval Scope`, or organizational matching exists.
 
 ## 19. Timeline
 
-Semua legitimate record viewer MUST dapat melihat **business timeline** siapa melakukan business mutation/workflow/lifecycle action. Timeline read access tidak memberi audit mutation permission.
-
-Routine record `View`/access evidence MUST NOT memenuhi business timeline. Access evidence disimpan melalui separate Access Audit concern sesuai `09_System_Architecture.md`.
+Legitimate record viewer MUST be able to see Business Timeline according to RBAC/resource authorization. Routine access/view evidence remains separate Access Audit.
 
 ## 20. Export
 
 ### BR-EXP-001
-View implies export eligibility.
+Export requires authorized record access and `nscmf.export`.
 
 ### BR-EXP-002
-No view means no export.
+No authorized view/access means no export.
 
 ### BR-EXP-003
-Bulk export MUST check setiap selected record.
+Bulk export checks each selected record.
 
 ### BR-EXP-004
-Export tidak mengubah business state.
+Export does not change business state.
 
 ### BR-EXP-005 — Exact Template Fidelity
-Official NSCMF XLSX template adalah visual/export source of truth.
+Official XLSX template is visual/export source of truth. Generated XLSX/PDF MUST preserve template exactly and only fill mapped fields/native control states.
 
-Generated XLSX dan generated PDF MUST mempertahankan template resmi secara exact: struktur/layout/formatting/control yang sudah ada tidak didesain ulang. Sistem hanya mengisi atau mengganti business fields dan native control states yang memang dipetakan untuk record tersebut.
+### BR-EXP-006
+Native controls, formatting, merged cells, row/column dimensions, drawings/media, print settings must be preserved.
 
-PDF MUST berasal dari filled spreadsheet/template representation, bukan dari HTML/Vue/Blade redesign.
+### BR-EXP-007
+PDF renderer must pass golden fidelity qualification.
 
-### BR-EXP-006 — Template Preservation
-Export implementation MUST preserve template features yang tidak sedang diisi, termasuk formatting, merged cells, row/column dimensions, drawing/media, print settings, dan native Form Controls.
+### BR-EXP-008
+User-facing formats = XLSX and PDF.
 
-Native checkbox/control MUST NOT diganti dengan text symbol/image hanya karena lebih mudah secara teknis.
+### BR-EXP-009
+All single/bulk export generation asynchronous.
 
-### BR-EXP-007 — Renderer Fidelity Gate
-Concrete PDF renderer hanya boleh digunakan production jika lulus approved golden fidelity test terhadap official XLSX/template output. Perbedaan visual yang tidak diizinkan MUST diperlakukan sebagai export failure/renderer qualification failure, bukan alasan untuk menurunkan business requirement.
+### BR-EXP-010 — Immutable Deterministic Snapshot
+Export request MUST bind to an immutable deterministic logical snapshot/version at request time. Worker MUST NOT silently export a later record version.
 
-### BR-EXP-008 — User-Facing Formats
-Current confirmed user-facing export choices:
+### BR-EXP-011
+XLSX may be edited after download; local edit does not alter source record; no PDF-signing flow.
 
-```text
-XLSX
-PDF
-```
+### BR-EXP-012
+Approved PDF MUST be cryptographically signed by System/Organization.
 
-Additional format beyond XLSX/PDF remains future/deferred.
+### BR-EXP-013
+Non-Approved PDF has no mandatory organization signature current MVP.
 
-### BR-EXP-009 — Asynchronous Export
-Single dan bulk export generation MUST diproses asynchronously. HTTP/UI request tidak perlu menunggu spreadsheet patch/render/signing selesai.
+### BR-EXP-014
+Signing failure on Approved PDF → export FAILED; no unsigned fallback.
 
-### BR-EXP-010 — Deterministic Snapshot
-Queued export MUST merepresentasikan deterministic logical record snapshot/version yang bound saat export request dibuat. Worker MUST NOT silently export a later record version merely because processing started later.
+### BR-EXP-015
+Generated READY binary private and re-downloadable 168h/7d, then automatically cleaned.
 
-### BR-EXP-011 — XLSX Treatment
-XLSX export:
+### BR-EXP-016
+After expiry eligible user may request a new export.
 
-- menggunakan exact filled official template;
-- MAY diedit oleh recipient setelah download;
-- local edit tidak mengubah source record di aplikasi;
-- tidak melalui cryptographic PDF signing flow.
+### BR-EXP-017
+Signing identity custody/readiness follows `10_Security_Rules.md`.
 
-### BR-EXP-012 — Approved PDF Cryptographic Signature
-Jika export format = PDF dan bound snapshot berstatus `APPROVED`, generated PDF MUST cryptographically signed.
+### BR-EXP-018
+Public no-login Approved PDF verification is required.
 
-Logical signer identity = **System/Organization**.
-
-`Approved By` tetap human Approver yang melakukan final workflow transition; cryptographic signer MUST NOT mengganti business approval identity.
-
-### BR-EXP-013 — Non-Approved PDF
-PDF dari snapshot yang bukan `APPROVED` tidak memiliki mandatory organization/system cryptographic signature pada current rule.
-
-### BR-EXP-014 — No Unsigned Fallback for Approved PDF
-Jika renderer berhasil tetapi mandatory cryptographic signing pada Approved PDF gagal, export MUST gagal. System MUST NOT memberikan unsigned PDF sebagai silent fallback.
-
-### BR-EXP-015 — Temporary Artifact Retention
-Generated XLSX/PDF artifact tersedia privately untuk authorized re-download selama:
-
-```text
-168 hours
-= 7 × 24 hours
-```
-
-Setelah expiry, artifact binary MUST dibersihkan otomatis oleh scheduled cleanup. Expiry export artifact MUST NOT menghapus NSCMF source record, authoritative audit evidence, atau issuance/verification metadata yang dibutuhkan untuk historical PDF validation.
-
-### BR-EXP-016 — Re-Export After Expiry
-Setelah artifact expired/deleted, eligible user MAY membuat export request baru. New export menghasilkan artifact baru dari snapshot/version yang bound pada request baru.
-
-### BR-EXP-017 — Signing Security
-Certificate/private-key custody and validation behavior mengikuti `10_Security_Rules.md`. Signing identity diprovision manual pada server/environment, private key MUST NOT berada di GitHub/source/deployment artifact, dan missing/unusable required signing identity adalah critical readiness/configuration failure. Requirement bahwa Approved PDF harus cryptographically signed bukan TBD.
-
-### BR-EXP-018 — Public PDF Verification
-System MUST menyediakan narrow public no-login validation capability untuk NSCMF-issued Approved PDF. Validator MUST verify cryptographic issuer/signature, exact final SHA-256, issuance metadata, dan current/superseded approval context, tanpa menjadikan private NSCMF record sebagai public portal.
-
-### BR-EXP-019 — Superseded Is Not Modified
-Genuine exact issued PDF yang pernah valid tetapi kemudian related record di-Reopen/Revert atau digantikan newer Approved issuance MUST dapat dibedakan sebagai genuine-but-superseded, bukan otomatis dianggap modified/forged.
+### BR-EXP-019
+Genuine exact older PDF may become `VALID_SUPERSEDED`; superseded does not mean modified.
 
 ---
 
@@ -656,164 +672,110 @@ Genuine exact issued PDF yang pernah valid tetapi kemudian related record di-Reo
 
 ## 21. Detailed Audit
 
-### BR-AUD-001 — Business Audit
-Setiap persisted business change MUST logged, termasuk Draft dan authorized Result capture.
+### BR-AUD-001
+Every persisted business change MUST be Business Audited, including Draft and authorized Result capture.
 
 ### BR-AUD-002
-Minimum field audit dapat merepresentasikan record, actor, timestamp, field/data element, old/new value, event context.
+Audit must represent record, actor, timestamp, field/data element, old/new value, event context where applicable.
 
-### BR-AUD-003 — Business Workflow/Lifecycle Events
-Minimal business audit events:
-
-- create;
-- autosave/save persistence;
-- cancel;
-- submit/resubmit;
-- reviewer actions;
-- return;
-- reject;
-- approve;
-- reopen/revert;
-- archive;
-- unarchive;
-- numbering change;
-- attachment mutation;
-- relevant administrative changes.
-
-Routine `View` bukan business workflow/lifecycle event.
+### BR-AUD-003
+Business workflow/lifecycle events include create, save/autosave persistence, cancel, submit/resubmit, review actions, returns, reject, approve, reopen, archive/unarchive, numbering/attachment mutations, relevant admin changes.
 
 ### BR-AUD-004
-Viewer/access actor dan modifier/workflow actor MUST distinguishable.
+Viewer/access actor and modifier/workflow actor MUST remain distinguishable.
 
 ### BR-AUD-005
-Historical revisions/rejections/approvals/business changes MUST never overwrite.
+Historical revisions/rejections/approvals MUST never overwrite.
 
 ### BR-AUD-006
-Normal user MUST NOT edit historical audit.
+Normal user cannot edit historical audit.
 
-### BR-AUD-007 — Separate Access Audit
-Record view/protected-resource access evidence MUST be represented through a logically separate **Access Audit** concern, not inserted as routine rows in the business timeline.
+### BR-AUD-007
+Access Audit remains logically separate from Business Timeline.
 
-### BR-AUD-008 — Audit Concerns Must Remain Separate
-System MUST distinguish:
+### BR-AUD-008
+System distinguishes Business Audit, Access Audit, Security Audit, Technical Logs.
 
-```text
-Business Audit  → business data/workflow changed
-Access Audit    → protected record/resource accessed
-Security Audit  → authentication/credential/authorization/security events
-Technical Logs  → software/runtime behavior
-```
+### BR-AUD-009
+Business/Access/Security Audit MUST NOT be automatically purged by age.
 
-Technical logs MUST NOT substitute authoritative Business Audit, Access Audit, atau Security Audit.
+### BR-AUD-010
+7-day generated binary cleanup MUST NOT remove audits or issuance metadata.
 
-### BR-AUD-009 — No Time-Based Authoritative Audit Purge
-Confirmed final policy: Business Audit, Access Audit, dan authoritative Security Audit MUST NOT be automatically purged because of age. Tidak ada 12-month, 24-month, atau age-based expiry untuk authoritative audit evidence.
-
-### BR-AUD-010 — Export Cleanup Is Different
-Seven-day generated export-binary cleanup MUST NOT delete related Business/Access/Security Audit evidence or historical issuance metadata.
-
-### BR-AUD-011 — Privileged Audit Visibility
-Business Timeline remains visible according to normal record visibility. Raw/privileged Access Audit and Security Audit visibility is a protected security concern governed by `04_RBAC_Permission_Matrix.md` + `10_Security_Rules.md`; visibility of audit evidence MUST NOT be used to rewrite business permission scope.
+### BR-AUD-011
+Privileged raw Access/Security Audit visibility uses explicit audit permissions + applicable resource/admin authorization; no Team scope exists.
 
 ---
 
-# PART J — ARCHIVE / UNARCHIVE / DATA PRESERVATION
+# PART J — ARCHIVE / DATA PRESERVATION
 
 ## 22. No Hard Delete
 
 ### BR-DEL-001
-NSCMF MUST NOT memiliki hard-delete capability, termasuk Superadmin.
+NSCMF MUST NOT have hard-delete capability, including Superadmin.
 
 ### BR-DEL-002
-Archive menggantikan delete untuk mengeluarkan terminal/protected record dari default active view.
+Archive replaces delete for eligible terminal/protected records.
 
 ### BR-DEL-003
-Archive membutuhkan protected Superadmin atau explicit `nscmf.archive` + valid visibility + state eligibility.
+Archive requires `nscmf.archive` + authorized record access + valid state/reason.
 
 ### BR-DEL-004
-Archive MUST NOT rewrite business status.
+Archive does not rewrite business status.
 
 ### BR-DEL-005
-Archive preserves record, business status, workflow history, audit, sign-off history, dan attachment references sesuai policy final.
+Archive preserves record/history/audit/sign-off/attachment references according to policy.
 
-### BR-DEL-006 — Archive Eligible States
-Archive hanya valid untuk:
-
-```text
-APPROVED
-REJECTED
-CANCELLED
-```
-
-Active states `DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL` MUST NOT di-Archive.
+### BR-DEL-006
+Archive only `APPROVED`, `REJECTED`, `CANCELLED`.
 
 ### BR-DEL-007
-Archived record tidak tampil pada default active list dan tetap mengikuti normal visibility scope.
+Archived record leaves default active view but retains normal resource authorization rules; Team is not an access filter.
 
-### BR-DEL-008 — Unarchive Allowed
-Unarchive diperbolehkan oleh actor dengan `nscmf.archive` + valid visibility.
-
-Unarchive:
-
-```text
-business_status = unchanged
-is_archived = false
-```
+### BR-DEL-008
+Unarchive allowed by `nscmf.archive` + authorization + reason.
 
 ### BR-DEL-009
-Archive/Unarchive MUST diaudit.
+Archive/Unarchive audited.
 
 ### BR-DEL-010
-Archived record MUST NOT menjalankan normal business workflow-changing action sampai Unarchive.
-
-### BR-DEL-011 — Lifecycle Reasons
-Archive dan Unarchive MUST memiliki mandatory reason, minimum/maximum mengikuti `06_Validation_Rules.md`.
+Archived record cannot perform normal business transition until Unarchive.
 
 ---
 
-# PART K — NOTIFICATIONS
+# PART K — SYSTEM ENFORCEMENT / CONCURRENCY
 
-## 23. Notification Capability
-
-Future hooks MAY ada untuk Submit, Return, Reject, Forward, Approve, Reopen. Telegram dan WhatsApp/Baileys adalah candidate only. Notification MUST NOT menjadi blocker core MVP.
-
----
-
-# PART L — SYSTEM ENFORCEMENT / CONCURRENCY
-
-## 24. Server-Side Enforcement
+## 23. Server-Side Enforcement
 
 ### BR-INT-001
-Role, permission, scope, ownership, archive flag, current state, destination, dan validation MUST dicek server-side.
+Required permission, explicit ownership where applicable, resource access, archive flag, current state, destination, validation, security preconditions MUST be checked server-side.
+
+Team MUST NOT be inserted into authorization checks.
 
 ### BR-INT-002
-Direct URL, manipulated ID, payload, API, atau bulk request MUST NOT bypass rules.
+Direct URL/ID/payload/API/bulk manipulation MUST NOT bypass rules.
 
 ### BR-INT-003
-Failed action MUST NOT meninggalkan partial business state.
+Failed action MUST NOT leave partial business state.
 
-### BR-INT-004 — Stale Action Revalidation
-Karena Reviewer/Approver non-exclusive, backend MUST revalidate current state sebelum workflow-changing action dipersist.
+### BR-INT-004
+Reviewer/Approver non-exclusive actions require current-state revalidation; stale conflict rejected.
 
-Jika actor lain sudah mengubah state, stale conflicting action MUST ditolak.
+### BR-INT-005
+Required permission/state/domain validation + state update + required Business Audit evidence occurs as one consistent business action.
 
-### BR-INT-005 — Atomic Business Action
-Permission/scope/state/validation check + state update + required Business Audit evidence MUST terjadi sebagai satu consistent atomic business action.
+### BR-INT-006
+Workflow/lifecycle transition uses short DB transaction + row-level pessimistic locking/current-state revalidation.
 
-### BR-INT-006 — Workflow Locking Strategy
-Workflow/lifecycle transition MUST menggunakan short database transaction + row-level pessimistic locking/current-state revalidation sebagaimana didefinisikan di `09_System_Architecture.md`.
+### BR-INT-007
+Draft/Revision/Result persistence uses optimistic version conflict detection.
 
-Lock MUST NOT ditahan selama browser interaction, attachment upload, renderer execution, atau long-running external work.
-
-### BR-INT-007 — Editable Optimistic Concurrency
-Draft/Revision dan narrow Result persistence MUST menggunakan optimistic version conflict detection. Stale client MUST NOT silently overwrite newer persisted data.
-
-### BR-INT-008 — Security Gates Do Not Create Business States
-Authentication/session expiry, re-auth requirement, malware-scan state, signing readiness, public PDF validation result, dan other technical/security conditions MUST NOT be introduced as persistent NSCMF business states.
+### BR-INT-008
+Security/technical gates do not create business state.
 
 ---
 
-## 25. Mandatory High-Level State Machine
+## 24. Mandatory State Machine
 
 ```text
 DRAFT
@@ -833,6 +795,7 @@ Reopen:
 ```text
 REJECTED / APPROVED
   -> REVISION_REQUIRED or PENDING_REVIEW only
+  -> starts new workflow iteration
 ```
 
 Archive:
@@ -842,140 +805,105 @@ business_status unchanged
 is_archived = true/false
 ```
 
-Emergency follows the same Review + Approval sequence.
+Emergency uses same Review + Approval sequence.
 
 ---
 
-## 26. Confirmed Decisions Summary
+## 25. Confirmed Decisions Summary
 
 | Area | Confirmed Decision |
 |---|---|
-| Organization | Single organization / single application installation |
-| Initial setup | Wizard |
-| Roles | Template/manual; ongoing delegated admin allowed except protected settings |
-| Multi-role | Allowed |
-| Authentication | Password-only; minimum 6 chars; no composition rule; no MFA |
-| Credential admin | Temporary password + forced change; sensitive admin requires password re-auth |
-| Session | 30m idle; 8h absolute; max 2 active sessions/account; target session revocation on access-changing identity actions |
-| Form family | Activation = provisioning; Change = maintenance/existing environment |
-| Numbering | Auto/manual per form; provisional current format defined in Validation Rules |
+| Organization | Single organization / single installation |
+| Organizational structure | Team only; no Unit/Division |
+| Team authorization effect | None |
+| Reviewer/Approval Scope | None |
+| Authorization | Permission-centric + state/ownership where explicitly required + domain/security checks |
+| RBAC package | Spatie Laravel Permission 8.x; package schema reused |
+| Spatie Teams | Disabled |
+| Direct user permissions | Package table remains; normal MVP UI/workflow does not use direct assignment |
+| Wildcards | Disabled |
+| Multi-role | Allowed; union via Spatie role permissions |
+| Authentication | Password-only, min 6, no composition, no MFA |
+| Credential admin | Temporary password + forced change; sensitive admin requires re-auth |
+| Session | 30m idle, 8h absolute, max2; authorization changes revoke affected sessions |
 | Canonical states | `DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL`, `REJECTED`, `APPROVED`, `CANCELLED` |
-| Submitted/Reviewed/Reopened/Archived | Events/treatment, not persistent business states |
-| Draft | Editable, autosave + Save Draft, audited, may be incomplete |
-| Cancel | Draft-only, permanent; reason optional |
-| Reviewer | Shared/non-exclusive, multiple contributors |
-| Revision | Unlimited; Resubmit always Review |
-| Approver | Shared/non-exclusive; one final Approver sufficient |
-| Reopen | `REJECTED`/`APPROVED` only; reason mandatory; destination Review or Revision only |
-| Emergency | No bypass |
-| Change Service Impact | Multi-select; Other requires description |
-| Change Result | Requester/owner narrow edit in `PENDING_REVIEW`; minimum one complete Result row before Forward; no extra state |
-| Attachment | Optional; 10 files max, 20 MB/file, current allowlist + private ClamAV CLEAN gate |
-| Return/Reject | Mandatory reason |
-| Archive/Unarchive | Independent flag; mandatory reason; only Approved/Rejected/Cancelled archive-eligible |
-| Timeline | Business timeline focuses on business mutation/workflow/lifecycle actions |
-| Access Audit | Separate from Business Timeline |
-| Authoritative Audit | Business/Access/Security Audit have no age-based automatic purge |
-| Business Audit | Detailed old/new + actor + timestamp + context |
-| Export | View implies export; user chooses XLSX/PDF; exact official-template fidelity |
-| Export execution | All single/bulk generation asynchronous |
-| Export snapshot | Deterministic logical record snapshot/version |
-| XLSX | Editable local output, no PDF-signing flow |
-| Approved PDF | Cryptographic signature required; logical signer System/Organization |
-| Signing custody | Manually provisioned server-side; private key never GitHub/source/deployment; missing identity critical readiness failure |
-| Public PDF validation | Signature + exact SHA-256 + issuance/currentness; current/superseded/modified/unknown semantics |
-| TSA | Not required for current MVP |
-| Export binary retention | Private READY artifact 168 hours / 7 days, then scheduled cleanup; authoritative audit/issuance evidence remains |
-| Workflow concurrency | Short transaction + row-level lock/current-state revalidation |
-| Draft/Result concurrency | Optimistic version conflict detection |
-| Impersonation | Not required |
-| Notification | Future, not priority |
+| Reviewer | Shared/non-exclusive, permission based, multiple contributors |
+| Approver | Shared/non-exclusive, permission based, one final approval sufficient |
+| Reopen | Rejected/Approved only; reason mandatory; Review/Revision target only; new workflow iteration |
+| Normal Return/Revision | stays same workflow iteration |
+| Change Result | owner narrow edit in PENDING_REVIEW; minimum one complete row before Forward |
+| Attachment | Optional, current limits + ClamAV CLEAN gate |
+| Audit | Business/Access/Security separated; no age purge |
+| Export | exact template XLSX/PDF, all async, immutable deterministic snapshot |
+| Approved PDF | System/Organization signature required |
+| Public validator | signature + exact SHA-256 + issuance/currentness |
+| Export binary | 168h/7d private retention |
+| Workflow concurrency | row-lock current-state revalidation |
+| Draft/Result concurrency | optimistic versioning |
 
 ---
 
-## 27. Remaining Open Decisions
+## 26. Remaining Open Decisions
 
 Intentionally deferred:
 
-- exact Unit/Division template entries;
-- official NSCMF numbering SOP/sample that may replace/confirm provisional rules;
+- exact default Team master data;
+- official NSCMF numbering SOP/sample;
 - notification provider/timing;
 - additional export formats/bulk packaging beyond XLSX/PDF;
 - performance/availability targets;
 - backup/restore/DR/RPO/RTO;
 - exact production deployment topology/provider;
-- exact production certificate format/provider/CA if external trust outside the confirmed NSCMF issuer/validator model is later required.
+- exact production certificate operational format/provider if external trust needs it.
 
-Concrete PDF renderer remains technology qualification-gated by `08`; **exact template fidelity, Approved-PDF signing requirement, security policy, audit preservation, ClamAV gate, export binary retention, and concurrency architecture are not TBD**.
-
-Resolved Validation/Architecture/Security Rules MUST NOT be treated as TBD unless an explicit requirement change occurs.
+Unit/Division, Reviewer Scope, Approval Scope, Team-based authorization, Spatie Teams, and direct-user permission UI are **not TBD**.
 
 ---
 
-## 28. Implementation Guardrails
+## 27. Implementation Guardrails
 
 Developer/AI agent MUST NOT:
 
-1. membuat self-registration;
-2. menghapus/downgrade/disable protected Superadmin;
-3. menambahkan NSCMF hard-delete;
-4. memilih Reviewer secara manual/exclusive;
-5. membuat first Reviewer/Approver viewer menjadi exclusive owner;
-6. membatasi Reviewer contributor menjadi satu;
-7. mewajibkan approval seluruh eligible Approver;
-8. membuat lebih dari satu final approval pada iteration yang sama;
-9. membatasi Reopen hanya Superadmin jika delegated `nscmf.reopen` valid;
-10. membatasi Archive hanya Superadmin jika delegated `nscmf.archive` valid;
-11. mengizinkan Cancel setelah first Submit;
-12. membuat Cancelled Reopen;
-13. mengizinkan revision Resubmit langsung ke Approval;
-14. membuat Emergency bypass Review/Approval;
-15. menghapus historical cycle;
-16. membuat Change Purpose/Identified Problem sebagai selector tanpa rule;
-17. klasifikasi Upgrade hanya dari keyword;
-18. membuat attachment mandatory;
-19. mempresentasikan provisional numbering sebagai official company SOP;
-20. menjadikan Telegram/WhatsApp blocker;
-21. menambahkan impersonation;
-22. mengubah authorization semantics hanya karena package implementation;
-23. membuat `SUBMITTED`, `UNDER_REVIEW`, `REVIEWED`, `REOPENED`, atau `ARCHIVED` sebagai persistent state;
-24. mengizinkan Reopen ke `DRAFT` atau `PENDING_APPROVAL`;
-25. Archive active-work states;
-26. menjalankan Reopen pada archived record tanpa Unarchive;
-27. membuat state execution/result tambahan hanya untuk Change Result;
-28. membuat Service Impact single-select;
-29. membuka seluruh form pada `PENDING_REVIEW` hanya untuk Result capture;
-30. menghilangkan mandatory reason pada Return/Reject/Reopen/Archive/Unarchive;
-31. mewajibkan seluruh lima Result rows;
-32. membuat PDF dari desain HTML yang berbeda dari official XLSX template;
-33. mengganti native template checkbox/control dengan symbol/image demi kemudahan export;
-34. menerima PDF yang berbeda dari approved template representation hanya karena renderer yang dipilih tidak mampu mempertahankan fidelity;
-35. menambahkan tenant/multi-organization layer tanpa approved requirement;
-36. memasukkan routine View ke business timeline sehingga operational history dipenuhi access noise;
-37. memakai technical logs sebagai authoritative Business/Access/Security Audit;
-38. menjalankan export rendering/signing synchronously di workflow/HTTP transaction;
-39. membiarkan queued export silently memakai record version yang berbeda dari requested snapshot;
-40. memberi unsigned Approved PDF sebagai fallback ketika mandatory signing gagal;
-41. menganggap organization/system PDF signer sama dengan human `Approved By`;
-42. mewajibkan personal certificate tiap Approver tanpa requirement;
-43. menyimpan generated export binary permanen secara default;
-44. melayani expired artifact setelah 168-hour window;
-45. menghapus NSCMF source record atau authoritative audit/issuance evidence karena temporary export artifact expired;
-46. menjalankan workflow transition tanpa row-level current-state revalidation;
-47. silently overwrite Draft/Result yang lebih baru dari stale client;
-48. menambahkan mandatory password composition atau MFA tanpa approved requirement change;
-49. menganggap malware scanner failure sebagai `CLEAN`;
-50. menghapus authoritative audit evidence hanya karena umur;
-51. memasukkan production signing private key ke GitHub/source/deployment artifact;
-52. mengoperasikan Approved-PDF export seolah signing identity sehat ketika key/certificate required missing/unusable;
-53. menganggap genuine superseded PDF sebagai modified hanya karena workflow record kemudian Reopen/Revert.
+1. create Unit/Division model;
+2. create reviewer scope or approval scope;
+3. use Team as authorization boundary;
+4. enable Spatie Teams for organizational Team;
+5. duplicate Spatie `roles`, `permissions`, `model_has_roles`, `model_has_permissions`, `role_has_permissions` through custom equivalents;
+6. expose direct permission-to-user assignment as normal MVP feature;
+7. enable wildcard permissions or seed shorthand wildcards;
+8. create self-registration;
+9. delete/downgrade/disable protected Superadmin;
+10. create NSCMF hard-delete;
+11. make first Reviewer/Approver viewer exclusive owner;
+12. restrict Reviewer contributors to one;
+13. require all eligible Approvers to approve;
+14. create more than one final approval per iteration;
+15. allow Cancel after first Submit;
+16. Reopen Cancelled;
+17. Resubmit revision directly to Approval;
+18. let Emergency bypass Review/Approval;
+19. erase historical cycle;
+20. make attachment mandatory;
+21. make Service Impact single-select;
+22. unlock full submitted Change form for Result capture;
+23. remove required reasons;
+24. create extra execution/result states;
+25. replace official export controls/layout for convenience;
+26. use HTML PDF fallback;
+27. export a later version than immutable requested snapshot;
+28. deliver unsigned Approved PDF after signing failure;
+29. equate System/Organization signer with human Approved By;
+30. age-purge authoritative audit;
+31. treat ClamAV failure as CLEAN;
+32. expose signing private key through GitHub/source/ordinary DB/browser;
+33. treat genuine superseded PDF as modified solely due later Reopen/new approval.
 
 ---
 
-## 29. Current Documentation Status
+## 28. Current Documentation Status
 
-`05_State_Status_Flow.md` tetap lifecycle source of truth authoritative. `06_Validation_Rules.md` mengunci validation. `07_UI_UX_Specification.md` mengunci presentation/interaction. `08_Tech_Stack_Specification.md` mengunci technology baseline. `09_System_Architecture.md` mengunci component topology, hybrid concurrency, audit separation, queue/export retention, dan Approved-PDF signing architecture.
+`05_State_Status_Flow.md` remains lifecycle source of truth. `06_Validation_Rules.md` controls validation. `07_UI_UX_Specification.md` controls presentation. `08_Tech_Stack_Specification.md` controls technology/package boundaries. `09_System_Architecture.md` controls logical topology/concurrency/audit/export architecture. `10_Security_Rules.md` controls security.
 
-Security decisions di atas sudah dikonfirmasi dan tidak lagi merupakan open business decisions; implementation detail authoritative-nya dikunci pada:
+Next fixed-order document:
 
-**`10_Security_Rules.md`** — password/session/security controls, ClamAV attachment security, permanent authoritative audit evidence, private artifact delivery, signing-key custody/readiness, dan public Approved-PDF verification.
+**`11_ERD_Database_Schema.md`** — must materialize Team separately from Spatie RBAC, reuse Spatie-owned tables, avoid scope tables, model workflow iterations/immutable snapshots, and preserve all locked data/security constraints.

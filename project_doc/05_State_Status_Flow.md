@@ -4,10 +4,10 @@
 
 > **Document ID:** NSCMF-STATE-005  
 > **Document Order:** 05 / 20  
-> **Status:** Draft — Confirmed State Machine + Synchronized through Validation Rules  
+> **Status:** Draft — Confirmed State Machine + Workflow Iteration + Permission Synchronization  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`  
-> **Synchronized With:** `06_Validation_Rules.md`  
+> **Synchronized With:** `06_Validation_Rules.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Last Updated:** 2026-08-21
 
@@ -20,18 +20,18 @@ Dokumen ini menjadi **source of truth authoritative untuk lifecycle/state NSCMF*
 Dokumen menjawab:
 
 - business status apa saja yang valid;
-- action apa yang dapat memindahkan record dari satu state ke state lain;
-- actor/permission apa yang dibutuhkan;
+- action apa yang dapat memindahkan record;
+- permission/actor context yang dibutuhkan;
 - precondition setiap transition;
-- kapan Requester dapat mengedit;
-- state mana yang terminal, protected, atau recoverable;
-- bagaimana revision loop bekerja;
-- bagaimana Reopen/Revert bekerja;
-- bagaimana Archive/Unarchive berinteraksi dengan business status;
-- bagaimana concurrent Reviewer/Approver action ditangani secara konseptual;
-- bagaimana `NSCMF - Change / Result of Changes` memengaruhi transition tanpa menambah workflow state baru.
+- Requester editability;
+- revision loop;
+- Reopen/Revert;
+- workflow iteration semantics;
+- Archive/Unarchive;
+- concurrent Reviewer/Approver action;
+- Change Result treatment tanpa state tambahan.
 
-Field-level/action validation menjadi tanggung jawab `06_Validation_Rules.md`. UI labels/interaction detail berada di `07_UI_UX_Specification.md`. Database representation, locking/versioning, dan transaction mechanism akan ditentukan di dokumen teknis downstream.
+Field/action validation berada di `06`. Authorization berada di `04`. Team adalah organizational data dan **tidak** menjadi state-transition authorization scope.
 
 ---
 
@@ -40,73 +40,42 @@ Field-level/action validation menjadi tanggung jawab `06_Validation_Rules.md`. U
 - **MUST** — wajib.
 - **MUST NOT** — dilarang.
 - **MAY** — diperbolehkan.
-- **SHOULD** — direkomendasikan sebagai default behavior.
-- **TBD** — belum final dan tidak boleh ditebak oleh implementation.
+- **SHOULD** — recommended default.
+- **TBD** — belum final dan tidak boleh ditebak.
 
 ---
 
-## 3. State Machine Design Principles
+## 3. State Machine Principles
 
-### STATE-PRINCIPLE-001 — Keep Business States Minimal
-State hanya dibuat jika merepresentasikan kondisi bisnis yang benar-benar berbeda dan memengaruhi action/editability.
+### STATE-PRINCIPLE-001 — Minimal Business States
+Technical/security/view/export conditions MUST NOT become business states.
 
-Sistem MUST NOT membuat state teknis tambahan hanya karena user membuka halaman, melihat record, atau melakukan aktivitas yang tidak memindahkan lifecycle.
+### STATE-PRINCIPLE-002 — Waiting-State Naming
+Active processing states use `PENDING_REVIEW` and `PENDING_APPROVAL`.
 
-### STATE-PRINCIPLE-002 — State Describes What the Record Is Waiting For
-Untuk tahap aktif digunakan nama yang menunjukkan tahap saat ini:
+### STATE-PRINCIPLE-003 — View Is Not Transition
+Reviewer/Approver opening record never changes state.
 
-- `PENDING_REVIEW`
-- `PENDING_APPROVAL`
+### STATE-PRINCIPLE-004 — Non-Exclusive Pools
+Reviewer/Approver are shared/non-exclusive. No `ASSIGNED_TO_REVIEWER_X`, `UNDER_REVIEW_BY_X`, or similar state.
 
-Bukan sekadar histori seperti `SUBMITTED` atau `REVIEWED`.
+### STATE-PRINCIPLE-005 — Reopen Is Action
+`REOPENED` is not a persistent state.
 
-### STATE-PRINCIPLE-003 — View Is Not a State Transition
-Reviewer/Approver membuka record hanya menghasilkan viewer activity/audit event. Membuka record MUST NOT mengubah business state.
+### STATE-PRINCIPLE-006 — Archive Is Separate
+Archive is represented separately from `business_status`.
 
-### STATE-PRINCIPLE-004 — Non-Exclusive Pools Do Not Create Ownership States
-Reviewer dan Approver bersifat shared/non-exclusive. Tidak ada state seperti:
+### STATE-PRINCIPLE-007 — Server-Enforced State
+Backend revalidates current state before workflow-changing action.
 
-- `ASSIGNED_TO_REVIEWER_A`;
-- `UNDER_REVIEW_BY_A`;
-- `ASSIGNED_TO_APPROVER_B`.
-
-Assignment/contributor metadata, jika ada, adalah tracking context dan bukan exclusive state ownership.
-
-### STATE-PRINCIPLE-005 — Reopen Is an Action, Not a Persistent State
-`REOPENED` MUST NOT menjadi business status.
-
-Reopen adalah audited transition event:
-
-```text
-APPROVED / REJECTED
-  -- Reopen(reason, destination) -->
-REVISION_REQUIRED / PENDING_REVIEW
-```
-
-### STATE-PRINCIPLE-006 — Archive Is Administrative Lifecycle, Not Business Status
-Archive MUST direpresentasikan secara terpisah dari `business_status`.
-
-```text
-business_status = APPROVED
-is_archived = true
-```
-
-Bukan:
-
-```text
-business_status = ARCHIVED
-```
-
-### STATE-PRINCIPLE-007 — State Is Server-Enforced
-Frontend state bukan security boundary. Backend MUST melakukan revalidation current state sebelum setiap workflow-changing action dipersist.
+### STATE-PRINCIPLE-008 — Permission-Based Stage Eligibility
+Reviewer/Approver stage eligibility uses required action permission + current state + domain/security prerequisites. No Team/Unit/Division/Reviewer Scope/Approval Scope matching exists.
 
 ---
 
-# PART A — CANONICAL BUSINESS STATES
+# PART A — CANONICAL STATES
 
 ## 4. Canonical State Catalog
-
-Canonical state identifiers:
 
 ```text
 DRAFT
@@ -120,15 +89,13 @@ CANCELLED
 
 | State | Meaning | Requester Editability | Normal Outgoing Transition | Classification |
 |---|---|---|---|---|
-| `DRAFT` | Record sedang disiapkan dan belum pernah Submit | Editable | Submit, Cancel | Active |
-| `PENDING_REVIEW` | Record menunggu/berada pada shared Reviewer pool | General form locked; eligible Requester/owner may edit Change Result only | Return, Reject, Forward | Active |
-| `REVISION_REQUIRED` | Record dikembalikan ke Requester untuk perbaikan | Editable | Resubmit | Active |
-| `PENDING_APPROVAL` | Review selesai untuk iteration saat ini dan record berada pada shared Approver pool | Locked | Return to Reviewer, Return to Requester, Reject, Approve | Active |
-| `REJECTED` | Record ditolak dan normal workflow berhenti | Locked | Authorized Reopen only | Recoverable terminal/protected |
-| `APPROVED` | Record memperoleh final approval valid | Locked | Authorized Reopen/Revert only | Recoverable terminal/protected |
-| `CANCELLED` | Draft dibatalkan sebelum first Submit | Locked | None | Permanent terminal |
-
-Display label MAY menggunakan bentuk human-readable seperti `Pending Review`, tetapi canonical backend/business identifier harus tetap konsisten dengan specification ini.
+| `DRAFT` | Record prepared before first Submit | Editable own record | Submit, Cancel | Active |
+| `PENDING_REVIEW` | Shared permission-based Reviewer pool | General form locked; eligible owner may edit Change Result only | Return, Reject, Forward | Active |
+| `REVISION_REQUIRED` | Returned to Requester | Editable own record | Resubmit | Active |
+| `PENDING_APPROVAL` | Shared permission-based Approver pool | Locked | Return Reviewer, Return Requester, Reject, Approve | Active |
+| `REJECTED` | Normal workflow stopped | Locked | Authorized Reopen only | Recoverable terminal/protected |
+| `APPROVED` | Final approval valid for current iteration | Locked | Authorized Reopen/Revert only | Recoverable terminal/protected |
+| `CANCELLED` | Draft cancelled before first Submit | Locked | None | Permanent terminal |
 
 ---
 
@@ -136,18 +103,20 @@ Display label MAY menggunakan bentuk human-readable seperti `Pending Review`, te
 
 | Concept | Treatment |
 |---|---|
-| `SUBMITTED` | Audit/workflow event yang menghasilkan `PENDING_REVIEW` |
-| `UNDER_REVIEW` | Tidak digunakan; membuka/mereview tidak membuat exclusive state |
-| `REVIEWED` | Review completion event yang menghasilkan `PENDING_APPROVAL` |
-| `REOPENED` | Audit transition event, bukan persistent state |
-| `ARCHIVED` | Administrative flag/lifecycle treatment, bukan `business_status` |
-| `UNARCHIVED` | Administrative event yang mengubah archive flag |
-| `VIEWED` | Viewer activity/audit event |
-| `SAVED` / `AUTOSAVED` | Persistence event, bukan state |
+| `SUBMITTED` | event producing `PENDING_REVIEW` |
+| `UNDER_REVIEW` | not used |
+| `REVIEWED` | event producing `PENDING_APPROVAL` |
+| `REOPENED` | transition event |
+| `ARCHIVED` | independent lifecycle flag |
+| `UNARCHIVED` | lifecycle event |
+| `VIEWED` | access event |
+| `SAVED` / `AUTOSAVED` | persistence event |
+| export states | technical states only |
+| malware/signing/verification states | security/technical states only |
 
 ---
 
-# PART B — MAIN STATE FLOW
+# PART B — MAIN FLOW
 
 ## 6. Canonical Main Flow
 
@@ -157,619 +126,391 @@ DRAFT
   |
   +-- Submit --------------------------------------> PENDING_REVIEW
                                                         |
-                                                        |-- Return to Requester
-                                                        |        |
-                                                        |        v
-                                                        |  REVISION_REQUIRED
-                                                        |        |
-                                                        |        +-- Resubmit --> PENDING_REVIEW
+                                                        |-- Return --> REVISION_REQUIRED
+                                                        |                 |
+                                                        |                 +-- Resubmit --> PENDING_REVIEW
                                                         |
-                                                        |-- Reject -----------> REJECTED
+                                                        |-- Reject --> REJECTED
                                                         |
-                                                        +-- Forward ----------> PENDING_APPROVAL
-                                                                                 |
-                                                                                 |-- Return to Reviewer --> PENDING_REVIEW
-                                                                                 |
-                                                                                 |-- Return to Requester -> REVISION_REQUIRED
-                                                                                 |
-                                                                                 |-- Reject -------------> REJECTED
-                                                                                 |
-                                                                                 +-- Approve ------------> APPROVED
+                                                        +-- Forward --> PENDING_APPROVAL
+                                                                          |
+                                                                          |-- Return Reviewer --> PENDING_REVIEW
+                                                                          |-- Return Requester -> REVISION_REQUIRED
+                                                                          |-- Reject -----------> REJECTED
+                                                                          +-- Approve ----------> APPROVED
 ```
 
 Recovery:
 
 ```text
-REJECTED
-  -- authorized Reopen(reason, destination) --> REVISION_REQUIRED
-                                             or PENDING_REVIEW
-
-APPROVED
-  -- authorized Reopen/Revert(reason, destination) --> REVISION_REQUIRED
-                                                    or PENDING_REVIEW
+REJECTED / APPROVED
+  -- Reopen(reason, destination) --> REVISION_REQUIRED or PENDING_REVIEW
+  -- successful Reopen starts next workflow iteration
 
 CANCELLED
-  -- no reopen / no normal outgoing transition --> terminal
+  -- no Reopen --> terminal
 ```
 
 ---
 
-## 7. Why There Is No Separate SUBMITTED or UNDER_REVIEW State
+# PART C — STATE DEFINITIONS
 
-Setelah Submit berhasil:
+## 7. `DRAFT`
 
-```text
-DRAFT -> PENDING_REVIEW
-```
+Entry: record creation.
 
-`SUBMITTED` tetap disimpan sebagai workflow event/timestamp.
+Allowed state-neutral events:
 
-Reviewer membuka record MUST NOT mengubah state menjadi `UNDER_REVIEW`, karena Reviewer tidak exclusive, viewer activity berbeda dari workflow state, dan state harus stabil sampai ada state-changing action.
-
----
-
-# PART C — STATE DEFINITIONS AND BEHAVIOR
-
-## 8. `DRAFT`
-
-### Entry
-Record baru yang berhasil dibuat masuk ke `DRAFT`.
-
-### Business Meaning
-Record sedang disiapkan dan belum pernah Submit.
-
-### Allowed Persistence Events
 - autosave;
 - Save Draft;
-- attachment mutation sesuai permission;
-- numbering/data changes sesuai validation.
+- attachment mutation according to permission/security gate;
+- editable data/numbering changes.
 
-Persistence event tidak mengubah state.
+Requester needs required permission + ownership. Draft MAY be incomplete.
 
-### Editability
-Requester dengan permission dan ownership valid MAY mengedit Draft. Draft MAY incomplete.
+Transitions:
 
-### Allowed State-Changing Actions
-1. `Submit` -> `PENDING_REVIEW`
-2. `Cancel` -> `CANCELLED`
+```text
+Submit -> PENDING_REVIEW
+Cancel -> CANCELLED
+```
 
-Cancel reason Optional menurut Validation Rules.
+Reviewer/Approver/Reopen/Archive are forbidden.
 
-### Forbidden
-Reviewer actions, Approver actions, Reopen, Archive.
+## 8. `PENDING_REVIEW`
 
----
+Entry sources:
 
-## 9. `PENDING_REVIEW`
-
-### Entry Sources
-- `DRAFT` via first Submit;
+- `DRAFT` via Submit;
 - `REVISION_REQUIRED` via Resubmit;
 - `PENDING_APPROVAL` via Return to Reviewer;
-- `REJECTED` via authorized Reopen;
-- `APPROVED` via authorized Reopen/Revert.
+- `REJECTED`/`APPROVED` via authorized Reopen.
 
-### Business Meaning
-Record tersedia pada shared Reviewer pool sesuai Unit/Division scope.
+Meaning: record is available to the shared Reviewer pool determined by permissions, **not organizational scope**.
 
-### Reviewer Participation
-Semua eligible Reviewer dengan permission + matching scope MAY membuka record, melakukan review activity, dan menjalankan state-changing action yang valid. Reviewer pertama tidak menjadi exclusive owner.
+Any actor with required action permission MAY perform valid Reviewer action while all other state/domain/security prerequisites pass.
 
-### State-Neutral Reviewer Events
-- View;
-- comment/note jika fitur tersebut nanti tersedia dan bukan transition;
-- reviewer contribution metadata;
-- audit/viewer logging.
+Allowed transitions:
 
-### Allowed State-Changing Actions
-1. `Return for Revision` -> `REVISION_REQUIRED` — mandatory reason.
-2. `Reject` -> `REJECTED` — mandatory reason.
-3. `Forward to Approval` -> `PENDING_APPROVAL` — Forward validation gate.
+1. Return for Revision → `REVISION_REQUIRED` — mandatory reason.
+2. Reject → `REJECTED` — mandatory reason.
+3. Forward → `PENDING_APPROVAL` — Forward validation gate.
 
-### Requester General Editability
-Normal Requester form editing locked setelah Submit.
+Requester general editing remains locked.
 
-### Narrow Change Result Exception
-Untuk `NSCMF - Change`, Requester/owner dengan:
+Change Result exception:
 
 ```text
 nscmf.change.result.edit
-+ own/valid visible record
++ owns record
 + family = CHANGE
-+ business_status = PENDING_REVIEW
++ PENDING_REVIEW
 ```
 
-MAY mengedit **Result of Changes fields only** tanpa mengubah state. Planning/submitted fields lain tetap locked. Persisted Result changes diaudit.
+may edit Result fields only.
 
----
+## 9. `REVISION_REQUIRED`
 
-## 10. `REVISION_REQUIRED`
+Entry:
 
-### Entry Sources
-- Reviewer Return from `PENDING_REVIEW`;
-- Approver Return to Requester from `PENDING_APPROVAL`;
-- authorized Reopen from `REJECTED`;
-- authorized Reopen/Revert from `APPROVED`.
+- Reviewer Return;
+- Approver Return to Requester;
+- authorized Reopen from Rejected/Approved.
 
-### Business Meaning
-Record dikembalikan untuk diperbaiki oleh Requester.
+Requester may edit own record with required permission. Autosave/Save/attachment mutation follow normal editable rules.
 
-### Editability
-Requester editing diaktifkan kembali untuk own record sesuai permission. Autosave, Save Draft, attachment mutation, dan persisted field changes diaudit.
-
-### Allowed State-Changing Action
+Only normal transition:
 
 ```text
-REVISION_REQUIRED -- Resubmit --> PENDING_REVIEW
+REVISION_REQUIRED -> Resubmit -> PENDING_REVIEW
 ```
 
-Resubmit menjalankan submission validation ulang. Tidak diwajibkan adanya perubahan minimal satu field.
+No direct `REVISION_REQUIRED -> PENDING_APPROVAL`.
 
-### Mandatory Re-Review Invariant
-Tidak ada `REVISION_REQUIRED -> PENDING_APPROVAL`.
+## 10. `PENDING_APPROVAL`
 
-### Revision Count
-Tidak ada fixed maximum revision cycle.
+Entry only through successful Reviewer Forward.
 
----
+Meaning: record is available to shared Approver pool determined by permissions, not Team/scope.
 
-## 11. `PENDING_APPROVAL`
+Action-specific permission required for:
 
-### Entry
-Hanya melalui successful Reviewer Forward dari `PENDING_REVIEW`.
+1. Return to Reviewer → `PENDING_REVIEW`;
+2. Return to Requester → `REVISION_REQUIRED`;
+3. Reject → `REJECTED`;
+4. Approve → `APPROVED`.
 
-### Business Meaning
-Current workflow iteration telah memenuhi review/validation completion gate dan tersedia pada shared Approver pool sesuai Approval Scope.
+One valid successful Approve is sufficient. Stale second Approver action denied.
 
-### Approver Participation
-Semua eligible Approver dengan permission + matching scope MAY melihat dan mengambil valid action. First viewer tidak exclusive.
+## 11. `REJECTED`
 
-### Allowed State-Changing Actions
-1. `Return to Reviewer` -> `PENDING_REVIEW` — mandatory reason.
-2. `Return to Requester` -> `REVISION_REQUIRED` — mandatory reason.
-3. `Reject` -> `REJECTED` — mandatory reason.
-4. `Approve` -> `APPROVED` — comment Optional.
+Normal Requester edit locked.
 
-### Final Approval Rule
-Satu successful Approve dari satu eligible Approver cukup. Setelah `APPROVED`, stale Approver action ditolak.
-
----
-
-## 12. `REJECTED`
-
-### Entry Sources
-- Reviewer Reject from `PENDING_REVIEW`;
-- Approver Reject from `PENDING_APPROVAL`.
-
-### Business Meaning
-Normal workflow berhenti dan Requester tidak dapat edit/resubmit melalui normal action.
-
-### Editability
-Locked.
-
-### Recovery
 Reopen requires:
 
 ```text
 nscmf.reopen
-+ valid visibility/scope
++ authorized record access
 + not archived
 + mandatory reason
-+ valid destination
++ destination in {REVISION_REQUIRED, PENDING_REVIEW}
 ```
 
-Valid destinations: `REVISION_REQUIRED`, `PENDING_REVIEW` only.
+No Team/scope condition.
 
-Previous rejection evidence remains in timeline.
+## 12. `APPROVED`
 
----
+Final approval valid for current workflow iteration.
 
-## 13. `APPROVED`
+`Approved By` = successful final Approve actor.
 
-### Entry
-Hanya melalui successful final Approve dari `PENDING_APPROVAL`.
+Reopen/Revert requires same lifecycle prerequisites as Rejected and only targets Revision/Review.
 
-### Business Meaning
-Record memperoleh final approval valid untuk current workflow iteration. `Approved By` adalah final transition actor.
+Previous Approval evidence remains preserved.
 
-### Editability
-Protected/read-only melalui normal workflow.
+## 13. `CANCELLED`
 
-### Recovery / Revert
-Requires `nscmf.reopen` + valid visibility/scope + not archived + mandatory reason + valid destination.
-
-Valid destination only:
+Entry only:
 
 ```text
-REVISION_REQUIRED
-PENDING_REVIEW
+DRAFT -> Cancel -> CANCELLED
 ```
 
-Previous Approved event/actor/timestamp/iteration evidence MUST remain.
+Requires own Draft + never submitted. Permanent terminal. May be archived/unarchived administratively, but never Reopened.
 
 ---
 
-## 14. `CANCELLED`
+# PART D — AUTHORITATIVE TRANSITION MATRIX
 
-### Entry
+## 14. Transition Matrix
 
-```text
-DRAFT -- Cancel --> CANCELLED
-```
+| From | Action | To | Core Permission | Key Preconditions |
+|---|---|---|---|---|
+| `DRAFT` | Submit | `PENDING_REVIEW` | `nscmf.submit` | owns record + validation |
+| `DRAFT` | Cancel | `CANCELLED` | `nscmf.cancel` | owns record + never submitted |
+| `PENDING_REVIEW` | Return | `REVISION_REQUIRED` | `nscmf.review.return` | current state + mandatory reason |
+| `PENDING_REVIEW` | Reject | `REJECTED` | `nscmf.review.reject` | current state + mandatory reason |
+| `PENDING_REVIEW` | Forward | `PENDING_APPROVAL` | `nscmf.review.forward` | current state + Forward gate |
+| `REVISION_REQUIRED` | Resubmit | `PENDING_REVIEW` | `nscmf.submit` | owns record + validation |
+| `PENDING_APPROVAL` | Return Reviewer | `PENDING_REVIEW` | `nscmf.approval.return_reviewer` | current state + mandatory reason |
+| `PENDING_APPROVAL` | Return Requester | `REVISION_REQUIRED` | `nscmf.approval.return_requester` | current state + mandatory reason |
+| `PENDING_APPROVAL` | Reject | `REJECTED` | `nscmf.approval.reject` | current state + mandatory reason |
+| `PENDING_APPROVAL` | Approve | `APPROVED` | `nscmf.approve` | review prerequisite + current state |
+| `REJECTED` | Reopen | `REVISION_REQUIRED` | `nscmf.reopen` | authorized access + not archived + reason |
+| `REJECTED` | Reopen | `PENDING_REVIEW` | `nscmf.reopen` | authorized access + not archived + reason |
+| `APPROVED` | Reopen/Revert | `REVISION_REQUIRED` | `nscmf.reopen` | authorized access + not archived + reason |
+| `APPROVED` | Reopen/Revert | `PENDING_REVIEW` | `nscmf.reopen` | authorized access + not archived + reason |
 
-### Preconditions
-Draft + never successfully submitted.
+No Team, Unit, Division, Reviewer Scope, or Approval Scope column exists.
 
-### Classification
-Permanent terminal.
+## 15. State-Neutral Events
 
-### Forbidden
-No Reopen, no return to Draft, no Submit/Review/Approval. If need returns, create a new NSCMF.
-
-Cancelled MAY Archive/Unarchive administratively without changing status.
-
----
-
-# PART D — TRANSITION MATRIX
-
-## 15. Authoritative Transition Matrix
-
-| From State | Action | To State | Actor Context | Core Permission | Key Preconditions |
-|---|---|---|---|---|---|
-| `DRAFT` | Submit | `PENDING_REVIEW` | Requester/eligible creator | `nscmf.submit` | ownership/access + submission validation |
-| `DRAFT` | Cancel | `CANCELLED` | Requester | `nscmf.cancel` | own Draft + never submitted; reason optional |
-| `PENDING_REVIEW` | Return for Revision | `REVISION_REQUIRED` | Eligible Reviewer | `nscmf.review.return` | matching scope + current state + mandatory reason |
-| `PENDING_REVIEW` | Reject | `REJECTED` | Eligible Reviewer | `nscmf.review.reject` | matching scope + current state + mandatory reason |
-| `PENDING_REVIEW` | Forward to Approval | `PENDING_APPROVAL` | Eligible Reviewer | `nscmf.review.forward` | matching scope + review/validation gate |
-| `REVISION_REQUIRED` | Resubmit | `PENDING_REVIEW` | Requester | `nscmf.submit` | own record + revision validation |
-| `PENDING_APPROVAL` | Return to Reviewer | `PENDING_REVIEW` | Eligible Approver | `nscmf.approval.return_reviewer` | matching scope + current state + mandatory reason |
-| `PENDING_APPROVAL` | Return to Requester | `REVISION_REQUIRED` | Eligible Approver | `nscmf.approval.return_requester` | matching scope + current state + mandatory reason |
-| `PENDING_APPROVAL` | Reject | `REJECTED` | Eligible Approver | `nscmf.approval.reject` | matching scope + current state + mandatory reason |
-| `PENDING_APPROVAL` | Approve | `APPROVED` | Eligible Approver | `nscmf.approve` | matching scope + review prerequisite + current state |
-| `REJECTED` | Reopen | `REVISION_REQUIRED` | Authorized lifecycle actor | `nscmf.reopen` | visibility + not archived + mandatory reason |
-| `REJECTED` | Reopen | `PENDING_REVIEW` | Authorized lifecycle actor | `nscmf.reopen` | visibility + not archived + mandatory reason |
-| `APPROVED` | Reopen/Revert | `REVISION_REQUIRED` | Authorized lifecycle actor | `nscmf.reopen` | visibility + not archived + mandatory reason |
-| `APPROVED` | Reopen/Revert | `PENDING_REVIEW` | Authorized lifecycle actor | `nscmf.reopen` | visibility + not archived + mandatory reason |
-
-No other business-status transition is valid unless this document is explicitly revised.
-
----
-
-## 16. State-Neutral Events
-
-The following MAY occur without changing `business_status`, subject to permission/validation:
+Subject to appropriate authorization/validation:
 
 - View;
 - autosave;
 - Save Draft;
-- field persistence in an editable state;
-- narrow Result persistence in `PENDING_REVIEW` by authorized Requester/owner;
-- attachment mutation in eligible editable context;
-- audit/timeline read;
+- editable field persistence;
+- Change Result narrow persistence;
+- attachment mutation;
+- timeline read;
 - Export;
-- reviewer/approver view activity;
+- reviewer/approver view;
 - Archive/Unarchive flag changes.
 
 State-neutral does not mean audit-neutral.
 
 ---
 
-# PART E — REVISION AND WORKFLOW ITERATION
+# PART E — WORKFLOW ITERATION
 
-## 17. Unlimited Revision Loop
+## 16. Iteration Definition
+
+Workflow iteration distinguishes a completed/reopened approval lifecycle from ordinary return/revision loops.
+
+### STATE-ITER-001 — First Submit
+First successful Submit establishes **workflow iteration 1**.
+
+### STATE-ITER-002 — Same Iteration Events
+The following stay in the current workflow iteration:
+
+- Reviewer Return;
+- Requester Revision;
+- Resubmit;
+- Approver Return to Reviewer;
+- Approver Return to Requester;
+- repeated Review/Approval movement before terminal Rejected/Approved outcome.
+
+### STATE-ITER-003 — Reopen Creates Next Iteration
+Successful Reopen from `REJECTED` or `APPROVED` creates the next workflow iteration.
+
+Example:
 
 ```text
-PENDING_REVIEW
--> REVISION_REQUIRED
--> PENDING_REVIEW
--> ...
+First Submit → Iteration 1
+Return → Revision → Resubmit → still Iteration 1
+Approved → Reopen → Iteration 2
+Approved → Reopen → Iteration 3
 ```
 
-No fixed maximum. Prior Return event, actor, mandatory reason, field changes, Resubmit, Reviewer contributors, and timestamps remain.
+### STATE-ITER-004 — Historical Evidence
+Old iteration Review/Approval/Rejection/sign-off/issued-PDF evidence MUST remain attributable to its original iteration.
+
+This rule enables a genuine older signed PDF to become `VALID_SUPERSEDED` rather than being misclassified as modified.
 
 ---
+
+# PART F — REVISION / REOPEN / ARCHIVE
+
+## 17. Unlimited Revision
+
+No fixed maximum revision loop.
 
 ## 18. Approver Return to Requester
 
 ```text
 PENDING_APPROVAL
--- Return to Requester(reason) --> REVISION_REQUIRED
--- Resubmit -------------------> PENDING_REVIEW
--- Reviewer Forward -----------> PENDING_APPROVAL
+-> REVISION_REQUIRED
+-> Resubmit
+-> PENDING_REVIEW
+-> Forward
+-> PENDING_APPROVAL
 ```
 
-No shortcut to Approval.
-
----
+Same workflow iteration until terminal outcome/Reopen.
 
 ## 19. Approver Return to Reviewer
 
 ```text
-PENDING_APPROVAL
--- Return to Reviewer(reason) --> PENDING_REVIEW
+PENDING_APPROVAL -> PENDING_REVIEW
 ```
 
-Requester general editing remains locked. Reviewer may Forward, Return to Requester, or Reject.
+Requester general form remains locked.
 
----
+## 20. Reviewer Continuity
 
-## 20. Reviewer Continuity Is Metadata, Not State
-Same Reviewer context SHOULD be retained for continuity after revision, but other scoped Reviewers remain eligible. No exclusive lock/state.
+Reviewer continuity is metadata/audit context, not exclusive authorization. Any actor with required Review permission remains eligible when current state permits.
 
----
+## 21. Reopen Rules
 
-# PART F — REOPEN / REVERT
+Only `REJECTED`, `APPROVED` are Reopen-eligible. `CANCELLED` never.
 
-## 21. Reopen-Eligible States
-Only `REJECTED`, `APPROVED`.
+Destination only:
 
-`CANCELLED` never Reopen.
-
----
-
-## 22. Reopen Destination Rules
-Valid only:
 1. `REVISION_REQUIRED`
 2. `PENDING_REVIEW`
 
-Forbidden direct target: `DRAFT`, `PENDING_APPROVAL`, `APPROVED`, `CANCELLED`.
+No `DRAFT` or `PENDING_APPROVAL` target.
 
----
+Successful Reopen requires required permission, authorized record access, not archived, mandatory reason, valid destination, current-state recheck, and starts a new workflow iteration.
 
-## 23. Reopen Authorization
+## 22. Archive
 
-```text
-protected Superadmin OR explicit nscmf.reopen
-+ valid visibility/scope
-+ Reopen-eligible current state
-+ not archived
-+ mandatory reason
-+ valid destination
-+ server-side current-state recheck
-```
-
-`nscmf.reopen` does not grant global visibility.
-
----
-
-## 24. Reopen Audit Evidence
-Must record actor, timestamp, source state, destination, mandatory reason, previous rejection/approval context, resulting state. Never overwrite prior history.
-
----
-
-# PART G — ARCHIVE / UNARCHIVE
-
-## 25. Archive Is Independent From Business Status
+Archive independent from business status:
 
 ```text
 business_status = <canonical state>
-is_archived = false | true
+is_archived = false|true
 ```
 
----
+Only `APPROVED`, `REJECTED`, `CANCELLED` can archive.
 
-## 26. Archive-Eligible Business States
-Only:
+Archive/Unarchive require `nscmf.archive`, authorized record access, mandatory reason, state/flag validity.
 
-```text
-APPROVED
-REJECTED
-CANCELLED
-```
-
-Not allowed on active `DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL`.
+Team is not an archive visibility rule.
 
 ---
 
-## 27. Archive Action
+# PART G — CHANGE RESULT
 
-Preconditions:
+## 23. Result Does Not Create State
 
-```text
-nscmf.archive
-+ valid visibility
-+ business_status in {APPROVED, REJECTED, CANCELLED}
-+ is_archived = false
-+ mandatory reason
-```
+No `EXECUTION_PENDING`, `RESULT_PENDING`, `COMPLETED`.
 
-Result: business status unchanged, `is_archived=true`. Event/reason audited. Record leaves default active view.
+## 24. First Submit
 
----
+Zero Result rows allowed. Started row must be complete at applicable validation gate.
 
-## 28. Archived Record Behavior
-Archived record:
+## 25. Forward Gate
 
-- retains full business status/history;
-- follows normal visibility scope;
-- timeline/export remains available to legitimate viewer;
-- no normal business workflow transition while archived;
-- Unarchive required before Reopen for Approved/Rejected;
-- Cancelled remains permanent after Unarchive.
+Before Change `PENDING_REVIEW -> PENDING_APPROVAL`:
 
----
+- minimum one complete Result row;
+- all started rows complete;
+- maximum five rows capacity;
+- applicable validation passes.
 
-## 29. Unarchive
+## 26. Result Editing
 
-Preconditions:
-
-```text
-nscmf.archive
-+ valid visibility
-+ is_archived = true
-+ mandatory reason
-```
-
-Result:
-
-```text
-business_status = unchanged
-is_archived = false
-```
-
-Unarchive event + reason audited.
-
----
-
-# PART H — NSCMF CHANGE / RESULT OF CHANGES
-
-## 30. Result of Changes Does Not Create a New Workflow State
-`(B) Result of Changes` adalah data section, not state. No `EXECUTION_PENDING`, `RESULT_PENDING`, or `COMPLETED` solely because of this section.
-
----
-
-## 31. Initial Submit Result Treatment
-First Change Submit MAY have zero Result rows. If a row has been started, Summary + Performance + Status must be complete according to Validation Rules. Result section alone does not block initial Submit simply because work may not have happened yet.
-
----
-
-## 32. Result Completion Gate Before Approval
-For Change:
-
-```text
-PENDING_REVIEW -- Forward --> PENDING_APPROVAL
-```
-
-MUST fail unless:
-
-- minimum 1 complete Result row exists;
-- every used Result row is complete;
-- maximum 5 rows as source capacity;
-- all relevant Forward validation passes.
-
-Five rows are capacity, not mandatory count.
-
----
-
-## 33. Result Editing During `PENDING_REVIEW`
-Confirmed default actor:
+Default actor:
 
 ```text
 Requester/owner
 + nscmf.change.result.edit
-+ own/valid visible Change
++ owns Change
 + PENDING_REVIEW
 ```
 
-The narrow capability edits Result Summary, Performance Information, Status only. It MUST NOT unlock Purpose, Service Impact, Plan/KPI, Target Date, Rollback, general planning fields, or attachment management. Persisted Result changes are audited. State remains `PENDING_REVIEW`.
+Only Result Summary, Performance Information, Status fields. Planning/general fields remain locked. Persisted changes audited and optimistic version protected.
 
 ---
 
-# PART I — EMERGENCY CHANGE
+# PART H — CONCURRENCY
 
-## 34. Emergency Uses the Same State Machine
+## 27. Reviewer Race
 
-```text
-DRAFT -> PENDING_REVIEW -> PENDING_APPROVAL -> APPROVED
-```
+Several permission-eligible Reviewers may open same candidate. First valid transition wins through row-lock/current-state transaction. Later stale conflicting Reviewer action fails.
 
-No Review/Approval bypass.
+## 28. Approver Race
 
----
+Several permission-eligible Approvers may open same candidate. First valid final Approve changes state to Approved; later stale Approver actions fail. Only successful actor is `Approved By` for that iteration.
 
-# PART J — CONCURRENCY / STALE ACTIONS
+## 29. Atomic Transition
 
-## 35. Shared Reviewer Pool Concurrency
-Several eligible Reviewers may open same record. Before transition backend revalidates current state. If A Forward succeeds and B later sends stale Reviewer Reject, B action MUST fail.
-
----
-
-## 36. Shared Approver Pool Concurrency
-If Approver A Approves first, state becomes `APPROVED`; stale Approve/Reject/Return from B MUST fail. Only A is final Approved By for that iteration.
-
----
-
-## 37. Atomic State Transition Requirement
 Conceptually:
 
 ```text
-validate permission
-+ visibility/scope/ownership
+required permission
++ authorized resource/ownership where applicable
 + archive state
 + current state
 + action validation
 + destination
-+ state change
-+ audit evidence
++ state mutation
++ required Business Audit
 ```
 
-No partial business state. Technical locking strategy downstream.
+occurs as one consistent workflow action.
+
+No Team/scope check.
 
 ---
 
-# PART K — EDITABILITY MATRIX
+# PART I — EDITABILITY / INVALID TRANSITIONS
 
-## 38. State Editability
+## 30. State Editability
 
-| State | General Requester Form Edit | Change Result Narrow Edit | Autosave / Save Draft | Reviewer Actions | Approver Actions | Reopen | Archive |
+| State | General Requester Edit | Change Result Narrow Edit | Save Draft | Reviewer Actions | Approver Actions | Reopen | Archive |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| `DRAFT` | Yes | Part of normal form | Yes | No | No | No | No |
-| `PENDING_REVIEW` | No | Yes, eligible Requester/owner only | No general save | Yes | No | No | No |
-| `REVISION_REQUIRED` | Yes | Part of normal form | Yes | No | No | No | No |
-| `PENDING_APPROVAL` | No | No | No | No | Yes | No | No |
+| `DRAFT` | Yes own | normal form | Yes | No | No | No | No |
+| `PENDING_REVIEW` | No | Yes eligible owner | No general | Yes permission-based | No | No | No |
+| `REVISION_REQUIRED` | Yes own | normal form | Yes | No | No | No | No |
+| `PENDING_APPROVAL` | No | No | No | No | Yes permission-based | No | No |
 | `REJECTED` | No | No | No | No | No | Yes | Yes |
 | `APPROVED` | No | No | No | No | No | Yes | Yes |
 | `CANCELLED` | No | No | No | No | No | Never | Yes |
 
-Archive/Reopen require `is_archived=false`; archived records must Unarchive first where applicable.
-
----
-
-# PART L — TERMINAL / RECOVERABLE CLASSIFICATION
-
-## 39. Classification
-
-| State | Normal Flow Terminal? | Recoverable? | Recovery Mechanism |
-|---|---:|---:|---|
-| `DRAFT` | No | — | Normal flow |
-| `PENDING_REVIEW` | No | — | Normal flow |
-| `REVISION_REQUIRED` | No | — | Resubmit |
-| `PENDING_APPROVAL` | No | — | Normal approval actions |
-| `REJECTED` | Yes | Yes | Authorized Reopen |
-| `APPROVED` | Yes | Yes | Authorized Reopen/Revert |
-| `CANCELLED` | Yes | No | None |
-
----
-
-# PART M — AUDIT REQUIREMENTS FOR STATE
-
-## 40. Every State Transition Is Audited
-Must record record identifier, source state, action/event, resulting state, actor, timestamp, workflow context/iteration if used, reason/comment when required, relevant validation context.
-
----
-
-## 41. Historical State Must Not Be Overwritten
-Current state changes but transition history remains across rejection/reopen/revision/reapproval cycles.
-
----
-
-## 42. Viewer and State Actor Are Different Concepts
-Example:
-
-```text
-Reviewer A -> View
-Reviewer B -> View
-Reviewer C -> Forward
-```
-
-C is transition actor; A/B remain viewer activities if logging applies.
-
----
-
-# PART N — INVALID TRANSITIONS / GUARDRAILS
-
-## 43. Explicitly Forbidden Transitions
+## 31. Forbidden Transitions
 
 ```text
 DRAFT -> PENDING_APPROVAL
 DRAFT -> APPROVED
-DRAFT -> REJECTED by Approver
 PENDING_REVIEW -> DRAFT
 PENDING_REVIEW -> APPROVED
 REVISION_REQUIRED -> PENDING_APPROVAL
 REVISION_REQUIRED -> APPROVED
 PENDING_APPROVAL -> DRAFT
-PENDING_APPROVAL -> APPROVED without eligible Approver action
+PENDING_APPROVAL -> APPROVED without valid Approver action
 REJECTED -> DRAFT
 REJECTED -> PENDING_APPROVAL via Reopen
 APPROVED -> DRAFT
@@ -777,74 +518,47 @@ APPROVED -> PENDING_APPROVAL via Reopen
 CANCELLED -> any business state
 ```
 
+View never creates `UNDER_REVIEW`/assignment state.
+
 ---
 
-## 44. No State Change From View
+# PART J — ACTION EVALUATION
+
+## 32. Server-Side Transition Evaluation
 
 ```text
-PENDING_REVIEW -- Reviewer opens --> UNDER_REVIEW  // forbidden
-PENDING_APPROVAL -- Approver opens --> ASSIGNED/LOCKED // forbidden
-```
-
----
-
-## 45. No Approval Count State
-No `APPROVAL_1_OF_3`, etc. One eligible successful final approval.
-
----
-
-# PART O — ACTION EVALUATION ORDER
-
-## 46. Conceptual Server-Side Transition Evaluation
-
-```text
-1. authenticated and active?
+1. authenticated + active session?
 2. protected invariant satisfied?
 3. required permission?
-4. visibility?
-5. ownership/scope?
-6. archive flag compatible?
-7. exact current state eligible?
-8. action-specific validation/reason passes?
-9. destination allowed?
+4. ownership/resource authorization if applicable?
+5. archive flag compatible?
+6. current state eligible?
+7. action validation/reason valid?
+8. destination valid?
+9. concurrency/current-state check valid?
 10. apply transition atomically.
-11. persist audit/workflow event.
-12. return resulting current state.
+11. persist required audit evidence.
+12. return new state.
 ```
+
+Team is intentionally excluded from evaluation.
 
 ---
 
-# PART P — EXAMPLE LIFECYCLES
+# PART K — EXAMPLES
 
-## 47. Happy Path
+## 33. Happy Path
 
 ```text
 Create -> DRAFT -> Submit -> PENDING_REVIEW -> Forward -> PENDING_APPROVAL -> Approve -> APPROVED
 ```
 
----
-
-## 48. Reviewer Revision Loop
+## 34. Reviewer Revision Loop
 
 ```text
 DRAFT
 -> PENDING_REVIEW
--> Reviewer Return(reason)
--> REVISION_REQUIRED
--> Resubmit
--> PENDING_REVIEW
--> Reviewer Forward
--> PENDING_APPROVAL
--> APPROVED
-```
-
----
-
-## 49. Approver Return to Requester
-
-```text
-PENDING_APPROVAL
--> Return Requester(reason)
+-> Return
 -> REVISION_REQUIRED
 -> Resubmit
 -> PENDING_REVIEW
@@ -854,39 +568,26 @@ PENDING_APPROVAL
 -> APPROVED
 ```
 
----
+All still workflow iteration 1.
 
-## 50. Rejected Then Reopened
-
-```text
-PENDING_REVIEW
--> Reject(reason)
--> REJECTED
--> Reopen(reason, destination=REVISION_REQUIRED)
--> REVISION_REQUIRED
--> Resubmit
--> PENDING_REVIEW
-```
-
----
-
-## 51. Approved Then Reopened to Review
+## 35. Approved Then Reopened
 
 ```text
+Iteration 1:
 APPROVED
--> Reopen(reason, destination=PENDING_REVIEW)
--> PENDING_REVIEW
+-> Reopen(reason, PENDING_REVIEW)
+
+Iteration 2:
+PENDING_REVIEW
 -> Forward
 -> PENDING_APPROVAL
 -> Approve
 -> APPROVED
 ```
 
-Previous Approval remains in timeline.
+Previous Approval remains historical.
 
----
-
-## 52. Archive and Unarchive
+## 36. Archive / Unarchive
 
 ```text
 APPROVED + false
@@ -898,113 +599,80 @@ APPROVED + false
 
 ---
 
-# PART Q — CONFIRMED DECISIONS
+# PART L — CONFIRMED DECISIONS
 
-## 53. Confirmed State Decisions
+## 37. Confirmed State Decisions
 
 | Area | Decision |
 |---|---|
-| Canonical states | `DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL`, `REJECTED`, `APPROVED`, `CANCELLED` |
-| Submitted | Event, not state |
-| Under Review | Not used |
-| Reviewer opening | No state change |
-| Review pool | Shared/non-exclusive |
-| Reviewer contributors | Multiple |
-| Revision | `REVISION_REQUIRED`, unlimited |
-| Resubmit | Always `PENDING_REVIEW` |
-| Forward | `PENDING_APPROVAL` |
-| Approval pool | Shared/non-exclusive |
-| Final approval | One eligible Approver sufficient |
-| Approver Return Reviewer | `PENDING_REVIEW` + mandatory reason |
-| Approver Return Requester | `REVISION_REQUIRED` + mandatory reason; Resubmit → Review |
-| Reject | `REJECTED` + mandatory reason |
-| Cancelled | Permanent; Cancel reason optional |
-| Reopen | action/event; only Rejected/Approved; mandatory reason; Review/Revision target only |
-| Archive | independent flag; Approved/Rejected/Cancelled only; mandatory reason |
-| Unarchive | same permission, status unchanged; mandatory reason |
-| Change initial Result | zero rows allowed; started row complete |
-| Change Result capture | Requester/owner + `nscmf.change.result.edit`, Result-only, PENDING_REVIEW |
-| Change Forward Result gate | minimum 1 complete Result row; five is capacity |
+| Canonical states | exactly seven states listed above |
+| Review eligibility | required permission + state/domain rules; no scope |
+| Approval eligibility | required permission + state/domain rules; no scope |
+| Team | no state/authorization effect |
+| Review pool | shared/non-exclusive |
+| Approval pool | shared/non-exclusive |
+| Revision | unlimited |
+| Workflow iteration | first Submit starts 1; returns/revisions stay current; Reopen increments |
+| Final approval | one eligible Approver sufficient |
+| Reopen | Rejected/Approved only; Review/Revision target; mandatory reason |
+| Cancelled | permanent |
+| Archive | independent flag |
+| Change Result | owner narrow edit in Pending Review; min one complete row before Forward |
 | Emergency | same state machine |
 | Concurrency | stale state-changing actions rejected |
 
 ---
 
-# PART R — DOWNSTREAM ITEMS
+# PART M — DOWNSTREAM / ACCEPTANCE
 
-## 54. Items Still Deliberately Deferred
+## 38. Technical Items Deferred to ERD/API
 
-### UI / UX
-- exact presentation and interaction behavior → `07_UI_UX_Specification.md`.
+- physical business-status representation;
+- workflow-iteration table/columns;
+- transition-event schema;
+- optimistic version field;
+- immutable export snapshot relationship;
+- DB constraints/indexes;
+- stale-action API error shape.
 
-### Technical Documents
-- transaction/locking/version strategy;
-- state storage representation;
-- workflow event schema;
-- workflow iteration/version representation;
-- database constraints;
-- API error format for stale transitions.
+No Unit/Division or Reviewer/Approval scope representation is needed.
 
-### Organization / Policy
-- official company numbering SOP/sample;
-- exact default Unit/Division data;
-- audit retention/export audit;
-- notification details;
-- malware scanning/storage details;
-- e-signature only if required later.
+## 39. State Flow Acceptance Criteria
 
-Field/action validation items previously deferred to 06 are resolved and MUST NOT alter canonical state transitions.
+- [ ] new record starts Draft;
+- [ ] Draft incomplete save allowed;
+- [ ] Submit → Pending Review;
+- [ ] permission-eligible Reviewer can act without Team/scope matching;
+- [ ] Reviewer view no state/ownership change;
+- [ ] Return/Reject reasons enforced;
+- [ ] Revision editable own record and Resubmit returns Review;
+- [ ] Change Forward blocked until Result gate;
+- [ ] permission-eligible Approver can act without Team/scope matching;
+- [ ] one final Approve sufficient;
+- [ ] stale second Approve denied;
+- [ ] first Submit creates workflow iteration 1;
+- [ ] normal Return/Revision/Resubmit stays same iteration;
+- [ ] Reopen starts next iteration;
+- [ ] previous approval/rejection preserved;
+- [ ] Cancel permanent;
+- [ ] Archive does not change business status;
+- [ ] concurrent stale actions rejected.
 
----
+## 40. Relationship / Next Document
 
-# PART S — TESTABLE ACCEPTANCE CRITERIA
-
-## 55. State Flow Acceptance Criteria
-
-- [ ] New record starts `DRAFT`.
-- [ ] Autosave/Save Draft do not create state.
-- [ ] Draft may be incomplete.
-- [ ] Submit → `PENDING_REVIEW`.
-- [ ] No persistent `SUBMITTED`/`UNDER_REVIEW`.
-- [ ] Reviewer View no state change/exclusive lock.
-- [ ] Reviewer Return/Reject require reasons and reach correct states.
-- [ ] `REVISION_REQUIRED` editable by eligible Requester.
-- [ ] Resubmit always `PENDING_REVIEW`.
-- [ ] Reviewer Forward → `PENDING_APPROVAL`.
-- [ ] Change Forward blocked until Result gate passes.
-- [ ] Requester/owner can narrow-edit Change Result in `PENDING_REVIEW` without general form unlock.
-- [ ] Approver Return/Reject require reasons and reach correct states.
-- [ ] One eligible Approver can create `APPROVED`.
-- [ ] Stale second Approve denied.
-- [ ] Reopen only Rejected/Approved, requires reason, only Revision/Review targets.
-- [ ] Previous rejection/approval preserved.
-- [ ] Cancel → permanent `CANCELLED`; no Reopen.
-- [ ] Archive does not change business status.
-- [ ] Only Approved/Rejected/Cancelled archive-eligible; Archive/Unarchive require reasons.
-- [ ] Archived Approved/Rejected Unarchive before Reopen.
-- [ ] Emergency same mandatory Review + Approval.
-- [ ] Concurrent stale actions rejected server-side.
-
----
-
-## 56. Relationship to Prior/Next Documents
-
-| Concern | Authoritative Source |
+| Concern | Authority |
 |---|---|
-| Product scope | `01_PRD.md` |
-| Business invariants | `02_Business_Rules.md` |
-| User interaction | `03_User_Flow.md` |
-| Actor permissions/scope | `04_RBAC_Permission_Matrix.md` |
-| **Business state machine** | **`05_State_Status_Flow.md`** |
-| Field/action validation | `06_Validation_Rules.md` |
-| Presentation/interaction design | `07_UI_UX_Specification.md` |
+| Product | `01_PRD.md` |
+| Business | `02_Business_Rules.md` |
+| User Flow | `03_User_Flow.md` |
+| Permission authorization | `04_RBAC_Permission_Matrix.md` |
+| **State / workflow iteration** | **`05_State_Status_Flow.md`** |
+| Validation | `06_Validation_Rules.md` |
+| UI | `07_UI_UX_Specification.md` |
+| Technology | `08_Tech_Stack_Specification.md` |
+| Architecture | `09_System_Architecture.md` |
+| Security | `10_Security_Rules.md` |
 
----
+Next fixed-order document:
 
-## 57. Next Document
-
-Dokumen berikutnya:
-
-**`07_UI_UX_Specification.md`**
-
-It must preserve this state machine while defining state-aware editability, Result-only UX, reason dialogs, archived treatment, action placement, validation/stale-state feedback, and status presentation.
+**`11_ERD_Database_Schema.md`**.

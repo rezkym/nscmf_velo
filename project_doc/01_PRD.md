@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-PRD-001  
 > **Document Order:** 01 / 20  
-> **Status:** Draft — Synchronized through Confirmed Security Decisions  
+> **Status:** Draft — Synchronized through Confirmed Permission/Team/Spatie Decisions  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Primary Business Reference:** NSCMF Form 3.0 (Excel)  
 > **Product Flow Reference:** NSCMF FigJam proposal  
@@ -45,11 +45,11 @@ Urutan dokumentasi proyek:
 
 ## 2. Executive Summary
 
-NSCMF Digital Form & Workflow System adalah aplikasi web internal **single-organization** untuk mengganti proses NSCMF yang berbasis file Excel menjadi record digital yang terstruktur, traceable, dapat direview, di-approve, dicari kembali, diaudit, diarsipkan tanpa delete, dan diekspor.
+NSCMF Digital Form & Workflow System adalah aplikasi web internal **single-organization** untuk mengganti proses NSCMF berbasis file Excel menjadi record digital terstruktur yang traceable, dapat direview, di-approve, dicari kembali, diaudit, diarsipkan tanpa delete, dan diekspor.
 
-Aplikasi web mempertahankan makna bisnis NSCMF Form 3.0 tetapi UI operasional tidak wajib menyalin layout spreadsheet secara pixel-perfect. **Khusus output XLSX/PDF, official NSCMF XLSX template menjadi visual/export source of truth dan hasil export harus mempertahankan template tersebut secara exact; sistem hanya mengisi/mengganti field serta native control state yang dipetakan.**
+Aplikasi mempertahankan makna bisnis NSCMF Form 3.0. UI operasional tidak wajib menyalin layout spreadsheet secara pixel-perfect. **Khusus output XLSX/PDF, official NSCMF XLSX template menjadi visual/export source of truth dan hasil export harus mempertahankan template tersebut secara exact; sistem hanya mengisi/mengganti field serta native control state yang dipetakan.**
 
-User dapat memilih output **XLSX** atau **PDF**. Export diproses asynchronous. Generated artifact tersedia untuk authorized re-download selama **168 jam / 7 hari**, kemudian dibersihkan otomatis. XLSX tidak memerlukan cryptographic document signature. PDF yang merepresentasikan snapshot `APPROVED` wajib mendapat cryptographic PDF signature dengan logical signer identity **System/Organization**. Security policy yang telah dikonfirmasi—termasuk password/session, malware scanning, permanent authoritative audit evidence, signing-key custody, dan public PDF validation—dikunci secara authoritative pada `10_Security_Rules.md`.
+User dapat memilih output **XLSX** atau **PDF**. Export diproses asynchronous dan bound ke deterministic immutable export snapshot. Generated artifact tersedia untuk authorized re-download selama **168 jam / 7 hari**, kemudian binary dibersihkan otomatis. XLSX tidak memerlukan cryptographic document signature. PDF yang merepresentasikan snapshot `APPROVED` wajib mendapat cryptographic PDF signature dengan logical signer identity **System/Organization**.
 
 Dua form family utama:
 
@@ -78,9 +78,9 @@ Dengan branch:
 - Reviewer/Approver Reject;
 - authorized Reopen/Revert;
 - Archive/Unarchive tanpa mengubah business status;
-- detailed audit trail;
-- separate access audit evidence;
-- scoped shared Reviewer/Approver pools.
+- detailed Business Audit;
+- separate Access Audit;
+- shared/non-exclusive Reviewer and Approver pools based on permissions, **not organizational scope**.
 
 ---
 
@@ -98,9 +98,10 @@ Produk harus:
 6. menyediakan History dan detail record;
 7. menyediakan single/bulk export dengan exact-template XLSX/PDF fidelity;
 8. menyediakan tamper-evident cryptographic signing untuk Approved PDF output;
-9. mencatat viewer/access evidence terpisah dari modifier/workflow business timeline;
+9. mencatat viewer/access evidence terpisah dari modifier/workflow Business Timeline;
 10. mencegah hard delete NSCMF;
-11. menyediakan role/scope configuration yang dapat disesuaikan organisasi.
+11. menyediakan role/permission configuration yang sederhana dan dapat disesuaikan;
+12. menyimpan Team user sebagai organizational/profile data tanpa menjadikannya authorization boundary.
 
 ---
 
@@ -119,21 +120,28 @@ Field dan konteks bisnis workbook harus dipertahankan.
 Record aplikasi adalah sumber data utama; export adalah output.
 
 ### 5.3 Traceability by Default
-Persisted changes, workflow actions, access evidence yang diwajibkan, revision cycles, dan actor/timestamp penting harus dapat ditelusuri.
+Persisted changes, workflow actions, required access evidence, revision cycles, actor, dan timestamp penting harus dapat ditelusuri.
 
 ### 5.4 Simple Operational Product
-Produk bukan generic BPM, generic form builder, atau full document-management platform.
+Produk bukan generic BPM, generic form builder, full document-management platform, atau generic organizational-scope engine.
 
-### 5.5 Configurable Where Organization-Specific
-Role mapping, Unit/Division mapping, dan scope dapat disesuaikan tanpa melemahkan invariant.
+### 5.5 Permission-Centric Authorization
+Role mengelompokkan permissions. Aplikasi memeriksa capability melalui permission dan tetap memvalidasi state, ownership where explicitly required, archive treatment, validation, security preconditions, dan business invariants.
 
-### 5.6 No Silent Assumptions
-Hal yang belum diputuskan harus tetap TBD. Rule sementara yang sengaja dipakai untuk MVP harus dinyatakan sebagai **PROVISIONAL**, bukan disajikan sebagai SOP resmi perusahaan.
+Team membership **tidak** menentukan Review/Approval access.
 
-### 5.7 Export Template Fidelity
-UI web MAY mengoptimalkan spreadsheet menjadi interface yang lebih usable, tetapi exported XLSX/PDF MUST mempertahankan official XLSX template representation secara exact. Product MUST NOT menurunkan fidelity requirement hanya karena renderer/library tertentu lebih mudah digunakan.
+### 5.6 Team Is Organizational Data
+Organization hanya menggunakan konsep **Team** seperti Team NOC, Team CS, Team Fulfillment, dan team lain yang dikonfigurasi organisasi.
 
-### 5.8 Export Integrity
+Tidak ada konsep Unit/Division dalam current product model.
+
+### 5.7 No Silent Assumptions
+Hal yang belum diputuskan harus tetap TBD. Rule sementara untuk MVP dinyatakan **PROVISIONAL**, bukan disajikan sebagai SOP resmi perusahaan.
+
+### 5.8 Export Template Fidelity
+Exported XLSX/PDF MUST mempertahankan official XLSX template representation secara exact. Product MUST NOT menurunkan fidelity requirement hanya karena renderer/library tertentu lebih mudah digunakan.
+
+### 5.9 Export Integrity
 Cryptographic PDF signature pada Approved PDF adalah additional integrity evidence untuk mendeteksi modification setelah signing; signature tersebut tidak menggantikan business `Approved By` actor.
 
 ---
@@ -141,16 +149,16 @@ Cryptographic PDF signature pada Approved PDF adalah additional integrity eviden
 ## 6. Product Users
 
 ### Protected Superadmin
-Seeded protected authority tertinggi pada standard template, global visibility, initial setup, dan default administrative authority. Tidak dapat delete/soft-delete/disable/downgrade.
+Seeded protected authority tertinggi pada standard template, global operational visibility, initial setup, dan default administrative authority. Tidak dapat delete/soft-delete/disable/downgrade/lose protected role.
 
 ### Requester
 Membuat dan mengelola own NSCMF sesuai current state. Untuk Change, Requester/owner juga menjadi default actor untuk narrow `Result of Changes` capture selama `PENDING_REVIEW` melalui permission khusus.
 
 ### Reviewer
-Memproses record berdasarkan Unit/Division scope. Reviewer tidak dipilih eksklusif; semua eligible Reviewer dalam scope dapat melihat dan bertindak sesuai state.
+Actor dengan required Review permission. Reviewer tidak dipilih eksklusif; semua user dengan required permission dapat mengambil action ketika record berada pada eligible state. Team tidak membatasi Reviewer eligibility.
 
 ### Approver
-Final approval berdasarkan configured Approval Scope. Scope dapat mencakup beberapa Unit/Division. Approval tidak eksklusif; satu eligible Approver yang berhasil Approve cukup menjadi final approver untuk iteration tersebut.
+Actor dengan required Approval permission. Approval tidak eksklusif; satu eligible Approver yang berhasil Approve cukup menjadi final approver untuk iteration tersebut. Team tidak membatasi Approver eligibility.
 
 ### Multi-Role User
 Satu user dapat memiliki lebih dari satu role. Current requirement tidak mewajibkan segregation of duty.
@@ -164,13 +172,15 @@ First run menggunakan protected Superadmin dan Setup Wizard.
 Wizard minimal mencakup:
 
 1. role configuration: **Use Role Template** atau **Manual Role Configuration**;
-2. Unit/Division: predefined template/mapping atau manual;
-3. configure Reviewer/Approver scope;
+2. Team setup/mapping;
+3. user creation + Team assignment + role assignment;
 4. menyelesaikan initial organization setup.
 
-Template tetap dapat diubah kemudian oleh authorized administrator kecuali protected invariants. Core system settings tetap Superadmin-only.
+Tidak ada Reviewer Scope atau Approval Scope configuration step.
 
-Application model saat ini = **single organization / single installation**. Unit/Division adalah organizational scope di dalam organization yang sama, bukan tenant boundary.
+Application model = **single organization / single installation**. Team adalah organizational data di dalam organization yang sama, bukan tenant boundary dan bukan authorization scope.
+
+Core system settings tetap Superadmin-only. Normal Team/user/role administration MAY didelegasikan melalui explicit permissions jika downstream RBAC mengizinkan.
 
 ---
 
@@ -183,53 +193,57 @@ MVP mencakup:
 3. Initial setup wizard.
 4. User administration.
 5. Role template/manual configuration.
-6. Unit/Division template/manual configuration.
+6. Team master/configuration dan one-Team user membership/profile mapping.
 7. Multi-role assignment.
-8. Dashboard sederhana.
-9. CTA `Create New Form`.
-10. Direct History access.
-11. Activation dan Change forms.
-12. Form subtype selection.
-13. Auto/manual numbering mode per record.
-14. Draft + autosave + Save Draft.
-15. Optional attachment input.
-16. Cancel hanya pada Draft sebelum first Submit.
-17. Shared/non-exclusive Review.
-18. Multiple Reviewer contributors.
-19. Return for Revision.
-20. Unlimited revision cycles.
-21. Reviewer Reject.
-22. Shared/non-exclusive Approval.
-23. Approver Return to Reviewer.
-24. Approver Return to Requester dan wajib Review ulang setelah Resubmit.
-25. Approver Reject.
-26. Satu final approval dari satu eligible Approver.
-27. Reopen/Revert untuk Rejected/Approved oleh protected Superadmin atau actor dengan explicit `nscmf.reopen` + valid visibility/scope.
-28. Detailed audit/change history.
-29. History + detail + timeline.
-30. Scoped visibility.
-31. User-facing Export XLSX dan Export PDF; generated output MUST preserve official NSCMF XLSX template exactly while filling/replacing mapped fields/control states.
-32. Seluruh export diproses asynchronous dan bound ke deterministic record snapshot/version.
-33. Generated export artifact tersedia privately untuk authorized re-download selama 168 jam / 7 hari, lalu dibersihkan otomatis.
-34. Approved PDF output mendapat cryptographic signature dengan logical signer identity System/Organization; XLSX tidak melalui PDF signing flow.
-35. Viewer/access evidence dipisahkan dari business mutation/workflow timeline.
-36. Archive/Unarchive sebagai administrative lifecycle tanpa hard delete.
-37. No hard delete NSCMF.
-38. Emergency Change tetap Review + Approval.
-39. Change `Result of Changes` diselesaikan sebelum final Approval tanpa membuat state execution/result baru.
-40. Narrow Change Result capture oleh Requester/owner pada `PENDING_REVIEW` melalui `nscmf.change.result.edit` tanpa membuka general submitted form editing.
-41. Service Impact Change bersifat multi-select dan `Other` membutuhkan description.
-42. Validation dibedakan antara Draft persistence dan workflow gate; incomplete Draft tetap dapat disimpan.
-43. Technology baseline menggunakan Laravel 13 + PHP 8.5 + Vue 3 + TypeScript + Inertia 3 + shadcn-vue + MySQL 8.4 LTS sesuai `08_Tech_Stack_Specification.md`.
-44. Testing infrastructure (Pest + Vitest + Playwright + static-analysis/quality gates) disiapkan sejak project bootstrap.
-45. Hybrid concurrency: workflow transitions memakai short transaction + row-level lock/current-state revalidation; Draft/Revision/Result persistence memakai optimistic version conflict detection.
-46. Authentication security baseline: password-only, minimum 6 characters, no composition requirement, no MFA, login throttling/progressive delay, idle timeout 30 menit, absolute session lifetime 8 jam, dan maksimum 2 active sessions per account.
-47. Administrative account create/reset menggunakan temporary password + mandatory password change. Password reset dan role/permission changes revoke seluruh active sessions target user; sensitive administrative action memerlukan password re-authentication acting user.
-48. Attachment security menggunakan private storage dan ClamAV malware scan; hanya explicit `CLEAN` yang membuat uploaded attachment usable.
-49. Authoritative Business Audit, Access Audit, dan Security Audit tidak memiliki age-based retention/purge dan tidak boleh dihapus otomatis karena umur.
-50. Approved-PDF signing identity diprovision manual pada server/environment, tidak disimpan di GitHub/source/deployment artifact, dan missing/unusable signing identity adalah critical readiness/configuration failure.
-51. Public no-login PDF validator memverifikasi recognized NSCMF issuer signature, exact final SHA-256, issuance metadata, dan current/superseded approval context tanpa membuka private NSCMF data.
-52. TSA/trusted external timestamp service tidak diwajibkan untuk current MVP.
+8. Permission-centric authorization menggunakan Spatie Laravel Permission 8.x + Laravel Policies/Gates + domain checks.
+9. Spatie `teams` feature disabled; business Team tetap terpisah.
+10. Dashboard sederhana.
+11. CTA `Create New Form`.
+12. Direct History access.
+13. Activation dan Change forms.
+14. Form subtype selection.
+15. Auto/manual numbering mode per record.
+16. Draft + autosave + Save Draft.
+17. Optional attachment input.
+18. Cancel hanya pada Draft sebelum first Submit.
+19. Shared/non-exclusive Review.
+20. Multiple Reviewer contributors.
+21. Return for Revision.
+22. Unlimited revision cycles.
+23. Reviewer Reject.
+24. Shared/non-exclusive Approval.
+25. Approver Return to Reviewer.
+26. Approver Return to Requester dan wajib Review ulang setelah Resubmit.
+27. Approver Reject.
+28. Satu final approval dari satu eligible Approver.
+29. Reopen/Revert untuk Rejected/Approved oleh protected Superadmin atau actor dengan explicit `nscmf.reopen`, subject to normal record authorization and domain rules.
+30. Detailed audit/change history.
+31. History + detail + Business Timeline.
+32. Permission/resource-aware visibility without Team-based scope.
+33. User-facing Export XLSX dan Export PDF with exact official-template fidelity.
+34. Seluruh export diproses asynchronous dan bound ke deterministic immutable export snapshot/version.
+35. Generated export artifact tersedia privately untuk authorized re-download 168 jam / 7 hari, lalu binary dibersihkan otomatis.
+36. Approved PDF output mendapat cryptographic signature dengan logical signer identity System/Organization; XLSX tidak melalui PDF signing flow.
+37. Viewer/access evidence dipisahkan dari business mutation/workflow timeline.
+38. Archive/Unarchive sebagai administrative lifecycle tanpa hard delete.
+39. No hard delete NSCMF.
+40. Emergency Change tetap Review + Approval.
+41. Change `Result of Changes` diselesaikan sebelum final Approval tanpa membuat state execution/result baru.
+42. Narrow Change Result capture oleh Requester/owner pada `PENDING_REVIEW` melalui `nscmf.change.result.edit` tanpa membuka general submitted form editing.
+43. Service Impact Change multi-select dan `Other` membutuhkan description.
+44. Validation dibedakan antara Draft persistence dan workflow gate; incomplete Draft tetap dapat disimpan.
+45. Technology baseline menggunakan Laravel 13 + PHP 8.5 + Vue 3 + TypeScript + Inertia 3 + shadcn-vue + MySQL 8.4 LTS.
+46. Testing infrastructure (Pest + Vitest + Playwright + static-analysis/quality gates) disiapkan sejak bootstrap.
+47. Hybrid concurrency: workflow transitions memakai short transaction + row-level lock/current-state revalidation; Draft/Revision/Result persistence memakai optimistic version conflict detection.
+48. Authentication security baseline: password-only, minimum 6 characters, no composition requirement, no MFA, throttling/progressive delay, idle timeout 30m, absolute session lifetime 8h, maksimum 2 active sessions/account.
+49. Administrative account create/reset menggunakan temporary password + mandatory change; sensitive role/permission/credential admin action memerlukan password re-authentication.
+50. Password reset dan effective access-changing role/permission mutations revoke affected target-user sessions; Team change alone is not an authorization mutation.
+51. Attachment security menggunakan private storage dan ClamAV; hanya explicit `CLEAN` membuat attachment usable.
+52. Authoritative Business Audit, Access Audit, Security Audit tidak memiliki age-based retention/purge.
+53. Approved-PDF signing identity diprovision manual pada server/environment dan tidak disimpan di GitHub/source/ordinary DB/browser/logs.
+54. Missing/unusable signing identity adalah critical readiness/configuration failure.
+55. Public no-login PDF validator memverifikasi recognized issuer signature, exact final SHA-256, issuance metadata, dan current/superseded approval context tanpa membuka private NSCMF data.
+56. TSA tidak diwajibkan untuk current MVP.
 
 Notification hook adalah future capability dan bukan MVP blocker.
 
@@ -239,8 +253,13 @@ Notification hook adalah future capability dan bukan MVP blocker.
 
 MVP tidak ditujukan untuk:
 
-- public/customer portal; public PDF validation adalah narrow verification utility dan **bukan** customer/public NSCMF portal;
+- public/customer NSCMF portal;
 - multi-tenant/multi-organization installation;
+- Unit/Division organizational model;
+- Reviewer Scope atau Approval Scope;
+- Team-based authorization;
+- enabling Spatie Teams permissions feature;
+- direct-user permission administration as a normal MVP feature;
 - self-registration;
 - native mobile app;
 - network provisioning automation;
@@ -250,13 +269,12 @@ MVP tidak ditujukan untuk:
 - notification sebagai blocker core workflow;
 - AI guessing untuk business classification;
 - exported file sebagai source of truth;
-- multi-level approval chain pada requirement saat ini;
-- state `UNDER_REVIEW`, `REOPENED`, `ARCHIVED`, `EXECUTION_PENDING`, atau `RESULT_PENDING` sebagai business status current design;
+- multi-level approval chain;
+- state `UNDER_REVIEW`, `REOPENED`, `ARCHIVED`, `EXECUTION_PENDING`, atau `RESULT_PENDING` sebagai business status;
 - freehand signature input;
-- personal certificate requirement untuk setiap human Approver;
-- redesigning the official NSCMF XLSX layout for export;
-- accepting approximate PDF layout when exact template fidelity is required;
-- treating a digitally signed PDF as impossible to edit; the intended property is tamper detection through signature/hash verification.
+- personal certificate requirement untuk setiap Approver;
+- redesigning official NSCMF XLSX layout for export;
+- approximate PDF layout when exact template fidelity is required.
 
 ---
 
@@ -286,7 +304,7 @@ Main information groups:
 - onsite/customer/POP configuration;
 - Request/Review/Approved sign-off.
 
-Required/conditional/optional classification mengikuti `06_Validation_Rules.md` dan tidak diturunkan hanya dari keberadaan field pada Excel.
+Required/conditional/optional classification mengikuti `06_Validation_Rules.md`.
 
 ### 10.2 NSCMF - Change
 
@@ -302,13 +320,9 @@ Subtype:
 
 `Purpose of Changes` adalah section, bukan option.
 
-Input areas:
+Input areas include Facing Challenges, Maintenance Purpose, Identified Problem, Service Impact, Improvement Plan/Target KPI, Target Date, Monitoring Period, Rollback, dan Announcement.
 
-- Facing Challenges (Upgrade / Emergency);
-- Maintenance Purpose;
-- Identified Problem (Please elaborate).
-
-`Service Impact` menyediakan:
+Service Impact options:
 
 - NOC15;
 - NOC23;
@@ -318,45 +332,19 @@ Input areas:
 - Customer;
 - Other.
 
-Confirmed validation treatment:
-
-- Service Impact adalah **multi-select**;
-- minimum satu impact dipilih pada Submit/Resubmit;
-- jika `Other` dipilih, `Other Impact Description` wajib.
-
-Field lain:
-
-- Maintenance (Improvement) Plan;
-- Target KPI;
-- Target date of execution;
-- Monitoring period;
-- Rollback scenario;
-- Maintenance Announcement.
-
-Source workbook memiliki announcement timing:
-
-- 1 week before;
-- 2 weeks before;
-- 2 days before (emergency).
-
-Exact warning/error behavior mengikuti `06_Validation_Rules.md`.
+Service Impact adalah multi-select; minimum satu impact dipilih saat Submit/Resubmit; `Other` membutuhkan description.
 
 #### Section B — Result of Changes
 
-Mencakup:
+Mencakup Result Summary, Performance Information, Status.
 
-- Result summary;
-- Performance information;
-- Status.
+Confirmed:
 
-Confirmed workflow treatment:
-
-- section ini tidak otomatis wajib lengkap pada first Submit hanya karena tersedia di template;
 - first Submit dapat memiliki zero Result rows;
-- row Result yang sudah mulai diisi harus internally complete sesuai Validation Rules;
-- sebelum Reviewer `Forward to Approval`, Change membutuhkan minimal satu complete Result row;
-- lima row pada source template adalah capacity, bukan mandatory count;
-- pengisian Result tidak menambah business state baru;
+- started row harus internally complete;
+- sebelum Reviewer Forward, minimum satu complete Result row;
+- source template capacity = lima rows, bukan mandatory count;
+- Result tidak membuat business state baru;
 - selama `PENDING_REVIEW`, Requester/owner dengan `nscmf.change.result.edit` dapat mengisi Result melalui narrow result-only capability;
 - planning/submitted fields lain tetap locked;
 - persisted Result changes diaudit.
@@ -376,109 +364,67 @@ System tidak boleh memilih hanya berdasarkan keyword `Upgrade`.
 
 **FR-AUTH-001** Valid user dapat login/logout menggunakan username + password.  
 **FR-AUTH-002** Tidak ada self-registration.  
-**FR-AUTH-003** Current MVP tidak menggunakan MFA.  
+**FR-AUTH-003** Tidak ada MFA current MVP.  
 **FR-AUTH-004** Password minimum 6 characters tanpa composition requirement.  
 **FR-AUTH-005** Login menerapkan server-side throttling/progressive delay.  
-**FR-AUTH-006** Session policy = 30-minute idle timeout, 8-hour absolute lifetime, maximum 2 active sessions/account.  
-**FR-ADM-001** Seeded protected Superadmin dibuat saat initial seeding.  
+**FR-AUTH-006** Session policy = 30m idle, 8h absolute, maximum 2 active sessions/account.  
+**FR-ADM-001** Protected Superadmin dibuat saat initial seeding.  
 **FR-ADM-002** Initial setup menggunakan wizard.  
-**FR-ADM-003** Authorized admin dapat mengelola normal user, role, Unit/Division, dan eligible scope sesuai RBAC.  
-**FR-ADM-004** Protected Superadmin tidak dapat delete/disable/downgrade.  
-**FR-ADM-005** Admin-created/reset credential menggunakan temporary password dan user wajib menggantinya.  
-**FR-ADM-006** Sensitive role/permission/credential administrative action memerlukan password re-authentication; affected target-user sessions dicabut sesuai Security Rules.
+**FR-ADM-003** Authorized admin dapat mengelola eligible normal user, Team, role, dan role permissions sesuai RBAC.  
+**FR-ADM-004** Protected Superadmin tidak dapat delete/disable/downgrade/lose protected role.  
+**FR-ADM-005** Admin-created/reset credential menggunakan temporary password + mandatory replacement.  
+**FR-ADM-006** Sensitive role/permission/credential administrative action memerlukan password re-authentication; affected target-user sessions dicabut sesuai Security Rules.  
+**FR-ADM-007** Team assignment tidak memberi/mengurangi Review/Approval permission.
 
-### Dashboard / Creation
-
-**FR-DASH-001** Dashboard menjadi landing page setelah setup selesai.  
-**FR-DASH-002** Dashboard menyediakan `Create New Form` dan History entry point.  
-**FR-FORM-001** User memilih family → subtype → numbering mode.  
-**FR-FORM-002** Attachment input tersedia dan optional.  
-**FR-FORM-003** Automatic/manual Request No mengikuti validation current/provisional di `06_Validation_Rules.md`.
-
-### Draft
+### Draft / Submit / Review / Approval
 
 **FR-DRAFT-001** New record berada pada `DRAFT`.  
-**FR-DRAFT-002** Own Draft editable.  
-**FR-DRAFT-003** Autosave + Save Draft tersedia dan persisted changes diaudit.  
-**FR-DRAFT-004** Draft boleh incomplete.  
-**FR-DRAFT-005** Cancel hanya selama `DRAFT` sebelum first Submit; hasilnya `CANCELLED` permanent.
-
-### Submit / Review
+**FR-DRAFT-002** Own Draft editable melalui required permission + ownership.  
+**FR-DRAFT-003** Autosave + Save Draft tersedia; incomplete Draft allowed.  
+**FR-DRAFT-004** Persisted changes diaudit dan optimistic version conflicts tidak silently overwrite.
 
 **FR-SUB-001** Valid `DRAFT` Submit → `PENDING_REVIEW`.  
-**FR-SUB-002** Setelah Submit, normal Requester editing locked kecuali narrow authorized Change Result capture.  
-**FR-REV-001** Semua eligible Reviewer dalam matching scope melihat `PENDING_REVIEW`.  
-**FR-REV-002** Membuka record tidak mengubah state dan tidak menciptakan exclusive owner.  
-**FR-REV-003** Multiple Reviewer dapat berpartisipasi dan seluruh activity dipertahankan.  
-**FR-REV-004** Reviewer dapat Forward → `PENDING_APPROVAL`, Return → `REVISION_REQUIRED`, atau Reject → `REJECTED`.  
-**FR-REV-005** Reviewer Return dan Reviewer Reject membutuhkan mandatory reason sesuai Validation Rules.
+**FR-SUB-002** Setelah Submit, normal Requester edit locked kecuali narrow Change Result capability.
 
-### Revision
+**FR-REV-001** User dengan required Review permission dapat memproses `PENDING_REVIEW`; tidak ada Team/scope matching.  
+**FR-REV-002** Membuka record tidak mengubah state dan tidak menciptakan exclusive owner.  
+**FR-REV-003** Multiple Reviewer dapat berpartisipasi.  
+**FR-REV-004** Reviewer dapat Forward → `PENDING_APPROVAL`, Return → `REVISION_REQUIRED`, atau Reject → `REJECTED` subject to exact permission/state/validation rules.  
+**FR-REV-005** Reviewer Return/Reject membutuhkan mandatory reason.
 
 **FR-REVISION-001** `REVISION_REQUIRED` mengaktifkan Requester editing.  
 **FR-REVISION-002** Resubmit selalu → `PENDING_REVIEW`.  
-**FR-REVISION-003** Revision cycle unlimited dan full history preserved.
+**FR-REVISION-003** Revision cycle unlimited.
 
-### Approval
-
-**FR-APR-001** Semua eligible Approver dalam matching Approval Scope dapat melihat `PENDING_APPROVAL`.  
-**FR-APR-002** Approver dapat Approve → `APPROVED`, Return Reviewer → `PENDING_REVIEW`, Return Requester → `REVISION_REQUIRED`, atau Reject → `REJECTED`.  
-**FR-APR-003** Satu valid final Approve cukup; `Approved By` adalah actor yang berhasil melakukan transition.  
+**FR-APR-001** User dengan required Approval permission dapat memproses `PENDING_APPROVAL`; tidak ada Team/scope matching.  
+**FR-APR-002** Approver dapat Approve, Return Reviewer, Return Requester, atau Reject subject to exact permission/state/validation rules.  
+**FR-APR-003** Satu valid final Approve cukup; `Approved By` = successful transition actor.  
 **FR-APR-004** Emergency tidak bypass Review/Approval.  
-**FR-APR-005** Change Result-of-Changes applicable validation harus lulus sebelum masuk `PENDING_APPROVAL`.  
-**FR-APR-006** Approver Return/Reject membutuhkan mandatory reason; Approve comment optional.
+**FR-APR-005** Change Result validation harus lulus sebelum masuk `PENDING_APPROVAL`.
 
-### Reopen / Revert
+### Reopen / Archive / History
 
 **FR-REOPEN-001** Hanya `REJECTED` dan `APPROVED` yang Reopen-eligible.  
-**FR-REOPEN-002** Actor = protected Superadmin atau explicit `nscmf.reopen`, dengan valid visibility/scope.  
-**FR-REOPEN-003** Mandatory reason + selected destination.  
-**FR-REOPEN-004** Destination hanya `REVISION_REQUIRED` atau `PENDING_REVIEW`.  
-**FR-REOPEN-005** Reopen ke `DRAFT` atau `PENDING_APPROVAL` dilarang.  
-**FR-REOPEN-006** Previous Reject/Approval evidence tetap dipertahankan.  
-**FR-REOPEN-007** Archived record harus Unarchive terlebih dahulu sebelum Reopen.
+**FR-REOPEN-002** Actor memerlukan `nscmf.reopen` + authorized record access; no Team/scope check.  
+**FR-REOPEN-003** Mandatory reason + destination `REVISION_REQUIRED` atau `PENDING_REVIEW`.  
+**FR-REOPEN-004** Reopen ke `DRAFT`/`PENDING_APPROVAL` forbidden.  
+**FR-REOPEN-005** Reopen starts a new workflow iteration; normal Return/Revision/Resubmit within the same non-terminal cycle remains in the current iteration.  
+**FR-REOPEN-006** Previous Reject/Approval evidence preserved.
 
-### History / Export / Archive
+**FR-HIS-001** Record visibility/authorization uses permission + applicable ownership/resource rules, not Team scope.  
+**FR-HIS-002** Legitimate viewer dapat melihat Business Timeline.  
+**FR-HIS-003** Routine access/download evidence disimpan melalui separate Access Audit.  
+**FR-HIS-004** Business/Access/Security Audit tidak age-purged.
 
-**FR-HIS-001** Visibility mengikuti ownership/scope/RBAC.  
-**FR-HIS-002** Legitimate viewer dapat melihat business timeline siapa melakukan perubahan/workflow action.  
-**FR-HIS-003** Viewer/access/download evidence disimpan melalui separate access-audit concern sehingga routine View tidak memenuhi business timeline.  
-**FR-HIS-004** Authoritative Business/Access/Security Audit evidence tidak dihapus otomatis karena umur.  
-**FR-EXP-001** View implies export; bulk export check per record.  
-**FR-EXP-002** User dapat memilih `Export XLSX` atau `Export PDF`.  
-**FR-EXP-003** Official XLSX template adalah visual/export source of truth. Generated XLSX/PDF MUST preserve template exactly dan hanya mengisi/mengganti mapped fields/native control states.  
-**FR-EXP-004** PDF MUST dirender dari filled XLSX/template representation, bukan separate HTML redesign.  
-**FR-EXP-005** Renderer MUST lulus golden exact-fidelity acceptance sebelum digunakan production.  
-**FR-EXP-006** Seluruh single/bulk export generation diproses asynchronous dan harus merepresentasikan deterministic record snapshot/version.  
-**FR-EXP-007** READY export artifact tersedia privately untuk authorized re-download selama 168 jam / 7 hari; setelah expiry binary dibersihkan otomatis.  
-**FR-EXP-008** PDF dari snapshot `APPROVED` wajib mendapatkan cryptographic PDF signature dengan logical signer identity System/Organization. XLSX tidak melalui signing flow tersebut.  
-**FR-EXP-009** Jika mandatory Approved-PDF signing gagal, export gagal; system MUST NOT memberikan unsigned PDF sebagai silent fallback.  
-**FR-EXP-010** Public verification capability memverifikasi issued Approved PDF tanpa memberi public access ke private NSCMF record.  
-**FR-ARC-001** No hard delete NSCMF.  
-**FR-ARC-002** Archive hanya pada `APPROVED`, `REJECTED`, `CANCELLED`.  
-**FR-ARC-003** Archive adalah independent flag; business status tidak berubah.  
-**FR-ARC-004** Actor memerlukan `nscmf.archive` + valid visibility.  
-**FR-ARC-005** Archive dan Unarchive membutuhkan mandatory reason sesuai Validation Rules.  
-**FR-ARC-006** Unarchive tidak mengubah business status.
+**FR-ARC-001** No hard delete.  
+**FR-ARC-002** Archive hanya `APPROVED`, `REJECTED`, `CANCELLED`.  
+**FR-ARC-003** Archive independent flag; business status unchanged.  
+**FR-ARC-004** Actor memerlukan `nscmf.archive` + authorized record access.  
+**FR-ARC-005** Archive/Unarchive mandatory reason.
 
-### Attachment
+### Export / Attachment / Audit
 
-**FR-ATT-001** Attachment optional.  
-**FR-ATT-002** Current MVP limit = maksimum 10 files per record dan 20 MB per file.  
-**FR-ATT-003** Allowed file type baseline dan executable/script exclusions mengikuti `06_Validation_Rules.md`.  
-**FR-ATT-004** Upgrade/Emergency Change tanpa attachment menghasilkan warning, bukan blocking error.  
-**FR-ATT-005** Uploaded attachment MUST remain unavailable until ClamAV returns explicit `CLEAN`; malware detection, scanner error, timeout, or unavailable scanner must not be treated as successful clean upload.
-
-### Audit / Concurrency
-
-**FR-AUD-001** Every persisted business change dan workflow transition diaudit.  
-**FR-AUD-002** Viewer/access evidence dan modifier/workflow actor dapat dibedakan.  
-**FR-AUD-003** Historical cycles tidak boleh overwrite.  
-**FR-AUD-004** Business Audit, Access Audit, Security Audit, dan technical logs memiliki concern terpisah; technical logs bukan authoritative audit replacement.  
-**FR-AUD-005** Business Audit, Access Audit, dan Security Audit MUST NOT memiliki age-based automatic purge.  
-**FR-CONC-001** Shared Reviewer/Approver action wajib revalidate current state server-side; stale conflicting action ditolak.  
-**FR-CONC-002** Workflow/lifecycle transition menggunakan short transaction + row-level locking/current-state revalidation.  
-**FR-CONC-003** Draft/Revision/Result persistence menggunakan optimistic version conflict detection agar stale write tidak silently overwrite data baru.
+Export, attachment, audit, concurrency, signing, and public-validator requirements remain authoritative as defined in `02`, `06`, `08`, `09`, and `10`, including exact template fidelity, asynchronous deterministic snapshot generation, 168-hour binary window, ClamAV CLEAN gate, System/Organization Approved-PDF signer, final SHA-256 issuance evidence, and public current/superseded/modified/unknown verification semantics.
 
 ---
 
@@ -504,6 +450,7 @@ Recovery:
 ```text
 REJECTED / APPROVED
   -- authorized Reopen(reason, destination) --> REVISION_REQUIRED or PENDING_REVIEW
+  -- starts next workflow iteration
 
 CANCELLED
   -- no reopen --> permanent terminal
@@ -516,23 +463,23 @@ business_status unchanged
 is_archived false <-> true
 ```
 
-Exact lifecycle detail is authoritative in `05_State_Status_Flow.md`.
-
 ---
 
-## 13. Visibility Model
+## 13. Authorization / Visibility Intent
 
-| Actor Context | Visibility Intent |
+| Actor Context | Intent |
 |---|---|
-| Requester | Own records |
-| Reviewer | Assigned Unit/Division scope |
-| Approver | Configured Approval Scope; may be multi-unit |
-| Protected Superadmin | All NSCMF |
-| Multi-role user | Additive union according to permission/scope |
+| Requester | Own-record mutation rules where explicitly defined; view/history according to granted permissions and resource policy |
+| Reviewer | Review/queue eligibility derived from Review permissions + eligible state; no Team scope |
+| Approver | Approval/queue eligibility derived from Approval permissions + eligible state; no Team scope |
+| Protected Superadmin | Global operational visibility, while protected domain invariants remain |
+| Multi-role user | Union of role permissions; state/ownership/security rules still apply |
+
+Team is intentionally absent from authorization evaluation.
 
 ---
 
-## 14. Non-Functional Product Requirements
+## 14. Non-Functional Requirements
 
 **NFR-001 Reliability** — persisted data tidak hilang karena normal navigation.  
 **NFR-002 Consistency** — form detail, History, audit, state, dan export konsisten.  
@@ -540,12 +487,14 @@ Exact lifecycle detail is authoritative in `05_State_Status_Flow.md`.
 **NFR-004 Desktop-First** — primary target internal desktop browser.  
 **NFR-005 Traceability** — critical activity dapat ditelusuri.  
 **NFR-006 Maintainability** — MVP tidak dibuat lebih kompleks dari kebutuhan.  
-**NFR-007 Testability** — backend/frontend/E2E/export testing infrastructure tersedia sejak bootstrap.  
-**NFR-008 Export Fidelity** — exact-template XLSX/PDF fidelity wajib diuji melalui structural/golden regression tests.  
-**NFR-009 Export Integrity** — Approved PDF signing failure tidak boleh menghasilkan unsigned output yang dianggap final.  
-**NFR-010 Export Binary Retention** — generated artifact tersedia selama 168 jam/7 hari sebelum automatic cleanup; source record dan authoritative audit/issuance evidence tidak ikut dihapus.  
-**NFR-011 Performance Target** — TBD.  
-**NFR-012 Availability / General Data Retention** — availability/DR target masih TBD; authoritative audit evidence tidak memiliki age-based purge sesuai Security Rules.
+**NFR-007 Authorization Simplicity** — Team/scope engine MUST NOT be introduced when permission + domain rules are sufficient.  
+**NFR-008 Package Compatibility** — Spatie-owned RBAC schema reused rather than duplicated.  
+**NFR-009 Testability** — backend/frontend/E2E/export/security tests from bootstrap.  
+**NFR-010 Export Fidelity** — exact-template XLSX/PDF fidelity tested structurally/visually.  
+**NFR-011 Export Integrity** — Approved PDF signing failure cannot produce unsigned final equivalent.  
+**NFR-012 Export Binary Retention** — generated artifact 168h/7d; source/audit/issuance remain.  
+**NFR-013 Performance Target** — TBD.  
+**NFR-014 Availability / DR** — TBD.
 
 ---
 
@@ -554,27 +503,24 @@ Exact lifecycle detail is authoritative in `05_State_Status_Flow.md`.
 Stakeholder dapat:
 
 1. login dan menyelesaikan setup;
-2. mengelola user/role/scope sesuai permission;
-3. membuat Activation/Change;
-4. memilih numbering mode;
-5. Save Draft/autosave meskipun Draft belum complete;
+2. mengelola Team, users, roles, dan role permissions;
+3. memastikan Team membership tidak mengubah Review/Approval authority;
+4. membuat Activation/Change;
+5. Save Draft/autosave incomplete Draft;
 6. Submit valid record ke `PENDING_REVIEW`;
-7. melakukan Review shared/non-exclusive;
+7. melakukan permission-based shared/non-exclusive Review;
 8. melakukan unlimited revision cycle;
-9. memproses Change Result melalui narrow Requester result-edit capability sebelum final Approval tanpa state tambahan;
-10. melakukan single final Approval;
-11. menjalankan Return/Reject dengan required reason;
-12. Reopen/Revert sesuai authority, mandatory reason, dan destination yang valid;
-13. melihat History/business timeline sesuai scope tanpa routine access events memenuhi timeline;
-14. memilih export visible record ke XLSX atau PDF yang mempertahankan official template secara exact dan hanya mengisi mapped fields/control states;
-15. melihat queued export selesai dan mengunduh ulang READY artifact selama 7 hari;
-16. memperoleh cryptographically signed PDF untuk Approved snapshot, tanpa mengubah `Approved By` business actor;
-17. Archive/Unarchive dengan mandatory reason tanpa menghapus history atau mengganti business status;
-18. memastikan no hard delete dan stale action tidak menghasilkan conflicting transition;
-19. menerapkan current field/attachment/numbering validation sesuai `06_Validation_Rules.md`;
-20. menjalankan automated backend/frontend/E2E/export regression tests sebagai quality gate;
-21. memverifikasi issued Approved PDF melalui public validator tanpa membuka private NSCMF data;
-22. mempertahankan authoritative audit evidence tanpa age-based deletion.
+9. memproses Change Result melalui narrow Requester capability;
+10. melakukan permission-based single final Approval;
+11. menjalankan Return/Reject/Reopen/Archive/Unarchive dengan exact prerequisites;
+12. melihat History/Business Timeline tanpa routine access noise;
+13. memilih export XLSX/PDF exact-template;
+14. melihat queued export dan re-download ≤ 7 days;
+15. memperoleh signed Approved PDF dengan human `Approved By` tetap terpisah dari System/Organization signer;
+16. memverifikasi issued Approved PDF melalui public validator;
+17. memastikan no hard delete dan stale action ditolak;
+18. mempertahankan authoritative audit tanpa age-based deletion;
+19. memastikan Spatie schema tidak diduplikasi dan Spatie Teams tetap disabled.
 
 ---
 
@@ -582,122 +528,85 @@ Stakeholder dapat:
 
 ### Confirmed
 
-- single-organization/single-installation model;
-- canonical states: `DRAFT`, `PENDING_REVIEW`, `REVISION_REQUIRED`, `PENDING_APPROVAL`, `REJECTED`, `APPROVED`, `CANCELLED`;
-- `SUBMITTED`, `REVIEWED`, `REOPENED`, `ARCHIVED` bukan persistent business status;
-- autosave + Save Draft; Draft may incomplete;
-- multi-role;
-- Reviewer/Approver shared/non-exclusive;
-- one final eligible Approver sufficient;
-- unlimited revision;
-- Reopen sources/destinations;
-- Cancel permanent;
-- Archive eligible states + Unarchive;
-- Change Result completed before final Approval without extra state;
-- Requester/owner default Change Result editor via `nscmf.change.result.edit` during `PENDING_REVIEW`;
-- Service Impact multi-select + required Other description;
-- optional attachment with current 10-file / 20-MB-per-file limit and allowlist;
-- mandatory reasons for Return/Reject/Reopen/Archive/Unarchive; Cancel reason optional;
-- view implies export;
-- user-facing XLSX/PDF export choice;
-- all export generation asynchronous;
-- deterministic export snapshot/version binding;
-- generated XLSX/PDF must exactly preserve official XLSX template representation;
-- native template controls must be preserved rather than redrawn/replaced;
-- PDF renderer is acceptance-gated by exact-fidelity golden tests;
-- Approved PDF receives organization/system cryptographic signature;
-- XLSX does not receive PDF signing flow;
-- generated export binary retention = 168 hours / 7 days;
-- separate Access Audit vs Business Timeline;
-- hybrid concurrency: workflow pessimistic row lock, editable Draft/Result optimistic versioning;
-- Emergency no bypass;
-- stale action revalidation;
-- final stack baseline in `08`: Laravel 13/PHP 8.5/Vue 3/TypeScript/Inertia 3/shadcn-vue/MySQL 8.4 LTS;
-- testing stack established from bootstrap: Pest + Vitest + Playwright plus quality gates;
-- password-only authentication, min 6 characters, no composition requirement, no MFA;
-- temporary password + mandatory change for admin-created/reset credentials;
-- login throttling/progressive delay;
-- session policy 30m idle / 8h absolute / max 2 concurrent sessions;
-- sensitive admin password re-authentication + target session revocation;
-- ClamAV malware scanning and fail-closed CLEAN gate;
-- no time-based purge for authoritative Business/Access/Security Audit;
-- manually provisioned server-side Approved-PDF signing identity, never in GitHub;
-- critical readiness failure if required signing identity is missing/unusable;
-- public PDF validator using signature + exact final SHA-256 + issuance/currentness context;
-- no TSA requirement for current MVP.
+Selain seluruh locked workflow/security/export decisions pada dokumen 02–10, berikut sekarang confirmed:
+
+- organization only uses **Team**, not Unit/Division;
+- each normal user has organizational Team profile/membership according to downstream data model;
+- Team is not an authorization boundary;
+- no Reviewer Scope;
+- no Approval Scope;
+- Reviewer/Approver eligibility is permission-centric;
+- Role groups permissions; application checks permissions wherever practical;
+- Spatie Laravel Permission 8.x is the RBAC primitive;
+- package-owned role/permission tables must not be duplicated;
+- Spatie `teams=false`;
+- Spatie wildcard permissions remain disabled;
+- direct-user permission administration is not a normal MVP feature;
+- login/logout are authentication operations, not Spatie permission rows;
+- default Laravel-compatible bigint user identity is preferred for package compatibility unless ERD explicitly justifies another choice;
+- Reopen from Approved/Rejected starts a new workflow iteration;
+- Return/Revision/Resubmit within a current non-terminal cycle does not start a new workflow iteration;
+- deterministic export uses immutable export snapshot.
 
 ### Provisional
 
 Until official company numbering/SOP is supplied:
 
-- automatic number format `NSCMF-YYYYMM-#####`;
-- global monthly automatic sequence scope;
+- automatic number `NSCMF-YYYYMM-#####`;
+- global monthly sequence;
 - manual number pattern/length;
 - Header Date not-future rule at first Submit.
 
-These are current implementation rules but MUST NOT be presented as official VELO numbering policy.
-
 ### Deferred / TBD
 
-- exact Unit/Division default template entries;
-- official company NSCMF numbering SOP/sample that may replace provisional numbering;
-- search/filter requirement final detail if additional criteria are needed;
-- additional export format and bulk packaging beyond confirmed XLSX/PDF behavior;
+- exact default Team master-data entries;
+- official company NSCMF numbering SOP/sample;
+- search/filter refinements;
+- additional export format/bulk packaging beyond XLSX/PDF;
 - notification implementation/provider;
 - performance/SLA/availability targets;
 - backup/restore/DR/RPO/RTO;
 - exact production deployment topology/provider;
-- exact operational signing certificate file format/path/provider if external trust is later required; the security behavior/custody model itself is confirmed in `10_Security_Rules.md`.
+- exact signing certificate operational format/path/provider where needed.
 
 ---
 
-## 17. Notification Roadmap Note
-
-Future candidates:
-
-- Telegram;
-- WhatsApp via Baileys.
-
-Notification bukan dependency core workflow.
-
----
-
-## 18. Document Precedence
+## 17. Document Precedence
 
 - `01_PRD.md` → product scope / intent.
 - `02_Business_Rules.md` → business invariants.
 - `03_User_Flow.md` → interaction sequence.
-- `04_RBAC_Permission_Matrix.md` → permission/scope.
-- `05_State_Status_Flow.md` → authoritative lifecycle/state machine.
+- `04_RBAC_Permission_Matrix.md` → permission-centric authorization and Spatie/Team boundary.
+- `05_State_Status_Flow.md` → lifecycle/state machine/workflow iteration semantics.
 - `06_Validation_Rules.md` → field/action validity.
 - `07_UI_UX_Specification.md` → presentation/interaction detail.
-- `08_Tech_Stack_Specification.md` → technology selection/technology guardrails.
-- `09_System_Architecture.md` → component topology, concurrency, audit separation, queue/export/signing execution architecture.
-- `10_Security_Rules.md` → security controls/authentication/session/audit security/malware/signing-key/public verification.
+- `08_Tech_Stack_Specification.md` → technology/package guardrails.
+- `09_System_Architecture.md` → component/concurrency/audit/export architecture.
+- `10_Security_Rules.md` → security controls.
 - downstream docs → data/API/environment/deployment implementation detail.
 
-Jika requirement berubah, dokumen terkait harus disinkronkan; perubahan tidak boleh hanya hidup di code.
+Jika requirement berubah, semua dokumen terkait harus disinkronkan; perubahan tidak boleh hanya hidup di code.
 
 ---
 
-## 19. Open Product Decisions
+## 18. Open Product Decisions
 
-- [ ] Exact default Unit/Division template data.
-- [ ] Official NSCMF numbering SOP/sample to replace or confirm provisional rule.
-- [ ] Search/filter requirement final detail if additional criteria are needed.
-- [ ] Additional export format dan bulk packaging beyond XLSX/PDF.
+- [ ] Exact default Team template/master data.
+- [ ] Official NSCMF numbering SOP/sample.
+- [ ] Search/filter requirement detail if additional criteria are needed.
+- [ ] Additional export format/bulk packaging beyond XLSX/PDF.
 - [ ] Notification implementation.
 - [ ] Performance/availability targets.
 - [ ] Backup/restore/DR/RPO/RTO.
 - [ ] Exact production deployment topology/provider.
 
-Security decisions confirmed for `10_Security_Rules.md` MUST NOT be returned to TBD without an explicit requirement change.
+Unit/Division, Reviewer Scope, Approval Scope, and Team-based authorization are **not TBD**; they are explicitly excluded from current design.
 
 ---
 
-## 20. Current Documentation Progress
+## 19. Current Documentation Progress
 
-Completed/current draft set before creation of document 10:
+Current authoritative draft set:
 
 ```text
 01_PRD.md
@@ -709,8 +618,9 @@ Completed/current draft set before creation of document 10:
 07_UI_UX_Specification.md
 08_Tech_Stack_Specification.md
 09_System_Architecture.md
+10_Security_Rules.md
 ```
 
-Dokumen berikutnya:
+Next document:
 
-**`10_Security_Rules.md`** — authoritative security controls untuk authentication/session, authorization hardening, attachments/malware scanning, permanent authoritative audit evidence, private export delivery, organization/system signing-key custody, dan public PDF verification.
+**`11_ERD_Database_Schema.md`** — physical relational schema that must reuse Spatie package-owned RBAC tables, model Team separately, avoid scope tables, preserve immutable export snapshots/workflow iterations, and materialize all locked audit/security/export requirements.
