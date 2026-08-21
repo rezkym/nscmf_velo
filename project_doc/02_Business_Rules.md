@@ -4,7 +4,7 @@
 
 > **Document ID:** NSCMF-BR-002  
 > **Document Order:** 02 / 20  
-> **Status:** Draft — Synchronized with confirmed User Flow decisions  
+> **Status:** Draft — Synchronized with confirmed User Flow and RBAC decisions  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `project_doc/01_PRD.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
@@ -16,32 +16,32 @@
 
 Dokumen ini mendefinisikan aturan bisnis yang wajib dipatuhi oleh seluruh implementasi NSCMF Digital Form & Workflow System.
 
-Aturan di sini bersifat lintas UI, backend, database, API, automation, dan AI coding agent. Frontend tidak boleh menjadi satu-satunya lapisan enforcement; business rules yang membatasi akses, state, editability, dan workflow tetap harus divalidasi server-side.
+Aturan berlaku lintas UI, backend, database, API, automation, dan AI coding agent. Frontend tidak boleh menjadi satu-satunya lapisan enforcement; business rules yang membatasi akses, state, editability, scope, dan workflow tetap harus divalidasi server-side.
 
-Dokumen ini belum menggantikan:
+Dokumen ini bekerja bersama:
 
 - `03_User_Flow.md` — urutan interaksi user;
-- `04_RBAC_Permission_Matrix.md` — permission detail;
+- `04_RBAC_Permission_Matrix.md` — siapa boleh melakukan apa;
 - `05_State_Status_Flow.md` — state machine authoritative;
-- `06_Validation_Rules.md` — validitas field dan input;
-- dokumen teknis berikutnya — cara implementasi.
+- `06_Validation_Rules.md` — validitas field/input.
 
 ### Normative Language
 
 - **MUST** — wajib.
 - **MUST NOT** — dilarang.
 - **MAY** — diperbolehkan.
+- **SHOULD** — direkomendasikan sebagai default behavior.
 - **TBD** — belum final dan tidak boleh ditebak oleh implementasi.
 
 ---
 
-# PART A — INITIAL SETUP, ORGANIZATION, AND USERS
+# PART A — INITIAL SETUP, ORGANIZATION, USERS, AND ROLES
 
 ## 2. Initial Setup Wizard
 
 ### BR-SETUP-001 — First-Time Setup Uses a Wizard
 
-Setelah protected Superadmin pertama berhasil login pada instalasi baru, aplikasi MUST menyediakan first-time setup berbentuk wizard, bukan mengharuskan seluruh konfigurasi dilakukan satu per satu tanpa panduan.
+Setelah protected Superadmin pertama berhasil login pada instalasi baru, aplikasi MUST menyediakan first-time setup berbentuk wizard.
 
 ### BR-SETUP-002 — Role Setup Mode
 
@@ -52,39 +52,41 @@ Wizard MUST menyediakan dua opsi:
 
 ### BR-SETUP-003 — Default Role Template
 
-Template minimum MUST memiliki konsep role:
+Template minimum memiliki:
 
 - `Superadmin`
 - `Requester`
 - `Reviewer`
 - `Approver`
 
-Exact permissions akan menjadi authoritative pada `04_RBAC_Permission_Matrix.md`.
+Exact permissions mengikuti `04_RBAC_Permission_Matrix.md`.
 
 ### BR-SETUP-004 — Template Roles Remain Configurable
 
-Role/permission hasil template MAY dimodifikasi oleh authorized administrator setelah initial setup, kecuali protected Superadmin invariants.
+Role/permission hasil template MAY dimodifikasi setelah initial setup oleh actor yang memiliki permission administrasi yang sesuai, kecuali protected Superadmin invariants.
 
 ### BR-SETUP-005 — Unit / Division Setup Mode
 
-Wizard MUST menyediakan konfigurasi Unit/Division dengan dua pendekatan:
+Wizard MUST menyediakan dua pendekatan Unit/Division:
 
-1. memilih predefined template/mapping;
-2. membuat Unit/Division secara manual.
+1. predefined template/mapping;
+2. manual configuration.
 
-Exact default template entries akan ditentukan kemudian dan MUST NOT ditebak oleh implementation agent.
+Exact default template entries masih TBD dan MUST NOT ditebak oleh implementation agent.
 
 ### BR-SETUP-006 — User Organizational Mapping
 
-User MAY dipetakan ke Unit/Division yang relevan. Mapping ini menjadi salah satu dasar visibility Reviewer dan scope lain yang ditentukan pada RBAC.
+User MAY dipetakan ke Unit/Division. Mapping tersebut digunakan sebagai salah satu dasar scope/visibility.
 
 ### BR-SETUP-007 — Approver May Cover Multiple Units
 
-Satu Approver MAY memiliki approval scope untuk lebih dari satu Unit/Division sekaligus.
+Satu Approver MAY memiliki Approval Scope yang mencakup lebih dari satu Unit/Division.
 
-### BR-SETUP-008 — Setup Completion Does Not Lock Configuration Permanently
+### BR-SETUP-008 — Core Initial System Settings Are Superadmin-Only
 
-Setelah wizard selesai, authorized administrator MAY mengelola konfigurasi role, permission, Unit/Division, mapping, dan scope melalui area administration/settings sesuai RBAC.
+Core initial/system-level settings seperti setup mode, global numbering configuration, dan notification integration settings hanya dapat dikelola protected Superadmin sesuai RBAC.
+
+Ongoing role, user, permission, dan Unit/Division administration MAY didelegasikan melalui permission granular.
 
 ---
 
@@ -94,11 +96,11 @@ Setelah wizard selesai, authorized administrator MAY mengelola konfigurasi role,
 
 Initial seeding MUST membuat setidaknya satu protected Superadmin account.
 
-### BR-SUPER-002 — Highest Authority
+### BR-SUPER-002 — Highest Standard Authority
 
-Protected Superadmin adalah role tertinggi pada standard system hierarchy.
+Protected Superadmin adalah authority tertinggi pada standard role template.
 
-### BR-SUPER-003 — Cannot Be Deleted or Disabled
+### BR-SUPER-003 — Cannot Be Deleted, Disabled, or Downgraded
 
 Protected Superadmin MUST NOT dapat:
 
@@ -106,61 +108,64 @@ Protected Superadmin MUST NOT dapat:
 - soft delete;
 - disable;
 - kehilangan protected Superadmin role;
-- didowngrade menjadi role yang lebih rendah.
+- didowngrade.
 
-### BR-SUPER-004 — Protection Applies to All Interfaces
+### BR-SUPER-004 — Protection Applies Everywhere
 
-Proteksi MUST berlaku melalui UI, API, import, bulk action, maupun administrative flow lain.
+Proteksi berlaku melalui UI, API, import, bulk action, maupun administrative flow lain.
 
 ### BR-SUPER-005 — Global NSCMF Visibility
 
-Protected Superadmin MUST dapat melihat seluruh NSCMF.
+Protected Superadmin MUST dapat melihat seluruh NSCMF, termasuk archived records.
 
 ### BR-SUPER-006 — Protected Identity Does Not Mean Plaintext Credential
 
-Istilah seeded/hardcoded pada requirement berarti identity/role dilindungi pada level aplikasi. Password atau secret MUST NOT disimpan sebagai plaintext di source code.
+Seeded/protected identity tidak mengizinkan plaintext password atau secret di source code.
 
 ---
 
-## 4. User Administration
+## 4. User and Permission Administration
 
 ### BR-USER-001 — No Self-Registration
 
 User biasa MUST NOT dapat self-register.
 
-### BR-USER-002 — Superadmin Creates Users
+### BR-USER-002 — Administrative User Creation
 
-User account dibuat melalui administrative flow oleh Superadmin atau role yang nantinya diberi permission user-management.
+User account dibuat melalui administrative flow oleh Superadmin atau actor yang memiliki permission user-management.
 
-### BR-USER-003 — User Management Capabilities
+### BR-USER-003 — Delegated Administration Is Allowed
 
-Authorized administrator MAY:
+Actor dengan permission yang sesuai MAY:
 
-- membuat user;
-- edit profile user;
+- create/edit user;
 - assign/remove role;
 - assign/move Unit/Division;
-- configure allowed scope;
-- reset credential/password melalui mechanism yang ditentukan kemudian;
-- enable/disable normal user account.
+- configure scope;
+- reset password/credential melalui mechanism final;
+- enable/disable normal account;
+- manage eligible roles/permissions;
+- manage eligible Unit/Division configuration.
 
-Protected Superadmin tetap tunduk pada proteksi Part A.
+Protected Superadmin tetap tidak dapat dimodifikasi dengan cara yang melanggar Part A.
 
 ### BR-USER-004 — Multiple Roles Allowed
 
-Satu user MAY memiliki lebih dari satu role sekaligus.
+Satu user MAY memiliki lebih dari satu role.
 
-### BR-USER-005 — No Mandatory Segregation of Duty Yet
+### BR-USER-005 — No Mandatory Segregation of Duty
 
 Current business decision tidak mewajibkan `Requester != Reviewer != Approver`.
 
-User yang memiliki permission dan scope sesuai MAY berpartisipasi pada beberapa tahap record yang sama.
+User dengan permission, scope, dan workflow eligibility yang valid MAY berpartisipasi pada lebih dari satu tahap record yang sama.
 
-Jika organisasi ingin segregation of duty di kemudian hari, itu harus menjadi business-rule change eksplisit.
+### BR-USER-006 — No User Impersonation
 
-### BR-USER-006 — Permission Implementation Package Is Deferred
+User impersonation/login-as-user tidak termasuk product scope saat ini.
 
-Package seperti `spatie/laravel-permission` adalah kandidat implementasi yang sesuai, tetapi bukan business invariant. Keputusan final package berada di `08_Tech_Stack_Specification.md`.
+### BR-USER-007 — Permission Package Is Deferred
+
+Package seperti `spatie/laravel-permission` merupakan kandidat implementasi, bukan business invariant. Keputusan final berada di `08_Tech_Stack_Specification.md`.
 
 ---
 
@@ -177,9 +182,9 @@ Aplikasi MUST menyediakan:
 
 ### BR-FORM-002 — Activation Context
 
-Activation digunakan untuk konteks **instalasi / provisioning** sesuai proses bisnis yang dikonfirmasi.
+Activation digunakan untuk konteks **instalasi / provisioning**.
 
-Subtype pada source workbook:
+Subtype dari source workbook:
 
 - Activation;
 - Upgrade / Downgrade;
@@ -189,7 +194,7 @@ Subtype pada source workbook:
 
 Change digunakan untuk konteks **maintenance / perubahan terhadap layanan atau environment yang sudah berjalan**.
 
-Subtype pada source workbook:
+Subtype dari source workbook:
 
 - Maintenance;
 - Upgrade;
@@ -197,26 +202,24 @@ Subtype pada source workbook:
 
 ### BR-FORM-004 — Upgrade Is Contextual
 
-Karena `Upgrade` muncul di kedua form family, sistem MUST NOT menentukan form hanya dari keyword `Upgrade`.
+Karena `Upgrade` muncul pada Activation dan Change, sistem MUST NOT menentukan form hanya dari keyword `Upgrade`.
 
 - upgrade dalam konteks instalasi/provisioning → Activation;
 - upgrade dalam konteks maintenance/perubahan existing service/environment → Change.
 
-Kasus abu-abu harus dikonfirmasi ke business owner dan tidak boleh diklasifikasikan otomatis berdasarkan tebakan.
+Kasus abu-abu harus dikonfirmasi kepada business owner.
 
 ---
 
-## 6. NSCMF Change Field Semantics from Workbook
+## 6. NSCMF Change Field Semantics
 
-Source workbook telah dibaca ulang dan rule berikut menjaga agar implementasi tidak salah mengubah field menjadi pilihan yang tidak ada.
+### BR-CHG-001 — Purpose of Changes Is a Section
 
-### BR-CHG-001 — Purpose of Changes Is a Section, Not a Choice
-
-`(A) Purpose of Changes` adalah section form.
+`(A) Purpose of Changes` adalah section form, bukan selectable option.
 
 ### BR-CHG-002 — Facing Challenges Is Input Content
 
-`Facing Challenges (Upgrade / Emergency)` merupakan field/area input untuk menjelaskan kondisi/challenge. Label tersebut MUST NOT diperlakukan sebagai daftar pilihan `Upgrade` vs `Emergency`.
+`Facing Challenges (Upgrade / Emergency)` merupakan area input dan MUST NOT diperlakukan sebagai pilihan `Upgrade` vs `Emergency`.
 
 ### BR-CHG-003 — Maintenance Purpose Is Input Content
 
@@ -224,11 +227,11 @@ Source workbook telah dibaca ulang dan rule berikut menjaga agar implementasi ti
 
 ### BR-CHG-004 — Identified Problem Is Input Content
 
-`Identified Problem (Please elaborate)` merupakan field/area input naratif, bukan option selector.
+`Identified Problem (Please elaborate)` merupakan field naratif, bukan option selector.
 
 ### BR-CHG-005 — Service Impact Provides Selectable Values
 
-`Service Impact` MUST menyediakan pilihan yang merepresentasikan source workbook:
+`Service Impact` menyediakan pilihan dari source workbook:
 
 - NOC15;
 - NOC23;
@@ -238,11 +241,11 @@ Source workbook telah dibaca ulang dan rule berikut menjaga agar implementasi ti
 - Customer;
 - Other.
 
-Apakah pilihan tersebut single-select atau multi-select akan difinalisasi pada Validation/UI specification berdasarkan business confirmation dan behavior checkbox sumber.
+Single-select vs multi-select akan dikunci pada Validation/UI specification berdasarkan behavior checkbox sumber dan konfirmasi bisnis.
 
-### BR-CHG-006 — Improvement Plan and KPI Are Data Inputs
+### BR-CHG-006 — Improvement Plan and KPI Are Inputs
 
-`Maintenance (Improvement) Plan` dan `Target KPI` adalah input data yang saling berkaitan secara konteks.
+`Maintenance (Improvement) Plan` dan `Target KPI` adalah input data.
 
 ### BR-CHG-007 — Execution Information Must Be Representable
 
@@ -253,7 +256,7 @@ Change form MUST dapat merepresentasikan:
 - Rollback scenario;
 - Maintenance Announcement.
 
-Source workbook juga menampilkan opsi announcement timing `1 week before`, `2 weeks before`, dan `2 days before (emergency)`. Exact validation/cardinality akan difinalisasi kemudian.
+Source workbook juga menampilkan announcement timing `1 week before`, `2 weeks before`, dan `2 days before (emergency)`.
 
 ### BR-CHG-008 — Result of Changes Is a Distinct Section
 
@@ -263,11 +266,11 @@ Source workbook juga menampilkan opsi announcement timing `1 week before`, `2 we
 - Performance information;
 - Status.
 
-Pada tahap workflow kapan section ini wajib diisi masih TBD dan akan diputuskan pada Validation Rules/User Flow refinement tanpa menebak proses operasional yang belum dikonfirmasi.
+Pada tahap workflow kapan section ini wajib diisi masih TBD.
 
 ---
 
-# PART C — RECORD CREATION, NUMBERING, DRAFT, AND ATTACHMENTS
+# PART C — RECORD CREATION, NUMBERING, DRAFT, CANCELLATION, ATTACHMENTS
 
 ## 7. Record Creation
 
@@ -279,55 +282,53 @@ Setiap NSCMF MUST memiliki requester/owner context dan creator identity.
 
 Saat membuat record, user memilih:
 
-1. form family: Activation atau Change;
-2. subtype yang tersedia pada family tersebut;
+1. form family;
+2. subtype;
 3. numbering mode;
-4. kemudian mengisi form.
+4. lalu mengisi form.
 
 ### BR-REC-003 — Numbering Mode Is Chosen Per Form
 
-Setiap pembuatan NSCMF baru MUST memberikan pilihan:
+Setiap record baru menawarkan:
 
 - **Automatic Number Generation**;
 - **Manual Number Entry**.
 
-Pilihan ini bukan global setting yang mengikat seluruh record.
-
 ### BR-REC-004 — Automatic Format Is TBD
 
-Format nomor otomatis belum ditentukan dan MUST NOT dibuat berdasarkan asumsi.
+Format nomor otomatis belum ditentukan.
 
 ### BR-REC-005 — Manual Number Requires Validation
 
-Manual number harus divalidasi berdasarkan format/uniqueness final pada `06_Validation_Rules.md`.
+Manual number harus divalidasi berdasarkan format/uniqueness final di `06_Validation_Rules.md`.
 
 ---
 
 ## 8. Draft and Autosave
 
-### BR-DRAFT-001 — Draft Is an Official Phase
+### BR-DRAFT-001 — Draft Is Official
 
 Aplikasi MUST mendukung Draft.
 
 ### BR-DRAFT-002 — Draft Is Editable
 
-Requester MAY mengedit own Draft secara bebas selama masih memiliki akses.
+Requester MAY mengedit own Draft secara bebas selama masih eligible.
 
-### BR-DRAFT-003 — Autosave Is Required UX Behavior
+### BR-DRAFT-003 — Autosave Is Required
 
-Editable Draft MUST mendukung autosave sehingga perubahan dapat dipersist tanpa hanya bergantung pada tombol manual.
+Editable Draft MUST mendukung autosave.
 
 ### BR-DRAFT-004 — Manual Save Draft Still Exists
 
-Walaupun autosave tersedia, UI MUST tetap menyediakan action `Save Draft` untuk memberi user kontrol eksplisit.
+UI MUST tetap menyediakan `Save Draft` walaupun autosave aktif.
 
 ### BR-DRAFT-005 — Persisted Draft Changes Are Audited
 
-Setiap perubahan Draft yang berhasil dipersist, baik melalui autosave maupun Save Draft, MUST tercatat pada audit log.
+Setiap Draft change yang berhasil dipersist MUST masuk audit log.
 
 ### BR-DRAFT-006 — Draft May Be Incomplete
 
-Draft MAY disimpan dalam kondisi belum memenuhi submission validation.
+Draft MAY disimpan walaupun submission validation belum lengkap.
 
 ---
 
@@ -335,25 +336,25 @@ Draft MAY disimpan dalam kondisi belum memenuhi submission validation.
 
 ### BR-CAN-001 — Cancellation Is Draft-Only
 
-Requester MAY Cancel own NSCMF **hanya selama record masih Draft dan belum pernah di-Submit untuk Review**.
+Requester MAY Cancel own NSCMF hanya selama masih Draft dan **belum pernah Submit untuk Review**.
 
-### BR-CAN-002 — Submit Removes Normal Cancel Right
+### BR-CAN-002 — Submit Removes Cancel Right
 
-Setelah Submit pertama berhasil, requester MUST NOT membatalkan request melalui normal Cancel action.
+Setelah Submit pertama, normal Cancel action tidak tersedia.
 
 ### BR-CAN-003 — Cancelled Is Permanent
 
-Cancelled record adalah terminal untuk business flow normal dan MUST NOT dapat di-reopen.
+Cancelled record adalah terminal dan MUST NOT dapat Reopen.
 
-Jika kebutuhan bisnis masih ada, requester harus membuat NSCMF baru.
+Jika kebutuhan masih ada, buat NSCMF baru.
 
 ### BR-CAN-004 — Cancel Is Not Delete
 
-Cancelled record tetap disimpan untuk history dan audit.
+Cancelled record tetap ada di History dan audit.
 
-### BR-CAN-005 — Cancel Event Is Logged
+### BR-CAN-005 — Cancel Is Logged
 
-Cancel MUST mencatat actor, timestamp, dan record reference. Mandatory reason masih TBD.
+Cancel MUST mencatat actor, timestamp, dan record. Mandatory reason masih TBD.
 
 ---
 
@@ -365,17 +366,15 @@ Form MUST menyediakan attachment input secara visual.
 
 ### BR-ATT-002 — Attachment Is Optional
 
-Attachment bersifat optional pada current requirement, termasuk walaupun source Change workbook memiliki catatan meminta documentation untuk upgrade/emergency.
-
-Business decision aplikasi saat ini adalah attachment tidak otomatis menjadi mandatory.
+Attachment bersifat optional pada current requirement.
 
 ### BR-ATT-003 — Attachment Mutations Are Audited
 
-Add/remove/replace attachment reference MUST tercatat pada audit history.
+Add/remove/replace attachment reference MUST tercatat.
 
-### BR-ATT-004 — Attachment Security Constraints Are Deferred
+### BR-ATT-004 — Attachment Constraints Are Deferred
 
-Allowed type, size, count, scanning, dan storage ditentukan pada Validation/Security/Architecture.
+Allowed type, size, count, scanning, dan storage ditentukan di Validation/Security/Architecture.
 
 ---
 
@@ -383,21 +382,21 @@ Allowed type, size, count, scanning, dan storage ditentukan pada Validation/Secu
 
 ## 11. Submit
 
-### BR-SUB-001 — Submit Requires Submission Validation
+### BR-SUB-001 — Submit Requires Validation
 
-Requester hanya MAY Submit jika validation wajib untuk submission terpenuhi.
+Requester hanya MAY Submit jika submission validation terpenuhi.
 
 ### BR-SUB-002 — Submit Locks Requester Editing
 
-Setelah Submit, requester tidak dapat mengedit record sampai workflow mengembalikannya untuk revision.
+Setelah Submit, requester tidak dapat mengedit sampai workflow mengembalikan record untuk revision.
 
-### BR-SUB-003 — Submit Creates Review Visibility
+### BR-SUB-003 — Submit Creates Reviewer Visibility
 
-Setelah Submit, record menjadi tersedia bagi Reviewer yang memiliki Unit/Division scope yang sesuai.
+Setelah Submit, record tersedia bagi Reviewer dengan matching Unit/Division scope.
 
-### BR-SUB-004 — No Manual Reviewer Selection Required
+### BR-SUB-004 — No Manual Reviewer Selection
 
-Requester tidak perlu memilih satu Reviewer tertentu ketika Submit.
+Requester tidak perlu memilih satu Reviewer tertentu saat Submit.
 
 ---
 
@@ -405,43 +404,35 @@ Requester tidak perlu memilih satu Reviewer tertentu ketika Submit.
 
 ### BR-REV-001 — All Eligible Reviewers Can See
 
-Semua Reviewer dengan Unit/Division scope yang sesuai MAY melihat submitted record.
+Semua Reviewer dengan Unit/Division scope yang sesuai MAY melihat submitted/relevant record.
 
 ### BR-REV-002 — Review Is Non-Exclusive
 
-Record tidak dikunci secara eksklusif kepada satu Reviewer hanya karena Reviewer pertama membuka atau melakukan action.
-
-Reviewer lain yang masih memiliki scope tetap dapat melihat dan, sesuai state/permission, melakukan review action.
+Record tidak di-lock eksklusif kepada Reviewer pertama.
 
 ### BR-REV-003 — Viewer Logging
 
-Ketika Reviewer membuka/melihat record, view event MUST dapat dicatat sebagai viewer activity.
+Reviewer yang membuka record MUST dapat dicatat sebagai viewer activity.
 
-Exact retention dan UI presentation dapat difinalisasi pada Audit/UI specification, tetapi flow harus mendukung pencatatan viewer.
+### BR-REV-004 — Action Actor Is Tracked
 
-### BR-REV-004 — Action Actor Becomes Assigned/Modified Context
+Reviewer yang melakukan perubahan/workflow action MUST tercatat sebagai actor, dan dapat direpresentasikan sebagai assigned/current reviewer dan/atau `modified by` sesuai data model final.
 
-Reviewer yang melakukan perubahan/workflow action MUST tercatat sebagai actor dan dapat direpresentasikan sebagai assigned/current reviewer context dan/atau `modified by` sesuai data model final.
+### BR-REV-005 — Assigned/Modified Context May Have Multiple Reviewers
 
-Assignment tersebut MUST NOT membuat reviewer lain kehilangan visibility atau action rights secara otomatis.
-
-### BR-REV-005 — Multiple Reviewers Are Supported
-
-Satu record MAY berinteraksi dengan lebih dari satu Reviewer sepanjang lifecycle-nya.
+Satu record MAY memiliki lebih dari satu Reviewer contributor. Assignment/tracking tidak mencabut hak eligible Reviewer lain.
 
 ### BR-REV-006 — Reviewer Actions
 
 Reviewer MAY:
 
-- complete/forward review menuju Approval;
-- Return for Revision ke Requester;
+- complete/forward Review;
+- Return for Revision;
 - Reject.
-
-Semua action MUST tercatat.
 
 ### BR-REV-007 — Emergency Still Requires Review
 
-Change/Emergency MUST tetap melalui Review.
+Change/Emergency tetap wajib Review.
 
 ---
 
@@ -451,27 +442,25 @@ Change/Emergency MUST tetap melalui Review.
 
 ### BR-RET-001 — Return Unlocks Requester Editing
 
-Jika record dikembalikan kepada Requester, requester MAY mengedit record kembali.
+Jika record dikembalikan ke Requester, requester MAY mengedit kembali.
 
-### BR-RET-002 — Revision Can Repeat Without Fixed Limit
+### BR-RET-002 — Revision Can Repeat
 
-Siklus berikut MAY berulang berkali-kali:
+Siklus berikut MAY berulang tanpa fixed maximum:
 
-`Submit → Review → Return → Requester Edit → Resubmit → Review`
+`Submit → Review → Return → Edit → Resubmit → Review`
 
-### BR-RET-003 — Resubmission Returns to Same Reviewer Context
+### BR-RET-003 — Same Reviewer Context Is Preserved
 
-Setelah revision yang berasal dari Reviewer, Resubmit SHOULD mengembalikan record ke reviewer context yang sama sebagai continuity/assigned reference.
+Setelah revision yang berasal dari Reviewer, Resubmit SHOULD mengembalikan record ke reviewer context yang sama sebagai continuity reference.
 
-Namun record MUST tetap visible bagi Reviewer lain dalam scope yang sama.
+### BR-RET-004 — Other Reviewers Remain Eligible
 
-### BR-RET-004 — Another Eligible Reviewer May Continue
+Reviewer lain dalam scope tetap visible dan MAY melanjutkan review/action jika state dan permission valid.
 
-Reviewer lain yang memiliki scope MAY melanjutkan review, forward, atau return lagi jika current state dan permission mengizinkan.
+### BR-RET-005 — Every Iteration Is Logged
 
-### BR-RET-005 — Every Revision Is Logged
-
-Old value, new value, actor, timestamp, resubmission, reviewer actions, dan iteration history MUST dipertahankan.
+Old/new value, actor, timestamp, return, revision, resubmit, dan reviewer action MUST dipertahankan.
 
 ---
 
@@ -481,11 +470,11 @@ Old value, new value, actor, timestamp, resubmission, reviewer actions, dan iter
 
 ### BR-APR-001 — Approver Uses Configured Scope
 
-Approver hanya dapat bertindak pada record dalam configured approval scope.
+Approver hanya dapat bertindak pada record dalam matching Approval Scope.
 
 ### BR-APR-002 — One Approver May Cover Multiple Units
 
-Approver MAY memiliki scope mencakup beberapa Unit/Division sekaligus.
+Approver MAY memiliki Approval Scope untuk beberapa Unit/Division.
 
 ### BR-APR-003 — Approval Requires Review
 
@@ -502,13 +491,33 @@ Approver MAY:
 
 ### BR-APR-005 — Return to Requester Must Pass Review Again
 
-Jika Approver mengembalikan record ke Requester, flow setelah requester memperbaiki dan Resubmit MUST melewati Review lagi sebelum kembali ke Approval.
-
-Aplikasi MUST NOT mengirim revision requester langsung kembali ke Approver tanpa review baru.
+Jika Approver mengembalikan ke Requester, setelah revision dan Resubmit record MUST melewati Review lagi sebelum kembali ke Approval.
 
 ### BR-APR-006 — Approval Is Audited
 
-Approval MUST mencatat actor, timestamp, record, dan relevant workflow context.
+Approval MUST mencatat actor, timestamp, record, dan workflow context.
+
+### BR-APR-007 — Approver Eligibility Is Non-Exclusive
+
+Approver tidak di-assign eksklusif.
+
+Semua Approver dengan permission dan matching Approval Scope MAY melihat dan mengambil action pada approval candidate selama action valid terhadap current state.
+
+### BR-APR-008 — Single Final Approval Is Sufficient
+
+**Satu final approval dari satu eligible Approver sudah cukup untuk membuat NSCMF menjadi Approved.**
+
+Sistem MUST NOT mewajibkan seluruh eligible Approver memberikan approval.
+
+### BR-APR-009 — Approved By Is the Final Approval Actor
+
+`Approved By` adalah actor yang berhasil mengeksekusi final Approve action.
+
+Activity Approver lain seperti View, Return, atau Reject pada iteration sebelumnya tetap berada di timeline.
+
+### BR-APR-010 — No Duplicate Final Approval for Same Iteration
+
+Setelah satu eligible Approver berhasil membuat record menjadi Approved, Approver lain tidak dapat menghasilkan approval kedua untuk workflow iteration yang sama.
 
 ---
 
@@ -518,32 +527,30 @@ Approval MUST mencatat actor, timestamp, record, dan relevant workflow context.
 
 ### BR-REJ-001 — Reject Is Not Delete
 
-Rejected record tetap tersimpan pada History.
+Rejected record tetap tersimpan di History.
 
 ### BR-REJ-002 — Reviewer and Approver May Reject
 
-Reviewer dan Approver MAY Reject sesuai scope/permission.
+Reviewer dan Approver MAY Reject sesuai permission/scope.
 
 ### BR-REJ-003 — Rejected Is Closed for Normal Workflow
 
-Requester tidak dapat mengedit/resubmit Rejected record melalui normal flow.
+Requester tidak dapat normal edit/resubmit Rejected record.
 
-### BR-REJ-004 — Rejected May Be Reopened by Authorized Authority
+### BR-REJ-004 — Rejected May Be Reopened by Authorized Actor
 
 Rejected record MAY di-reopen oleh:
 
-- protected highest role; atau
-- role/user yang secara eksplisit memiliki permission `reopen rejected` sesuai RBAC final.
+- protected Superadmin; atau
+- actor yang secara eksplisit memiliki `nscmf.reopen` dan valid record visibility.
 
 ### BR-REJ-005 — Reopen Requires Reason
 
-Reopen MUST meminta alasan dan mencatat actor, timestamp, previous state, destination, dan reason.
+Reopen MUST meminta reason dan mencatat actor, timestamp, previous state, destination, dan reason.
 
 ### BR-REJ-006 — Reopen Actor Selects Destination
 
-Authorized actor yang melakukan reopen MUST memilih tujuan workflow yang valid saat reopen.
-
-Allowed destination akan menjadi authoritative pada `05_State_Status_Flow.md`.
+Authorized actor memilih destination yang valid saat Reopen. Allowed destinations akan dikunci pada `05_State_Status_Flow.md`.
 
 ---
 
@@ -553,17 +560,22 @@ Allowed destination akan menjadi authoritative pada `05_State_Status_Flow.md`.
 
 Approved record tidak dapat diedit melalui normal workflow.
 
-### BR-REOPEN-002 — Approved Reopen Is Highest-Authority Action
+### BR-REOPEN-002 — Approved Reopen Is Permission-Gated
 
-Approved record hanya dapat di-reopen/revert oleh protected highest authority sesuai RBAC final; standard template menggunakan Superadmin.
+Approved record MAY di-reopen/revert oleh:
+
+- protected Superadmin; atau
+- actor yang secara eksplisit memiliki `nscmf.reopen`, matching visibility/scope, dan memenuhi state requirement.
+
+Default template hanya memberikan capability ini kepada Superadmin, tetapi RBAC MAY mendelegasikannya kepada custom/default role lain.
 
 ### BR-REOPEN-003 — Reason Is Mandatory
 
-Reopen Approved MUST memiliki alasan.
+Reopen Approved MUST memiliki reason.
 
 ### BR-REOPEN-004 — Actor Chooses Valid Target
 
-Actor yang melakukan reopen memilih target workflow yang valid pada saat reopen.
+Actor yang melakukan Reopen memilih target workflow yang valid sesuai State Flow.
 
 ### BR-REOPEN-005 — Previous Approval Is Preserved
 
@@ -571,67 +583,73 @@ Reopen MUST NOT menghapus fakta bahwa record pernah Approved.
 
 ---
 
-# PART H — VISIBILITY, HISTORY, EXPORT
+# PART H — VISIBILITY, TIMELINE, HISTORY, EXPORT
 
 ## 17. Requester Visibility
 
-### BR-VIS-001
+### BR-VIS-001 — Requester Own Records
 
-Requester melihat own NSCMF.
-
-Jika user memiliki role tambahan, visibility dari role lain bersifat additive sesuai scope.
+Requester melihat own NSCMF. Multi-role visibility bersifat additive.
 
 ## 18. Reviewer Visibility
 
-### BR-VIS-002
+### BR-VIS-002 — Reviewer Scope
 
-Reviewer melihat submitted/relevant records berdasarkan Unit/Division scope.
-
-Reviewer role sendiri tidak memberikan global access.
+Reviewer melihat relevant records berdasarkan Unit/Division scope.
 
 ## 19. Approver Visibility
 
-### BR-VIS-003
+### BR-VIS-003 — Approver Scope
 
-Approver melihat records berdasarkan configured approval scope, termasuk kemungkinan multiple Unit/Division.
+Approver melihat relevant records berdasarkan configured Approval Scope, termasuk multi-unit.
 
 ## 20. Superadmin Visibility
 
-### BR-VIS-004
+### BR-VIS-004 — Global Visibility
 
-Protected Superadmin dapat melihat seluruh NSCMF.
+Protected Superadmin melihat seluruh NSCMF.
 
-## 21. View Implies Export
+## 21. Timeline Visibility
 
-### BR-EXP-001
+### BR-TIME-001 — Valid Viewer Can See Timeline
 
-Setiap user yang secara sah dapat melihat sebuah NSCMF MAY mengekspor record tersebut.
+Semua user yang secara sah dapat melihat record juga dapat melihat timeline siapa melakukan apa pada record tersebut.
 
-### BR-EXP-002
+### BR-TIME-002 — Timeline Does Not Grant Audit Mutation
+
+Melihat timeline tidak memberi kemampuan mengedit/menghapus historical audit events.
+
+## 22. Export
+
+### BR-EXP-001 — View Implies Export
+
+Setiap user yang sah melihat sebuah NSCMF MAY mengekspor record tersebut.
+
+### BR-EXP-002 — No View Means No Export
 
 User MUST NOT mengekspor record yang tidak dapat dilihat.
 
-### BR-EXP-003
+### BR-EXP-003 — Bulk Export Checks Every Record
 
 Bulk export MUST menerapkan visibility check per record.
 
-### BR-EXP-004
+### BR-EXP-004 — Export Does Not Change Business State
 
-Export tidak mengubah business state atau data record.
+Export tidak mengubah data atau workflow state.
 
 ---
 
-# PART I — AUDIT, VIEW LOG, AND TRACEABILITY
+# PART I — AUDIT AND TRACEABILITY
 
-## 22. Detailed Audit
+## 23. Detailed Audit
 
 ### BR-AUD-001 — Every Persisted Business Change Is Logged
 
-Setiap persisted change MUST tercatat secara detail, termasuk saat Draft.
+Setiap persisted business change MUST tercatat, termasuk saat Draft.
 
 ### BR-AUD-002 — Minimum Field Change Audit
 
-Audit perubahan field MUST dapat merepresentasikan:
+Audit field change MUST dapat merepresentasikan:
 
 - record identifier;
 - actor;
@@ -639,7 +657,7 @@ Audit perubahan field MUST dapat merepresentasikan:
 - field/data element;
 - old value;
 - new value;
-- action/event context.
+- event context.
 
 ### BR-AUD-003 — Workflow Events Are Logged
 
@@ -649,7 +667,7 @@ Minimal event berikut MUST tercatat:
 - autosave/save draft persistence;
 - cancel;
 - submit;
-- record view oleh Reviewer/other actor ketika viewer logging berlaku;
+- viewer activity yang diwajibkan;
 - review action;
 - return;
 - revision;
@@ -660,15 +678,15 @@ Minimal event berikut MUST tercatat:
 - archive;
 - numbering change;
 - attachment mutation;
-- user/role/scope administrative changes yang relevan.
+- relevant user/role/scope administrative changes.
 
-### BR-AUD-004 — Review Viewer vs Modifier Must Be Distinguishable
+### BR-AUD-004 — Viewer and Modifier Are Distinguishable
 
-Audit/history MUST dapat membedakan Reviewer yang hanya melihat record dengan Reviewer yang melakukan action/perubahan.
+History MUST dapat membedakan actor yang hanya melihat dengan actor yang melakukan perubahan/action.
 
 ### BR-AUD-005 — Historical Cycles Are Never Overwritten
 
-Revision, previous rejection, previous approval, dan previous reviewer activity MUST dipertahankan sebagai historical fact.
+Revision, rejection, approval, viewer, reviewer, dan approver activity sebelumnya MUST dipertahankan.
 
 ### BR-AUD-006 — Audit Data Is Not User-Editable
 
@@ -676,53 +694,62 @@ Normal user MUST NOT mengubah historical audit entries.
 
 ### BR-AUD-007 — Export Audit Is Deferred
 
-Apakah setiap export/download wajib menjadi audit event masih TBD dan akan diputuskan pada Security/Audit specification.
+Mandatory logging setiap export/download masih TBD.
 
 ---
 
 # PART J — ARCHIVE AND DATA PRESERVATION
 
-## 23. No Hard Delete
+## 24. No Hard Delete
 
-### BR-DEL-001
+### BR-DEL-001 — NSCMF Has No Hard Delete
 
-NSCMF MUST NOT memiliki normal hard-delete capability.
-
-Rule ini juga berlaku kepada Superadmin.
+NSCMF MUST NOT memiliki normal hard-delete capability, termasuk untuk Superadmin.
 
 ### BR-DEL-002 — Archive Replaces Delete
 
 Jika record perlu dikeluarkan dari active operational view, gunakan Archive.
 
-### BR-DEL-003 — Archive Is Highest-Authority Administrative Action
+### BR-DEL-003 — Archive Is Permission-Gated
 
-Archive hanya dapat dilakukan oleh Superadmin/highest role atau authority setara yang didefinisikan secara eksplisit pada RBAC.
+Archive dapat dilakukan oleh:
+
+- protected Superadmin; atau
+- actor yang memiliki explicit `nscmf.archive`, valid record visibility, dan memenuhi state requirement.
 
 ### BR-DEL-004 — Archive Does Not Rewrite Business Status
 
-Archive adalah administrative visibility/lifecycle treatment dan MUST NOT menghapus atau memalsukan business status terakhir record.
+Archive tidak boleh menghapus atau memalsukan last business status.
 
-### BR-DEL-005 — Archive Preserves Everything Needed for History
+### BR-DEL-005 — Archive Preserves History
 
-Archive MUST mempertahankan record data, workflow history, audit, review/approval history, dan attachment references sesuai retention/security policy.
+Archive mempertahankan record, workflow history, audit, review/approval history, dan attachment references sesuai policy final.
 
-### BR-DEL-006 — Archived Is Removed from Default Active View
+### BR-DEL-006 — Archived Is Removed From Default Active View
 
-Archived record tidak tampil pada default active list, tetapi tetap harus dapat diakses melalui authorized archived/history view.
+Archived record tidak tampil di default active list, tetapi tetap tersedia melalui authorized archived/history view.
 
-### BR-DEL-007 — Unarchive Is TBD
+### BR-DEL-007 — Archived Visibility Follows Normal Scope
 
-Apakah Archive dapat dibalik melalui Unarchive belum dikonfirmasi.
+- Superadmin → seluruh archived records;
+- Requester → archived own record;
+- Reviewer → archived record dalam Unit/Division scope;
+- Approver → archived record dalam Approval Scope;
+- custom role → sesuai view permission dan scope.
+
+### BR-DEL-008 — Unarchive Is TBD
+
+Unarchive behavior belum dikonfirmasi.
 
 ---
 
 # PART K — NOTIFICATIONS
 
-## 24. Notification Capability Is Drafted, Not Current Priority
+## 25. Notification Capability Is Drafted, Not Priority
 
-### BR-NOTIF-001
+### BR-NOTIF-001 — Future Notification Hooks
 
-Product MAY menyediakan notification hook untuk event seperti:
+Product MAY menyediakan hook untuk:
 
 - Submit;
 - Return for Revision;
@@ -731,158 +758,168 @@ Product MAY menyediakan notification hook untuk event seperti:
 - Approve;
 - Reopen.
 
-### BR-NOTIF-002
+### BR-NOTIF-002 — Not an MVP Blocker
 
-Notification belum menjadi execution priority dan MUST NOT menghambat core MVP workflow.
+Notification MUST NOT menghambat core MVP workflow.
 
-### BR-NOTIF-003
+### BR-NOTIF-003 — Telegram / WhatsApp Are Candidates
 
-Telegram dan WhatsApp melalui Baileys adalah future integration candidates yang disampaikan saat requirement discussion, tetapi belum menjadi final technology commitment.
-
-Provider, channel, retry, delivery semantics, dan security akan ditentukan di dokumen teknis yang sesuai.
+Telegram dan WhatsApp melalui Baileys merupakan future candidates, bukan final technology commitment.
 
 ---
 
 # PART L — SYSTEM ENFORCEMENT INVARIANTS
 
-## 25. Server-Side Enforcement
+## 26. Server-Side Enforcement
 
-### BR-INT-001
+### BR-INT-001 — Authorization Must Be Server-Side
 
 Role, permission, scope, ownership, state, dan validation MUST divalidasi server-side.
 
-### BR-INT-002
+### BR-INT-002 — Direct Access Cannot Bypass Rules
 
-Direct URL, manipulated ID, modified frontend payload, direct API, atau bulk request MUST NOT dapat melewati business rules.
+Direct URL, manipulated ID, frontend payload, API, atau bulk request MUST NOT melewati rules.
 
-### BR-INT-003
+### BR-INT-003 — Failed Action Must Not Leave Partial Business State
 
-Business action yang gagal MUST NOT terlihat sebagai sukses atau meninggalkan partial business state.
+Business action yang gagal MUST NOT terlihat sukses atau meninggalkan partial state.
 
 ---
 
-## 26. Mandatory High-Level Workflow
+## 27. Mandatory High-Level Workflow
 
 Core sequence:
 
 `Draft → Submit → Review → Approval`
 
-Dengan branches/actions yang dikonfirmasi:
+Confirmed branches/actions:
 
-- Cancel hanya dari Draft dan permanent;
+- Cancel hanya Draft, permanent;
 - Return for Revision;
-- repeated Revision + Resubmit;
+- unlimited revision/resubmit cycles;
 - Reviewer Reject;
+- Reviewer participation non-exclusive;
+- Approver participation non-exclusive;
+- single final approval cukup;
 - Approver Return to Reviewer;
 - Approver Return to Requester → wajib Review lagi;
 - Approver Reject;
-- Approved Reopen oleh highest authority dengan reason dan selected target;
-- Rejected Reopen oleh authorized authority dengan reason dan selected target;
-- Archive oleh highest authority;
-- Emergency tetap mengikuti Review dan Approval.
+- Approved/Rejection Reopen oleh authorized `nscmf.reopen` actor dengan reason dan selected target;
+- Archive oleh authorized `nscmf.archive` actor;
+- Emergency tetap wajib Review + Approval.
 
-Exact state names dan allowed transition matrix akan difinalisasi pada `05_State_Status_Flow.md`.
+Exact state names/transition matrix akan difinalisasi pada `05_State_Status_Flow.md`.
 
 ---
 
-## 27. Confirmed Decisions Summary
+## 28. Confirmed Decisions Summary
 
 | Area | Confirmed Decision |
 |---|---|
 | Initial setup | Wizard |
-| Roles | Template atau manual; dapat diedit setelah setup |
+| Roles | Template atau manual; ongoing administration dapat permission-based |
 | Unit/Division | Template/mapping atau manual |
 | User roles | Multi-role allowed |
 | Superadmin | Seeded, protected, cannot delete/disable/downgrade |
-| Approver scope | Dapat mencakup beberapa unit |
+| User/role/unit admin | Dapat didelegasikan dengan explicit permission |
+| Core system settings | Superadmin-only |
+| Approver scope | Dapat mencakup beberapa Unit/Division |
 | Form family | Activation = instalasi/provisioning; Change = maintenance |
-| Numbering | Auto atau manual dipilih setiap membuat form |
-| Draft | Editable, autosave + Save Draft, perubahan diaudit |
-| Cancel | Hanya saat Draft sebelum Submit; permanent |
-| Reviewer selection | Tidak dipilih requester; semua eligible reviewer dapat melihat/review |
-| Reviewer view | Viewer activity dicatat |
-| Reviewer action | Actor dicatat assigned/modified context, tidak exclusive lock |
-| Multiple reviewer | Supported |
-| Revision | Unlimited cycles, full log |
-| Reviewer return | Resubmit kembali ke same reviewer context tetapi tetap visible reviewer lain |
-| Approver return to requester | Setelah revision wajib Review lagi |
-| Reject | Normal flow closed, dapat Reopen oleh authorized authority |
-| Approved reopen | Highest authority, mandatory reason, actor memilih target |
+| Numbering | Auto/manual dipilih per form |
+| Draft | Editable, autosave + Save Draft, audited |
+| Cancel | Hanya Draft sebelum Submit; permanent |
+| Reviewer | Semua eligible Reviewer dapat melihat/action; non-exclusive |
+| Reviewer contributors | Bisa lebih dari satu; viewer vs modifier dicatat |
+| Revision | Unlimited cycles, full history |
+| Reviewer return | Same reviewer context dipertahankan; reviewer lain tetap eligible |
+| Approver | Semua eligible Approver dalam scope dapat melihat/action; non-exclusive |
+| Final approval | Satu eligible Approver cukup |
+| Approved By | Actor yang mengeksekusi final approval |
+| Approver return to Requester | Setelah revision wajib Review lagi |
+| Reject | Closed normal flow; Reopen via authorized permission |
+| Reopen | Superadmin atau actor dengan `nscmf.reopen`; reason mandatory; target dipilih |
 | Emergency | Tetap wajib Review + Approval |
 | Attachment | Ada di UI, optional |
-| Audit | Detailed old/new value + actor + timestamp + event context |
-| Delete | No hard delete; use Archive |
-| Archive | Highest authority; hide from active view; preserve history |
+| Timeline | Semua legitimate viewer dapat melihat siapa melakukan apa |
+| Audit | Detailed old/new + actor + timestamp + context |
+| Delete | No hard delete |
+| Archive | Superadmin atau actor dengan `nscmf.archive`; preserve history |
+| Archived visibility | Mengikuti normal scope; Superadmin global |
 | Export | View implies export |
+| Impersonation | Tidak diperlukan |
 | Notification | Draft/future; Telegram/WhatsApp candidate, not priority |
 
 ---
 
-## 28. Remaining Open Decisions
+## 29. Remaining Open Decisions
 
 Hal berikut sengaja belum ditebak:
 
 - exact default Unit/Division template/mapping entries;
-- exact automatic NSCMF numbering format dan uniqueness scope;
+- automatic NSCMF numbering format dan uniqueness scope;
 - exact mandatory fields dan conditional validation;
 - single-vs-multi cardinality Service Impact;
-- kapan `Result of Changes` pada Change wajib diisi;
-- mandatory reason untuk Return, Reject, Cancel, dan Archive selain Reopen yang sudah mandatory;
-- allowed target destinations untuk Reopen secara detail;
+- kapan `Result of Changes` wajib diisi;
+- mandatory reason untuk Return, Reject, Cancel, Archive selain Reopen;
+- exact valid Reopen destination transitions;
 - unarchive behavior;
 - audit retention period;
-- apakah export/download wajib dilog;
+- apakah setiap export/download wajib dilog;
 - attachment file type/size/count;
-- exact notification provider dan timing;
-- final names untuk setiap workflow state.
+- notification provider/timing;
+- final workflow state names.
 
 ---
 
-## 29. Implementation Guardrails
+## 30. Implementation Guardrails
 
 Developer atau AI agent MUST NOT:
 
 1. membuat self-registration;
-2. menghapus atau downgrade protected Superadmin;
+2. menghapus/downgrade/disable protected Superadmin;
 3. menambahkan hard-delete NSCMF;
-4. menganggap reviewer harus dipilih manual oleh requester;
-5. membuat reviewer pertama menjadi exclusive owner sehingga reviewer eligible lain tidak dapat melihat;
-6. mengizinkan Cancel setelah Submit;
-7. membuat Cancelled dapat Reopen;
-8. melewati Review setelah Approver mengembalikan record ke Requester;
-9. membuat Emergency bypass Review/Approval;
-10. menghapus historical revision/review/approval saat state berubah;
-11. membuat Change `Purpose of Changes` atau `Identified Problem` sebagai dropdown berdasarkan asumsi;
-12. mengklasifikasikan Upgrade hanya dari keyword;
-13. membuat attachment mandatory tanpa perubahan business rule;
-14. mengarang format auto-number;
-15. menjadikan Telegram/WhatsApp notification sebagai blocker MVP;
-16. menganggap `spatie/laravel-permission` sudah final sebelum Tech Stack Specification.
+4. menganggap Reviewer harus dipilih manual oleh Requester;
+5. membuat Reviewer pertama menjadi exclusive owner;
+6. menganggap assigned/modified-by hanya boleh satu Reviewer;
+7. membuat Approver pertama yang membuka record menjadi exclusive owner;
+8. mewajibkan approval dari seluruh eligible Approver;
+9. menghasilkan lebih dari satu final approval pada workflow iteration yang sama;
+10. membatasi Reopen hanya Superadmin jika actor lain memiliki explicit `nscmf.reopen` yang sah;
+11. membatasi Archive hanya Superadmin jika actor lain memiliki explicit `nscmf.archive` yang sah;
+12. mengizinkan Cancel setelah Submit;
+13. membuat Cancelled dapat Reopen;
+14. melewati Review setelah Approver Return ke Requester;
+15. membuat Emergency bypass Review/Approval;
+16. menghapus historical revision/review/approval;
+17. membuat Change Purpose/Identified Problem sebagai dropdown berdasarkan asumsi;
+18. mengklasifikasikan Upgrade hanya dari keyword;
+19. membuat attachment mandatory tanpa rule baru;
+20. mengarang format auto-number;
+21. menjadikan Telegram/WhatsApp blocker MVP;
+22. membuat user impersonation;
+23. menganggap `spatie/laravel-permission` sudah final sebelum Tech Stack Specification.
 
 ---
 
-## 30. Next Document
+## 31. Next Document
 
-Dokumen berikutnya adalah:
+Dokumen berikutnya dalam urutan proyek setelah RBAC adalah:
 
-**`03_User_Flow.md`**
+**`05_State_Status_Flow.md`**
 
-User Flow harus menerjemahkan rules ini menjadi interaksi yang eksplisit untuk:
+State Flow harus mengunci lifecycle authoritative untuk:
 
-- first-time setup wizard;
-- login/dashboard;
-- user administration;
-- create Activation/Change;
-- auto/manual numbering;
-- autosave + Save Draft;
-- Draft Cancel;
-- Submit;
-- multi-reviewer visibility;
-- viewer/action logging;
-- Review/Return/Reject;
-- repeated Revision/Resubmit;
-- Approval/Return/Reject;
-- Reopen dengan selected destination;
-- History/Export;
-- Archive;
-- optional future notification hook.
+- Draft;
+- Submit/Awaiting Review;
+- Review;
+- Return/Revision;
+- Reviewed/Awaiting Approval;
+- Approval;
+- Rejected;
+- Approved;
+- Reopened;
+- Cancelled;
+- Archived treatment;
+- valid Reopen destinations;
+- terminal vs recoverable states;
+- concurrency/state-check behavior ketika beberapa Reviewer/Approver eligible bertindak pada record yang sama.
