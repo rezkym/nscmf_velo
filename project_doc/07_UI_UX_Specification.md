@@ -4,13 +4,13 @@
 
 > **Document ID:** NSCMF-UIUX-007  
 > **Document Order:** 07 / 20  
-> **Status:** Draft — Confirmed UX Direction + Team/Permission Synchronization  
+> **Status:** Draft — Confirmed UX Direction + Environment-Bound Settings Synchronization  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Visual/Flow Reference:** NSCMF FigJam proposal  
 > **UI Implementation Reference:** Vue 3 + TypeScript + Inertia 3 + shadcn-vue + Tailwind CSS 4  
-> **Last Updated:** 2026-08-21
+> **Last Updated:** 2026-08-22
 
 ---
 
@@ -33,6 +33,7 @@ UI/UX menerjemahkan product scope, business rules, user flow, permission-centric
 - public PDF validation UX;
 - temporary-password/re-auth/session-expiry UX;
 - Team/user/role administration UX;
+- protected Technical Log cleanup settings UX;
 - responsive/accessibility/loading/stale states.
 
 UI MUST NOT redefine business rules, permissions, lifecycle, validation, security, audit, concurrency, or exact-export fidelity.
@@ -182,7 +183,8 @@ Displaying Team does not imply record scope or permission.
 23. Role/Permission Administration;
 24. Team Administration;
 25. Sensitive-Action Password Re-authentication;
-26. Core Settings where applicable.
+26. Core Settings;
+27. Technical Log Cleanup Settings within Core Settings.
 
 There is no Unit/Division & Scope Administration screen.
 
@@ -216,6 +218,14 @@ When temporary credential active:
 - success invalidates temporary credential;
 - plaintext credentials never enter timeline/audit UI.
 
+For administrator Create User / Reset Password, the system-generated temporary password MUST be shown to the acting administrator **exactly once** after successful creation/reset. The UI MUST clearly state that:
+
+- the temporary password will not be retrievable again after leaving/dismissing the one-time result;
+- the administrator is responsible for conveying it to the target user through an internal channel;
+- the temporary password is not stored/displayed in user detail, audit, logs, or later history.
+
+A copy action MAY be provided on that one-time view, but the application MUST NOT create a later `Show temporary password` capability.
+
 ## 15. Session UX
 
 Server policy:
@@ -224,6 +234,15 @@ Server policy:
 idle = 30m
 absolute = 8h
 max sessions = 2/account
+```
+
+Confirmed third-login behavior:
+
+```text
+third valid login succeeds
+→ oldest active authenticated session is revoked
+→ new session remains active
+→ at most two active sessions remain
 ```
 
 UI may warn before expiry. Revoked/expired session returns to Login. Never claim local unsaved data was persisted.
@@ -345,13 +364,22 @@ Never expose storage path.
 
 ```text
 Uploading…
+Interrupted — Resume available
+Assembling…
 Scanning for malware…
 Ready
 Rejected — malware detected
 Security scan failed — file not available
+Expired — upload again
 ```
 
 Only backend CLEAN → Ready. No download while not CLEAN. Result-only edit cannot mutate attachment current MVP.
+
+When a valid unfinished session is found after reconnect/reselect, preferred message is semantically:
+
+> Upload sebelumnya ditemukan, melanjutkan dari bagian terakhir.
+
+The UI MUST NOT claim upload continued while the server/network was unavailable.
 
 ---
 
@@ -454,6 +482,15 @@ Security Audit similarly uses `audit.security.view` + applicable authorization.
 
 No Team/scope prerequisite. Audit UI read-only; no purge-by-age; no credential/private-key secrets.
 
+The Technical Log cleanup setting MUST NOT be displayed or worded as an Audit cleanup setting. The UI SHOULD make the boundary explicit:
+
+```text
+Business Audit  → never age-purged
+Access Audit    → never age-purged
+Security Audit  → never age-purged
+Technical Logs  → separate configurable operational cleanup
+```
+
 ---
 
 # PART M — SIGN-OFF / EXPORT
@@ -511,7 +548,7 @@ Missing/unusable required signing identity → critical configuration/readiness 
 
 Conceptual `/ispdfvalid`, no login. Narrow verification utility, not public History.
 
-Include explanation, PDF-only uploader, size guidance, progress, result, retry/new verification.
+Include explanation, PDF-only uploader, explicit **maximum 20 MB**, progress, result, retry/new verification.
 
 ## 45. Public Upload States
 
@@ -541,7 +578,7 @@ No private form content, attachments, Business Timeline, raw audits, storage pat
 
 ---
 
-# PART O — ADMINISTRATION / RE-AUTH
+# PART O — ADMINISTRATION / RE-AUTH / CORE SETTINGS
 
 ## 48. Administration
 
@@ -551,7 +588,7 @@ Group:
 - Roles/Permissions;
 - Teams;
 - privileged audit surfaces;
-- Core Settings where eligible.
+- Core Settings.
 
 No Unit/Division, Reviewer Scope, Approval Scope, or Spatie Teams UI.
 
@@ -565,35 +602,67 @@ Direct permission-to-user assignment is not offered in current MVP.
 
 ## 49. Sensitive Action Re-authentication
 
-Before password reset, role assignment/removal, role-permission changes, protected security settings, ask acting user's current password.
+Before password reset, role assignment/removal, role-permission changes, protected security/signing settings, ask acting user's current password.
 
 No MFA. Failed re-auth = no mutation.
+
+Successful re-authentication proof is server-side and valid for **15 minutes**. After expiry, the UI MUST request current password again before another protected sensitive action requiring re-authentication.
 
 ## 50. Target Session Revocation Feedback
 
 After effective authorization-changing role/permission mutation, UI MAY tell admin affected target sessions were revoked. Team change alone MUST NOT be described as a permission/access revocation.
 
+## 51. Technical Log Cleanup Settings
+
+This setting is a protected Core Setting and is available **only to Protected Superadmin** through `system.settings.manage`.
+
+Required controls:
+
+```text
+Automatic Cleanup        ON / OFF
+Retention Value          positive integer
+Retention Unit           Days / Months
+```
+
+Default:
+
+```text
+Automatic Cleanup = ON
+Retention Value   = 30
+Retention Unit    = Days
+```
+
+Behavior:
+
+- when Automatic Cleanup is ON, Technical Logs older than the configured retention become cleanup-eligible;
+- when OFF, the system does not automatically age-clean Technical Logs;
+- the last configured retention value/unit SHOULD remain visible/stored while OFF so it can be reused when re-enabled;
+- no fixed product maximum retention is imposed;
+- UI SHOULD warn that longer retention increases storage usage;
+- this setting MUST NOT affect Business Audit, Access Audit, Security Audit, NSCMF records/history, workflow iterations, PDF issuance metadata, or other authoritative evidence;
+- changing this setting SHOULD show a clear confirmation of the new operational behavior without implying historical audits will be deleted.
+
 ---
 
 # PART P — LOADING / ERROR / STALE
 
-## 51. Loading / Empty
+## 52. Loading / Empty
 
 Use skeletons; prevent duplicate destructive/workflow submissions. Long export/security work uses persistent status.
 
-## 52. Unauthorized
+## 53. Unauthorized
 
 Generic denied/not-available without leaking resource details.
 
-## 53. Stale Workflow
+## 54. Stale Workflow
 
 Backend state changed → clear message + refresh latest state + disable stale controls.
 
-## 54. Save Conflict
+## 55. Save Conflict
 
 Network failure vs optimistic conflict distinguishable; never auto-overwrite newer persisted version.
 
-## 55. Security Failure Copy
+## 56. Security Failure Copy
 
 Examples:
 
@@ -608,15 +677,15 @@ Never expose internals/secrets.
 
 # PART Q — RESPONSIVE / ACCESSIBILITY
 
-## 56. Responsive
+## 57. Responsive
 
 Desktop full workflow; tablet reduced columns; mobile stacked and prioritized. Required reason/re-auth/security confirmation never dropped.
 
-## 57. Keyboard / Labels / Motion
+## 58. Keyboard / Labels / Motion
 
 All controls labeled, placeholder not sole label, dialogs manage focus, icon-only actions accessible, reduced-motion respected where practical.
 
-## 58. Toast
+## 59. Toast
 
 Toast for non-critical completion. Durable conditions such as export READY/Failed, signing readiness, scan failure require persistent visible state.
 
@@ -624,7 +693,7 @@ Toast for non-critical completion. Durable conditions such as export READY/Faile
 
 # PART R — ACTION VISIBILITY
 
-## 59. Requester Matrix
+## 60. Requester Matrix
 
 | State | General Edit | Save | Submit/Resubmit | Change Result | Cancel |
 |---|---:|---:|---:|---:|---:|
@@ -636,7 +705,7 @@ Toast for non-critical completion. Durable conditions such as export READY/Faile
 | Approved | No | No | No | No | No |
 | Cancelled | No | No | No | No | No |
 
-## 60. Reviewer / Approver / Lifecycle
+## 61. Reviewer / Approver / Lifecycle
 
 Reviewer with required permission at `PENDING_REVIEW` → read-only detail + permitted Review actions.
 
@@ -650,11 +719,11 @@ Authorized unarchived Approved/Rejected with `nscmf.reopen` → Reopen. Eligible
 
 # PART S — COPY / GUARDRAILS
 
-## 61. Explicit Labels
+## 62. Explicit Labels
 
 Use Submit for Review, Save Draft, Forward to Approval, Return for Revision, Return to Reviewer, Return to Requester, Reject NSCMF, Approve NSCMF, Update Result of Changes, Reopen NSCMF, Archive, Unarchive, Export XLSX/PDF, Verify PDF.
 
-## 62. Developer / AI MUST NOT
+## 63. Developer / AI MUST NOT
 
 UI MUST NOT:
 
@@ -678,35 +747,41 @@ UI MUST NOT:
 18. label XLSX digitally signed;
 19. put routine View in Business Timeline;
 20. expose raw audit without privileged permission/authorization;
-21. offer audit purge-by-age;
-22. state 12-month audit retention;
+21. offer authoritative audit purge-by-age;
+22. state 12-month authoritative audit retention;
 23. rely on hidden button as authorization;
 24. add tenant switcher;
 25. add MFA current MVP;
 26. show password composition checklist;
-27. expose plaintext credentials/private key;
-28. allow failed re-auth mutation;
-29. make public validator a public record browser;
-30. call Superseded modified;
-31. claim TSA current MVP;
-32. show Unit/Division UI;
-33. show Reviewer/Approval Scope UI;
-34. use Team to explain why Review/Approval is allowed/denied;
-35. expose Spatie Teams switch/configuration;
-36. expose direct permission-to-user assignment as normal MVP feature.
+27. expose plaintext credentials/private key outside the one-time temporary-password result;
+28. provide a later `show temporary password` retrieval action;
+29. allow failed/expired re-auth proof mutation;
+30. make public validator a public record browser;
+31. call Superseded modified;
+32. claim TSA current MVP;
+33. show Unit/Division UI;
+34. show Reviewer/Approval Scope UI;
+35. use Team to explain why Review/Approval is allowed/denied;
+36. expose Spatie Teams switch/configuration;
+37. expose direct permission-to-user assignment as normal MVP feature;
+38. label Technical Log cleanup as Business/Access/Security Audit cleanup;
+39. provide any setting capable of age-purging authoritative audits.
 
 ---
 
 # PART T — ACCEPTANCE
 
-## 63. Authentication / Session
+## 64. Authentication / Session
 
 - [ ] username/password only, no register/MFA;
 - [ ] min6 only;
+- [ ] system-generated temp password shown once to admin on create/reset;
 - [ ] temp password forced change;
+- [ ] re-auth proof expires after 15 minutes;
+- [ ] third valid login revokes oldest active session;
 - [ ] expiry/revocation returns Login.
 
-## 64. Organization / Authorization UX
+## 65. Organization / Authorization UX
 
 - [ ] Team administration exists;
 - [ ] no Unit/Division/Scope administration exists;
@@ -716,7 +791,7 @@ UI MUST NOT:
 - [ ] direct-user permission UI absent;
 - [ ] Spatie Teams UI absent.
 
-## 65. Forms / Concurrency
+## 66. Forms / Concurrency
 
 - [ ] Draft incomplete save;
 - [ ] optimistic conflict accurate;
@@ -724,21 +799,23 @@ UI MUST NOT:
 - [ ] Result-only narrow;
 - [ ] warnings/errors distinct.
 
-## 66. Attachments
+## 67. Attachments
 
 - [ ] constraints visible;
+- [ ] interrupted resumable upload can reconcile and resume from accepted progress;
 - [ ] only CLEAN Ready/downloadable;
 - [ ] scan failure never success.
 
-## 67. Workflow / Audit
+## 68. Workflow / Audit
 
 - [ ] Review/Approval non-exclusive and permission-based;
 - [ ] mandatory reason dialogs;
 - [ ] Business Timeline excludes access noise;
 - [ ] audit privilege works without Team scope;
-- [ ] workflow iteration can distinguish reopened approval cycles where needed.
+- [ ] workflow iteration can distinguish reopened approval cycles where needed;
+- [ ] Technical Log cleanup setting is visibly separated from authoritative audit retention.
 
-## 68. Export / Validator
+## 69. Export / Validator
 
 - [ ] XLSX/PDF explicit;
 - [ ] queue statuses technical only;
@@ -746,17 +823,28 @@ UI MUST NOT:
 - [ ] 7-day binary expiry shown;
 - [ ] Approved PDF signer distinction;
 - [ ] no unsigned fallback;
+- [ ] public validator enforces/displays 20 MB maximum;
 - [ ] public current/superseded/modified/unknown correct.
+
+## 70. Core Settings
+
+- [ ] Technical Log Automatic Cleanup is Protected Superadmin-only;
+- [ ] default is ON + 30 Days;
+- [ ] retention supports positive value + Days/Months;
+- [ ] no fixed maximum retention is imposed;
+- [ ] long retention warns about storage usage;
+- [ ] disabling cleanup does not delete logs;
+- [ ] Business/Access/Security Audit is never affected.
 
 ---
 
 # PART U — FIGJAM / AUTHORITY / NEXT
 
-## 69. FigJam Alignment
+## 71. FigJam Alignment
 
-Existing FigJam remains a product/system-flow reference. It currently requires a later synchronization pass to reflect the confirmed Team/permission simplification. **This document does not perform or imply that FigJam has already been updated.**
+Existing FigJam remains a product/system-flow reference. Environment-specific values and Technical Log settings do not need to become authorization/workflow nodes. **This document does not perform or imply a new FigJam modification.**
 
-## 70. Authority Matrix
+## 72. Authority Matrix
 
 | Concern | Authority |
 |---|---|
@@ -770,8 +858,9 @@ Existing FigJam remains a product/system-flow reference. It currently requires a
 | Technology | `08_Tech_Stack_Specification.md` |
 | Architecture | `09_System_Architecture.md` |
 | Security | `10_Security_Rules.md` |
+| Environment/runtime configuration | `14_Environment_Specification.md` once created |
 
-## 71. Still Refinable / TBD
+## 73. Still Refinable / TBD
 
 - neutral grayscale/font assets/breakpoints;
 - table page size;
@@ -780,12 +869,13 @@ Existing FigJam remains a product/system-flow reference. It currently requires a
 - exact Team master-data options;
 - official numbering copy after SOP;
 - additional export controls if approved;
-- exact placement of audit/readiness pages;
-- third-login UX;
-- public validator minimum-disclosure metadata fields.
+- exact placement of some audit/readiness pages;
+- public validator minimum-disclosure metadata fields beyond locked baseline.
 
-## 72. Next Document
+## 74. Current Handoff
 
-Next fixed-order document:
+Documents through `13_Project_Structure.md` already exist. The next fixed-order document to create is:
 
-**`11_ERD_Database_Schema.md`**.
+**`14_Environment_Specification.md`**.
+
+It MUST operationalize the confirmed runtime settings without changing the UI/security/business meanings locked here.
