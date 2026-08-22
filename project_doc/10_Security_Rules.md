@@ -4,12 +4,12 @@
 
 > **Document ID:** NSCMF-SEC-010  
 > **Document Order:** 10 / 20  
-> **Status:** Draft — Confirmed Security Baseline + Team/Permission Synchronization  
+> **Status:** Draft — Confirmed Security Baseline + Environment-Decision Synchronization  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`  
 > **Organization Model:** Single organization / single application installation  
 > **Primary Business Reference:** NSCMF Form 3.0  
-> **Last Updated:** 2026-08-21
+> **Last Updated:** 2026-08-22
 
 ---
 
@@ -30,7 +30,7 @@ Current authorization synchronization:
 - Spatie Teams is disabled and MUST NOT be introduced through security middleware;
 - Team changes alone do not change authorization.
 
-Security Rules cover authentication/password, temporary credentials, throttling, sessions, sensitive-action re-authentication, backend authorization hardening, browser/request security, attachment/ClamAV, permanent audits, secrets, private export, Approved-PDF signing, public PDF validation, final-file SHA-256, safe errors/logging.
+Security Rules cover authentication/password, temporary credentials, throttling, sessions, sensitive-action re-authentication, backend authorization hardening, browser/request security, attachment/ClamAV, permanent audits, technical-log retention boundary, secrets, private export, Approved-PDF signing, public PDF validation, final-file SHA-256, safe errors/logging.
 
 ---
 
@@ -179,23 +179,33 @@ Normal users cannot create own account.
 authorized admin
 → current-password re-auth
 → create eligible account
-→ establish temporary password
+→ server generates temporary password
+→ reveal temporary password exactly once to acting admin
+→ admin conveys credential through an internal channel
 → target authenticates
 → forced password replacement
 → normal app access
 ```
 
-Temporary password sensitive, no plaintext audit/log/repository storage.
+Rules:
+
+- temporary password MUST be generated server-side;
+- plaintext MAY exist only transiently for generation/hash + one-time response/render to the acting authorized administrator;
+- plaintext MUST NOT be persisted in DB/cache/log/audit/repository;
+- application MUST NOT provide a later `show/retrieve temporary password` capability;
+- target account has `must_change_password=true` until successful replacement;
+- normal application navigation remains blocked until replacement succeeds.
 
 ## 12. Admin Password Reset
 
 1. acting admin re-authenticates current password;
 2. target eligibility/protected invariant checked;
-3. temp reset credential created;
+3. server generates a new temporary password;
 4. **all target active sessions revoked**;
-5. target authenticates with temporary credential;
-6. mandatory password change;
-7. safe Security Audit.
+5. temporary password is revealed exactly once to the acting admin;
+6. target authenticates with temporary credential;
+7. mandatory password change;
+8. safe Security Audit.
 
 No self-service Forgot Password email baseline.
 
@@ -206,6 +216,8 @@ No self-service Forgot Password email baseline.
 ## 13. Throttling
 
 Server-side rate limiting/progressive temporary delay for repeated failures. Context SHOULD combine username/account key and source/IP where appropriate. No permanent hard-lock solely for wrong attempts. Successful login MAY reset applicable counters.
+
+Exact numeric buckets remain operational tuning and are not invented here.
 
 ## 14. Enumeration Resistance
 
@@ -237,9 +249,22 @@ After 30m qualifying inactivity session invalid → login required. Persisted Dr
 
 No session valid beyond 8h security-defined creation/auth point even if active.
 
-## 19. Max Two Sessions
+## 19. Max Two Sessions — Confirmed Replacement Behavior
 
-Account MUST NOT retain >2 active authenticated sessions. Exact third-login replacement/denial policy downstream, invariant `active_session_count <= 2`.
+Account MUST NOT retain >2 active authenticated sessions.
+
+Confirmed third-login behavior:
+
+```text
+third valid login
+→ authentication succeeds
+→ server deterministically identifies oldest active authenticated session
+→ oldest session is revoked
+→ newly authenticated session remains active
+→ active authenticated session count <= 2
+```
+
+Server-side session age/order MUST be derived from authoritative session metadata, not browser-provided timestamps.
 
 ## 20. Session Regeneration
 
@@ -280,17 +305,32 @@ At minimum:
 - role assignment/removal;
 - permission assignment/removal on roles;
 - protected signing/security configuration mutation if exposed;
-- other equivalent privilege-changing actions.
+- protected Core System Settings mutation, including Technical Log cleanup configuration;
+- other equivalent privilege/security-impacting actions.
 
 Team-only organizational changes do not need to be classified as privilege-changing merely because Team changes, although ordinary admin authorization still applies.
 
 ## 25. Failure
 
-Failed re-auth → action unapplied, no partial role/permission/reset mutation; failure MAY be Security Audited.
+Failed re-auth → action unapplied, no partial role/permission/reset/settings mutation; failure MAY be Security Audited.
 
-## 26. Proof Lifetime
+## 26. Proof Lifetime — Confirmed
 
-MAY issue short-lived server-side proof scoped to tightly related sensitive operations. Exact duration downstream.
+Successful current-password re-authentication MAY issue a server-side proof scoped to sensitive administration.
+
+Exact lifetime:
+
+```text
+15 minutes
+```
+
+Requirements:
+
+- proof is server-side/session-bound;
+- proof expiry is enforced server-side;
+- after 15 minutes, another protected sensitive action requires fresh current-password re-authentication;
+- proof is not a reusable plaintext password token returned to JavaScript;
+- role/permission/security checks are still performed on every action; valid re-auth proof alone grants no permission.
 
 ---
 
@@ -327,6 +367,7 @@ Every protected operation server-authorized, including:
 - Business Timeline;
 - raw Access/Security Audit;
 - user/role/permission/Team administration;
+- protected Core System Settings;
 - Reopen/Archive/Unarchive;
 - Result-only mutation;
 - queued artifact retrieval.
@@ -347,7 +388,7 @@ Examples:
 - Requester cannot set business status;
 - normal user cannot inject approved_by;
 - actor/timestamp/audit identity server-derived;
-- role/permission/Team admin inputs validated but not trusted authority;
+- role/permission/Team/settings admin inputs validated but not trusted authority;
 - protected flags not generic mass-assigned.
 
 ## 31. Protected Superadmin
@@ -419,7 +460,7 @@ Production app uses dedicated least-privilege MySQL account, not root.
 
 ## 42. Error Handling
 
-Production response never discloses stack traces, filesystem/object paths, DB credentials/raw sensitive SQL, signing key path/content/passphrase, app secrets, unnecessary ClamAV internals.
+Production response never discloses stack traces, filesystem paths, DB credentials/raw sensitive SQL, signing key path/content/passphrase, app secrets, unnecessary ClamAV internals.
 
 ---
 
@@ -448,7 +489,11 @@ No public executable path.
 
 ## 46. ClamAV
 
-`MalwareScanner → ClamAvScanner → clamd`, private endpoint. Community package may be transport glue only.
+`MalwareScanner → ClamAvScanner → clamd`, private endpoint/socket.
+
+Community package may be transport glue only.
+
+Exact same-host/container/private-service topology is deferred to Environment/Deployment and MUST NOT change CLEAN/fail-closed semantics.
 
 ## 47. Fail Closed
 
@@ -456,7 +501,7 @@ Only explicit CLEAN passes. INFECTED/timeout/unavailable/error/unreadable → no
 
 ## 48. Download
 
-Always recheck parent record authorization. Storage key is never authorization. Download MAY create Access Audit.
+Always recheck parent record authorization. Storage key/path is never authorization. Download MAY create Access Audit.
 
 ---
 
@@ -487,7 +532,7 @@ Business/Access/Security Audit:
 Generated XLSX/PDF binary → 168h/7d then cleanup
 Business/Access/Security Audit → no age purge
 PDF issuance/verification metadata → preserve for historical validation
-Technical Logs → separate downstream operational retention
+Technical Logs → separate configurable operational cleanup policy
 ```
 
 ## 52. Business Audit
@@ -510,7 +555,7 @@ No Team scope.
 
 ## 55. Security Audit
 
-Capture login/security events, credential reset, temp-password replacement, role/permission changes, session revocation, enable/disable, malware failures, signing readiness/failure, privileged security access.
+Capture login/security events, credential reset, temp-password replacement, role/permission changes, session revocation, enable/disable, malware failures, signing readiness/failure, protected settings mutation, privileged security access.
 
 Team changes MAY be audited as administrative/business data changes as appropriate but MUST NOT be labeled an authorization grant/revoke solely due Team membership.
 
@@ -524,9 +569,31 @@ or audit.security.view
 
 No Team scope.
 
-## 57. Technical Logs
+## 57. Technical Logs — Configurable Operational Retention
 
-Operational, not authoritative audit replacement. Retention downstream.
+Technical Logs are operational diagnostics, not authoritative audit replacement.
+
+Confirmed Core Setting:
+
+```text
+Automatic Cleanup default = ON
+Default Retention         = 30 Days
+Allowed unit              = Days or Months
+Retention value           = positive integer
+Fixed maximum             = none at product-policy level
+Manager                   = Protected Superadmin only
+```
+
+Behavior:
+
+- Protected Superadmin may enable/disable automatic age cleanup;
+- Protected Superadmin may choose a different positive retention value in Days or Months;
+- when Automatic Cleanup is OFF, Technical Logs are not automatically deleted by age;
+- longer retention may consume more storage;
+- this setting MUST NOT affect Business Audit, Access Audit, Security Audit, workflow history, NSCMF records, PDF issuance/certificate history, or other authoritative evidence;
+- mutation of this protected setting requires the normal protected Core Settings authorization and 15-minute sensitive re-auth proof.
+
+Technical logs MUST still follow logging sanitization requirements regardless of retention length.
 
 ---
 
@@ -544,7 +611,9 @@ Snapshot is immutable after creation. Later export request creates a new snapsho
 
 ## 60. Private Artifacts
 
-Generated XLSX/PDF private. No predictable public URL as authorization.
+Generated XLSX/PDF private. Initial production uses Laravel private local filesystem on persistent/non-ephemeral server storage. No predictable public URL/path as authorization.
+
+Current MVP does not require third-party S3/object storage. Future storage migration may use Laravel Filesystem abstraction only after explicit specification/deployment change.
 
 ## 61. Seven-Day Binary Lifetime
 
@@ -570,9 +639,25 @@ Never merge/impersonate. `Approved By` and System signer remain separate evidenc
 
 Private key + corresponding public certificate/verification material.
 
-## 65. Manual Provisioning
+## 65. Manual / Protected Runtime Provisioning
 
-Signing identity manually installed/provisioned protected server/environment. Private key never GitHub/source/ordinary config/deployment artifact/ordinary DB/browser/public validator. Runtime-only minimum access.
+Signing identity is manually/procedurally installed into protected runtime provisioning.
+
+Private key MUST NOT exist in:
+
+- GitHub/source;
+- committed `.env.example`;
+- ordinary application DB;
+- browser bundle;
+- public validator;
+- logs/audits;
+- normal downloadable deployment artifact.
+
+Production runtime receives the private key through a protected mounted file/secret reference or equivalent protected runtime mechanism.
+
+Public certificate/chain/fingerprint material required for historical verification MAY be registered in the application according to ERD.
+
+Exact signing library/provider/CA/container format/path/passphrase source/rotation ceremony remains downstream implementation/deployment detail.
 
 ## 66. Required Readiness
 
@@ -612,9 +697,24 @@ Not required current MVP; no independent timestamp claim.
 
 NSCMF = issuer + authoritative application validator. Public no-login narrow `/ispdfvalid`-style capability, not public record portal.
 
-## 73. Upload Safety
+## 73. Upload Safety — Confirmed 20 MB Maximum
 
-PDF only, rate limited, safe size, private temp/quarantine, ClamAV CLEAN before deep parsing, cleanup afterward.
+Public verifier accepts:
+
+```text
+PDF only
+maximum 20 MB per verification upload
+```
+
+Flow requires:
+
+- rate limiting/request hardening;
+- private temporary storage;
+- ClamAV CLEAN before deep verification;
+- resource/time limits;
+- cleanup afterward.
+
+The 20 MB validator cap is independently confirmed; it happens to equal the normal attachment per-file cap but is not derived from that rule.
 
 ## 74. Layer A — Cryptographic Issuer
 
@@ -654,7 +754,9 @@ No full private fields, attachments, timeline, raw audits, storage paths, privat
 
 ## 79. Abuse Controls
 
-Rate limit, PDF-only, file-size/resource limits, private temp, CLEAN gate, timeout, cleanup, safe non-enumerating errors.
+Rate limit, PDF-only, 20 MB file-size limit, private temp, CLEAN gate, timeout, cleanup, safe non-enumerating errors.
+
+Exact numeric request-rate buckets remain operational tuning.
 
 ---
 
@@ -662,11 +764,13 @@ Rate limit, PDF-only, file-size/resource limits, private temp, CLEAN gate, timeo
 
 ## 80. Repository Secrets
 
-Never commit production DB password, Laravel app key, real passwords/temp passwords, signing private key/passphrase, storage credentials, third-party secrets.
+Never commit production DB password, Laravel app key, real passwords/temp passwords, signing private key/passphrase, storage credentials if any, third-party secrets.
 
 ## 81. Environment Provisioning
 
 Real secrets outside source control via protected environment/file/mount or future secret manager/KMS/HSM if needed.
+
+`.env.example` documents names/default-safe placeholders only and MUST NOT contain real secret material or signing private key.
 
 ## 82. Least Secret Access
 
@@ -675,6 +779,17 @@ Public verifier needs public cert/issuance metadata, not private key. Browser ne
 ## 83. Logging Sanitization
 
 Do not indiscriminately log full Login/password/re-auth/secret/signing/public-upload/attachment payloads.
+
+MUST NOT log:
+
+- password/current password/new password/temp plaintext;
+- session cookie/session payload;
+- private signing key/passphrase;
+- DB/app secret/token;
+- raw attachment/chunk bytes;
+- unnecessary private storage paths/keys.
+
+Technical Logs MAY contain safe IDs, stage, duration, status, sanitized exception classification/correlation identifiers required for troubleshooting.
 
 ## 84. Correlation
 
@@ -693,7 +808,7 @@ Production debug/stack trace exposure disabled.
 | Failure | Behavior |
 |---|---|
 | Invalid/expired session | Login required; no state change |
-| Failed sensitive re-auth | Action unapplied |
+| Failed/expired sensitive re-auth | Action unapplied |
 | Missing permission | Deny |
 | Team mismatch/difference | **No authorization effect** |
 | Unauthorized resource ID | Deny without leak |
@@ -724,17 +839,20 @@ Later technical/security side-effect failure never erases already valid business
 
 ## 89. Temporary Credential
 
-- [ ] admin create/reset temp flow;
-- [ ] normal navigation blocked until replacement;
+- [ ] create/reset produces server-generated temporary password;
+- [ ] one-time reveal only to authorized acting admin;
+- [ ] no later retrieval capability;
+- [ ] normal navigation blocked until target replacement;
 - [ ] replacement invalidates temp;
 - [ ] reset revokes sessions;
-- [ ] no plaintext audit/log.
+- [ ] no plaintext persistence/audit/log.
 
 ## 90. Session
 
 - [ ] 30m idle;
 - [ ] 8h absolute;
 - [ ] max2;
+- [ ] third valid login succeeds and revokes oldest active authenticated session;
 - [ ] server-side logout;
 - [ ] role change revokes affected sessions;
 - [ ] role-permission change revokes affected sessions;
@@ -743,8 +861,9 @@ Later technical/security side-effect failure never erases already valid business
 ## 91. Re-auth
 
 - [ ] password reset requires current-password re-auth;
-- [ ] role/permission mutation requires re-auth;
-- [ ] failure leaves action unapplied;
+- [ ] role/permission/protected settings mutation requires re-auth;
+- [ ] proof expires after 15 minutes;
+- [ ] failure/expired proof leaves action unapplied;
 - [ ] no MFA.
 
 ## 92. Authorization / Team
@@ -766,17 +885,23 @@ CSRF, cookie flags, safe rendering, headers, no debug secrets.
 
 Limits/type/zero-byte; private untrusted state; CLEAN promotion; malware/failure blocked; no download before CLEAN; clamd private.
 
-## 95. Audit
+## 95. Audit / Technical Logs
 
-No age purge across three authoritative classes; binary cleanup does not remove audit; no normal edit/delete; privileged visibility uses permission + resource/admin authorization without Team scope.
+- [ ] no age purge across Business/Access/Security Audit;
+- [ ] binary cleanup does not remove audit;
+- [ ] authoritative audits have no normal edit/delete;
+- [ ] privileged visibility uses permission + resource/admin authorization without Team scope;
+- [ ] Technical Log cleanup default ON/30 Days;
+- [ ] Protected Superadmin can disable cleanup or select positive Days/Months retention;
+- [ ] Technical Log cleanup cannot select or delete authoritative audits.
 
 ## 96. Signing
 
-Private key absent repo; missing identity critical; no unsigned fallback; human Approved By distinct; final hash stored; historical cert resolvable; no TSA claim.
+Private key absent repo/DB/`.env.example`; missing identity critical; no unsigned fallback; human Approved By distinct; final hash stored; historical cert resolvable; no TSA claim.
 
 ## 97. Public Verification
 
-No-login; rate limit; PDF-only; CLEAN before deep verify; temp deleted; Current/Superseded/Modified/Unknown semantics; one-byte modification not current-valid; no private leakage.
+No-login; rate limit; PDF-only; max20MB; CLEAN before deep verify; temp deleted; Current/Superseded/Modified/Unknown semantics; one-byte modification not current-valid; no private leakage.
 
 ---
 
@@ -788,39 +913,44 @@ No-login; rate limit; PDF-only; CLEAN before deep verify; temp deleted; Current/
 2. no composition;
 3. no MFA;
 4. no self-registration;
-5. temp password + mandatory change;
+5. server-generated temporary password + one-time admin reveal + mandatory target change;
 6. login throttling;
 7. idle30m;
 8. absolute8h;
 9. max2 sessions;
-10. password re-auth for sensitive privilege admin;
-11. affected-session revocation after password/role/effective-permission/disablement changes;
-12. Team-only change does not modify authorization;
-13. server-side deny-by-default permission/resource/state security;
-14. no Unit/Division/Reviewer Scope/Approval Scope;
-15. Spatie Teams disabled;
-16. private attachment/quarantine;
-17. ClamAV baseline;
-18. CLEAN only usability;
-19. Business Audit no age purge;
-20. Access Audit no age purge;
-21. Security Audit no age purge;
-22. privileged audit permission model without Team scope;
-23. generated binary 168h/7d;
-24. audit/issuance survives binary cleanup;
-25. Approved PDF System/Organization signer;
-26. human Approved By separate;
-27. signing identity manual protected provisioning;
-28. private key never source/ordinary DB/browser;
-29. missing identity critical;
-30. no unsigned fallback;
-31. final signed SHA-256 issuance evidence;
-32. public no-login validation;
-33. signature + exact hash + issuance/workflow-currentness;
-34. current/superseded/modified/unknown semantics;
-35. superseded not modified solely due Reopen;
-36. no TSA MVP;
-37. immutable export snapshot prevents worker from using later data.
+10. third valid login succeeds and revokes oldest active authenticated session;
+11. password re-auth for sensitive privilege/protected settings admin;
+12. re-auth proof lifetime 15 minutes;
+13. affected-session revocation after password/role/effective-permission/disablement changes;
+14. Team-only change does not modify authorization;
+15. server-side deny-by-default permission/resource/state security;
+16. no Unit/Division/Reviewer Scope/Approval Scope;
+17. Spatie Teams disabled;
+18. private attachment/quarantine;
+19. ClamAV baseline;
+20. CLEAN only usability;
+21. Business Audit no age purge;
+22. Access Audit no age purge;
+23. Security Audit no age purge;
+24. Technical Log cleanup is separate Protected-Superadmin Core Setting, default ON/30 Days, configurable Days/Months or OFF;
+25. privileged audit permission model without Team scope;
+26. generated binary 168h/7d;
+27. audit/issuance survives binary cleanup;
+28. Approved PDF System/Organization signer;
+29. human Approved By separate;
+30. signing identity protected runtime provisioning;
+31. private key never source/ordinary DB/browser/`.env.example`/logs;
+32. missing identity critical;
+33. no unsigned fallback;
+34. final signed SHA-256 issuance evidence;
+35. public no-login validation;
+36. public validator max upload 20 MB;
+37. signature + exact hash + issuance/workflow-currentness;
+38. current/superseded/modified/unknown semantics;
+39. superseded not modified solely due Reopen;
+40. no TSA MVP;
+41. immutable export snapshot prevents worker from using later data;
+42. initial production private storage uses persistent Laravel local filesystem, not third-party object storage.
 
 ---
 
@@ -828,22 +958,22 @@ No-login; rate limit; PDF-only; CLEAN before deep verify; temp deleted; Current/
 
 ## 99. Exact Details Downstream
 
-- exact user/session/audit/signing/schema/index definitions;
-- immutable snapshot physical structure;
-- exact API payload/status codes;
-- limiter numeric buckets;
-- re-auth proof lifetime;
-- third-login behavior;
-- signing key/cert format/path/provider;
-- key rotation ceremony;
-- technical-log retention;
-- ClamAV topology/sizing;
-- production object storage;
+Still downstream/TBD:
+
+- exact user/session/audit/signing/schema/index implementation details;
+- immutable snapshot physical structure where not already locked by `11`;
+- exact operational numeric limiter buckets;
+- signing library/provider/CA/container/path/passphrase/rotation ceremony;
+- ClamAV physical topology/sizing;
+- exact private local storage roots/mounts/prefixes/permissions;
+- exact renderer executable/image/provider/topology;
+- Technical Log channel/path/rotation implementation that obeys the runtime setting;
 - backup/DR;
 - hosting topology;
 - performance/SLA;
-- notification;
-- public validator safe metadata.
+- notification.
+
+The following are no longer downstream TBDs: temporary password delivery direction, third-login replacement behavior, re-auth proof lifetime, public validator max upload size, canonical application timezone, initial production storage backend class, and Technical Log cleanup policy/default.
 
 ## 100. Retention Classes
 
@@ -851,50 +981,58 @@ No-login; rate limit; PDF-only; CLEAN before deep verify; temp deleted; Current/
 Business/Access/Security Audit → no age deletion
 PDF issuance/verification metadata → preserved beyond binary cleanup
 Generated XLSX/PDF binary → 168h/7d then cleanup
-Technical logs → separate downstream retention
+Technical Logs → Protected-Superadmin configurable; default ON + 30 Days, Days/Months or OFF
 ```
 
-No generic `retention_days` applied to all.
+No generic `retention_days` applied to all data classes.
 
 ## 101. Developer / AI MUST NOT
 
 1. increase password min by preference;
 2. add composition/MFA/register;
 3. store plaintext credential;
-4. allow unlimited/expired sessions;
-5. execute sensitive mutation after failed re-auth;
-6. preserve affected sessions after effective permission/credential disablement change;
-7. treat Team change as permission grant/revoke;
-8. enable Spatie Teams;
-9. reintroduce Unit/Division/scope security middleware;
-10. trust frontend authorization;
-11. allow IDOR;
-12. mass-assign protected fields;
-13. disable CSRF globally;
-14. render untrusted HTML unsafely;
-15. public-store normal attachments;
-16. trust MIME/extension alone where stronger checking feasible;
-17. expose attachment before CLEAN;
-18. treat scanner failure as CLEAN;
-19. expose clamd publicly;
-20. make attachment mandatory;
-21. age-purge authoritative audit;
-22. claim 12-month audit retention;
-23. delete audit/issuance with binary expiry;
-24. expose raw audit merely because normal record view exists;
-25. put production private signing key in source/DB/browser;
-26. consider missing signing identity healthy;
-27. provide unsigned Approved PDF fallback;
-28. equate signer with Approved By;
-29. claim TSA current MVP;
-30. expose private data through public validator;
-31. use private key in browser/validator;
-32. classify genuine superseded PDF as modified solely due later workflow;
-33. return Valid Current without all required evidence;
-34. retain public uploads as attachments;
-35. expose stack/key path/secrets in errors;
-36. create new business state from security condition;
-37. let async export worker ignore bound immutable snapshot.
+4. provide retrievable temporary password after one-time reveal;
+5. allow unlimited/expired sessions;
+6. deny the confirmed third-login replacement policy by silently changing it to hard deny;
+7. execute sensitive mutation after failed/expired re-auth;
+8. make re-auth proof permanent or longer than 15 minutes without spec change;
+9. preserve affected sessions after effective permission/credential disablement change;
+10. treat Team change as permission grant/revoke;
+11. enable Spatie Teams;
+12. reintroduce Unit/Division/scope security middleware;
+13. trust frontend authorization;
+14. allow IDOR;
+15. mass-assign protected fields;
+16. disable CSRF globally;
+17. render untrusted HTML unsafely;
+18. public-store normal attachments;
+19. trust MIME/extension alone where stronger checking feasible;
+20. expose attachment before CLEAN;
+21. treat scanner failure as CLEAN;
+22. expose clamd publicly;
+23. make attachment mandatory;
+24. age-purge authoritative audit;
+25. claim 12-month authoritative audit retention;
+26. let Technical Log cleanup target authoritative audits;
+27. hard-code Technical Log cleanup so Protected Superadmin cannot configure it;
+28. delete audit/issuance with binary expiry;
+29. expose raw audit merely because normal record view exists;
+30. put production private signing key in source/DB/browser/log/`.env.example`;
+31. consider missing signing identity healthy;
+32. provide unsigned Approved PDF fallback;
+33. equate signer with Approved By;
+34. claim TSA current MVP;
+35. expose private data through public validator;
+36. use private key in browser/public validator;
+37. allow `/ispdfvalid` PDF >20MB;
+38. classify genuine superseded PDF as modified solely due later workflow;
+39. return Valid Current without all required evidence;
+40. retain public uploads as attachments;
+41. expose stack/key path/secrets in errors;
+42. create new business state from security condition;
+43. let async export worker ignore bound immutable snapshot;
+44. reintroduce third-party object storage as current MVP requirement without approved change;
+45. keep acknowledged production upload chunks only in ephemeral process/container storage.
 
 ---
 
@@ -915,30 +1053,36 @@ No generic `retention_days` applied to all.
 | Architecture | `09_System_Architecture.md` |
 | **Security** | **`10_Security_Rules.md`** |
 | Schema | `11_ERD_Database_Schema.md` |
+| API | `12_API_Contract.md` |
+| Structure | `13_Project_Structure.md` |
+| Environment/runtime | `14_Environment_Specification.md` once created |
 
 ## 103. Security-to-Architecture Mapping
 
 ```text
 Password/session → Identity module
+Temporary credential → server generation + one-time admin reveal + forced target replacement
 Sensitive re-auth/session revocation → Identity/Admin/Authorization
 Spatie permissions → RBAC primitives
 Team → ordinary organization/profile data, no security scope
 ClamAV → MalwareScanner boundary
 Permanent audits → separate authoritative audit modules
-Approved-PDF key custody → PdfSigningService + protected environment
-Public verification → public route + temp upload + CLEAN + PdfVerificationService
+Technical Log cleanup → protected typed Core Setting + scheduler/log runtime integration
+Approved-PDF key custody → PdfSigner + protected runtime provisioning
+Public verification → public route + max20MB temp upload + CLEAN + PdfVerificationService
 Final SHA-256 → issuance metadata
 Immutable export snapshot → persistent export snapshot boundary
+Private binaries → persistent Laravel local filesystem for initial production
 ```
 
 ## 104. Security Does Not Change Workflow
 
 No MFA step, extra Review level, exclusive Reviewer/Approver, extra NSCMF state, mandatory attachment, personal Approver certificate, public record portal, TSA, permanent export binary storage, Unit/Division, or Team-based authorization.
 
-## 105. Next Document
+## 105. Current Handoff
 
-Next fixed-order document:
+Documents through `13_Project_Structure.md` exist. Next fixed-order document to create **only after explicit user instruction**:
 
-**`11_ERD_Database_Schema.md`**.
+**`14_Environment_Specification.md`**.
 
-ERD MUST materialize these security rules while reusing Spatie package-owned authorization tables, modeling Team separately, and avoiding all Reviewer/Approval scope schema.
+It MUST operationalize `Asia/Jakarta`, environment classes, MySQL/session/queue/cache, persistent Laravel local private storage, immutable template provisioning/hash verification, ClamAV/renderer configurability, protected PDF signing identity, public validator 20 MB limit, 15-minute re-auth proof, scheduler cleanup, Technical Log configurable retention, and secret handling without redefining this security policy.
