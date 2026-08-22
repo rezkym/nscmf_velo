@@ -4,10 +4,10 @@
 
 > **Document ID:** NSCMF-TECH-008  
 > **Document Order:** 08 / 20  
-> **Status:** Draft — Confirmed Technology + Repository–Service Architecture Baseline  
+> **Status:** Draft — Confirmed Technology + Repository–Service + Environment-Decision Baseline  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `10_Security_Rules.md`  
-> **Synchronized With:** `09_System_Architecture.md`, `11A_Resumable_Attachment_Upload_Synchronization.md`, `12_API_Contract.md`, `12A_Repository_Service_Architecture_Synchronization.md`  
+> **Synchronized With:** `09_System_Architecture.md`, `11A_Resumable_Attachment_Upload_Synchronization.md`, `12_API_Contract.md`, `12A_Repository_Service_Architecture_Synchronization.md`, confirmed decisions for upcoming `14_Environment_Specification.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Target Capacity Baseline:** 50 application users  
 > **Last Updated:** 2026-08-22
@@ -21,6 +21,8 @@ Dokumen ini menjadi **source of truth untuk technology selection, technology bou
 Dokumen mengunci runtime, backend/frontend stack, Inertia integration, UI stack, authentication, authorization package boundary, database, queue/cache/session, storage, ClamAV, exact XLSX/PDF export direction, audit approach, testing, quality gates, Docker compatibility, dependency policy, dan **Repository–Service Architecture** yang digunakan backend.
 
 Repository–Service Architecture pada proyek ini bersifat **pragmatic, Laravel-native, dan maintainability-oriented**. Tujuannya bukan meniru textbook Clean Architecture secara berlebihan, melainkan memastikan business logic, transaction boundary, persistence access, dan infrastructure integration mempunyai ownership yang jelas sehingga kode tetap rapi, mudah dirawat manusia, minim silent bug, dan tidak menjadi AI-generated abstraction noise.
+
+Exact environment variable names, runtime paths, process topology, dan secret injection tetap menjadi authority `14_Environment_Specification.md`. Dokumen ini hanya mengunci technology/boundary decisions yang sudah dikonfirmasi.
 
 ---
 
@@ -126,13 +128,14 @@ No separate frontend/backend repositories, standalone REST-SPA architecture, mic
 | Queue | Laravel Database Queue |
 | Session | database session driver |
 | Cache | Laravel database cache baseline |
-| Storage | Laravel Filesystem/Flysystem private local dev + private S3-compatible production target |
+| Storage | **Laravel Filesystem/Flysystem private `local` driver for local/dev and initial production; production storage MUST be persistent/non-ephemeral server storage** |
 | Malware | ClamAV / clamd behind `MalwareScanner` contract |
 | XLSX | original template + targeted OOXML patching |
 | PDF | qualified spreadsheet renderer |
 | PDF signing | server-side signer contract/service |
-| Public verification | verifier service boundary |
+| Public verification | verifier service boundary; PDF max upload **20 MB** |
 | Audit | custom Business/Access/Security audit model |
+| Technical logging | Laravel technical/runtime logs; cleanup is separate configurable Core Setting |
 | Search | MySQL/Eloquent indexes |
 | Realtime | none MVP |
 | Backend tests | Pest 4.x |
@@ -145,7 +148,7 @@ No separate frontend/backend repositories, standalone REST-SPA architecture, mic
 
 ---
 
-# PART C — VERSION POLICY
+# PART C — VERSION / ENVIRONMENT POLICY
 
 ## 6. Runtime Versions
 
@@ -163,6 +166,28 @@ Use MySQL 8.4 LTS, not Innovation track without review.
 
 ### Frontend Packages
 Pin via `package-lock.json`; upgrades require relevant tests.
+
+## 6A. Environment Classes — Confirmed
+
+The environment specification MUST cover at least:
+
+```text
+local / development
+testing
+CI
+staging
+production
+```
+
+`staging` is defined even if its physical server is not provisioned yet.
+
+Canonical application/business timezone is:
+
+```text
+Asia/Jakarta
+```
+
+`14_Environment_Specification.md` will define exact Laravel/MySQL/scheduler/log timestamp configuration so all runtime components remain consistent with this canonical timezone.
 
 ---
 
@@ -208,6 +233,7 @@ RolePermissionAdministrationService
 TeamAdministrationService
 SessionService
 CredentialService
+SystemSettingsService
 ```
 
 Exact physical names/folders are finalized in `13_Project_Structure.md`.
@@ -291,6 +317,7 @@ AuditRepository
 UserRepository
 TeamRepository
 RolePermissionRepository
+SystemSettingsRepository
 ```
 
 Exact list is finalized by `13_Project_Structure.md`.
@@ -310,20 +337,7 @@ findAll/create/update/delete wrappers for every model
 
 unless a future concrete need proves a reusable abstraction has real semantic value.
 
-Repository methods SHOULD communicate domain persistence intent, for example:
-
-```text
-findForWorkflowUpdate
-findEditableRecord
-persistDraft
-paginateReviewCandidates
-paginateApprovalCandidates
-findResumableUpload
-storeAcceptedChunk
-createImmutableExportSnapshot
-```
-
-Repository does not own business workflow authorization or state-transition decisions.
+Repository methods SHOULD communicate domain persistence intent.
 
 ## 12. Repository Return Values
 
@@ -337,16 +351,6 @@ Repository MAY return as appropriate:
 - scalar/value result;
 - other native Laravel query result only when clearly bounded and statically understandable.
 
-Avoid full-model graph loading when a selected/eager-loaded Eloquent query is sufficient.
-
-No mandatory mapper such as:
-
-```text
-Eloquent Model → Domain Entity → DTO → View Model
-```
-
-for routine application flow.
-
 ## 13. Persistence Boundary Strictness
 
 For application/domain persistence and business queries:
@@ -358,26 +362,11 @@ Job/Command → MUST NOT query Model/DB/Repository directly for business use cas
 Repository Implementation → MAY use Eloquent/Query Builder/locking/pagination
 ```
 
-Service MAY call Laravel's transaction manager (`DB::transaction()` or an equivalent thin transaction mechanism) **only to own transaction boundaries**. That permission does not allow Service to execute business SQL/query-builder statements.
-
 Framework/package internals, migrations, seeders, test fixtures, and Spatie's own authorization internals are not treated as violations of the application repository boundary.
 
 ## 14. Transaction Ownership
 
 Service owns business transaction boundaries.
-
-Conceptual workflow:
-
-```text
-NscmfWorkflowService
-→ DB::transaction
-   → repository lock/read
-   → domain/state/permission validation
-   → repository persistence
-   → workflow repository persistence
-   → required Business Audit persistence
-→ commit
-```
 
 Repository MUST NOT independently commit/rollback a larger business use case that spans multiple repositories.
 
@@ -389,13 +378,7 @@ Long external work MUST NOT run while workflow row locks are held.
 
 Eloquent Models represent persistence state and relationships.
 
-They MAY contain:
-
-- relationships;
-- casts;
-- guarded/fillable configuration where safe;
-- local query scopes that remain persistence-oriented and reusable inside repository implementations;
-- simple derived accessors that do not become workflow authority.
+They MAY contain relationships, casts, safe persistence configuration, persistence-oriented local scopes, and simple derived accessors.
 
 They MUST NOT become hidden Service classes containing multi-step workflow orchestration, audit coordination, external I/O, or authorization bypass logic.
 
@@ -404,15 +387,6 @@ They MUST NOT become hidden Service classes containing multi-step workflow orche
 Repository contracts MUST be resolved to concrete implementations through Laravel's service container.
 
 A dedicated provider or equivalent explicit binding mechanism SHOULD be used.
-
-Conceptual:
-
-```text
-NscmfRepository contract
-→ EloquentNscmfRepository
-```
-
-Service depends on the contract, not the concrete Eloquent implementation.
 
 ---
 
@@ -426,21 +400,13 @@ External/runtime capabilities use focused contracts/adapters such as:
 
 ```text
 MalwareScanner → ClamAvScanner
-PrivateStorage → Flysystem-backed implementation
+PrivateStorage → Flysystem-backed local implementation
 SpreadsheetRenderer → qualified renderer implementation
 PdfSigner → concrete server-side signing implementation
 PdfVerifier → concrete verification implementation
 ```
 
-Do not create misleading names such as:
-
-```text
-ClamAvRepository
-StorageRepository
-PdfSigningRepository
-```
-
-unless they actually represent data persistence repositories.
+Do not create misleading names such as `ClamAvRepository`, `StorageRepository`, or `PdfSigningRepository` unless they actually represent data persistence repositories.
 
 ## 18. Queue Jobs and Commands
 
@@ -464,8 +430,6 @@ GenerateNscmfExportJob
 → NscmfExportService
 ```
 
-Do not split a simple MVP pipeline into dozens of queue jobs solely for architectural appearance.
-
 Scheduler commands similarly call Services/cleanup services rather than embedding persistence/business logic.
 
 ---
@@ -488,7 +452,7 @@ Browser
 → Vue
 ```
 
-Dedicated JSON endpoints are allowed for autosave/upload/export status/public verifier while remaining in the same Laravel app/security model.
+Dedicated JSON endpoints are allowed for autosave/upload/export status/public verifier and protected settings while remaining in the same Laravel app/security model.
 
 ## 21. No Inertia SSR Requirement
 
@@ -518,7 +482,8 @@ No SSO/LDAP/OAuth/MFA current MVP. Session auth through Fortify/Laravel foundati
 - disabled account denied;
 - password securely hashed;
 - no self-service Forgot Password baseline;
-- admin reset via temporary password + forced change;
+- admin create/reset uses **server-generated temporary password revealed exactly once to the acting admin**, then target must change it;
+- temporary password plaintext is never persisted/audited/logged;
 - throttling/progressive delay.
 
 ## 25. Session Policy
@@ -528,6 +493,12 @@ idle timeout = 30 minutes
 absolute lifetime = 8 hours
 maximum active sessions = 2
 third valid login = succeeds and revokes oldest active authenticated session
+```
+
+Sensitive-action current-password re-authentication proof lifetime:
+
+```text
+15 minutes
 ```
 
 Role/permission/access-changing security mutation revokes affected sessions according to `10_Security_Rules.md`. Team-only change does not.
@@ -566,15 +537,7 @@ Permissions → Roles → Users
 
 Runtime authorization uses Laravel `can()`/Gate/Policy + Spatie resolution.
 
-Repository–Service Architecture MUST NOT create a second authorization engine such as:
-
-```text
-RolePermissionRepository::userCan(...)
-custom effective-permissions table
-Team-based permission resolver
-```
-
-Service still rechecks domain state, ownership where explicit, archive, validation, security preconditions, and concurrency.
+Repository–Service Architecture MUST NOT create a second authorization engine.
 
 ## 29. Direct User Permissions
 
@@ -602,19 +565,7 @@ Documentation shorthand such as `nscmf.review.*` is never a runtime wildcard per
 
 ## 32. Administrative RBAC Mutation
 
-Role/permission administrative mutation SHOULD run through a cohesive administration Service and a repository/adapter boundary around package mutation where needed for orchestration:
-
-```text
-re-authentication
-→ protected invariant
-→ Service
-→ Spatie/package mutation through bounded implementation
-→ determine affected users
-→ revoke sessions
-→ Security Audit
-```
-
-This is orchestration around Spatie, not a replacement for Spatie authorization.
+Role/permission administrative mutation SHOULD run through a cohesive administration Service and a repository/adapter boundary around package mutation where needed for orchestration.
 
 ---
 
@@ -672,13 +623,35 @@ Redis/Horizon/distributed infrastructure not MVP baseline.
 
 ---
 
-# PART L — ATTACHMENT / MALWARE
+# PART L — ATTACHMENT / PRIVATE STORAGE / MALWARE
 
-## 42. Filesystem
+## 42. Filesystem — Confirmed Initial Production Direction
 
-Laravel Filesystem/Flysystem. Dev private local; production private S3-compatible target.
+Laravel Filesystem/Flysystem is the storage abstraction.
 
-Successfully acknowledged production upload chunks MUST use durable private storage, not only ephemeral application-server local disk.
+Current confirmed direction:
+
+```text
+local/development → private Laravel local filesystem
+initial production → private Laravel local filesystem on persistent/non-ephemeral server storage
+```
+
+Current MVP does **not** use a third-party S3-compatible/object-storage provider.
+
+All of the following remain private:
+
+- resumable upload chunks;
+- assembly/quarantine workspace;
+- final attachments;
+- generated export artifacts;
+- official immutable template binaries;
+- public-validator temporary uploads.
+
+Production acknowledged chunks MUST survive ordinary application process restart/redeploy while the underlying persistent server storage remains healthy. A container/process-local ephemeral filesystem alone is insufficient.
+
+Laravel storage abstraction MUST be preserved so a future approved migration to another backend does not require rewriting business rules/Services.
+
+Exact disk names, roots, prefixes, mount strategy, permissions, and cleanup paths belong to `14_Environment_Specification.md` / `20_Deployment_Architecture.md` as appropriate.
 
 ## 43. Resumable Upload Baseline
 
@@ -696,17 +669,21 @@ explicit CLEAN only = usable
 
 Upload metadata is relationally tracked according to `11A`/`11` authority.
 
+These locked product/security limits MUST NOT silently vary per environment.
+
 ## 44. Malware Contract
 
 ```text
 MalwareScanner
 → ClamAvScanner
-→ clamd private endpoint
+→ clamd private endpoint/socket
 ```
 
 Community package MAY be transport glue but not security authority.
 
 Only explicit CLEAN passes.
+
+Exact clamd topology/socket-vs-TCP placement is deployment/configuration concern and is not invented here.
 
 ---
 
@@ -716,7 +693,19 @@ Only explicit CLEAN passes.
 
 `NSCMF-Form-3.0.xlsx` remains canonical export template until approved replacement.
 
-Export MUST preserve sheets, styles, merges, row/column dimensions, media, print settings, VML/native checkbox controls.
+Production template handling is confirmed as:
+
+```text
+immutable versioned template binary
++ private storage
++ registered template version
++ SHA-256 integrity value
++ mapping version
+```
+
+A replacement is registered as a **new template version**; the previous template binary/version is not silently overwritten.
+
+At bootstrap/readiness, the configured active template binary MUST be resolvable and its SHA-256 MUST match the registered expected value before it is treated as usable.
 
 ## 46. No Generic Workbook Rewrite
 
@@ -741,6 +730,8 @@ Versioned explicit business-field → sheet/cell/control mapping. Never guess ad
 
 Qualified spreadsheet renderer only. LibreOffice Headless remains a candidate only after golden fidelity qualification. No HTML/DomPDF approximation fallback.
 
+Exact renderer executable/container/endpoint/topology remains environment/deployment configuration.
+
 ## 50. Immutable Export Snapshot
 
 At export request time, Service creates/binds immutable deterministic logical snapshot including record/version/workflow iteration/template context.
@@ -759,13 +750,17 @@ READY binary private for 168h/7d then cleanup. Cleanup never removes source reco
 
 Approved PDF only mandatory signing. Logical signer System/Organization; human Approved By separate.
 
-Private key/cert manually provisioned protected environment, never GitHub/source/ordinary DB/browser. Missing/unusable identity is critical readiness failure. No unsigned fallback. No TSA current MVP.
+Private key MUST never be committed to GitHub/source, `.env.example`, ordinary DB, browser, logs, or public validator.
 
-Concrete signer is behind a focused infrastructure contract/adapter and is coordinated by export Service.
+Production signing identity is supplied through protected runtime provisioning such as a mounted protected file/secret reference. Public certificate/chain material required for historical verification may be registered/resolved separately.
+
+Missing/unusable identity is critical readiness failure. No unsigned fallback. No TSA current MVP.
+
+Exact signing library/provider/CA/container/path/passphrase/rotation procedure remains an implementation/deployment decision and MUST NOT be guessed in `08`.
 
 ## 53. Public Verification
 
-Public no-login PDF-only temporary upload, rate limit, ClamAV CLEAN, issuer signature verification, exact SHA-256, issuance/workflow-iteration/currentness resolution, minimum disclosure.
+Public no-login PDF-only temporary upload, **maximum 20 MB**, rate limit, ClamAV CLEAN, issuer signature verification, exact SHA-256, issuance/workflow-iteration/currentness resolution, minimum disclosure.
 
 Results:
 
@@ -778,7 +773,7 @@ UNKNOWN
 
 ---
 
-# PART O — AUDIT
+# PART O — AUDIT / TECHNICAL LOGS
 
 ## 54. Custom Authoritative Audit Model
 
@@ -795,13 +790,44 @@ Business/Access/Security Audit have no age-based purge.
 
 Audit persistence MAY have dedicated repository boundary, but audit rules remain owned by the Service/use case and authoritative security/business documents. Repository MUST NOT silently omit required audit writes.
 
+## 54A. Technical Log Cleanup — Confirmed Runtime Setting
+
+Technical/runtime logs are operational diagnostics, not authoritative audit.
+
+Current application setting:
+
+```text
+Automatic Cleanup = ON by default
+Default Retention = 30 Days
+Protected Superadmin may turn Automatic Cleanup ON/OFF
+Protected Superadmin may choose a positive retention value in Days or Months
+No fixed product maximum retention
+```
+
+The setting is managed through protected Core Settings and persisted as typed application configuration/data, not as an arbitrary JSON/EAV settings store.
+
+When Automatic Cleanup is OFF, the application does not age-clean Technical Logs. Longer retention may consume more storage and should be surfaced operationally.
+
+This setting MUST NEVER apply to:
+
+```text
+Business Audit
+Access Audit
+Security Audit
+NSCMF records/form data
+workflow history/iterations
+PDF issuance/certificate verification history
+```
+
+`14_Environment_Specification.md` will define the logging channel/path/rotation integration and scheduler/runtime behavior around this application setting.
+
 ---
 
 # PART P — TESTING
 
 ## 55. Pest 4
 
-Backend tests cover auth, permission/state authorization, ownership, Team non-authorization, Spatie boundary, workflow, validation, audit, repositories, services, attachments, exports, signing, public verification.
+Backend tests cover auth, permission/state authorization, ownership, Team non-authorization, Spatie boundary, workflow, validation, audit, repositories, services, attachments, exports, signing, public verification, and protected settings.
 
 ## 56. Architecture Boundary Tests
 
@@ -815,21 +841,9 @@ Tests/static checks SHOULD detect architecture drift such as:
 - generic BaseRepository proliferation;
 - DTO-per-model/endpoint architecture introduced without approved change.
 
-Where practical, static architecture tests MAY be added in `16_Testing_Specification.md` without introducing a heavy architecture-testing package unless justified.
-
 ## 57. Authorization / Package Tests
 
-Must include:
-
-- Spatie `teams=false`;
-- Team change does not grant/revoke Review/Approval;
-- Reviewer/Approver permission behavior independent of Team;
-- no scope dependency;
-- wildcard disabled;
-- multi-role permission union;
-- Requester ownership restrictions;
-- protected Superadmin invariants;
-- sensitive role/permission session revocation.
+Must include Spatie `teams=false`, Team non-authorization, wildcard disabled, multi-role permission union, Requester ownership, protected Superadmin invariants, and sensitive role/permission session revocation.
 
 ## 58. Workflow / Concurrency Tests
 
@@ -847,6 +861,8 @@ CI integration SHOULD use MySQL 8.4. SQLite is not the sole target.
 
 XLSX structure + PDF visual tests; signing/hash/current-vs-superseded verification tests.
 
+CI MUST use a dedicated non-production signing identity/fixture and MUST NEVER receive the production signing private key.
+
 ---
 
 # PART Q — QUALITY / CI / DOCKER
@@ -863,9 +879,13 @@ Prefer explicit typed method parameters/return types and PHP enums for closed do
 
 Reproducible Composer/npm installs, quality checks, Pest, frontend tests/build, Playwright, export golden tests. Real production signing key never CI fixture.
 
+CI environment belongs to the confirmed environment set and SHOULD use MySQL 8.4 service where relational behavior matters.
+
 ## 64. Docker Compatibility
 
 Logical runtime may include app/web, MySQL, queue worker, scheduler, ClamAV, qualified renderer. Exact physical topology downstream. No Kubernetes requirement.
+
+Docker compatibility MUST NOT be interpreted as permission to keep acknowledged production chunks only on an ephemeral container filesystem.
 
 ---
 
@@ -881,7 +901,9 @@ No Kubernetes, microservices, Kafka/RabbitMQ, Redis cluster, external search, AP
 
 ## 67. Technical Logging
 
-Laravel technical logs remain separate from authoritative audits. Never log passwords/private key/secrets/raw sensitive payloads/raw chunk bytes.
+Laravel technical logs remain separate from authoritative audits. Never log passwords/private keys/passphrases/secrets/session payloads/raw sensitive payloads/raw chunk bytes.
+
+Technical-log automatic cleanup follows the protected application setting in §54A rather than a hard-coded universal retention value.
 
 ---
 
@@ -921,12 +943,17 @@ Laravel technical logs remain separate from authoritative audits. Never log pass
 30. expose private attachments/chunks;
 31. treat ClamAV failure as CLEAN;
 32. age-delete authoritative audits;
-33. put production signing key in source/DB/browser;
+33. put production signing key in source/DB/browser/logs/`.env.example`;
 34. deliver unsigned Approved PDF after signing failure;
 35. claim TSA current MVP;
 36. make public validator a public record portal;
 37. export later mutable data instead of bound immutable snapshot;
-38. swallow exceptions silently or convert failed domain operations into false-success responses.
+38. swallow exceptions silently or convert failed domain operations into false-success responses;
+39. reintroduce S3/object storage as current MVP requirement without explicit architecture/spec change;
+40. store acknowledged production chunks only on ephemeral process/container storage;
+41. hard-code Technical Log retention so Protected Superadmin cannot use the confirmed cleanup setting;
+42. let Technical Log cleanup touch Business/Access/Security Audit or other authoritative history;
+43. provide a reusable/retrievable plaintext temporary-password screen after the one-time reveal.
 
 ---
 
@@ -982,8 +1009,6 @@ vue-tsc
 - [ ] no generic BaseRepository CRUD abstraction;
 - [ ] Eloquent/Query Builder application persistence/querying occurs inside repository implementations;
 - [ ] no mandatory DTO layer/framework;
-- [ ] simple values use explicit typed parameters where practical;
-- [ ] complex Form Request data remains validated/explicitly mapped, not blindly mass-assigned;
 - [ ] Jobs/Commands call Services;
 - [ ] ClamAV/storage/renderer/signing/verifier use focused infrastructure contracts/adapters;
 - [ ] Spatie remains runtime authorization authority and is not reimplemented by repositories.
@@ -996,31 +1021,40 @@ vue-tsc
 - [ ] business Team separate and authorization-neutral;
 - [ ] direct-user permission admin absent;
 - [ ] wildcard disabled;
-- [ ] app checks granular permissions through Gate/Policies;
-- [ ] ownership only where explicit business rules require it;
 - [ ] no Reviewer/Approval scope layer;
 - [ ] protected Superadmin cannot bypass invalid domain actions.
 
 ## 73. Runtime / Data / Export / Security Acceptance
 
-All locked Laravel/PHP/Vue/Inertia/MySQL/session/queue/storage/resumable-upload/ClamAV/export/signing/verification/audit/testing decisions above remain required.
+- [ ] `Asia/Jakarta` is the canonical application/business timezone;
+- [ ] environment classes include local/development, testing, CI, staging, production;
+- [ ] initial production uses private persistent Laravel local filesystem, not third-party object storage;
+- [ ] acknowledged upload chunks are non-ephemeral;
+- [ ] re-auth proof lifetime is 15 minutes;
+- [ ] public validator maximum upload is 20 MB;
+- [ ] server-generated temporary password is revealed once and forced-changed;
+- [ ] official template is immutable/versioned/private and SHA-256 verified;
+- [ ] Approved-PDF signing identity remains protected runtime provisioning;
+- [ ] Technical Log cleanup is Protected Superadmin-configurable with default ON/30 Days;
+- [ ] authoritative audits remain permanently excluded from Technical Log cleanup.
 
 ## 74. Intentionally Deferred
 
-- exact physical class/folder names → `13_Project_Structure.md`;
+Still intentionally unresolved and MUST NOT be guessed:
+
 - exact default Team master data;
-- official numbering SOP;
-- temporary credential delivery mechanism;
-- exact re-auth proof lifetime;
-- public-validator maximum upload size;
+- official numbering SOP/sample;
 - bulk export packaging;
-- exact numeric abuse rate limits;
+- exact numeric abuse/rate-limit buckets beyond already locked conceptual throttling;
 - notification provider;
-- certificate/signing operational library/container/path/rotation mechanics;
-- technical-log retention/monitoring;
-- backup/DR;
+- exact ClamAV physical topology/sizing;
+- exact qualified renderer executable/image/provider/topology;
+- signing provider/library/CA/container/path/passphrase/rotation ceremony;
+- backup/restore/DR/RPO/RTO;
 - performance/SLA;
-- exact production deployment topology.
+- exact production physical deployment topology.
+
+The following are **no longer TBD**: temporary credential delivery direction, re-auth proof lifetime, public-validator maximum upload size, canonical application timezone, initial production storage backend class, and Technical Log cleanup policy/default.
 
 ## 75. Authority Matrix
 
@@ -1039,11 +1073,13 @@ All locked Laravel/PHP/Vue/Inertia/MySQL/session/queue/storage/resumable-upload/
 | ERD | `11_ERD_Database_Schema.md` |
 | HTTP contract | `12_API_Contract.md` |
 | Cross-document Repository–Service synchronization | `12A_Repository_Service_Architecture_Synchronization.md` |
+| Source structure | `13_Project_Structure.md` |
+| Environment/runtime values | `14_Environment_Specification.md` once created |
 
 ## 76. Current Documentation Handoff
 
-Documents through `12_API_Contract.md` exist. Repository–Service Architecture is synchronized by this document, updated `09_System_Architecture.md`, and `12A_Repository_Service_Architecture_Synchronization.md`.
+Documents through `13_Project_Structure.md` exist and are being synchronized with the confirmed decisions above.
 
-Next fixed-order document to design:
+Next fixed-order document to create — **only after explicit user instruction**:
 
-**`13_Project_Structure.md`** — must translate these locked boundaries into exact Laravel/Vue folder, class, interface, provider, route, job, service, repository, model, infrastructure-adapter, and test placement without reintroducing duplicate orchestration or DTO boilerplate.
+**`14_Environment_Specification.md`** — must operationalize these locked technology/environment boundaries into concrete environment variables, protected runtime values, process settings, storage paths, readiness checks, scheduler integration, and secret handling without redefining business/security/architecture rules.
