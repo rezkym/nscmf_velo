@@ -4,11 +4,13 @@
 
 > **Document ID:** NSCMF-ERD-011  
 > **Document Order:** 11 / 20  
-> **Status:** Draft — Confirmed Database Architecture Baseline  
+> **Status:** Draft — Confirmed Database Architecture + Environment-Decision Synchronization  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
+> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md` and confirmed decisions for upcoming `14_Environment_Specification.md`  
 > **Database:** MySQL 8.4 LTS / InnoDB / `utf8mb4`  
-> **Last Updated:** 2026-08-21
+> **Canonical Application Timezone:** `Asia/Jakarta`  
+> **Last Updated:** 2026-08-22
 
 ---
 
@@ -33,14 +35,17 @@ Schema ini materializes decisions yang sudah dikunci pada `01–10`, terutama:
 - row-locked workflow transitions;
 - typed Activation/Change form data tanpa EAV;
 - append-oriented Business/Access/Security Audit separation;
-- private attachment + ClamAV security metadata;
+- private attachment + resumable-upload + ClamAV security metadata;
 - immutable deterministic export snapshot;
 - exact-template export metadata;
 - Approved PDF issuance/signing verification evidence;
 - generated export binary retention 168 hours / 7 days;
-- no age-based purge untuk authoritative audits.
+- no age-based purge untuk authoritative audits;
+- protected typed Technical Log cleanup setting, distinct from authoritative audit retention;
+- server-generated temporary-password flow has no plaintext credential persistence requirement;
+- initial production binary storage uses persistent Laravel private local filesystem; database stores private storage references/keys, not a public object-storage authorization mechanism.
 
-Dokumen ini tidak menentukan API payloads (`12`), class/folder placement (`13`), environment variables/server paths (`14`), coding-agent rules (`15`), atau physical deployment (`20`).
+Dokumen ini tidak menentukan API payloads (`12`), class/folder placement (`13`), exact environment variables/server paths (`14`), coding-agent rules (`15`), atau physical deployment (`20`).
 
 ---
 
@@ -71,7 +76,9 @@ BIGINT UNSIGNED primary keys unless explicitly stated otherwise
 
 User primary key uses Laravel-conventional `BIGINT UNSIGNED` so Spatie polymorphic pivot `model_id` can use its standard schema without UUID customization.
 
-Business/application timestamps SHOULD use microsecond-capable timestamp/datetime columns where useful for deterministic ordering. Business dates remain `DATE` fields. Exact server/database timezone configuration is finalized in `14_Environment_Specification.md`.
+Business/application timestamps SHOULD use microsecond-capable timestamp/datetime columns where useful for deterministic ordering. Business dates remain `DATE` fields.
+
+Canonical application/business timezone is **`Asia/Jakarta`**. `14_Environment_Specification.md` remains authority for the exact MySQL connection/session/server timestamp strategy so persisted values, API ISO-8601 offsets, scheduler, logs, and issuance timestamps are interpreted consistently.
 
 ## 4. Relational Source of Truth — No EAV
 
@@ -102,26 +109,13 @@ JSON is permitted only where this document explicitly allows it.
 
 `business_audit_events.metadata_json` MAY contain optional supplemental context only.
 
-It MUST NOT be the authoritative location for:
-
-- actor identity;
-- NSCMF ID;
-- Team membership;
-- business status;
-- workflow transition;
-- role/permission assignment;
-- archive state;
-- sign-off identity;
-- NSCMF business fields;
-- export issuance identity.
-
-Those facts have relational columns/tables.
+It MUST NOT be the authoritative location for actor identity, NSCMF ID, Team membership, business status, workflow transition, role/permission assignment, archive state, sign-off identity, NSCMF business fields, or export issuance identity.
 
 ### 5.2 Security Audit Supplemental Metadata
 
 `security_audit_events.metadata_json` MAY contain optional security context that does not deserve a dedicated relational column.
 
-It MUST NOT contain plaintext passwords, password hashes of supplied credentials, private signing keys/passphrases, secret tokens, or become the only authoritative location for actor, target user, event type, outcome, session ID, NSCMF ID, attachment ID, or export ID.
+It MUST NOT contain plaintext passwords, password hashes of supplied credentials, temporary-password plaintext, private signing keys/passphrases, secret tokens, or become the only authoritative location for actor, target user, event type, outcome, session ID, NSCMF ID, attachment ID, export ID, or protected-setting mutation identity.
 
 ### 5.3 Immutable Export Snapshot
 
@@ -133,9 +127,23 @@ It is allowed because it is a **DERIVED immutable serialization** of an already-
 
 Framework-owned serialized/session/job payloads are infrastructure data and do not authorize use of JSON for NSCMF business fields.
 
+### 5.5 No Generic Settings EAV
+
+The fact that the application has protected configurable Technical Log cleanup MUST NOT be used to introduce a generic key/value or JSON settings database such as:
+
+```text
+settings(key, value)
+system_settings.settings_json
+config_values
+```
+
+for arbitrary product/security rules.
+
+Current configurable runtime setting is modeled with typed columns in a bounded singleton table defined in Part C.
+
 ## 6. One Authoritative Source Per Fact
 
-A business fact MUST NOT have conflicting authoritative copies.
+A business/security configuration fact MUST NOT have conflicting authoritative copies.
 
 Examples:
 
@@ -144,7 +152,8 @@ Examples:
 - Team captured for NSCMF at creation → `nscmf_records.team_id`;
 - current final Reviewed/Approved sign-off → current `nscmf_workflow_iterations` row;
 - first successful Submit actor → `nscmf_records.requested_by_user_id`;
-- exact issued PDF hash → `nscmf_pdf_issuances.final_pdf_sha256`.
+- exact issued PDF hash → `nscmf_pdf_issuances.final_pdf_sha256`;
+- Technical Log automatic-cleanup preference → typed `system_settings` columns.
 
 Audit rows and immutable export/issuance evidence preserve historical facts but do not override current source-of-truth columns.
 
@@ -159,6 +168,7 @@ erDiagram
     TEAMS ||--o{ USERS : contains
     TEAMS ||--o{ NSCMF_RECORDS : recorded_team
     USERS ||--o{ NSCMF_RECORDS : owns
+    USERS ||--o{ SYSTEM_SETTINGS : last_updated_by
 
     USERS ||--o{ MODEL_HAS_ROLES : assigned
     ROLES ||--o{ MODEL_HAS_ROLES : grants
@@ -181,11 +191,11 @@ erDiagram
     NSCMF_SIGNING_CERTIFICATES ||--o{ NSCMF_PDF_ISSUANCES : verifies
 ```
 
-Diagram ini intentionally high level; detailed family child tables dijelaskan di bawah.
+Diagram ini intentionally high level; resumable-upload tables remain synchronized through `11A` and detailed family child tables dijelaskan di bawah.
 
 ---
 
-# PART C — IDENTITY / ORGANIZATION / RBAC
+# PART C — IDENTITY / ORGANIZATION / RBAC / SETTINGS
 
 ## 8. `teams` — Application-Owned
 
@@ -238,6 +248,7 @@ Constraints/indexes:
 - index `team_id`;
 - `team_id` `ON DELETE RESTRICT`;
 - password plaintext MUST never be stored;
+- temporary password plaintext MUST never receive its own DB column;
 - protected Superadmin invariants are application/domain enforced and security-tested;
 - Team change does **not** revoke sessions by itself because Team is not authorization.
 
@@ -250,8 +261,6 @@ A user MUST have a valid active Team before creating a new NSCMF. Bootstrap null
 The following tables belong to `spatie/laravel-permission ^8` and MUST NOT be recreated under alternate names:
 
 ### `roles`
-
-Standard package fields include:
 
 ```text
 id BIGINT UNSIGNED PK
@@ -275,8 +284,6 @@ UNIQUE(name, guard_name)
 
 ### `model_has_roles`
 
-Standard Spatie polymorphic relation:
-
 ```text
 role_id
 model_type
@@ -285,8 +292,6 @@ PRIMARY KEY(role_id, model_id, model_type)
 ```
 
 ### `model_has_permissions`
-
-Standard Spatie polymorphic direct-permission pivot:
 
 ```text
 permission_id
@@ -333,11 +338,64 @@ approver_roles
 
 `session.login` and `session.logout` MUST NOT be seeded into `permissions`.
 
+## 12. `system_settings` — Application-Owned Singleton, Typed
+
+Purpose: persist the small set of approved runtime-configurable application settings that must be changed from the authenticated application UI without converting product/security rules into a generic settings engine.
+
+Current schema:
+
+| Column | Type | Null | Notes |
+|---|---|---:|---|
+| `id` | BIGINT UNSIGNED PK | No | singleton row; current application uses exactly one active row |
+| `technical_log_auto_cleanup_enabled` | BOOLEAN | No | default `true` |
+| `technical_log_retention_value` | INT UNSIGNED | No | default `30`; must be `>=1` |
+| `technical_log_retention_unit` | VARCHAR(8) | No | `DAY` or `MONTH`; default `DAY` |
+| `updated_by_user_id` | BIGINT UNSIGNED FK → `users.id` | Yes | last successful authenticated settings actor; nullable bootstrap/default |
+| `created_at` | DATETIME/TIMESTAMP | No | |
+| `updated_at` | DATETIME/TIMESTAMP | No | |
+
+Constraints:
+
+```text
+technical_log_retention_value >= 1
+technical_log_retention_unit IN ('DAY', 'MONTH')
+```
+
+Application invariant:
+
+```text
+exactly one effective system_settings row
+```
+
+Mutation rules:
+
+- Protected Superadmin only;
+- requires `system.settings.manage` under current RBAC mapping;
+- requires valid sensitive re-authentication proof according to Security Rules;
+- Security Audit records mutation without storing secret values;
+- changing these fields NEVER changes authoritative Business/Access/Security Audit retention;
+- turning cleanup OFF does not require clearing the retention value/unit; last configured values remain available for re-enable;
+- no fixed maximum retention value at product-policy level.
+
+Forbidden expansions without approved specification change:
+
+```text
+settings(key,value)
+JSON settings blob
+generic arbitrary environment override table
+Business/Access/Security audit retention columns
+password policy overrides
+MFA toggle
+business-state configuration
+attachment-limit override
+export-retention override
+```
+
 ---
 
 # PART D — CORE NSCMF
 
-## 12. `nscmf_records`
+## 13. `nscmf_records`
 
 One row = one NSCMF record, independent of Activation/Change detail tables.
 
@@ -366,7 +424,7 @@ One row = one NSCMF record, independent of Activation/Change detail tables.
 
 `team_id` is captured from the owner's Team when the NSCMF is created and MUST NOT be used in authorization queries. Later user Team changes do not silently rewrite historical NSCMF Team metadata.
 
-### 12.1 Canonical Status CHECK
+### 13.1 Canonical Status CHECK
 
 Allowed values exactly:
 
@@ -382,16 +440,14 @@ CANCELLED
 
 No other persistent business status is allowed.
 
-### 12.2 Family/Subtype CHECK
-
-Valid combinations:
+### 13.2 Family/Subtype CHECK
 
 ```text
 ACTIVATION → ACTIVATION | UPGRADE_DOWNGRADE | DEACTIVATION
 CHANGE     → MAINTENANCE | UPGRADE | EMERGENCY
 ```
 
-### 12.3 Archive CHECK
+### 13.3 Archive CHECK
 
 If `is_archived = true`, `business_status` MUST be one of:
 
@@ -403,7 +459,7 @@ CANCELLED
 
 Archive does not alter `business_status`.
 
-### 12.4 Submission / Iteration Integrity
+### 13.4 Submission / Iteration Integrity
 
 Domain/database constraints SHOULD preserve:
 
@@ -414,7 +470,7 @@ Domain/database constraints SHOULD preserve:
 
 The `current_workflow_iteration_id` FK is added after `nscmf_workflow_iterations` exists to avoid migration-order circularity.
 
-### 12.5 Request Number Rules
+### 13.5 Request Number Rules
 
 `request_no_normalized` has a unique index.
 
@@ -433,13 +489,13 @@ NSCMF-YYYYMM-#####
 
 is allocated server-side once and is not regenerated by ordinary updates.
 
-After first successful Submit, Request No is immutable. Automatic Request No is system-managed after allocation. Manual Request No may only be changed while eligible Draft rules permit it.
+After first successful Submit, Request No is immutable.
 
-### 12.6 No Hard Delete
+### 13.6 No Hard Delete
 
 `nscmf_records` has **no `deleted_at` business deletion path** and no normal delete permission. Archive is the supported lifecycle mechanism.
 
-## 13. Record Version Semantics — Critical
+## 14. Record Version Semantics — Critical
 
 `record_version` is the single optimistic concurrency token for mutable NSCMF content.
 
@@ -458,7 +514,7 @@ No child table introduces an independent competing business version token unless
 
 # PART E — AUTOMATIC NUMBER SEQUENCE
 
-## 14. `nscmf_number_sequences`
+## 15. `nscmf_number_sequences`
 
 | Column | Type | Null | Notes |
 |---|---|---:|---|
@@ -478,7 +534,7 @@ Allocation rules:
 
 # PART F — ACTIVATION DATA MODEL
 
-## 15. `nscmf_activation_details`
+## 16. `nscmf_activation_details`
 
 Exactly one row for `family=ACTIVATION`.
 
@@ -488,7 +544,7 @@ Exactly one row for `family=ACTIVATION`.
 | `customer_name` | VARCHAR(150) | Yes | required at Submit |
 | `contact_name` | VARCHAR(150) | Yes | required at Submit |
 | `installation_rfs_date` | DATE | Yes | subtype-dependent |
-| `lan_ip_allocation` | TEXT | Yes | validated/parses IP/CIDR/ranges; canonical user-entered allocation list |
+| `lan_ip_allocation` | TEXT | Yes | validated/parses IP/CIDR/ranges |
 | `wan_ip` | VARCHAR(255) | Yes | IPv4/IPv6/CIDR |
 | `gateway` | VARCHAR(255) | Yes | single IPv4/IPv6 |
 | `pop` | VARCHAR(255) | Yes | |
@@ -514,9 +570,9 @@ Exactly one row for `family=ACTIVATION`.
 | `created_at` | DATETIME/TIMESTAMP | No | |
 | `updated_at` | DATETIME/TIMESTAMP | No | |
 
-Draft fields remain nullable; `06` owns action-stage requiredness. `lan_ip_allocation` is a named typed business column, not EAV/JSON; backend still validates each parsed item before persistence.
+Draft fields remain nullable; `06` owns action-stage requiredness.
 
-## 16. `nscmf_activation_references`
+## 17. `nscmf_activation_references`
 
 Optional multi-select reference values.
 
@@ -536,14 +592,9 @@ TICKET
 OTHER
 ```
 
-Constraints:
+Unique `(nscmf_record_id, reference_type)`; `OTHER` requires `specification` at applicable validation stage.
 
-- unique `(nscmf_record_id, reference_type)`;
-- `OTHER` requires `specification` at applicable validation stage.
-
-## 17. `nscmf_activation_service_blocks`
-
-Stores Existing/New Service as explicit repeatable semantic blocks.
+## 18. `nscmf_activation_service_blocks`
 
 | Column | Type | Null |
 |---|---|---:|
@@ -557,25 +608,13 @@ Stores Existing/New Service as explicit repeatable semantic blocks.
 | `created_at` | DATETIME/TIMESTAMP | No |
 | `updated_at` | DATETIME/TIMESTAMP | No |
 
-`service_context`:
+`service_context`: `EXISTING|NEW`.
 
-```text
-EXISTING
-NEW
-```
+`service_status` if present: `ACTIVATED|DEACTIVATED`.
 
-`service_status` if present:
+Unique `(nscmf_record_id, service_context)`.
 
-```text
-ACTIVATED
-DEACTIVATED
-```
-
-Unique `(nscmf_record_id, service_context)` ensures maximum one Existing and one New block.
-
-## 18. `nscmf_activation_sla_items`
-
-Max 3 ordered SLA/specific requirement entries.
+## 19. `nscmf_activation_sla_items`
 
 ```text
 id BIGINT PK
@@ -585,9 +624,7 @@ requirement_text VARCHAR(1000)
 UNIQUE(nscmf_record_id, row_no)
 ```
 
-## 19. `nscmf_activation_virtual_connections`
-
-Custom bandwidth `VC#1`–`VC#3`.
+## 20. `nscmf_activation_virtual_connections`
 
 ```text
 id BIGINT PK
@@ -597,7 +634,7 @@ bandwidth_mbps DECIMAL(14,3) NULL CHECK >0 when present
 UNIQUE(nscmf_record_id, row_no)
 ```
 
-## 20. `nscmf_activation_priority_destinations`
+## 21. `nscmf_activation_priority_destinations`
 
 ```text
 id BIGINT PK
@@ -607,7 +644,7 @@ destination VARCHAR(255)
 UNIQUE(nscmf_record_id, row_no)
 ```
 
-## 21. `nscmf_activation_direct_site_details`
+## 22. `nscmf_activation_direct_site_details`
 
 Optional Customer Site Direct technical data, 1:1 with Activation record.
 
@@ -629,13 +666,9 @@ Optional Customer Site Direct technical data, 1:1 with Activation record.
 | `created_at` | DATETIME/TIMESTAMP | No |
 | `updated_at` | DATETIME/TIMESTAMP | No |
 
-Checks:
+Checks: latency >=0; packet loss 0..100; no invented RSSI range.
 
-- latency >= 0;
-- packet loss 0..100;
-- no invented RSSI range.
-
-## 22. `nscmf_activation_pop_site_details`
+## 23. `nscmf_activation_pop_site_details`
 
 Optional Customer Site at POP data, 1:1.
 
@@ -658,7 +691,7 @@ Optional Customer Site at POP data, 1:1.
 
 # PART G — CHANGE DATA MODEL
 
-## 23. `nscmf_change_details`
+## 24. `nscmf_change_details`
 
 Exactly one row for `family=CHANGE`.
 
@@ -668,13 +701,13 @@ Exactly one row for `family=CHANGE`.
 | `maintenance_purpose` | VARCHAR(4000) / TEXT | Yes | subtype-dependent |
 | `target_execution_date` | DATE | Yes | required at Submit |
 | `monitoring_period_value` | DECIMAL(14,3) | Yes | >0 when applicable |
-| `monitoring_period_unit` | VARCHAR(32) | Yes | normalized duration unit; current recommended minute/hour/day/week |
+| `monitoring_period_unit` | VARCHAR(32) | Yes | normalized duration unit |
 | `rollback_scenario` | VARCHAR(4000) / TEXT | Yes | required at Submit |
 | `announcement_timing` | VARCHAR(40) | Yes | exactly one at Submit |
 | `created_at` | DATETIME/TIMESTAMP | No | |
 | `updated_at` | DATETIME/TIMESTAMP | No | |
 
-`announcement_timing` canonical values:
+`announcement_timing` values:
 
 ```text
 ONE_WEEK_BEFORE
@@ -682,9 +715,7 @@ TWO_WEEKS_BEFORE
 TWO_DAYS_BEFORE_EMERGENCY
 ```
 
-Subtype-specific requiredness remains in `06`, not forced on incomplete Draft rows.
-
-## 24. `nscmf_change_facing_challenges`
+## 25. `nscmf_change_facing_challenges`
 
 ```text
 id BIGINT PK
@@ -694,7 +725,7 @@ challenge_text VARCHAR(1000)
 UNIQUE(nscmf_record_id, row_no)
 ```
 
-## 25. `nscmf_change_identified_problems`
+## 26. `nscmf_change_identified_problems`
 
 ```text
 id BIGINT PK
@@ -704,7 +735,7 @@ problem_text VARCHAR(1000)
 UNIQUE(nscmf_record_id, row_no)
 ```
 
-## 26. `nscmf_change_service_impacts`
+## 27. `nscmf_change_service_impacts`
 
 | Column | Type | Null |
 |---|---|---:|
@@ -725,15 +756,9 @@ CUSTOMER
 OTHER
 ```
 
-Constraints:
+Unique `(nscmf_record_id, impact_code)`; `OTHER` requires description at Submit/Resubmit. These values are business form values, not authorization Team values.
 
-- unique `(nscmf_record_id, impact_code)`;
-- `OTHER` requires description at Submit/Resubmit;
-- these values are service-impact form values, **not Team values and not authorization scope**.
-
-## 27. `nscmf_change_improvement_items`
-
-Paired Improvement Plan / Target KPI rows.
+## 28. `nscmf_change_improvement_items`
 
 ```text
 id BIGINT PK
@@ -744,9 +769,7 @@ target_kpi VARCHAR(1000) NULL
 UNIQUE(nscmf_record_id, row_no)
 ```
 
-Applicable action validation ensures a started row is complete and minimum one complete pair exists at Submit/Resubmit.
-
-## 28. `nscmf_change_results`
+## 29. `nscmf_change_results`
 
 Up to 5 ordered Result of Changes rows.
 
@@ -775,7 +798,7 @@ Constraints:
 
 # PART H — WORKFLOW ITERATIONS / SIGN-OFF
 
-## 29. Iteration Rule — Confirmed
+## 30. Iteration Rule — Confirmed
 
 ```text
 First successful Submit              → Iteration 1
@@ -784,9 +807,7 @@ Approver Return Reviewer/Requester   → same iteration
 Approved or Rejected → Reopen        → new iteration
 ```
 
-No new iteration is created merely by viewing, reviewing, autosaving, resubmitting, exporting, archiving, or unarchiving.
-
-## 30. `nscmf_workflow_iterations`
+## 31. `nscmf_workflow_iterations`
 
 | Column | Type | Null | Meaning |
 |---|---|---:|---|
@@ -811,47 +832,32 @@ Constraints:
 
 - unique `(nscmf_record_id, iteration_no)`;
 - `iteration_no >= 1`;
-- predecessor belongs to same record (domain invariant + tests);
+- predecessor belongs to same record;
 - `closed_status` only `APPROVED`/`REJECTED`;
 - `approved_by_user_id`/`approved_at` only when closed Approved;
 - exactly one current iteration is referenced by `nscmf_records.current_workflow_iteration_id` after first Submit.
 
-## 31. Sign-Off Semantics
+## 32. Sign-Off Semantics
 
 ### Requested By
 
-```text
-nscmf_records.requested_by_user_id
-nscmf_records.first_submitted_at
-```
-
-= actor/timestamp of **first successful Submit**. It is not overwritten by Reopen.
+`nscmf_records.requested_by_user_id` / `first_submitted_at` = actor/timestamp of first successful Submit and are not overwritten by Reopen.
 
 ### Reviewed By
 
-```text
-current workflow iteration.reviewed_by_user_id
-current workflow iteration.reviewed_at
-```
+Current workflow iteration `reviewed_by_user_id` / `reviewed_at` = actor/timestamp of currently effective successful Forward.
 
-= actor/timestamp of the successful Forward that is currently effective for that iteration.
-
-If Approver returns to Reviewer or Requester, current `reviewed_by_*` MUST be cleared because a fresh successful Forward is required. Historical Forward remains in Business Audit.
+Approver return requiring fresh review clears current `reviewed_by_*`; historical Forward remains in Business Audit.
 
 ### Approved By
 
-```text
-current/historical workflow iteration.approved_by_user_id
-approved_at
-```
-
-= actor that successfully commits `PENDING_APPROVAL -> APPROVED`.
+Current/historical workflow iteration `approved_by_user_id` / `approved_at` = actor successfully committing `PENDING_APPROVAL -> APPROVED`.
 
 No exclusive Approver assignment table exists. One successful eligible approval closes the iteration; stale subsequent actions fail current-state revalidation.
 
-## 32. No Reviewer Assignment Ownership Table
+## 33. No Reviewer Assignment Ownership Table
 
-There is intentionally no:
+Intentionally absent:
 
 ```text
 nscmf_review_assignments
@@ -866,9 +872,7 @@ Multiple Reviewer contributors are represented through Business Audit events. Op
 
 # PART I — BUSINESS AUDIT — HYBRID BUT STRICT
 
-## 33. `business_audit_events`
-
-One row represents one authoritative business mutation/workflow/lifecycle event.
+## 34. `business_audit_events`
 
 | Column | Type | Null |
 |---|---|---:|
@@ -887,16 +891,9 @@ One row represents one authoritative business mutation/workflow/lifecycle event.
 | `metadata_json` | JSON | Yes |
 | `occurred_at` | DATETIME(6) | No |
 
-`actor_type` current values:
+`actor_type`: `USER|SYSTEM`.
 
-```text
-USER
-SYSTEM
-```
-
-If `USER`, `actor_user_id` is required. System-managed event may use null actor user with `actor_type=SYSTEM`.
-
-Typical `event_type` examples are explicit application constants such as:
+Typical explicit `event_type` examples:
 
 ```text
 RECORD_CREATED
@@ -918,11 +915,7 @@ ATTACHMENT_ADDED
 ATTACHMENT_REMOVED
 ```
 
-Event vocabulary is finalized/locked in implementation documents but MUST not create extra NSCMF statuses.
-
-## 34. `business_audit_changes`
-
-Normalized field-level changes associated with one event.
+## 35. `business_audit_changes`
 
 | Column | Type | Null |
 |---|---|---:|
@@ -933,42 +926,6 @@ Normalized field-level changes associated with one event.
 | `old_value_text` | LONGTEXT | Yes |
 | `new_value_text` | LONGTEXT | Yes |
 
-Examples of stable field paths:
-
-```text
-activation.customer_name
-activation.service.NEW.service_id
-change.service_impacts.OTHER
-change.results.<row-id>.result_status
-record.request_date
-```
-
-`old_value_text` / `new_value_text` are audit evidence representations, not live source-of-truth values.
-
-## 35. Hybrid Audit Guardrails — Critical
-
-`metadata_json` MAY contain context such as:
-
-```text
-source = autosave
-client_context = form-editor
-```
-
-It MUST NOT hide required relational facts or duplicate authoritative current fields.
-
-Forbidden anti-pattern:
-
-```json
-{
-  "status": "APPROVED",
-  "approved_by": 17,
-  "team_id": 3,
-  "requester_id": 9
-}
-```
-
-when those facts are already modeled relationally.
-
 Business Audit rows are append-oriented. Normal application code MUST NOT update/delete historical events or changes.
 
 ---
@@ -976,8 +933,6 @@ Business Audit rows are append-oriented. Normal application code MUST NOT update
 # PART J — ACCESS AUDIT / SECURITY AUDIT
 
 ## 36. `access_audit_events`
-
-Separate from Business Audit/Timeline.
 
 | Column | Type | Null |
 |---|---|---:|
@@ -989,16 +944,7 @@ Separate from Business Audit/Timeline.
 | `export_request_id` | BIGINT UNSIGNED FK | Yes |
 | `occurred_at` | DATETIME(6) | No |
 
-Typical event types:
-
-```text
-RECORD_VIEWED
-ATTACHMENT_VIEWED
-ATTACHMENT_DOWNLOADED
-EXPORT_REQUESTED
-EXPORT_DOWNLOADED
-PRIVILEGED_AUDIT_VIEWED
-```
+Typical: `RECORD_VIEWED`, `ATTACHMENT_VIEWED`, `ATTACHMENT_DOWNLOADED`, `EXPORT_REQUESTED`, `EXPORT_DOWNLOADED`, `PRIVILEGED_AUDIT_VIEWED`.
 
 No routine Access Audit event becomes a Business Timeline row.
 
@@ -1020,20 +966,11 @@ No routine Access Audit event becomes a Business Timeline row.
 | `metadata_json` | JSON | Yes |
 | `occurred_at` | DATETIME(6) | No |
 
-Typical security events include login failure/throttling, credential reset, temporary-password replacement, role changes, permission changes, session revocation, account enable/disable, malware outcomes, signing readiness/failure, privileged security-audit access.
+Typical events include login failure/throttling, credential reset, temporary-password replacement, role changes, permission changes, session revocation, account enable/disable, malware outcomes, signing readiness/failure, privileged security-audit access, and protected Core Settings mutation.
 
-`outcome` current normalized set SHOULD use explicit values such as:
+`outcome`: `SUCCESS|FAILURE|DENIED|ERROR`.
 
-```text
-SUCCESS
-FAILURE
-DENIED
-ERROR
-```
-
-Security `metadata_json` follows Section 5.2 and remains supplemental only.
-
-Passwords, hashes of supplied passwords, private keys, passphrases, secret tokens, or raw sensitive payloads MUST NOT be stored.
+Passwords, hashes of supplied passwords, temporary-password plaintext, private keys, passphrases, secret tokens, or raw sensitive payloads MUST NOT be stored.
 
 ## 38. Authoritative Audit Retention
 
@@ -1048,11 +985,11 @@ security_audit_events
 
 Normal app code exposes no delete path.
 
-Where operationally practical, production DB grants SHOULD prevent routine application UPDATE/DELETE on authoritative audit tables while still permitting INSERT/SELECT required by the app. Migration/administrative credentials remain separate operational concern.
+Technical Log cleanup setting in `system_settings` is explicitly prohibited from targeting these tables.
 
 ---
 
-# PART K — ATTACHMENTS / MALWARE STATE
+# PART K — ATTACHMENTS / RESUMABLE UPLOAD / MALWARE STATE
 
 ## 39. `nscmf_attachments`
 
@@ -1065,8 +1002,8 @@ Where operationally practical, production DB grants SHOULD prevent routine appli
 | `extension` | VARCHAR(16) | No | normalized |
 | `detected_mime_type` | VARCHAR(150) | No | server detected |
 | `size_bytes` | BIGINT UNSIGNED | No | >0; <=20MB |
-| `sha256` | CHAR(64) | No | exact uploaded/accepted content hash |
-| `quarantine_object_key` | VARCHAR(1024) | Yes | private only |
+| `sha256` | CHAR(64) | No | authoritative final assembled content hash |
+| `quarantine_object_key` | VARCHAR(1024) | Yes | private storage reference only |
 | `private_object_key` | VARCHAR(1024) | Yes | set only after CLEAN promotion |
 | `security_status` | VARCHAR(16) | No | technical file-security state |
 | `scanned_at` | DATETIME(6) | Yes | |
@@ -1076,7 +1013,7 @@ Where operationally practical, production DB grants SHOULD prevent routine appli
 | `created_at` | DATETIME/TIMESTAMP | No | |
 | `updated_at` | DATETIME/TIMESTAMP | No | |
 
-Recommended `security_status` values:
+`security_status`:
 
 ```text
 PENDING
@@ -1085,26 +1022,38 @@ INFECTED
 FAILED
 ```
 
-These are attachment technical/security values and MUST NOT become NSCMF business statuses.
+The historical `*_object_key` column names represent **private storage locator/reference strings**, not a requirement for S3/object storage. With the confirmed initial-production Laravel `local` disk, they hold application-relative private storage keys/paths and MUST NOT expose absolute host paths or public URLs to the client.
 
-Rules:
+Only CLEAN is usable/downloadable subject to authorization.
 
-- only `CLEAN` may have normal usable `private_object_key`;
-- INFECTED / timeout / unavailable / scanner error never become usable;
-- scanner-specific diagnostic detail belongs Security Audit/technical logs and must be sanitized;
-- attachment max count 10 active files/record is enforced transactionally by domain validation;
-- logical removal preserves metadata/audit evidence while storage cleanup may remove binary according to allowed attachment lifecycle;
-- private object key is never sufficient authorization.
+## 40. Resumable Upload Tables
 
-Allowed extensions remain exactly from `06`.
+`11A_Resumable_Attachment_Upload_Synchronization.md` remains authoritative for the already-confirmed physical upload-session/chunk additions, including:
+
+```text
+nscmf_attachment_upload_sessions
+nscmf_attachment_upload_chunks
+```
+
+Locked invariants:
+
+- 5 MiB chunk size;
+- 24h inactivity expiry since last newly accepted progress;
+- 1-based chunk index;
+- idempotent byte-identical replay;
+- conflicting replay rejected;
+- authoritative server final SHA-256 after assembly;
+- full assembled-file ClamAV CLEAN required;
+- upload transport `COMPLETED` is not attachment security `CLEAN`;
+- acknowledged production chunks reside on persistent/non-ephemeral private Laravel local storage under current MVP.
+
+A future storage backend change must not require schema/business semantic change to these references.
 
 ---
 
 # PART L — TEMPLATE / IMMUTABLE EXPORT SNAPSHOT
 
-## 40. `nscmf_template_versions`
-
-Metadata for immutable official XLSX template versions.
+## 41. `nscmf_template_versions`
 
 | Column | Type | Null |
 |---|---|---:|
@@ -1120,13 +1069,15 @@ Constraints:
 
 - unique `version_label`;
 - unique template SHA-256 where appropriate;
-- template binary is immutable after registration;
+- template binary immutable after registration;
 - old template metadata remains available for historical export/issuance traceability;
-- targeted OOXML mapping itself may live in version-controlled application configuration/code, but `mapping_version` identifies which mapping contract was used.
+- targeted OOXML mapping lives in version-controlled code/config and `mapping_version` identifies its contract;
+- replacing the official template means creating/registering a **new version**, not overwriting old binary/metadata;
+- configured binary must be hash-verified against `template_sha256` before use/readiness.
 
-## 41. `nscmf_export_batches`
+`private_object_key` remains a private Laravel Storage key and does not imply an external object-storage provider.
 
-Minimal grouping for bulk export initiation; **does not define ZIP/combined-PDF packaging**.
+## 42. `nscmf_export_batches`
 
 | Column | Type | Null |
 |---|---|---:|
@@ -1135,16 +1086,11 @@ Minimal grouping for bulk export initiation; **does not define ZIP/combined-PDF 
 | `format` | VARCHAR(8) | No |
 | `created_at` | DATETIME/TIMESTAMP | No |
 
-Format:
+Format: `XLSX|PDF`.
 
-```text
-XLSX
-PDF
-```
+Exact bulk packaging remains TBD downstream.
 
-Exact bulk packaging remains TBD downstream. Each selected record still receives its own deterministic export request/snapshot.
-
-## 42. `nscmf_export_requests`
+## 43. `nscmf_export_requests`
 
 | Column | Type | Null |
 |---|---|---:|
@@ -1162,7 +1108,7 @@ Exact bulk packaging remains TBD downstream. Each selected record still receives
 | `failure_code` | VARCHAR(100) | Yes |
 | `failure_summary` | VARCHAR(1000) | Yes |
 
-Technical status values:
+Technical statuses:
 
 ```text
 QUEUED
@@ -1172,11 +1118,7 @@ FAILED
 EXPIRED
 ```
 
-These MUST NOT appear as NSCMF business statuses.
-
-## 43. `nscmf_export_snapshots` — Immutable
-
-Exactly one snapshot per export request.
+## 44. `nscmf_export_snapshots` — Immutable
 
 | Column | Type | Null |
 |---|---|---:|
@@ -1194,38 +1136,31 @@ Exactly one snapshot per export request.
 Constraints:
 
 - unique `export_request_id`;
-- row and `snapshot_json` are immutable after successful creation;
-- `snapshot_sha256` is computed over canonical serialized snapshot representation;
-- worker reads the snapshot, not live NSCMF child tables, to determine exported content;
-- snapshot contains only the version-bound data needed for exact export/sign-off representation;
+- row and `snapshot_json` immutable after successful creation;
+- `snapshot_sha256` computed over canonical serialized snapshot representation;
+- worker reads snapshot, not live NSCMF child tables;
 - snapshot is DERIVED evidence, not editable business source of truth.
 
-## 44. Snapshot Creation Transaction
-
-Export request + snapshot binding occurs synchronously before queue dispatch:
+## 45. Snapshot Creation Transaction
 
 ```text
 authorize
 → BEGIN short transaction
 → read current relational data consistently
-→ create export request row with QUEUED technical status
+→ create export request row with QUEUED
 → bind record_version
 → bind workflow iteration
-→ bind template version
-→ create canonical immutable snapshot linked to export_request_id
+→ bind active immutable template version
+→ create canonical immutable snapshot
 → COMMIT
 → dispatch queue job after commit
 ```
-
-If the transaction fails, neither the export request nor snapshot is committed. Worker MUST NOT rebuild the snapshot from later live data.
 
 ---
 
 # PART M — EXPORT ARTIFACT / APPROVED PDF ISSUANCE
 
-## 45. `nscmf_export_artifacts`
-
-One final user-facing artifact per successful export request.
+## 46. `nscmf_export_artifacts`
 
 | Column | Type | Null |
 |---|---|---:|
@@ -1242,15 +1177,12 @@ One final user-facing artifact per successful export request.
 Constraints:
 
 - unique `export_request_id`;
-- `expires_at = created/ready time + 168 hours` under current rule;
-- scheduler removes generated binary after expiry but artifact metadata row MAY remain;
-- cleanup sets `binary_purged_at` and must not delete source/audit/issuance metadata.
+- `expires_at = created/ready time + 168 hours`;
+- scheduler removes generated binary after expiry but metadata row MAY remain;
+- cleanup sets `binary_purged_at` and must not delete source/audit/issuance metadata;
+- `private_object_key` is a Laravel private-storage locator and does not imply S3.
 
-Intermediate workbook/PDF rendering files are private temporary workspace artifacts and are not READY artifacts.
-
-## 46. `nscmf_signing_certificates` — Public Verification Material Only
-
-Historical public signer/certificate registry.
+## 47. `nscmf_signing_certificates` — Public Verification Material Only
 
 | Column | Type | Null |
 |---|---|---:|
@@ -1271,11 +1203,9 @@ Unique `fingerprint_sha256`.
 
 **There is intentionally no private-key column.**
 
-Private signing key/passphrase is manually provisioned in protected server/environment storage per `10`. This table stores/resolves only public verification material required to preserve historical validation after key rotation. Exact certificate/key container used by the signer remains an Environment/Deployment decision.
+Private signing key/passphrase is provisioned through protected runtime environment/mount/secret reference. This table stores/resolves only public verification material required for historical validation.
 
-## 47. `nscmf_pdf_issuances`
-
-Created only after successful Approved PDF signing.
+## 48. `nscmf_pdf_issuances`
 
 | Column | Type | Null |
 |---|---|---:|
@@ -1293,14 +1223,13 @@ Constraints:
 
 - unique `export_request_id`;
 - unique `export_artifact_id`;
-- index `final_pdf_sha256` for validator lookup;
+- index `final_pdf_sha256`;
 - issuance row persists beyond 7-day binary cleanup;
-- human Approved By remains authoritative on the referenced workflow iteration / bound snapshot and is not duplicated as a second mutable source here;
-- final hash is over **final signed PDF bytes**, not unsigned/intermediate PDF.
+- final hash is over **final signed PDF bytes**.
 
-## 48. Public Validator Currentness
+## 49. Public Validator Currentness
 
-Do not persist a second mutable `is_current` truth on issuance rows.
+No second mutable `is_current` truth on issuance rows.
 
 Currentness is resolved from authoritative relational context:
 
@@ -1312,20 +1241,13 @@ recognized certificate/signature
 + current NSCMF workflow iteration/status
 ```
 
-Result:
-
-- same genuine issuance tied to current Approved iteration → `VALID_CURRENT`;
-- genuine issuance tied to a superseded historical iteration → `VALID_SUPERSEDED`;
-- invalid modified bytes/signature/hash → `INVALID_MODIFIED`;
-- unrecognized issuance → `UNKNOWN`.
-
-This avoids currentness drift between an issuance flag and live workflow state.
+Outcomes remain `VALID_CURRENT|VALID_SUPERSEDED|INVALID_MODIFIED|UNKNOWN`.
 
 ---
 
 # PART N — LARAVEL RUNTIME TABLES
 
-## 49. `sessions`
+## 50. `sessions`
 
 Use Laravel database session table as framework-owned runtime storage.
 
@@ -1340,23 +1262,21 @@ payload
 last_activity
 ```
 
-Current security policy additionally requires an explicit absolute-session anchor. The application migration SHOULD extend the DB session representation with:
+Current security policy additionally requires explicit absolute-session anchor such as:
 
 ```text
 authenticated_at DATETIME/TIMESTAMP NULL
 ```
 
-with the domain invariant that authenticated user sessions (`user_id` non-null) receive `authenticated_at`. This supports the 8-hour absolute lifetime without relying only on `last_activity` and does not force anonymous/public session rows to fabricate an authentication timestamp.
+This supports the 8-hour absolute lifetime.
 
-Session rows may be deleted during logout/revocation; Security Audit preserves required revocation evidence.
+Confirmed third-login policy requires deterministic identification/revocation of the oldest active authenticated session. Existing session identity + `authenticated_at` (or an equivalently explicit authoritative field) MUST support that operation.
 
-Indexes:
+Indexes: `user_id`, `last_activity`, `authenticated_at` where useful.
 
-- `user_id`;
-- `last_activity`;
-- `authenticated_at` where useful for expiry cleanup.
+Sensitive re-auth proof lifetime is 15 minutes. Exact session-key/storage implementation for that proof belongs to `14`/implementation and does not require a plaintext password/proof table.
 
-## 50. Queue / Cache Tables
+## 51. Queue / Cache Tables
 
 Laravel framework-owned runtime tables use standard migrations as appropriate:
 
@@ -1368,17 +1288,15 @@ cache
 cache_locks
 ```
 
-These tables are technical/runtime state and MUST NOT be joined conceptually with NSCMF business status.
-
-Queue/job payloads are not business source of truth. A failed/removed job must not erase the export request/snapshot/audit evidence.
+Queue/job/cache payloads are technical/runtime state and never business source of truth.
 
 ---
 
 # PART O — FOREIGN KEY / DELETE POLICY
 
-## 51. Referential Integrity Direction
+## 52. Referential Integrity Direction
 
-Business/history entities use foreign keys wherever a stable relational target exists.
+Business/history entities use FKs wherever a stable target exists.
 
 High-level delete policy:
 
@@ -1387,19 +1305,17 @@ High-level delete policy:
 - workflow iterations → historical, no normal delete;
 - PDF issuance/certificate verification history → retained;
 - Team/user actor rows referenced by history → `ON DELETE RESTRICT`;
-- package role/permission FK behavior follows official Spatie migrations;
 - generated binary cleanup updates artifact metadata rather than deleting NSCMF source/history;
-- public validator temporary upload is short-lived storage and does not become a normal relational attachment.
-
-Avoid `ON DELETE SET NULL` for authoritative human sign-off identity because actor history must remain resolvable. Disable/deactivate user instead of erasing referenced identity.
+- public validator temporary upload is short-lived storage and does not become a normal relational attachment;
+- `system_settings.updated_by_user_id` SHOULD use `ON DELETE RESTRICT` under the normal no-user-erasure operational model, or nullable preservation only if a future approved user-retirement strategy requires it.
 
 ---
 
 # PART P — INDEX STRATEGY
 
-## 52. Required / High-Value Indexes
+## 53. Required / High-Value Indexes
 
-### Identity
+Identity:
 
 ```text
 users(username) UNIQUE
@@ -1407,7 +1323,7 @@ users(team_id)
 teams(name) UNIQUE normalized
 ```
 
-### NSCMF
+NSCMF:
 
 ```text
 nscmf_records(request_no_normalized) UNIQUE
@@ -1419,7 +1335,7 @@ nscmf_records(request_date)
 nscmf_records(created_at)
 ```
 
-### Workflow
+Workflow:
 
 ```text
 nscmf_workflow_iterations(nscmf_record_id, iteration_no) UNIQUE
@@ -1427,7 +1343,7 @@ nscmf_workflow_iterations(nscmf_record_id, closed_status)
 nscmf_workflow_iterations(approved_at)
 ```
 
-### Audit
+Audit:
 
 ```text
 business_audit_events(nscmf_record_id, occurred_at)
@@ -1441,15 +1357,9 @@ security_audit_events(actor_user_id, occurred_at)
 security_audit_events(target_user_id, occurred_at)
 ```
 
-### Attachment
+Attachment/upload/export indexes follow `11A` + actual query plans, including status/expiry and unique chunk index constraints.
 
-```text
-nscmf_attachments(nscmf_record_id, removed_at)
-nscmf_attachments(security_status)
-nscmf_attachments(sha256)
-```
-
-### Export / Validation
+Export/validation:
 
 ```text
 nscmf_export_requests(nscmf_record_id, requested_at)
@@ -1464,55 +1374,50 @@ nscmf_pdf_issuances(nscmf_record_id, workflow_iteration_id)
 nscmf_signing_certificates(fingerprint_sha256) UNIQUE
 ```
 
-Actual composite-index tuning MUST be based on query plans and target 50-user workload; do not add speculative index explosion.
+`system_settings` does not require speculative indexing beyond PK/singleton semantics and FK to `updated_by_user_id` unless query evidence demands it.
 
 ---
 
-# PART Q — CONSTRAINTS NOT FULLY EXPRESSIBLE WITH SIMPLE CHECKS
+# PART Q — DOMAIN-ENFORCED INVARIANTS
 
-## 53. Domain-Enforced Invariants
+## 54. Invariants Not Fully Expressible by CHECK
 
-Some rules require transactional/domain logic rather than isolated row CHECK constraints.
-
-These MUST be enforced by Laravel domain actions + tests:
+Laravel Service/domain + tests MUST enforce:
 
 - actor owns record for Requester mutations;
 - Team never affects Review/Approval authorization;
-- owner must have a valid active Team when creating NSCMF;
-- record Team is captured at creation and does not auto-follow later user Team changes;
+- owner has valid active Team when creating NSCMF;
+- record Team captured at creation, not auto-followed;
 - max 10 active attachments;
 - first Submit creates Iteration 1 exactly once;
 - Reopen creates next iteration only from Approved/Rejected;
-- predecessor iteration belongs same record;
-- `current_workflow_iteration_id` matches record;
-- stale workflow actor loses race after another transition;
-- one final Approve per current iteration;
+- stale workflow actor loses race;
+- one final Approve per iteration;
 - Approver return clears current effective Review sign-off;
 - Request No immutable after first Submit;
-- automatic numbers never reused;
-- action-stage required/conditional form validation;
-- row parent family matches detail table family;
+- action-stage validation;
 - Result-only mutation cannot touch planning fields;
-- export snapshot assembled from one consistent record version;
+- export snapshot assembled from one consistent version;
 - Approved PDF issuance only after mandatory signing succeeds;
 - final issuance hash corresponds to final signed bytes;
-- audit write required by atomic business transition succeeds in same transaction.
+- required audit write succeeds atomically where specified;
+- `system_settings` has exactly one effective row;
+- only Protected Superadmin with valid authorization + 15-minute re-auth proof can mutate protected Technical Log settings;
+- Technical Log cleanup never targets authoritative audit tables;
+- server-generated temporary password plaintext never persists to schema.
 
-DB triggers are **not** the default business-rule mechanism. Prefer explicit domain/application actions with transaction tests.
+DB triggers are not the default business-rule mechanism.
 
 ---
 
 # PART R — TRANSACTION BOUNDARIES
 
-## 54. Draft / Revision / Result Save
-
-Conceptual transaction:
+## 55. Draft / Revision / Result Save
 
 ```text
 BEGIN
 SELECT/UPDATE nscmf_records
   WHERE id=? AND record_version=expected_version
-
 validate ownership/state/permission
 persist typed parent/child changes
 insert Business Audit event + field changes
@@ -1520,49 +1425,56 @@ increment record_version
 COMMIT
 ```
 
-Zero matched version → explicit optimistic conflict; no overwrite.
-
-## 55. Workflow Transition
-
-Conceptual:
+## 56. Workflow Transition
 
 ```text
 BEGIN
 SELECT nscmf_records ... FOR UPDATE
-re-check required permission
-re-check current state/archive/business/security rules
+re-check permission/state/archive/business/security rules
 perform transition / iteration mutation
 insert Business Audit event
 increment record_version
 COMMIT
 ```
 
-Do not hold lock while scanning files, rendering XLSX/PDF, signing PDF, waiting for user interaction, or running queue work.
+No lock while scanning, upload transfer, rendering, signing, or waiting external I/O.
 
-## 56. Role / Permission Mutation
-
-Spatie remains authorization source of truth.
-
-Application service wraps package mutation:
+## 57. Role / Permission Mutation
 
 ```text
 current-password re-auth
 → protected invariant check
-→ Spatie role/permission mutation
+→ Spatie mutation
 → determine affected users
-→ revoke affected target sessions
+→ revoke affected sessions
 → Security Audit
 ```
 
-Do not create a shadow effective-permissions table.
+Team assignment remains separate organizational metadata.
 
-Team assignment mutation is separate organizational metadata and does not trigger authorization recalculation/session revocation by itself.
+## 58. Protected System Settings Mutation
+
+Conceptual transaction:
+
+```text
+Protected Superadmin identity
++ system.settings.manage
++ valid 15-minute current-password re-auth proof
+→ validate typed cleanup setting
+→ BEGIN
+→ lock/read singleton system_settings
+→ update typed values + updated_by_user_id
+→ append Security Audit event
+→ COMMIT
+```
+
+No settings mutation may alter authoritative audit rows or their retention policy.
 
 ---
 
 # PART S — RETENTION CLASSES
 
-## 57. Permanent / No Age-Based Purge
+## 59. Permanent / No Age-Based Purge
 
 No age-based automatic deletion:
 
@@ -1576,7 +1488,7 @@ nscmf_pdf_issuances
 historical public certificate verification material needed for issued PDFs
 ```
 
-## 58. Temporary Generated Export Binary
+## 60. Temporary Generated Export Binary
 
 ```text
 READY XLSX/PDF binary
@@ -1586,247 +1498,272 @@ READY XLSX/PDF binary
 
 Metadata/audit/issuance persists.
 
-## 59. Technical Logs / Runtime Rows
+## 61. Resumable Upload Temporary Data
 
-Technical logs, expired sessions, cache, queue runtime data have separate operational lifecycle. They MUST NOT inherit the authoritative-audit retention rule automatically.
+Unfinished resumable upload sessions/chunks are cleanup-eligible after **24 hours since last newly accepted progress** according to `11A`.
+
+This is technical upload retention, not Technical Log retention and not authoritative audit retention.
+
+## 62. Technical Logs / Runtime Rows
+
+Technical Logs are **not relational authoritative audit tables** in this ERD.
+
+Their automatic age cleanup behavior is controlled by `system_settings`:
+
+```text
+default enabled = true
+default value = 30
+default unit = DAY
+allowed units = DAY | MONTH
+no product-level maximum
+```
+
+When disabled, no application age-cleanup is performed for Technical Logs.
+
+Expired sessions/cache/queue runtime data have their own operational lifecycles and MUST NOT inherit either the authoritative-audit permanence rule or the Technical Log retention setting unless a later explicit rule says so.
 
 ---
 
 # PART T — DATA INTEGRITY / AI IMPLEMENTATION GUARDRAILS
 
-## 60. Developer / AI MUST NOT
-
-Implementation MUST NOT:
+## 63. Developer / AI MUST NOT
 
 1. create Unit or Division tables;
 2. create Reviewer Scope / Approval Scope tables;
 3. use Team as authorization scope;
 4. enable Spatie Teams;
 5. add `team_id` to Spatie permission pivots;
-6. duplicate Spatie `roles`, `permissions`, or pivot schema under custom names;
-7. remove/repurpose `model_has_permissions` just because direct-user permission UI is disabled;
-8. create `session.login` or `session.logout` Spatie permissions;
+6. duplicate Spatie RBAC schema;
+7. remove/repurpose `model_has_permissions`;
+8. create `session.login`/`session.logout` permissions;
 9. enable wildcard permissions;
-10. create an `effective_permissions` cache/source-of-truth table;
-11. store live Activation/Change fields inside JSON blobs;
+10. create an `effective_permissions` table;
+11. store live Activation/Change fields in generic JSON blobs;
 12. use EAV for known form fields;
-13. hide authoritative actor/status/Team/workflow facts in audit JSON;
-14. duplicate current authoritative values inside audit `metadata_json` as a competing truth;
-15. put secrets/passwords/private keys in Security Audit metadata JSON;
-16. mutate immutable export snapshot after creation;
-17. let export worker read newer live record data instead of snapshot;
-18. store private signing key/passphrase in DB;
-19. store signing private key inside certificate registry;
-20. delete issuance metadata when 7-day binary expires;
-21. make export/scan/session/validator technical status an NSCMF business status;
+13. create generic arbitrary key/value settings or settings JSON blob;
+14. hide authoritative facts in audit JSON;
+15. put secrets/password/temp plaintext/private keys in Security Audit metadata;
+16. create any DB column holding temporary-password plaintext;
+17. mutate immutable export snapshot;
+18. let export worker read newer live data;
+19. store private signing key/passphrase in DB;
+20. delete issuance metadata with 7-day binary cleanup;
+21. make export/scan/session/validator technical state an NSCMF business status;
 22. add permanent Reviewer/Approver assignment ownership;
-23. hard-delete NSCMF as normal lifecycle;
+23. hard-delete NSCMF;
 24. age-purge Business/Access/Security Audit;
-25. use public object path as authorization;
-26. store plaintext password or credential payload in audit;
-27. classify Team change as permission/access-scope mutation;
-28. implement Superadmin as generic bypass of invalid domain state;
-29. introduce DB triggers as hidden workflow engine without an explicit specification change.
-
-## 61. JSON Exception Is Not General Permission
-
-The existence of:
-
-```text
-business_audit_events.metadata_json
-security_audit_events.metadata_json
-nscmf_export_snapshots.snapshot_json
-Laravel session/job payloads
-```
-
-MUST NOT be interpreted as permission to move typed business schema into JSON.
+25. let `system_settings` control authoritative audit retention;
+26. use public/private storage key as authorization;
+27. classify Team change as access-scope mutation;
+28. implement generic Superadmin business bypass;
+29. introduce hidden workflow DB triggers;
+30. interpret `private_object_key` naming as a requirement to use S3/object storage;
+31. store acknowledged production chunks only on ephemeral filesystem;
+32. overwrite registered immutable template version instead of creating a new version.
 
 ---
 
 # PART U — TESTABLE DATABASE ACCEPTANCE
 
-## 62. Schema / RBAC
+## 64. Schema / RBAC / Settings
 
 - [ ] MySQL 8.4/InnoDB/utf8mb4 baseline.
-- [ ] `users.id` compatible with Spatie standard polymorphic pivots.
+- [ ] `users.id` compatible with Spatie standard pivots.
 - [ ] package tables reused, no duplicate RBAC schema.
-- [ ] Spatie Teams disabled and no package Team FK present.
+- [ ] Spatie Teams disabled.
 - [ ] business Team separate from permissions.
 - [ ] direct-user permission UI not required while package pivot remains.
-- [ ] wildcard permission feature disabled.
+- [ ] wildcard disabled.
+- [ ] typed singleton `system_settings` exists.
+- [ ] default Technical Log setting = enabled / 30 / DAY.
+- [ ] setting allows positive DAY/MONTH retention and no fixed max.
+- [ ] no generic key/value settings EAV.
 
-## 63. NSCMF Core
+## 65. NSCMF Core
 
-- [ ] only seven canonical business statuses accepted.
-- [ ] family/subtype valid combinations enforced.
-- [ ] Request No normalized global unique.
-- [ ] monthly automatic sequence concurrency-safe.
-- [ ] record has owner and Team-at-creation metadata.
-- [ ] creating actor must have configured active Team.
-- [ ] Team does not participate in Reviewer/Approver query eligibility.
-- [ ] later user Team changes do not rewrite historical NSCMF Team metadata.
-- [ ] no NSCMF hard-delete path.
-- [ ] archive is separate from status.
-- [ ] optimistic `record_version` exists.
+- [ ] only seven canonical business statuses;
+- [ ] family/subtype combinations;
+- [ ] Request No normalized global unique;
+- [ ] monthly auto sequence safe;
+- [ ] owner + Team-at-creation;
+- [ ] Team not Reviewer/Approver query scope;
+- [ ] no hard-delete;
+- [ ] archive separate;
+- [ ] optimistic `record_version`.
 
-## 64. Family Data
+## 66. Family Data
 
-- [ ] Activation and Change use typed tables.
-- [ ] repeatable max-3/max-5 structures have row number constraints.
-- [ ] Service Impact uses relational multi-select rows.
-- [ ] Other impact description supported.
-- [ ] Result of Changes max five rows and no separate business state.
-- [ ] no EAV/form-data JSON authority.
+- [ ] typed Activation/Change tables;
+- [ ] max-3/max-5 row constraints;
+- [ ] Service Impact relational multi-select;
+- [ ] Other description;
+- [ ] Change Result max five;
+- [ ] no EAV/live form JSON authority.
 
-## 65. Workflow / Sign-Off
+## 67. Workflow / Sign-Off
 
-- [ ] first Submit creates Iteration 1.
-- [ ] Return/Revision/Resubmit stays same iteration.
-- [ ] Reopen after Approved/Rejected creates next iteration.
-- [ ] first Requested By remains historical first Submit actor.
-- [ ] current Reviewed By comes from effective Forward in current iteration.
-- [ ] one successful final Approved By stored on iteration.
-- [ ] old iteration remains historical/supersedable.
-- [ ] no exclusive Reviewer/Approver assignment table.
+- [ ] first Submit creates Iteration 1;
+- [ ] Return/Revision/Resubmit same iteration;
+- [ ] Reopen next iteration;
+- [ ] Requested/Reviewed/Approved semantics correct;
+- [ ] no exclusive Reviewer/Approver assignment.
 
-## 66. Audit
+## 68. Audit / Technical Logs
 
-- [ ] Business/Access/Security Audit are physically separate.
-- [ ] Business field diffs normalized under `business_audit_changes`.
-- [ ] Business/Security audit metadata JSON only supplemental.
-- [ ] no age-based audit purge.
-- [ ] historical audit not normally update/delete capable.
+- [ ] Business/Access/Security physically separate;
+- [ ] no age-based authoritative purge;
+- [ ] `system_settings` cannot target authoritative audits;
+- [ ] protected settings change is Security Audited;
+- [ ] Technical Log retention is not represented as a universal audit retention column.
 
-## 67. Attachment / Security
+## 69. Attachment / Storage
 
-- [ ] attachment private metadata includes server-detected type/size/hash.
-- [ ] non-CLEAN file cannot have usable normal artifact semantics.
-- [ ] max 10 active attachments enforced transactionally.
-- [ ] removal preserves history/evidence.
+- [ ] attachment private metadata includes detected type/size/hash;
+- [ ] non-CLEAN unusable;
+- [ ] max10 enforced;
+- [ ] resumable 5 MiB/24h semantics from `11A`;
+- [ ] private storage references work with Laravel local driver;
+- [ ] production acknowledged chunks can survive normal process restart/redeploy because storage is persistent/non-ephemeral.
 
-## 68. Export / PDF Trust
+## 70. Export / PDF Trust
 
-- [ ] export request binds immutable snapshot at request time.
-- [ ] snapshot stores record version, workflow iteration, template version.
-- [ ] worker does not re-read later state for exported business content.
-- [ ] generated binary expires after 168h while metadata remains.
-- [ ] PDF issuance stores exact final signed SHA-256.
-- [ ] human Approved By remains authoritative on workflow iteration, not duplicated as a mutable issuance truth.
-- [ ] public certificate history is resolvable.
+- [ ] immutable snapshot binding;
+- [ ] versioned immutable template + SHA-256;
+- [ ] template replacement creates new version;
+- [ ] worker never re-reads newer business content;
+- [ ] generated binary expires 168h while metadata remains;
+- [ ] final signed PDF SHA-256 stored;
+- [ ] public certificate history resolvable;
 - [ ] DB contains no signing private key.
-- [ ] current/superseded is resolved from issuance + workflow context, not drifting mutable flag.
 
-## 69. Session / Runtime
+## 71. Session / Runtime
 
-- [ ] DB sessions support 30m idle and explicit 8h absolute anchor.
-- [ ] target-session revocation is possible by `user_id`.
-- [ ] queue/cache/session technical tables remain separate from business schema.
+- [ ] DB sessions support 30m idle + explicit 8h absolute anchor;
+- [ ] oldest active session can be deterministically revoked on third valid login;
+- [ ] affected-session revocation by user ID;
+- [ ] 15-minute re-auth proof enforceable without plaintext password storage;
+- [ ] queue/cache/session technical tables stay separate from business schema.
 
 ---
 
 # PART V — DOWNSTREAM HANDOFF
 
-## 70. `12_API_Contract.md`
+## 72. `12_API_Contract.md`
 
-Must define request/response behavior consistent with this schema, including:
+Must expose request/response behavior consistent with this schema, including:
 
-- expected `record_version` and conflict response;
-- permission/state action endpoints;
-- Team administration without scope semantics;
-- explicit role/permission admin boundaries through Spatie;
-- attachment upload/scan/download behavior;
-- export request/status/download;
-- immutable snapshot semantics hidden from unsafe client mutation;
-- public PDF validation result payload;
-- safe error semantics.
+- optimistic `record_version`;
+- explicit workflow endpoints;
+- Team administration without scope;
+- server-generated one-time temporary password result;
+- 15-minute re-auth proof;
+- protected Technical Log setting read/update;
+- public verifier max20MB;
+- resumable upload;
+- export/immutable snapshot;
+- safe errors.
 
-## 71. `13_Project_Structure.md`
+## 73. `13_Project_Structure.md`
 
-Must place domain actions/services so schema mutations are not scattered across controllers/models/jobs.
+Must place persistence/settings/infrastructure boundaries so Controllers/Jobs do not bypass Service/Repository architecture.
 
-## 72. `14_Environment_Specification.md`
+## 74. `14_Environment_Specification.md`
 
-Must configure MySQL, sessions, queue, storage, template location, ClamAV, renderer, signing identity, public certificates, and scheduler without storing secrets in DB/source.
-
-## 73. `15_Coding_Rules_AGENTS.md`
-
-Must repeat the critical schema guardrails, especially:
+Must configure:
 
 ```text
-NO EAV
-NO live business JSON blobs
-NO Unit/Division
-NO Reviewer/Approval Scope
-NO Spatie Teams
-NO duplicate RBAC schema
-NO direct-user permission admin UI MVP
-NO wildcard permissions
-NO private signing key in DB
-NO authoritative fact duplication inside audit metadata JSON
+Asia/Jakarta canonical timezone integration
+local/testing/CI/staging/production environment classes
+MySQL
+sessions
+queue/cache
+persistent Laravel private local storage
+separate private storage prefixes/roots for chunks/quarantine/final/export/template/validator temp
+ClamAV
+renderer
+protected signing identity/public certificates
+official template location + SHA-256 readiness
+scheduler
+Technical Log channel/rotation + settings-driven cleanup
+secret provisioning
 ```
 
-## 74. `16_Testing_Specification.md`
+without storing secrets in DB/source and without redefining the typed `system_settings` authority.
 
-Must test DB constraints, optimistic conflicts, workflow races, package alignment, audit immutability, attachment security, deterministic snapshot binding, issuance hashes, and retention boundaries.
+## 75. `15_Coding_Rules_AGENTS.md`
+
+Must repeat critical schema guardrails, including NO EAV/live business JSON, NO scope, NO private key/temp plaintext, NO generic settings EAV, and NO storage-backend assumption bypassing Laravel abstraction.
+
+## 76. `16_Testing_Specification.md`
+
+Must test DB constraints, optimistic conflicts, workflow races, package alignment, settings protection, audit immutability, resumable upload, storage persistence assumptions, deterministic snapshot binding, issuance hashes, and retention boundaries.
 
 ---
 
 # PART W — INTENTIONALLY DEFERRED / NOT INVENTED HERE
 
-## 75. Remaining Downstream/TBD Details
+## 77. Remaining Downstream/TBD Details
 
 This ERD intentionally does not invent:
 
 - official company numbering SOP beyond current provisional format;
-- exact initial Team master names beyond examples;
+- exact initial Team master names;
 - generic organizational hierarchy;
 - Team-based authorization;
 - direct-user permission feature;
-- exact API DTO/error/status codes;
-- exact physical certificate/private-key server path;
-- exact signing library/container format/provider/CA;
-- exact public-validator disclosure payload;
+- exact signing library/CA/container/path/passphrase/rotation;
+- exact physical ClamAV topology;
+- exact renderer executable/image/provider/topology;
+- exact private local storage root/mount/permissions/prefix values;
 - exact bulk export packaging/ZIP semantics;
-- additional export formats beyond XLSX/PDF;
-- technical-log retention;
-- notification tables/provider before notification capability is approved;
+- notification tables/provider before approved capability;
 - backup/restore/DR/RPO/RTO;
-- performance/SLA/availability target.
+- performance/SLA/availability target;
+- exact production physical topology.
 
-No future TBD may silently override the confirmed schema boundaries above.
+No future TBD may silently override confirmed schema boundaries above.
+
+Resolved and no longer TBD:
+
+```text
+canonical application timezone = Asia/Jakarta
+initial production storage class = persistent Laravel private local filesystem
+temporary credential = server-generated, revealed once to acting admin
+sensitive re-auth lifetime = 15 minutes
+public validator max upload = 20 MB
+Technical Log cleanup = typed Protected-Superadmin setting, default ON/30 Days
+```
 
 ---
 
 # PART X — FINAL CONSISTENCY STATEMENTS
 
-## 76. Team vs Authorization
+## 78. Team vs Authorization
 
 > Team answers **where a user belongs organizationally**. Permission answers **what the user may attempt to do**. State, ownership where explicitly required, validation, security, and concurrency determine whether the action is valid now.
 
-There is no Team authorization scope.
+## 79. Spatie Boundary
 
-## 77. Spatie Boundary
+> Spatie is the authoritative Role/Permission primitive and schema provider. NSCMF does not build a second RBAC subsystem beside it.
 
-> Spatie is the authoritative Role/Permission primitive and database schema provider. NSCMF does not build a second RBAC subsystem beside it.
+## 80. Settings Boundary
 
-## 78. Audit Hybrid Boundary
+> `system_settings` is a narrow typed singleton for approved runtime-configurable application settings. It is not a generic configuration database and cannot override locked business/security rules or authoritative audit retention.
 
-> Relational columns/child rows hold authoritative audit identity and field-change structure. JSON metadata is supplemental only and MUST NOT become a hidden database inside an audit row.
+## 81. Export Snapshot Boundary
 
-## 79. Export Snapshot Boundary
+> Immutable export snapshot is a derived serialized copy created at export request time so queued workers cannot accidentally export a later record version.
 
-> Immutable export snapshot is a derived serialized copy created at export request time so queued workers cannot accidentally export a later record version. It is not a replacement for the relational NSCMF model.
+## 82. Signed PDF Historical Trust
 
-## 80. Signed PDF Historical Trust
+> The database stores public certificate/issuance/hash evidence required for validation, but never the private signing key. A genuine old signed PDF can remain authentic while becoming `VALID_SUPERSEDED`.
 
-> The database stores public certificate/issuance/hash evidence required for validation, but never the private signing key. A genuine old signed PDF can remain authentic while becoming `VALID_SUPERSEDED` after a later workflow iteration.
+## 83. Storage Boundary
 
----
+> Database `private_object_key`-style fields store framework-private storage locators. They do not prescribe S3 and never grant authorization. Initial production uses persistent Laravel local private storage.
 
-## 81. Next Document
+## 84. Current Handoff
 
-Next document in the fixed project sequence:
+Documents through `13_Project_Structure.md` exist. Next fixed-order document to create **only after explicit user instruction**:
 
-**`12_API_Contract.md`**
-
-It MUST expose HTTP/application contracts that preserve this ERD, permission-centric authorization, immutable snapshot behavior, concurrency semantics, and security boundaries without reintroducing scope or duplicate business truth.
+**`14_Environment_Specification.md`**.
