@@ -4,32 +4,23 @@
 
 > **Document ID:** NSCMF-TECH-008  
 > **Document Order:** 08 / 20  
-> **Status:** Draft — Confirmed Technology Baseline + Spatie/Team Synchronization  
+> **Status:** Draft — Confirmed Technology + Repository–Service Architecture Baseline  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `10_Security_Rules.md`  
+> **Synchronized With:** `09_System_Architecture.md`, `11A_Resumable_Attachment_Upload_Synchronization.md`, `12_API_Contract.md`, `12A_Repository_Service_Architecture_Synchronization.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Target Capacity Baseline:** 50 application users  
-> **Last Updated:** 2026-08-21
+> **Last Updated:** 2026-08-22
 
 ---
 
 ## 1. Purpose
 
-Dokumen ini menjadi **source of truth untuk technology selection dan technology boundaries** NSCMF Digital Form & Workflow System.
+Dokumen ini menjadi **source of truth untuk technology selection, technology boundaries, dan mandatory implementation architecture style** NSCMF Digital Form & Workflow System.
 
-Dokumen mengunci runtime, backend/frontend stack, Inertia integration, UI stack, authentication, authorization package boundary, database, queue/cache/session, storage, ClamAV, exact XLSX/PDF export direction, audit approach, testing, quality gates, Docker compatibility, dan dependency policy.
+Dokumen mengunci runtime, backend/frontend stack, Inertia integration, UI stack, authentication, authorization package boundary, database, queue/cache/session, storage, ClamAV, exact XLSX/PDF export direction, audit approach, testing, quality gates, Docker compatibility, dependency policy, dan **Repository–Service Architecture** yang digunakan backend.
 
-Current authorization synchronization is explicit:
-
-- Spatie Laravel Permission 8.x remains the RBAC primitive;
-- organization uses Team as normal business/profile data;
-- Team is not authorization scope;
-- Spatie `teams` feature MUST remain disabled;
-- no custom Reviewer/Approval scope layer;
-- Spatie-owned RBAC tables MUST NOT be duplicated by ERD;
-- direct user permission administration is not a normal MVP feature;
-- wildcard permissions remain disabled;
-- Login/Logout are Fortify/session authentication operations, not Spatie permissions.
+Repository–Service Architecture pada proyek ini bersifat **pragmatic, Laravel-native, dan maintainability-oriented**. Tujuannya bukan meniru textbook Clean Architecture secara berlebihan, melainkan memastikan business logic, transaction boundary, persistence access, dan infrastructure integration mempunyai ownership yang jelas sehingga kode tetap rapi, mudah dirawat manusia, minim silent bug, dan tidak menjadi AI-generated abstraction noise.
 
 ---
 
@@ -40,7 +31,8 @@ Current authorization synchronization is explicit:
 - **SHOULD** — strong default.
 - **MAY** — allowed.
 - **QUALIFIED** — production eligible only after required qualification.
-- **TBD** — unresolved.
+- **AUTHORITATIVE** — source of truth untuk concern tersebut.
+- **TBD** — unresolved and must not be guessed.
 
 ---
 
@@ -48,7 +40,7 @@ Current authorization synchronization is explicit:
 
 ## 3. Technology Must Serve Business Rules
 
-Stack must support:
+Stack MUST support:
 
 1. internal standalone web app;
 2. username/password login;
@@ -62,7 +54,7 @@ Stack must support:
 10. exact state machine and workflow iteration semantics;
 11. Draft autosave/manual save + optimistic conflicts;
 12. Business/Access/Security Audit separation;
-13. private optional attachments + ClamAV CLEAN gate;
+13. private optional attachments + resumable upload + ClamAV CLEAN gate;
 14. History/search;
 15. exact-template XLSX/PDF;
 16. async immutable-snapshot export;
@@ -71,18 +63,37 @@ Stack must support:
 19. ~10 expected users / 50-user engineering baseline;
 20. Docker compatibility;
 21. no WebSocket/Redis/search-engine requirement for MVP;
-22. testing/export/security regression from bootstrap.
+22. testing/export/security regression from bootstrap;
+23. clean Repository–Service separation without unnecessary DTO/domain-mapper ceremony.
 
-## 4. Architecture Style
+## 4. Architecture Style — Confirmed
 
 ```text
 Laravel 13 Modular Monolith
++ Repository–Service Architecture
 + Inertia 3
 + Vue 3 / TypeScript
 + MySQL 8.4 LTS
 ```
 
-No separate frontend/backend repositories or standalone REST-SPA architecture without approved change.
+Canonical backend dependency direction:
+
+```text
+HTTP / Inertia
+Controllers + Form Requests
+        ↓
+Service Layer
+        ↓
+Repository Contracts + Domain Rules + Infrastructure Contracts
+        ↓
+Eloquent Repository Implementations + Concrete Infrastructure Adapters
+        ↓
+Eloquent Models / Query Builder / Flysystem / ClamAV / Renderer / Signer
+        ↓
+MySQL / Private Storage / External Runtime Components
+```
+
+No separate frontend/backend repositories, standalone REST-SPA architecture, microservice split, or full enterprise Clean Architecture without approved change.
 
 ---
 
@@ -90,11 +101,15 @@ No separate frontend/backend repositories or standalone REST-SPA architecture wi
 
 ## 5. Confirmed Stack
 
-| Layer | Technology |
+| Layer | Technology / Rule |
 |---|---|
 | Backend | Laravel 13.x |
 | Runtime | PHP 8.5.x |
 | PHP packages | Composer 2.x |
+| Backend architecture | **Pragmatic Repository–Service Architecture** |
+| Service layer | mandatory use-case/business orchestration layer |
+| Repository layer | Contract + Eloquent implementation; meaningful domain/aggregate boundary |
+| DTO layer | **none for MVP**; no mandatory DTO-per-request/model/read-projection layer |
 | Frontend | Vue 3.x Composition API |
 | Frontend language | TypeScript |
 | Laravel ↔ Frontend | Inertia 3.x |
@@ -106,16 +121,17 @@ No separate frontend/backend repositories or standalone REST-SPA architecture wi
 | Authentication | Laravel Fortify / Laravel session auth, username + password |
 | Authorization | **Spatie Laravel Permission 8.x + Laravel Policies/Gates + domain state/ownership/invariant checks** |
 | DB | MySQL 8.4 LTS / InnoDB |
-| ORM | Eloquent + Query Builder |
+| ORM | Eloquent + Query Builder **inside repository implementations for application persistence/querying** |
+| Transactions | Laravel `DB::transaction()` owned by Service layer for business use cases |
 | Queue | Laravel Database Queue |
 | Session | database session driver |
 | Cache | Laravel database cache baseline |
 | Storage | Laravel Filesystem/Flysystem private local dev + private S3-compatible production target |
-| Malware | ClamAV / clamd behind `MalwareScanner` |
+| Malware | ClamAV / clamd behind `MalwareScanner` contract |
 | XLSX | original template + targeted OOXML patching |
 | PDF | qualified spreadsheet renderer |
-| PDF signing | server-side `PdfSigningService` |
-| Public verification | Laravel `PdfVerificationService` boundary |
+| PDF signing | server-side signer contract/service |
+| Public verification | verifier service boundary |
 | Audit | custom Business/Access/Security audit model |
 | Search | MySQL/Eloquent indexes |
 | Realtime | none MVP |
@@ -145,101 +161,348 @@ Use Node 24 LTS.
 ### MySQL
 Use MySQL 8.4 LTS, not Innovation track without review.
 
-### Frontend packages
+### Frontend Packages
 Pin via `package-lock.json`; upgrades require relevant tests.
 
 ---
 
-# PART D — BACKEND
+# PART D — REPOSITORY–SERVICE ARCHITECTURE
 
-## 7. Laravel Authority
+## 7. Service Layer Is the Use-Case Authority
 
-Laravel is authoritative runtime for authentication, authorization, routing, validation, workflow, persistence, transactions, audits, queue jobs, attachment access, malware orchestration, export, signing, public verification, History/search.
+The previous conceptual `Application Actions` layer is **superseded**. The backend MUST NOT introduce both an `Actions` orchestration layer and a `Services` orchestration layer for the same use case.
 
-Business logic MUST NOT live only in Vue.
-
-## 8. Application Services / Actions
-
-Controllers SHOULD remain thin. Conceptual actions include:
+Current rule:
 
 ```text
-CreateNscmf
-SaveDraft
-SubmitNscmf
-UpdateChangeResult
-ReturnForRevision
-RejectNscmf
-ForwardToApproval
-ApproveNscmf
-ReopenNscmf
-ArchiveNscmf
-ScanAttachment
-RequestNscmfExport
-GenerateNscmfExport
-SignApprovedPdf
-VerifyIssuedPdf
-CreateUser
-ResetUserCredential
-ChangeUserRoles
-ChangeRolePermissions
-ChangeUserTeam
+Controller
+→ Service
+→ Repository / Domain / Infrastructure contract
 ```
 
-Role/permission mutations MUST go through application orchestration so re-authentication, affected-session revocation, and Security Audit happen consistently.
+Service responsibilities include:
 
-## 9. Transactions
+- use-case orchestration;
+- business-flow coordination;
+- transaction ownership;
+- calling Policies/Gates/domain validators where appropriate;
+- coordinating more than one repository;
+- coordinating required Business/Security Audit writers;
+- dispatching post-commit long-running work where applicable;
+- preserving failure/atomicity semantics.
 
-Laravel `DB::transaction()` + InnoDB primitives required.
-
-Workflow action invariant:
+Representative cohesive services MAY include:
 
 ```text
-required permission
-+ ownership/resource authorization where applicable
-+ current state/archive/validation/security checks
-+ mutation
-+ required Business Audit
-= one consistent action
+NscmfCreationService
+NscmfDraftService
+NscmfWorkflowService
+NscmfChangeResultService
+AttachmentUploadService
+AttachmentFinalizationService
+AttachmentService
+NscmfExportService
+PdfVerificationService
+UserAdministrationService
+RolePermissionAdministrationService
+TeamAdministrationService
+SessionService
+CredentialService
 ```
 
-Team is not an authorization check.
+Exact physical names/folders are finalized in `13_Project_Structure.md`.
 
-Long scan/render/sign work must not hold workflow row lock.
+MUST NOT create one giant `NscmfService` containing unrelated responsibilities.
+
+## 8. Controller Boundary
+
+Controllers MUST remain thin.
+
+Controller responsibilities:
+
+```text
+receive already-routed HTTP request
+→ use Form Request validation/authorization boundary as defined
+→ extract validated values
+→ call exactly the appropriate Service/use-case method
+→ transform result into Inertia/JSON/redirect/binary response
+```
+
+Controllers MUST NOT:
+
+- issue Eloquent/Query Builder business queries;
+- open business transactions;
+- implement workflow decisions;
+- mutate models directly;
+- write audit rows directly;
+- coordinate ClamAV/export/signing pipeline;
+- become an alternative Service layer.
+
+## 9. Form Requests — No DTO Layer
+
+Laravel Form Requests remain the HTTP input validation boundary.
+
+Current MVP deliberately does **not** introduce a DTO layer such as:
+
+```text
+*Dto
+*Data
+*Command object per endpoint
+spatie/laravel-data
+mandatory DTO-per-model
+mandatory read DTO/projection class
+```
+
+Simple use cases SHOULD pass explicit typed scalar/enum parameters to Service methods.
+
+Complex nested payloads such as Draft persistence MAY pass the dedicated Form Request's `validated()` structured array to the Service. In such cases:
+
+- only validated data may cross the HTTP boundary;
+- `$request->all()` is forbidden for business persistence;
+- Service/Repository MUST map expected fields explicitly;
+- validated array MUST NOT be mass-assigned blindly into domain models;
+- PHPStan/Larastan array-shape annotations MAY be used where they materially improve static checking without creating a parallel DTO class hierarchy.
+
+DTO is not forbidden forever, but adding a DTO framework/layer requires demonstrated need and specification change rather than architecture fashion.
+
+## 10. Repository Contracts — Mandatory Persistence Boundary
+
+Application persistence/query access MUST be expressed through repository contracts with concrete Eloquent implementations.
+
+Conceptual pattern:
+
+```text
+Service
+→ NscmfRepository contract
+→ EloquentNscmfRepository implementation
+→ Eloquent / Query Builder
+→ MySQL
+```
+
+Repository contracts SHOULD be grouped by meaningful domain/aggregate/use-case boundaries, for example:
+
+```text
+NscmfRepository
+WorkflowRepository
+AttachmentRepository
+AttachmentUploadRepository
+ExportRepository
+AuditRepository
+UserRepository
+TeamRepository
+RolePermissionRepository
+```
+
+Exact list is finalized by `13_Project_Structure.md`.
+
+Repository MUST NOT be created mechanically one-per-table when no meaningful boundary exists.
+
+## 11. No Generic BaseRepository
+
+The project MUST NOT introduce abstraction noise such as:
+
+```text
+BaseRepository
+GenericRepository<T>
+RepositoryInterface<T>
+findAll/create/update/delete wrappers for every model
+```
+
+unless a future concrete need proves a reusable abstraction has real semantic value.
+
+Repository methods SHOULD communicate domain persistence intent, for example:
+
+```text
+findForWorkflowUpdate
+findEditableRecord
+persistDraft
+paginateReviewCandidates
+paginateApprovalCandidates
+findResumableUpload
+storeAcceptedChunk
+createImmutableExportSnapshot
+```
+
+Repository does not own business workflow authorization or state-transition decisions.
+
+## 12. Repository Return Values
+
+MVP does not introduce a parallel Domain Entity/DTO mapping layer.
+
+Repository MAY return as appropriate:
+
+- Eloquent Model;
+- Eloquent Collection;
+- Laravel paginator;
+- scalar/value result;
+- other native Laravel query result only when clearly bounded and statically understandable.
+
+Avoid full-model graph loading when a selected/eager-loaded Eloquent query is sufficient.
+
+No mandatory mapper such as:
+
+```text
+Eloquent Model → Domain Entity → DTO → View Model
+```
+
+for routine application flow.
+
+## 13. Persistence Boundary Strictness
+
+For application/domain persistence and business queries:
+
+```text
+Controller  → MUST NOT query Model/DB directly
+Service     → MUST NOT issue Eloquent/Query Builder business queries directly
+Job/Command → MUST NOT query Model/DB/Repository directly for business use case execution
+Repository Implementation → MAY use Eloquent/Query Builder/locking/pagination
+```
+
+Service MAY call Laravel's transaction manager (`DB::transaction()` or an equivalent thin transaction mechanism) **only to own transaction boundaries**. That permission does not allow Service to execute business SQL/query-builder statements.
+
+Framework/package internals, migrations, seeders, test fixtures, and Spatie's own authorization internals are not treated as violations of the application repository boundary.
+
+## 14. Transaction Ownership
+
+Service owns business transaction boundaries.
+
+Conceptual workflow:
+
+```text
+NscmfWorkflowService
+→ DB::transaction
+   → repository lock/read
+   → domain/state/permission validation
+   → repository persistence
+   → workflow repository persistence
+   → required Business Audit persistence
+→ commit
+```
+
+Repository MUST NOT independently commit/rollback a larger business use case that spans multiple repositories.
+
+No custom Unit-of-Work abstraction is required for MVP; Laravel transaction primitives are sufficient.
+
+Long external work MUST NOT run while workflow row locks are held.
+
+## 15. Eloquent Model Role
+
+Eloquent Models represent persistence state and relationships.
+
+They MAY contain:
+
+- relationships;
+- casts;
+- guarded/fillable configuration where safe;
+- local query scopes that remain persistence-oriented and reusable inside repository implementations;
+- simple derived accessors that do not become workflow authority.
+
+They MUST NOT become hidden Service classes containing multi-step workflow orchestration, audit coordination, external I/O, or authorization bypass logic.
+
+## 16. Repository Container Binding
+
+Repository contracts MUST be resolved to concrete implementations through Laravel's service container.
+
+A dedicated provider or equivalent explicit binding mechanism SHOULD be used.
+
+Conceptual:
+
+```text
+NscmfRepository contract
+→ EloquentNscmfRepository
+```
+
+Service depends on the contract, not the concrete Eloquent implementation.
 
 ---
 
-# PART E — FRONTEND / INERTIA
+# PART E — INFRASTRUCTURE CONTRACT / ADAPTER BOUNDARY
 
-## 10. Vue 3 + TypeScript
+## 17. External/System Infrastructure Is Not a Repository
+
+Repository terminology is reserved for persistence/query boundaries.
+
+External/runtime capabilities use focused contracts/adapters such as:
+
+```text
+MalwareScanner → ClamAvScanner
+PrivateStorage → Flysystem-backed implementation
+SpreadsheetRenderer → qualified renderer implementation
+PdfSigner → concrete server-side signing implementation
+PdfVerifier → concrete verification implementation
+```
+
+Do not create misleading names such as:
+
+```text
+ClamAvRepository
+StorageRepository
+PdfSigningRepository
+```
+
+unless they actually represent data persistence repositories.
+
+## 18. Queue Jobs and Commands
+
+Queue Job/Scheduled Command responsibilities:
+
+```text
+receive safe technical identifier
+→ call Service
+→ let Service coordinate repositories/adapters
+```
+
+Jobs MUST NOT become hidden business services.
+
+Preferred coarse-grained direction:
+
+```text
+FinalizeAttachmentUploadJob
+→ AttachmentFinalizationService
+
+GenerateNscmfExportJob
+→ NscmfExportService
+```
+
+Do not split a simple MVP pipeline into dozens of queue jobs solely for architectural appearance.
+
+Scheduler commands similarly call Services/cleanup services rather than embedding persistence/business logic.
+
+---
+
+# PART F — FRONTEND / INERTIA
+
+## 19. Vue 3 + TypeScript
 
 Vue handles presentation/local interaction only; not permission/state/malware/signature truth.
 
-## 11. Inertia 3
+## 20. Inertia 3
 
 ```text
 Browser
 → Laravel route/controller
 → server authorization/validation
-→ Application Action
+→ Service
+→ Repository/Adapter boundary
 → Inertia response
 → Vue
 ```
 
-Dedicated JSON endpoints allowed for autosave/upload/export status/public verifier while remaining in same Laravel app and security model.
+Dedicated JSON endpoints are allowed for autosave/upload/export status/public verifier while remaining in the same Laravel app/security model.
 
-## 12. No Inertia SSR Requirement
+## 21. No Inertia SSR Requirement
 
 SSR not required MVP; `/ispdfvalid` being public does not justify SSR by itself.
 
-## 13. UI Stack
+## 22. UI Stack
 
-shadcn-vue + Tailwind 4 + Lucide. Business/security behavior never changed to fit component defaults.
+shadcn-vue + Tailwind 4 + Lucide. Business/security behavior never changes to fit component defaults.
 
 ---
 
-# PART F — AUTHENTICATION
+# PART G — AUTHENTICATION / SESSION
 
-## 14. Authentication Model
+## 23. Authentication Model
 
 ```text
 username + password
@@ -247,38 +510,41 @@ username + password
 
 No SSO/LDAP/OAuth/MFA current MVP. Session auth through Fortify/Laravel foundations.
 
-## 15. Username / Credential
+## 24. Credential Rules
 
-Username unique according to ERD. Password securely hashed, never plaintext. Disabled account denied. Protected Superadmin invariant preserved.
-
-Password policy is authoritative in `10`: min6, no composition, no MFA.
-
-## 16. Fortify Boundary
-
-- registration disabled;
+- password minimum exactly 6 characters;
+- no composition requirement;
+- no MFA;
+- disabled account denied;
+- password securely hashed;
 - no self-service Forgot Password baseline;
 - admin reset via temporary password + forced change;
-- throttling/progressive delay;
-- idle30m / absolute8h / max2 sessions;
-- sensitive role/permission/password reset requires current-password re-auth;
-- effective authorization-changing role/permission mutations revoke affected sessions;
-- Team change alone does not change effective permission.
+- throttling/progressive delay.
+
+## 25. Session Policy
+
+```text
+idle timeout = 30 minutes
+absolute lifetime = 8 hours
+maximum active sessions = 2
+third valid login = succeeds and revokes oldest active authenticated session
+```
+
+Role/permission/access-changing security mutation revokes affected sessions according to `10_Security_Rules.md`. Team-only change does not.
 
 `session.login` and `session.logout` MUST NOT be created as Spatie permission rows.
 
 ---
 
-# PART G — SPATIE AUTHORIZATION — CRITICAL
+# PART H — SPATIE AUTHORIZATION — CRITICAL
 
-## 17. Package Version / Compatibility
+## 26. Package Version / Compatibility
 
 Use **Spatie Laravel Permission 8.x**.
 
-Current package line supports Laravel 13 / PHP 8.5 compatibility according to the package's current dependency contract verified during specification work.
+## 27. Package-Owned Schema
 
-## 18. Package-Owned Database Schema
-
-The package's standard migration owns these RBAC tables:
+Reuse package-owned:
 
 ```text
 roles
@@ -288,22 +554,9 @@ model_has_permissions
 role_has_permissions
 ```
 
-`11_ERD_Database_Schema.md` MUST reuse these package-owned tables and MUST NOT create duplicate custom RBAC tables such as:
+Do not create duplicate custom RBAC tables.
 
-```text
-user_roles
-user_permissions
-role_permissions
-effective_permissions
-reviewer_roles
-approver_roles
-```
-
-Application `users` table remains application-owned and participates through Spatie polymorphic model pivots.
-
-Preferred user PK direction = Laravel conventional bigint for clean default package compatibility unless ERD later has explicit approved reason otherwise.
-
-## 19. Role / Permission Usage
+## 28. Permission Usage
 
 Current design:
 
@@ -311,141 +564,139 @@ Current design:
 Permissions → Roles → Users
 ```
 
-Roles group capability sets. Application SHOULD authorize through Laravel `can()`/Gate/Policy permission checks rather than hard-coding routine feature access by role name.
+Runtime authorization uses Laravel `can()`/Gate/Policy + Spatie resolution.
 
-Multi-role uses Spatie native role assignment and permission union.
+Repository–Service Architecture MUST NOT create a second authorization engine such as:
 
-## 20. Direct User Permissions
+```text
+RolePermissionRepository::userCan(...)
+custom effective-permissions table
+Team-based permission resolver
+```
 
-Spatie's `model_has_permissions` table remains because it belongs to the package.
+Service still rechecks domain state, ownership where explicit, archive, validation, security preconditions, and concurrency.
 
-But current MVP:
+## 29. Direct User Permissions
 
-- does not expose direct permission-to-user administration;
-- does not depend on direct user permissions for normal product setup;
-- normally assigns permissions to roles and roles to users.
+Package table remains; current MVP admin UI does not expose direct permission assignment.
 
-Future direct-user permissions require explicit specification change.
+## 30. Spatie Teams Disabled
 
-## 21. Spatie Teams MUST Stay Disabled
-
-Spatie has its own authorization-scoping feature named Teams. It is **not** NSCMF organizational Team.
-
-Required configuration:
+Required:
 
 ```php
 'teams' => false,
 ```
 
-MUST NOT:
+Business Team remains separate organizational data.
 
-- enable package Teams for Team NOC/CS/Fulfillment;
-- use `setPermissionsTeamId()` in normal authorization;
-- add Spatie team foreign keys to role/permission pivots for this product;
-- make roles/permissions Team-scoped.
+## 31. Wildcard Disabled
 
-Application business Team is modeled independently and has no permission effect.
-
-## 22. Wildcard Permissions MUST Stay Disabled
-
-Required current configuration:
+Required:
 
 ```php
 'enable_wildcard_permission' => false,
 ```
 
-`nscmf.review.*` in documentation is shorthand only. Actual permission rows are explicit.
+Documentation shorthand such as `nscmf.review.*` is never a runtime wildcard permission row.
 
-## 23. Single Guard
+## 32. Administrative RBAC Mutation
 
-Current web app uses `web` guard for role/permission resolution. No duplicate guards without authentication architecture change.
-
-## 24. Spatie Is Not the Whole Domain Decision
-
-Effective action eligibility:
+Role/permission administrative mutation SHOULD run through a cohesive administration Service and a repository/adapter boundary around package mutation where needed for orchestration:
 
 ```text
-Spatie/Laravel permission result
-+ ownership only where explicit business rule requires it
-+ current business state
-+ archive treatment
-+ validation
-+ protected invariants
-+ security preconditions
-+ concurrency/current-state check
+re-authentication
+→ protected invariant
+→ Service
+→ Spatie/package mutation through bounded implementation
+→ determine affected users
+→ revoke sessions
+→ Security Audit
 ```
 
-No Team/scope layer.
-
-## 25. Protected Superadmin
-
-Preferred implementation: protected Superadmin role receives all defined application permissions and remains protected through explicit application invariants.
-
-MUST NOT implement a generic Superadmin bypass that turns invalid domain actions into valid actions. Superadmin still cannot Reopen Cancelled, hard-delete NSCMF, bypass required state/reason/security/signing rules.
+This is orchestration around Spatie, not a replacement for Spatie authorization.
 
 ---
 
-# PART H — VALIDATION IMPLEMENTATION
+# PART I — VALIDATION
 
-## 26. Backend Validation
+## 33. Backend Validation
 
-Use Laravel Form Requests, reusable Rule objects, and domain validators/services for state/action-specific validation. `06` remains authority.
+Use Laravel Form Requests, reusable Rule objects, and domain validators/services for state/action-specific validation. `06_Validation_Rules.md` remains authority.
 
-## 27. Frontend Validation
+## 34. Frontend Validation
 
 UX only. No independent client business-rule schema that can silently diverge.
 
 ---
 
-# PART I — DATABASE
+# PART J — DATABASE
 
-## 28. MySQL 8.4 LTS
+## 35. MySQL 8.4 LTS
 
 Use InnoDB, FKs where appropriate, `utf8mb4`, indexes for queues/history/search/authorization relationships.
 
-`11` defines exact schema.
+`11_ERD_Database_Schema.md` defines exact schema.
 
-## 29. Eloquent / Query Builder
+## 36. Eloquent / Query Builder
 
-Normal data layer. Parameterized queries only. Production app account least privilege, never MySQL root.
+Eloquent and Query Builder are the concrete persistence/query technologies **inside repository implementations**.
 
-## 30. No External Search Engine MVP
+Production application DB account uses least privilege, never MySQL root.
+
+## 37. No External Search Engine MVP
 
 No Elasticsearch/OpenSearch/Meilisearch/Typesense/Scout infrastructure by default.
 
 ---
 
-# PART J — SESSION / CACHE / QUEUE
+# PART K — SESSION / CACHE / QUEUE
 
-## 31. Database Session
+## 38. Database Session
 
-Supports explicit session listing/revocation and max2 policy. Cache is never authorization truth.
+Supports explicit session listing/revocation and max-two policy. Cache is never authorization truth.
 
-## 32. Database Cache
+## 39. Database Cache
 
 Redis not required. Cache never source of truth for workflow/authorization/audit/malware/PDF validity.
 
-## 33. Database Queue
+## 40. Database Queue
 
-Required for exact exports, Approved PDF signing pipeline, bulk export, future notifications. Retry-aware/idempotent where appropriate.
+Required for exact exports and long-running attachment finalization/scanning when asynchronous execution is selected by API contract. Future notification may use the same queue.
 
-## 34. Redis Position
+Jobs remain thin callers of Services.
+
+## 41. Redis Position
 
 Redis/Horizon/distributed infrastructure not MVP baseline.
 
 ---
 
-# PART K — ATTACHMENT / MALWARE
+# PART L — ATTACHMENT / MALWARE
 
-## 35. Filesystem
+## 42. Filesystem
 
-Laravel Filesystem/Flysystem only. Dev private local; production private S3-compatible target.
+Laravel Filesystem/Flysystem. Dev private local; production private S3-compatible target.
 
-## 36. Private by Default
+Successfully acknowledged production upload chunks MUST use durable private storage, not only ephemeral application-server local disk.
 
-No public asset path authorization.
+## 43. Resumable Upload Baseline
 
-## 37. ClamAV / clamd
+Confirmed:
+
+```text
+fixed chunk size = 5 MiB
+max final file = 20 MB
+unfinished upload expiry = 24h since last newly accepted upload activity
+client SHA-256 = resume hint only
+server assembled-file SHA-256 = authoritative
+full assembled-file ClamAV = mandatory
+explicit CLEAN only = usable
+```
+
+Upload metadata is relationally tracked according to `11A`/`11` authority.
+
+## 44. Malware Contract
 
 ```text
 MalwareScanner
@@ -453,23 +704,25 @@ MalwareScanner
 → clamd private endpoint
 ```
 
-Community package MAY be transport glue but not security authority. Only explicit CLEAN passes. clamd private. Virus definitions operationally updated.
+Community package MAY be transport glue but not security authority.
+
+Only explicit CLEAN passes.
 
 ---
 
-# PART L — EXACT EXPORT
+# PART M — EXACT EXPORT
 
-## 38. Official Template Authority
+## 45. Official Template Authority
 
 `NSCMF-Form-3.0.xlsx` remains canonical export template until approved replacement.
 
 Export MUST preserve sheets, styles, merges, row/column dimensions, media, print settings, VML/native checkbox controls.
 
-## 39. No Generic Workbook Rewrite
+## 46. No Generic Workbook Rewrite
 
-Do not casually load/re-save via library that may strip unsupported OOXML parts.
+Do not casually load/re-save via a library that may strip unsupported OOXML parts.
 
-## 40. Targeted OOXML Patching
+## 47. Targeted OOXML Patching
 
 ```text
 immutable template
@@ -480,41 +733,39 @@ immutable template
 → XLSX
 ```
 
-Use controlled ZIP/XML primitives or equivalent.
-
-## 41. Template Mapping
+## 48. Template Mapping
 
 Versioned explicit business-field → sheet/cell/control mapping. Never guess addresses.
 
-## 42. PDF Renderer
+## 49. PDF Renderer
 
-Qualified spreadsheet renderer; LibreOffice Headless candidate only after golden fidelity qualification. No HTML/DomPDF approximation fallback.
+Qualified spreadsheet renderer only. LibreOffice Headless remains a candidate only after golden fidelity qualification. No HTML/DomPDF approximation fallback.
 
-## 43. Immutable Export Snapshot
+## 50. Immutable Export Snapshot
 
-At export request time, system creates/binds immutable deterministic logical snapshot including the record/version/workflow iteration/template context needed for output.
+At export request time, Service creates/binds immutable deterministic logical snapshot including record/version/workflow iteration/template context.
 
-Worker MUST use this bound immutable snapshot, not current later record data.
+Worker Service MUST use the bound snapshot, not later live record data.
 
-Snapshot representation exact schema belongs to `11`.
-
-## 44. Temporary Export Artifacts
+## 51. Temporary Export Artifacts
 
 READY binary private for 168h/7d then cleanup. Cleanup never removes source record, audits, workflow/approval history, or issuance metadata.
 
 ---
 
-# PART M — PDF SIGNING / VERIFICATION
+# PART N — PDF SIGNING / VERIFICATION
 
-## 45. `PdfSigningService`
+## 52. Approved PDF Signing
 
 Approved PDF only mandatory signing. Logical signer System/Organization; human Approved By separate.
 
-Private key/cert manually provisioned protected environment, never GitHub/source/ordinary DB/browser. Missing/unusable identity critical readiness failure. No unsigned fallback. No TSA current MVP.
+Private key/cert manually provisioned protected environment, never GitHub/source/ordinary DB/browser. Missing/unusable identity is critical readiness failure. No unsigned fallback. No TSA current MVP.
 
-## 46. `PdfVerificationService`
+Concrete signer is behind a focused infrastructure contract/adapter and is coordinated by export Service.
 
-Public no-login PDF-only temp upload, rate limit, ClamAV CLEAN, issuer signature verification, exact SHA-256, issuance/workflow-iteration/currentness resolution, minimum disclosure.
+## 53. Public Verification
+
+Public no-login PDF-only temporary upload, rate limit, ClamAV CLEAN, issuer signature verification, exact SHA-256, issuance/workflow-iteration/currentness resolution, minimum disclosure.
 
 Results:
 
@@ -527,9 +778,9 @@ UNKNOWN
 
 ---
 
-# PART N — AUDIT
+# PART O — AUDIT
 
-## 47. Custom Authoritative Audit Model
+## 54. Custom Authoritative Audit Model
 
 Separate:
 
@@ -540,125 +791,150 @@ Security Audit
 Technical Logs
 ```
 
-Business/Access/Security Audit no age-based purge. Generic activity-log package not authoritative.
+Business/Access/Security Audit have no age-based purge.
 
-Hybrid audit storage details belong to `11`, with requirement that authoritative relationships/business facts remain relational and supplemental JSON must not replace schema.
+Audit persistence MAY have dedicated repository boundary, but audit rules remain owned by the Service/use case and authoritative security/business documents. Repository MUST NOT silently omit required audit writes.
 
 ---
 
-# PART O — TESTING
+# PART P — TESTING
 
-## 48. Pest 4
+## 55. Pest 4
 
-Backend tests cover auth, permission/state authorization, ownership rules, Team non-authorization, Spatie boundary, workflow, validation, audit, attachments, exports, signing, public verification.
+Backend tests cover auth, permission/state authorization, ownership, Team non-authorization, Spatie boundary, workflow, validation, audit, repositories, services, attachments, exports, signing, public verification.
 
-## 49. Authorization / Package Tests
+## 56. Architecture Boundary Tests
+
+Tests/static checks SHOULD detect architecture drift such as:
+
+- Controller directly calling Eloquent/DB;
+- Service issuing Eloquent/Query Builder business queries;
+- Job/Command performing business persistence directly;
+- repository containing business workflow decisions;
+- duplicate Actions + Service orchestration;
+- generic BaseRepository proliferation;
+- DTO-per-model/endpoint architecture introduced without approved change.
+
+Where practical, static architecture tests MAY be added in `16_Testing_Specification.md` without introducing a heavy architecture-testing package unless justified.
+
+## 57. Authorization / Package Tests
 
 Must include:
 
 - Spatie `teams=false`;
 - Team change does not grant/revoke Review/Approval;
-- Reviewer with permission can act on eligible state regardless Team;
-- Reviewer without permission cannot act regardless Team;
-- Approver equivalent tests;
-- no custom reviewer/approver scope dependency;
-- direct-user permission UI absent;
-- wildcard permissions disabled;
+- Reviewer/Approver permission behavior independent of Team;
+- no scope dependency;
+- wildcard disabled;
 - multi-role permission union;
 - Requester ownership restrictions;
-- protected Superadmin domain invariants;
+- protected Superadmin invariants;
 - sensitive role/permission session revocation.
 
-## 50. Workflow / Concurrency Tests
+## 58. Workflow / Concurrency Tests
 
-All allowed/forbidden transitions; workflow iteration first-submit/same-cycle/reopen rules; Reviewer/Approver races; Draft/Result optimistic conflicts.
+All allowed/forbidden transitions; workflow iteration rules; Reviewer/Approver races; Draft/Result optimistic conflicts; Service-owned transaction behavior.
 
-## 51. Frontend / E2E
+## 59. Frontend / E2E
 
-Vitest + Vue Test Utils; Playwright for critical journeys including Team/user/role setup, permission-based Review/Approval, export, security, public validator.
+Vitest + Vue Test Utils; Playwright for critical journeys.
 
-## 52. Test DB
+## 60. Test DB
 
-CI integration SHOULD use MySQL 8.4. SQLite not sole target.
+CI integration SHOULD use MySQL 8.4. SQLite is not the sole target.
 
-## 53. Export Golden Tests
+## 61. Export Golden Tests
 
 XLSX structure + PDF visual tests; signing/hash/current-vs-superseded verification tests.
 
 ---
 
-# PART P — QUALITY / CI / DOCKER
+# PART Q — QUALITY / CI / DOCKER
 
-## 54. Quality Gates
+## 62. Quality Gates
 
 Pint, PHPStan/Larastan, ESLint, Prettier, vue-tsc.
 
-## 55. GitHub Actions
+Use `declare(strict_types=1);` for project-owned PHP files unless an explicitly documented interoperability exception exists.
+
+Prefer explicit typed method parameters/return types and PHP enums for closed domain value sets.
+
+## 63. GitHub Actions
 
 Reproducible Composer/npm installs, quality checks, Pest, frontend tests/build, Playwright, export golden tests. Real production signing key never CI fixture.
 
-## 56. Docker Compatibility
+## 64. Docker Compatibility
 
 Logical runtime may include app/web, MySQL, queue worker, scheduler, ClamAV, qualified renderer. Exact physical topology downstream. No Kubernetes requirement.
 
 ---
 
-# PART Q — CAPACITY / LOGGING
+# PART R — CAPACITY / LOGGING
 
-## 57. Capacity
+## 65. Capacity
 
-~10 expected, 50-user engineering baseline. MySQL + DB queue/session/cache is sufficient unless evidence says otherwise.
+~10 expected users / 50-user engineering baseline. MySQL + DB queue/session/cache + Repository–Service modular monolith is sufficient unless evidence says otherwise.
 
-## 58. No Premature Infrastructure
+## 66. No Premature Infrastructure
 
-No Kubernetes, microservices, Kafka/RabbitMQ, Redis cluster, external search, API gateway, separate Vue deployment, WebSockets, generic BPM by default.
+No Kubernetes, microservices, Kafka/RabbitMQ, Redis cluster, external search, API gateway, separate Vue deployment, WebSockets, generic BPM, domain-entity mapper stack, or DTO framework by default.
 
-## 59. Technical Logging
+## 67. Technical Logging
 
-Laravel technical logs remain separate from authoritative audits. Never log passwords/private key/secrets/raw sensitive payloads.
-
----
-
-# PART R — IMPLEMENTATION GUARDRAILS
-
-## 60. Developer / AI MUST NOT
-
-1. switch Vue/architecture without spec change;
-2. rely on frontend authorization;
-3. treat Spatie permission result as bypass of state/domain/security rules;
-4. duplicate Spatie package-owned RBAC tables;
-5. enable Spatie Teams;
-6. use business Team as permission scope;
-7. create Reviewer/Approval scope tables or logic;
-8. call `setPermissionsTeamId()`;
-9. expose direct permission-to-user assignment as normal MVP;
-10. enable wildcard permissions;
-11. create `session.login`/`session.logout` permission rows;
-12. make generic Superadmin bypass invalid domain invariants;
-13. enable registration/SSO/MFA without approved change;
-14. impose password composition;
-15. use SQLite as only integration DB;
-16. add Redis/WebSocket/search without evidence;
-17. use HTML as authoritative export template;
-18. generic-rewrite official workbook if controls may be stripped;
-19. replace native controls;
-20. claim renderer exact without golden qualification;
-21. make generic activity log authoritative;
-22. postpone tests;
-23. expose private attachments;
-24. treat ClamAV failure as CLEAN;
-25. age-delete authoritative audits;
-26. put production signing key in source/DB/browser;
-27. deliver unsigned Approved PDF after signing failure;
-28. claim TSA current MVP;
-29. make public validator a public record portal;
-30. export later mutable data instead of bound immutable snapshot.
+Laravel technical logs remain separate from authoritative audits. Never log passwords/private key/secrets/raw sensitive payloads/raw chunk bytes.
 
 ---
 
-# PART S — DEPENDENCY CATEGORIES
+# PART S — IMPLEMENTATION GUARDRAILS
 
-## 61. Composer
+## 68. Developer / AI MUST NOT
+
+1. switch framework/architecture without spec change;
+2. reintroduce a separate `Actions` orchestration layer beside Service layer;
+3. create generic `BaseRepository`/CRUD repository abstractions without concrete value;
+4. create repository one-per-table mechanically;
+5. make Controller issue application Eloquent/DB queries;
+6. make Service issue Eloquent/Query Builder business queries directly;
+7. let Job/Command execute business persistence/query flow directly instead of calling Service;
+8. let Repository decide workflow authorization/state-transition business rules;
+9. introduce mandatory DTO-per-request/model/read-projection architecture;
+10. add `spatie/laravel-data` or equivalent solely for architecture style;
+11. blindly mass-assign `$request->all()` or an entire validated nested payload to domain models;
+12. create a second RBAC engine around Spatie;
+13. duplicate Spatie package-owned RBAC tables;
+14. enable Spatie Teams;
+15. use business Team as permission scope;
+16. create Reviewer/Approval scope tables or logic;
+17. expose direct permission-to-user assignment as normal MVP;
+18. enable wildcard permissions;
+19. create `session.login`/`session.logout` permission rows;
+20. make generic Superadmin bypass invalid domain invariants;
+21. enable registration/SSO/MFA without approved change;
+22. impose password composition;
+23. use SQLite as only integration DB;
+24. add Redis/WebSocket/search without evidence;
+25. use HTML as authoritative export template;
+26. generic-rewrite official workbook if controls may be stripped;
+27. replace native controls;
+28. claim renderer exact without golden qualification;
+29. make generic activity log authoritative;
+30. expose private attachments/chunks;
+31. treat ClamAV failure as CLEAN;
+32. age-delete authoritative audits;
+33. put production signing key in source/DB/browser;
+34. deliver unsigned Approved PDF after signing failure;
+35. claim TSA current MVP;
+36. make public validator a public record portal;
+37. export later mutable data instead of bound immutable snapshot;
+38. swallow exceptions silently or convert failed domain operations into false-success responses.
+
+---
+
+# PART T — DEPENDENCY CATEGORIES
+
+## 69. Composer
+
+Baseline:
 
 ```text
 laravel/framework ^13
@@ -670,7 +946,9 @@ Laravel Pint / Laravel-provided tooling --dev
 
 ClamAV client and PDF signing library may be chosen after compatibility review because adapters/security semantics are authoritative.
 
-## 62. npm
+No DTO framework is required for current MVP.
+
+## 70. npm
 
 ```text
 vue 3.x
@@ -690,9 +968,27 @@ vue-tsc
 
 ---
 
-# PART T — ACCEPTANCE / NEXT
+# PART U — ACCEPTANCE / DOWNSTREAM
 
-## 63. Authorization Acceptance
+## 71. Repository–Service Acceptance
+
+- [ ] Controller is thin and calls Service;
+- [ ] no duplicate `Actions` orchestration layer exists;
+- [ ] Service owns use-case orchestration;
+- [ ] Service owns business transaction boundary;
+- [ ] Service does not issue Eloquent/Query Builder business queries;
+- [ ] repository contracts have explicit Eloquent implementations;
+- [ ] repository contracts are meaningful domain/aggregate boundaries, not table wrappers;
+- [ ] no generic BaseRepository CRUD abstraction;
+- [ ] Eloquent/Query Builder application persistence/querying occurs inside repository implementations;
+- [ ] no mandatory DTO layer/framework;
+- [ ] simple values use explicit typed parameters where practical;
+- [ ] complex Form Request data remains validated/explicitly mapped, not blindly mass-assigned;
+- [ ] Jobs/Commands call Services;
+- [ ] ClamAV/storage/renderer/signing/verifier use focused infrastructure contracts/adapters;
+- [ ] Spatie remains runtime authorization authority and is not reimplemented by repositories.
+
+## 72. Authorization Acceptance
 
 - [ ] Spatie Permission 8.x used;
 - [ ] package-owned RBAC tables not duplicated;
@@ -705,26 +1001,28 @@ vue-tsc
 - [ ] no Reviewer/Approval scope layer;
 - [ ] protected Superadmin cannot bypass invalid domain actions.
 
-## 64. Runtime / Data / Export / Security Acceptance
+## 73. Runtime / Data / Export / Security Acceptance
 
-All locked Laravel/PHP/Vue/Inertia/MySQL/session/queue/storage/ClamAV/export/signing/verification/audit/testing decisions above remain required.
+All locked Laravel/PHP/Vue/Inertia/MySQL/session/queue/storage/resumable-upload/ClamAV/export/signing/verification/audit/testing decisions above remain required.
 
-## 65. Deferred
+## 74. Intentionally Deferred
 
-- exact ERD/table/index definitions beyond package-owned tables;
-- exact Team master data;
-- API payloads;
-- container topology;
-- production object storage;
-- technical-log retention/monitoring;
-- notification provider;
+- exact physical class/folder names → `13_Project_Structure.md`;
+- exact default Team master data;
 - official numbering SOP;
-- certificate operational format/path/provider;
-- key rotation ceremony;
+- temporary credential delivery mechanism;
+- exact re-auth proof lifetime;
+- public-validator maximum upload size;
+- bulk export packaging;
+- exact numeric abuse rate limits;
+- notification provider;
+- certificate/signing operational library/container/path/rotation mechanics;
+- technical-log retention/monitoring;
 - backup/DR;
-- performance/SLA.
+- performance/SLA;
+- exact production deployment topology.
 
-## 66. Authority Matrix
+## 75. Authority Matrix
 
 | Concern | Authority |
 |---|---|
@@ -735,13 +1033,17 @@ All locked Laravel/PHP/Vue/Inertia/MySQL/session/queue/storage/ClamAV/export/sig
 | State/iteration | `05_State_Status_Flow.md` |
 | Validation | `06_Validation_Rules.md` |
 | UI | `07_UI_UX_Specification.md` |
-| **Technology** | **`08_Tech_Stack_Specification.md`** |
-| Architecture | `09_System_Architecture.md` |
+| **Technology + Repository–Service technology boundary** | **`08_Tech_Stack_Specification.md`** |
+| Logical architecture | `09_System_Architecture.md` |
 | Security | `10_Security_Rules.md` |
 | ERD | `11_ERD_Database_Schema.md` |
+| HTTP contract | `12_API_Contract.md` |
+| Cross-document Repository–Service synchronization | `12A_Repository_Service_Architecture_Synchronization.md` |
 
-## 67. Next Document
+## 76. Current Documentation Handoff
 
-Next fixed-order document:
+Documents through `12_API_Contract.md` exist. Repository–Service Architecture is synchronized by this document, updated `09_System_Architecture.md`, and `12A_Repository_Service_Architecture_Synchronization.md`.
 
-**`11_ERD_Database_Schema.md`**.
+Next fixed-order document to design:
+
+**`13_Project_Structure.md`** — must translate these locked boundaries into exact Laravel/Vue folder, class, interface, provider, route, job, service, repository, model, infrastructure-adapter, and test placement without reintroducing duplicate orchestration or DTO boilerplate.
