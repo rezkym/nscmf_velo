@@ -36,7 +36,7 @@ Authority by concern:
 12A Repository-Service synchronization
 13 Project structure
 14 Environment
-14A Pre-coding governance
+14A Pre-coding governance/history
 15 Coding / developer / agent rules
 ```
 
