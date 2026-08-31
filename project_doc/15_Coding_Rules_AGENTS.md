@@ -513,7 +513,7 @@ TechnicalLogCleanupService
 
 ## 33. Comments / PHPDoc
 
-Comments explain **why**, invariants, non-obvious constraints, or external format quirks.
+Comments explain **why**, invariants, non-obvious constraints, atau external format quirks.
 
 Do not generate verbose boilerplate comments that restate obvious code.
 
