@@ -650,7 +650,7 @@ Migration MUST:
 - use appropriate FK/index/constraint semantics;
 - be tested against MySQL 8.4 where semantics matter.
 
-Do not use `migrate:fresh` or destructive rollback against shared/staging/production data as a shortcut.
+Do not use destructive rollback/reset against shared/staging/production data as a shortcut.
 
 ## 44. No Hidden DB Business Logic
 
@@ -1045,14 +1045,7 @@ Dependencies already approved in project docs may be installed/resolved accordin
 
 ## 81. New Dependency Requires Explicit User Approval
 
-Before running/committing a new dependency addition such as:
-
-```text
-composer require <new-package>
-npm install <new-package>
-```
-
-agent MUST obtain explicit user approval if package is not already approved by project specification.
+Before committing a new dependency addition, agent MUST obtain explicit user approval if the package is not already approved by project specification.
 
 This applies to runtime and development dependencies.
 
@@ -1227,33 +1220,19 @@ A meaningful implementation PR SHOULD contain:
 
 ## 95. No History Rewriting Shortcut
 
-Do not force-push/rebase shared history destructively without explicit user approval.
+Do not rewrite shared history destructively without explicit user approval.
 
 Do not delete branches containing unmerged work without explicit approval.
 
 ---
 
-# PART R — DESTRUCTIVE COMMAND / ACTION SAFETY
+# PART R — DESTRUCTIVE ACTION SAFETY
 
 ## 96. Explicit Approval Required
 
 Before executing a destructive action, coding agent MUST obtain explicit user approval.
 
-Examples include:
-
-```text
-rm -rf or broad recursive deletion
-DROP DATABASE / DROP TABLE / TRUNCATE on non-disposable data
-php artisan migrate:fresh on non-disposable/shared data
-destructive rollback/reset of shared environment
-git reset --hard when it may discard user work
-git clean -fd when it may remove work
-git push --force / shared-history rewrite
-deleting unmerged branches
-deleting authoritative project docs
-purging authoritative audits/history
-overwriting immutable template versions
-```
+Destructive actions include operations that can materially erase data/work/history, rewrite shared repository/database history, delete authoritative evidence, or overwrite immutable registered project assets.
 
 ## 97. Disposable Test Environment Exception
 
@@ -1268,8 +1247,6 @@ Before an approved destructive action, verify target environment/path/database/b
 ## 99. No Destructive Shortcut
 
 A broad implementation request is not permission to use destructive shortcuts.
-
-Example: "fix migrations" does not automatically authorize `migrate:fresh` on a shared database.
 
 ---
 
