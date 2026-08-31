@@ -6,25 +6,33 @@
 > **Applies To:** authoritative implementation-facing interpretation of `01_PRD.md` through `14_Environment_Specification.md`, including `11A` and `12A`  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Decision Date:** 2026-08-31  
-> **Status:** Confirmed / Authoritative pre-`15` synchronization  
-> **Next Fixed-Order Document:** `15_Coding_Rules_AGENTS.md` — MUST NOT be created until explicit user instruction
+> **Status:** Confirmed / Historical Pre-`15` Synchronization — material rules are now incorporated into `15_Coding_Rules_AGENTS.md` and root `AGENTS.md`  
+> **Current Fixed-Order Handoff:** `16_Testing_Specification.md` — only after explicit user instruction
 
 ---
 
 ## 1. Purpose
 
-Dokumen ini merekam keputusan development-process dan repository-governance yang sudah dikonfirmasi user setelah `14_Environment_Specification.md` selesai tetapi **sebelum** `15_Coding_Rules_AGENTS.md` dibuat.
+Dokumen ini merekam keputusan development-process dan repository-governance yang dikonfirmasi user setelah `14_Environment_Specification.md` selesai dan sebelum `15_Coding_Rules_AGENTS.md` dibuat.
 
-Tujuan addendum ini adalah memastikan implementasi tidak memulai development dengan asumsi yang sudah outdated, sekaligus menjaga separation of concerns: Product/Business/API/Security documents tidak dipaksa menjadi coding-agent rulebook.
-
-Jika terdapat handoff/progress wording lama pada dokumen 01–14 yang masih menyebut `11`, `13`, atau `14` sebagai dokumen berikutnya, wording tersebut adalah historical progress marker dan **tidak** mengalahkan current project state berikut:
+Dokumen ini tetap dipertahankan sebagai synchronization history. Setelah explicit user instruction pada 2026-08-31, keputusan material dari addendum ini telah dioperasionalkan oleh:
 
 ```text
-01–14 complete as authoritative draft set
+project_doc/15_Coding_Rules_AGENTS.md
+AGENTS.md
+```
+
+Jika ada perbedaan wording mengenai coding/developer/agent conduct, `15_Coding_Rules_AGENTS.md` adalah authority terbaru. Addendum ini tidak boleh digunakan untuk mengalahkan `15`.
+
+Jika terdapat handoff/progress wording lama pada dokumen 01–14 yang masih menyebut `11`, `13`, `14`, atau `15` sebagai dokumen berikutnya, wording tersebut adalah historical progress marker dan tidak mengalahkan current project state:
+
+```text
+01–15 complete as authoritative draft set
 11A and 12A remain authoritative synchronization addenda
-14A = current pre-15 synchronization overlay
-next fixed-order document = 15_Coding_Rules_AGENTS.md
-15 must wait for explicit user instruction
+14A remains historical synchronization evidence
+root AGENTS.md exists as synchronized operational entrypoint
+next fixed-order document = 16_Testing_Specification.md
+16 must wait for explicit user instruction
 ```
 
 Addendum ini tidak mengubah business scope, canonical states, permission model, API contract, schema facts, security behavior, atau environment/runtime product values.
@@ -62,7 +70,7 @@ Developer/coding agent MUST NOT:
 
 For a pure behavior-preserving refactor, an artificial RED test is not required when existing passing tests already prove the behavior being preserved.
 
-`08_Tech_Stack_Specification.md` is synchronized directly with this TDD baseline. Exact TDD evidence/PR rules belong to `15`/`16`.
+`08_Tech_Stack_Specification.md` and `15_Coding_Rules_AGENTS.md` are synchronized with this TDD baseline. Exact testing strategy belongs downstream to `16_Testing_Specification.md`.
 
 ---
 
@@ -138,31 +146,19 @@ Editing a historical migration is allowed only while it is still genuinely local
 
 Once shared/applied, the safe rule is **new migration, not rewrite history**.
 
-Developer/coding agent MUST NOT use `migrate:fresh`, destructive rollback/reset, table drop, or equivalent destructive shortcut against a shared/staging/production data environment to avoid writing the correct forward migration.
+Developer/coding agent MUST NOT use destructive rollback/reset or equivalent destructive shortcut against a shared/staging/production data environment to avoid writing the correct forward migration.
 
 This rule supplements `11_ERD_Database_Schema.md` and `13_Project_Structure.md` without changing the authoritative target schema defined by `11`.
 
 ---
 
-# PART E — DESTRUCTIVE COMMAND SAFETY
+# PART E — DESTRUCTIVE ACTION SAFETY
 
 ## 7. Explicit User Approval Required
 
-The approved policy is **B: the agent must ask the user for approval before executing a destructive command/action**.
+The approved policy is: **the agent must ask the user for approval before executing a destructive action**.
 
-A destructive action includes any operation that can materially erase, overwrite, irreversibly rewrite, or bypass review/history, including examples such as:
-
-```text
-rm -rf or equivalent broad deletion
-DROP/TRUNCATE database objects or data
-php artisan migrate:fresh on non-disposable data
-force-resetting shared data
-force-push / rewriting shared Git history
-deleting branches containing unmerged work
-deleting authoritative project documents
-purging authoritative audit/history
-replacing an immutable registered template version
-```
+A destructive action is an operation that can materially erase, overwrite, irreversibly rewrite, or bypass review/history, including broad deletion, destructive database reset, shared Git history rewrite, deletion of unmerged work, deletion of authoritative project documents/evidence, or replacement of immutable registered template versions.
 
 Normal safe creation/editing, test execution, linting, static analysis, build, and non-destructive reads do not require this extra approval merely because they change temporary local build/test output.
 
@@ -251,19 +247,24 @@ Generated temporary/build/runtime artifacts that are not required by the reposit
 
 Production secrets, private signing material, local `.env`, runtime uploads, private generated exports, and other environment data MUST NOT be committed merely because a tool generated them.
 
-Exact generated-file inventory may be finalized by `15`/`17`/`18` as implementation structure becomes concrete.
+Exact generated-file inventory may be finalized by later implementation/deployment documents as needed.
 
 ---
 
 # PART H — AGENTS.md / PROJECT-DOC SYNCHRONIZATION
 
-## 13. Future Root `AGENTS.md`
+## 13. Root `AGENTS.md`
 
-`15_Coding_Rules_AGENTS.md` will define the authoritative coding/developer/agent rules after explicit user instruction.
+`15_Coding_Rules_AGENTS.md` is the authoritative coding/developer/agent rule specification.
 
-When `15` is created, the repository root MUST also expose an `AGENTS.md` entrypoint suitable for coding agents. The exact mechanism may be one of the approved forms defined by `15`, but it MUST remain synchronized with the authoritative coding rules and MUST NOT silently contradict `project_doc`.
+Repository root `AGENTS.md` is the synchronized operational entrypoint suitable for coding agents.
 
-The root `AGENTS.md` is an implementation-agent entrypoint, not a replacement for project documentation authority.
+```text
+project_doc/15_Coding_Rules_AGENTS.md = full authority
+AGENTS.md                              = compact operational derivative
+```
+
+Root `AGENTS.md` MUST remain synchronized and MUST NOT silently contradict `project_doc`.
 
 ## 14. Synchronization Principle
 
@@ -286,7 +287,7 @@ Conversely, `AGENTS.md` MUST NOT invent a new product/business/security rule tha
 
 ## 15. Current Authoritative Set
 
-Current project documentation state after this synchronization:
+Current project documentation state:
 
 ```text
 01_PRD.md
@@ -306,57 +307,51 @@ Current project documentation state after this synchronization:
 13_Project_Structure.md
 14_Environment_Specification.md
 14A_Pre_Coding_Rules_Synchronization.md
+15_Coding_Rules_AGENTS.md
 ```
+
+Repository root additionally contains synchronized `AGENTS.md`.
 
 Historical `Next Document` wording inside older documents is informational history only where it conflicts with this current status.
 
-## 16. Decisions Now Locked Before `15`
+## 16. Decisions Locked in `15`
 
-The following are no longer open/TBD for `15`:
+The following are no longer open/TBD:
 
 - TDD-first development for new behavior, bug fixes, and behavior changes;
-- tests must follow specification rather than implementation;
+- tests follow specification rather than implementation;
 - PHP `strict_types` baseline;
 - PHPStan/Larastan `max` with zero-baseline policy;
 - TypeScript `strict: true` and no casual `any` bypass;
 - new Composer/npm dependency requires explicit user approval;
 - shared/applied migrations are immutable; schema evolution uses forward migrations;
-- destructive commands/actions require explicit user approval;
+- destructive actions require explicit user approval;
 - normal Git workflow uses branch + Pull Request;
 - Conventional Commits;
 - no model/AI contributor/co-author metadata;
 - commits use user/project identity or configured signing mechanism;
 - coding agent cannot approve/merge its own PR; final merge is human/user-controlled;
-- generated output must remain synchronized with its authoritative source and must not be manually falsified;
-- root `AGENTS.md` must remain synchronized with `15`/project documentation once created.
+- generated output must remain synchronized with its authoritative source;
+- root `AGENTS.md` remains synchronized with `15`/project documentation.
 
 ---
 
-# PART J — GUARDRAILS BEFORE `15`
+# PART J — HISTORICAL GUARDRAIL STATUS
 
-## 17. MUST NOT
+## 17. Superseded Operational Handoff
 
-Until `15_Coding_Rules_AGENTS.md` is explicitly created, developer/coding agent MUST NOT:
+The previous instruction in this addendum not to create `15` was conditional on explicit user instruction. That condition has now been satisfied.
 
-1. treat the absence of `15` as permission to ignore the decisions in this addendum;
-2. start implementation without TDD where TDD applies;
-3. lower static-analysis/type strictness to make code pass;
-4. add unapproved dependencies;
-5. rewrite shared/applied migration history;
-6. execute a destructive command without explicit user approval;
-7. commit directly to `main` as the normal implementation workflow;
-8. merge/approve its own PR;
-9. add AI/model contributor metadata;
-10. hand-edit generated output to disagree with its source;
-11. create root `AGENTS.md` or `15_Coding_Rules_AGENTS.md` before the user instructs creation;
-12. use stale historical handoff wording to claim that `14` does not yet exist.
+Coding/developer/agent implementation conduct MUST now follow `15_Coding_Rules_AGENTS.md` and root `AGENTS.md`.
+
+This addendum remains evidence of the decisions that preceded `15`; it is not a competing coding constitution.
 
 ---
 
 ## 18. Next Document
 
-Next fixed-order document remains:
+Next fixed-order document is now:
 
-**`15_Coding_Rules_AGENTS.md`**
+**`16_Testing_Specification.md`**
 
-It MUST NOT be created, drafted into the repository, or treated as completed until the user explicitly instructs its creation.
+It MUST NOT be created until the user explicitly instructs its creation.
