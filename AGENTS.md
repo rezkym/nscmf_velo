@@ -4,6 +4,8 @@ This is the operational entrypoint for coding agents.
 
 **Authoritative full coding rules:** `project_doc/15_Coding_Rules_AGENTS.md`.
 
+**Authoritative pre-testing synchronization:** `project_doc/15A_Pre_Testing_Specification_Synchronization.md`.
+
 This root file is a synchronized summary. It MUST NOT override or weaken any rule in `project_doc`.
 
 ---
@@ -14,8 +16,9 @@ Before modifying the repository:
 
 1. read this file;
 2. read `project_doc/15_Coding_Rules_AGENTS.md`;
-3. read the project documents relevant to the task;
-4. inspect affected code, tests, migrations, configuration, and current Git state.
+3. read `project_doc/15A_Pre_Testing_Specification_Synchronization.md` while `16_Testing_Specification.md` has not yet been created;
+4. read the project documents relevant to the task;
+5. inspect affected code, tests, migrations, configuration, and current Git state.
 
 Authority by concern:
 
@@ -38,11 +41,12 @@ Authority by concern:
 14 Environment
 14A Pre-coding governance/history
 15 Coding / developer / agent rules
+15A Pre-testing decisions / current testing synchronization
 ```
 
 Do not invent a requirement, route, schema field, permission, state, dependency, or deployment decision when an authoritative source can be read.
 
-If a genuine unresolved decision materially affects implementation, surface it instead of silently choosing a new product/security rule.
+If a genuine unresolved decision materially affects implementation, surface it instead of silently choosing a new product/security/testing rule.
 
 ---
 
@@ -54,13 +58,17 @@ For new behavior, bug fixes, and behavior changes:
 approved requirement
 → test first
 → meaningful RED
+→ RED test commit
 → minimum correct implementation
 → GREEN
+→ implementation commit
 → relevant regression suite
 → refactor while GREEN
 ```
 
 Tests follow the specification, not the implementation.
+
+For applicable feature/bug/behavior changes, the requirement-derived RED test MUST be committed before the production implementation commit. Do not implement first and later rewrite/reorder history to manufacture TDD evidence.
 
 MUST NOT:
 
@@ -69,11 +77,52 @@ MUST NOT:
 - change expected business behavior without an approved specification change;
 - mock away the behavior that needs proof;
 - fabricate RED/GREEN evidence;
+- fabricate a RED commit through broken imports/fixtures/syntax;
 - add test-only bypasses for real business/security rules.
 
-Pure behavior-preserving refactors may use an existing GREEN safety net without an artificial RED test.
+Pure behavior-preserving refactors may use an existing GREEN safety net without an artificial RED test or RED commit.
 
-PRs for behavior changes must contain truthful TDD evidence as defined by `15`.
+PRs for behavior changes must contain truthful TDD evidence as defined by `15` and `15A`.
+
+---
+
+## Current Testing / CI Baseline
+
+Until `16_Testing_Specification.md` is created, the following confirmed rules from `15A` are mandatory:
+
+```text
+minimum global line coverage = 80%
+PHPStan/Larastan = max
+TypeScript = strict
+MySQL integration authority = real MySQL 8.4
+Playwright PR browser = Chromium only
+```
+
+Every implementation PR must run the required deterministic quality/testing gates, including relevant:
+
+- Laravel Pint;
+- PHPStan/Larastan max;
+- Pest;
+- 80% minimum global line-coverage gate;
+- ESLint;
+- Prettier check;
+- vue-tsc / strict TypeScript;
+- Vitest;
+- MySQL 8.4 integration path;
+- Playwright Chromium critical journeys.
+
+Coverage percentage is not proof of correctness. Critical business/security behavior still needs meaningful positive/negative/integration/concurrency tests regardless of whether global coverage already exceeds 80%.
+
+Mocks/fakes are allowed for isolated tests but cannot be the only evidence for real infrastructure contracts. CI must include real integration paths for:
+
+- ClamAV;
+- cryptographic PDF signing/verification with non-production test identity;
+- the qualified spreadsheet renderer once a renderer has been approved/qualified;
+- MySQL semantics where database behavior matters.
+
+Production secrets/signing keys must never be used in CI.
+
+**Flaky-test automatic retry policy is still TBD.** Do not silently assume `no retry`, a retry count, or a retry-as-pass policy until the user explicitly decides it and `16` records it.
 
 ---
 
@@ -329,7 +378,7 @@ Do not perform unrelated refactors or speculative future work.
 
 Do not create abstraction boilerplate merely because it looks enterprise.
 
-Do not game tests/static analysis.
+Do not game tests/static analysis/coverage.
 
 Read failures and fix root causes rather than suppressing diagnostics.
 
@@ -364,17 +413,20 @@ Never:
 19. rewrite shared/applied migration history;
 20. perform destructive operations without explicit user approval;
 21. lower static/type strictness to make CI pass;
-22. weaken tests to match implementation;
-23. add AI/model contributor metadata;
-24. approve/merge the agent's own implementation PR;
-25. claim work or verification that did not occur.
+22. weaken tests or game coverage to match implementation;
+23. fabricate/reorder TDD evidence after implementation;
+24. add AI/model contributor metadata;
+25. approve/merge the agent's own implementation PR;
+26. claim work or verification that did not occur.
 
 ---
 
 ## Current Handoff
 
-`project_doc/15_Coding_Rules_AGENTS.md` is now authoritative for coding/developer/agent conduct.
+`project_doc/15_Coding_Rules_AGENTS.md` is authoritative for coding/developer/agent conduct.
+
+`project_doc/15A_Pre_Testing_Specification_Synchronization.md` is the current authoritative testing synchronization overlay until `16` is explicitly created.
 
 The next fixed-order project document is `16_Testing_Specification.md`.
 
-Do not create `16` until the user explicitly instructs it.
+Do not create `16` until the user explicitly instructs it and the remaining flaky-test automatic retry policy has been explicitly resolved.
