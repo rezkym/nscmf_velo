@@ -4,11 +4,11 @@
 
 > **Document ID:** NSCMF-PRD-001  
 > **Document Order:** 01 / 20  
-> **Status:** Draft — Synchronized through Confirmed Environment-Bound Decisions  
+> **Status:** Draft — Synchronized through Local-First MVP / Pre-Deployment Decisions  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Primary Business Reference:** NSCMF Form 3.0 (Excel)  
 > **Product Flow Reference:** NSCMF FigJam proposal  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02
 
 ---
 
@@ -41,7 +41,7 @@ Urutan dokumentasi proyek:
 19. Task / Implementation Plan
 20. Deployment Architecture
 
-Synchronization addenda `11A` and `12A` remain cross-document authorities for their specific concerns.
+Synchronization addenda `11A`, `12A`, dan `19A_Local_First_MVP_Synchronization.md` remain cross-document authorities for their specific concerns. Historical `14A`/`15A` remain synchronization history according to their own status.
 
 ---
 
@@ -75,6 +75,8 @@ Login
 ```
 
 Branches include Cancel Draft, Return/Revision, unlimited resubmission, Reject, authorized Reopen, Archive/Unarchive, detailed audits, shared Reviewer/Approver pools, resumable private attachment upload, and public issued-PDF validation.
+
+Current implementation posture is **local-first**: the application is developed and validated on the developer machine first, keeps Docker compatibility as a secondary portability target, and moves to an actual server only when the application is ready and a real deployment target exists. This posture is synchronized authoritatively by `19A_Local_First_MVP_Synchronization.md` and does not change product behavior.
 
 ---
 
@@ -129,7 +131,7 @@ Role groups permissions; backend checks permission + state/ownership where expli
 Only Team; no Unit/Division current product.
 
 ### 5.7 No Silent Assumptions
-Unresolved = TBD; provisional rules explicitly marked.
+Unresolved = TBD; provisional rules explicitly marked. Concerns explicitly removed from current MVP by `19A` are out of current scope, not TBDs that coding agents must solve.
 
 ### 5.8 Export Template Fidelity
 Exported XLSX/PDF preserves official template exactly.
@@ -139,6 +141,9 @@ Approved PDF signature is integrity evidence, distinct from human Approved By.
 
 ### 5.10 Operational Logs Are Not Audit
 Technical/runtime logs are troubleshooting data. Their cleanup policy may be configured separately and MUST NEVER redefine Business/Access/Security Audit retention.
+
+### 5.11 Local-First Simplicity
+Current development prioritizes a correct local application before server deployment. Infrastructure complexity MUST NOT be introduced merely to anticipate hypothetical scale or production topology.
 
 ---
 
@@ -223,7 +228,7 @@ MVP includes:
 41. Sensitive password/role/permission/protected-settings current-password re-authentication; proof lifetime **15 minutes**.
 42. Password reset/effective-access changes revoke affected sessions; Team-only change does not.
 43. Private storage + ClamAV; only CLEAN usable.
-44. Current initial production storage backend = Laravel private **local** filesystem on persistent/non-ephemeral server storage; no third-party object storage current MVP.
+44. Private binary storage uses Laravel private `local` filesystem abstraction; any eventual server runtime must provide persistent/non-ephemeral storage. Third-party object storage is not current MVP.
 45. Async exact XLSX/PDF from immutable snapshot.
 46. Generated binary retention 168h/7d.
 47. Approved PDF mandatory System/Organization signature.
@@ -231,8 +236,10 @@ MVP includes:
 49. Public `/ispdfvalid` verifies signature + exact final SHA-256 + issuance/currentness, max upload **20 MB**.
 50. TSA not required current MVP.
 51. Canonical application/business timezone **`Asia/Jakarta`**.
-52. Runtime environment classes to define in `14`: local/development, testing, CI, staging, production.
+52. Runtime environment classes are local/development, testing, CI, staging, production; local/development is the primary active implementation target now.
 53. Official template immutable/versioned/private + SHA-256 readiness verification.
+54. Docker compatibility is maintained as a secondary portability target; containerized development/production is not mandatory.
+55. CI remains part of development quality gates; automated CD/deployment pipeline is not current MVP scope.
 
 Notification hook remains future capability and not MVP blocker.
 
@@ -240,7 +247,9 @@ Notification hook remains future capability and not MVP blocker.
 
 ## 9. Non-Goals
 
-MVP is not for public/customer portal, multi-tenant/multi-organization, Unit/Division, Reviewer/Approval Scope, Team authorization, Spatie Teams, direct-user permission UI, self-registration, native mobile, provisioning automation, generic workflow/form builder, hard delete, mandatory notifications, AI business guessing, exports as source of truth, multi-level approval chain, extra business states, freehand signature, personal Approver certificate, approximate HTML PDF, third-party object-storage requirement, or generic authoritative-audit retention controls.
+MVP is not for public/customer portal, multi-tenant/multi-organization, Unit/Division, Reviewer/Approval Scope, Team authorization, Spatie Teams, direct-user permission UI, self-registration, native mobile, provisioning automation, generic workflow/form builder, hard delete, mandatory notifications, AI business guessing, exports as source of truth, multi-level approval chain, extra business states, freehand signature, personal Approver certificate, approximate HTML PDF, third-party object-storage requirement, generic authoritative-audit retention controls, public-CA/Adobe-reader trust requirement, automated continuous deployment, High Availability architecture, application uptime SLA, Disaster Recovery architecture, RPO/RTO targets, or hypothetical multi-server scaling.
+
+This non-goal list does **not** remove workbook/business concepts named `Specific Requirements (SLA)`, `Performance Information`, or `Target KPI`.
 
 ---
 
@@ -297,7 +306,9 @@ Reopen only Rejected/Approved, permission+reason, destination Revision/Review, n
 - signing failure no unsigned fallback;
 - resumable private upload + authoritative server final SHA-256 + whole-file CLEAN;
 - public validator max20MB + CLEAN + signature/hash/issuance/currentness;
-- initial production private binary storage via persistent Laravel local filesystem.
+- local-first private binary storage through Laravel local filesystem, with persistent storage required when eventually deployed to a real server;
+- `/ispdfvalid` is the only approved public no-login application capability; it does not make internal NSCMF functions public;
+- current MVP signature trust is application/Organization trust verified by `/ispdfvalid`; public CA/Adobe-reader trust is not required.
 
 ---
 
@@ -347,17 +358,18 @@ Reopen Rejected/Approved → Revision Required or Pending Review + next iteratio
 **NFR-010 Export Fidelity**.  
 **NFR-011 Export Integrity** — no unsigned Approved fallback.  
 **NFR-012 Export Binary Retention** — 168h.  
-**NFR-013 Private Storage** — current initial production uses persistent/non-ephemeral Laravel private local filesystem.  
+**NFR-013 Private Storage** — Laravel private local filesystem; a future server runtime must provide persistent/non-ephemeral storage.  
 **NFR-014 Canonical Time** — application/business time uses `Asia/Jakarta`; runtime implementation synchronized in `14`.  
 **NFR-015 Audit Retention Separation** — Technical Log cleanup never applies to authoritative audits.  
-**NFR-016 Performance Target** — TBD.  
-**NFR-017 Availability / DR** — TBD.
+**NFR-016 Local-First Operability** — current application development must run correctly on the developer machine before server deployment is considered; Docker compatibility remains secondary portability support.
+
+No current MVP NFR is defined for application uptime SLA, HA, DR, RPO/RTO, backup architecture, RPS/load target, or hypothetical multi-server scaling.
 
 ---
 
 ## 15. Success Criteria
 
-Stakeholder can setup users/Teams/roles; prove Team-neutral authorization; create/save/submit/review/revise/approve/reopen/archive NSCMF; narrow-edit Change Result; view History/Timeline; resume interrupted attachments; only use CLEAN files; exact export XLSX/PDF; obtain signed Approved PDF; validate issued PDF publicly; ensure no hard-delete/stale action; retain authoritative audits forever by age; manage Technical Log cleanup without touching authoritative evidence; generate/reset one-time temporary credentials; enforce 15-minute re-auth; and keep runtime decisions consistent with `Asia/Jakarta` + private persistent local storage.
+Stakeholder can setup users/Teams/roles; prove Team-neutral authorization; create/save/submit/review/revise/approve/reopen/archive NSCMF; narrow-edit Change Result; view History/Timeline; resume interrupted attachments; only use CLEAN files; exact export XLSX/PDF; obtain signed Approved PDF; validate issued PDF publicly; ensure no hard-delete/stale action; retain authoritative audits forever by age; manage Technical Log cleanup without touching authoritative evidence; generate/reset one-time temporary credentials; enforce 15-minute re-auth; and keep runtime decisions consistent with `Asia/Jakarta`, local-first implementation, MySQL 8.4, database session/cache/queue, and private local storage semantics.
 
 ---
 
@@ -365,7 +377,7 @@ Stakeholder can setup users/Teams/roles; prove Team-neutral authorization; creat
 
 ### Confirmed
 
-All locked decisions above, including Team-only organization, permission-centric Spatie RBAC, seven statuses, workflow iterations, immutable exports, resumable CLEAN attachments, server-generated one-time temp passwords, 15-minute re-auth proof, third-login oldest-session revocation, public validator 20MB, `Asia/Jakarta`, persistent Laravel local initial production storage, immutable/versioned template, and configurable Technical Log cleanup.
+All locked decisions above, including Team-only organization, permission-centric Spatie RBAC, seven statuses, workflow iterations, immutable exports, resumable CLEAN attachments, server-generated one-time temp passwords, 15-minute re-auth proof, third-login oldest-session revocation, public validator 20MB, `Asia/Jakarta`, Laravel private local storage, immutable/versioned template, configurable Technical Log cleanup, local-first development, Docker compatibility as secondary target, CI retained, CD deferred, ClamAV retained for MVP, LibreOffice Headless as first renderer candidate subject to qualification, and `/ispdfvalid` application trust without public-CA/Adobe trust requirement.
 
 ### Provisional
 
@@ -376,7 +388,7 @@ Until official company SOP:
 - manual number rules;
 - Header Date not-future rule at first Submit.
 
-### Deferred / TBD
+### Deferred / Implementation-Time Decisions
 
 - exact Team master data;
 - official numbering SOP;
@@ -384,17 +396,17 @@ Until official company SOP:
 - bulk packaging;
 - notification implementation;
 - numeric rate-limit tuning;
-- exact signing provider/library/CA/path/rotation;
-- exact ClamAV/renderer topology;
-- performance/SLA/availability;
-- backup/restore/DR/RPO/RTO;
-- exact production physical deployment topology.
+- exact signing library/key-container/secret-injection/rotation implementation when Phase 8 is reached;
+- exact scanner timeout selected from real integration behavior;
+- renderer qualification outcome after LibreOffice Headless is tested against the official workbook.
+
+The following are **not deferred TBDs for current agents to solve**: HA, application SLA, DR, RPO/RTO, backup architecture, load-balancer topology, multi-server scaling, Kubernetes/orchestration, application load targets, or external observability-platform selection. They are out of current MVP scope unless explicitly reintroduced later.
 
 ---
 
 ## 17. Document Precedence
 
-`01` product; `02` business; `03` flow; `04` RBAC; `05` state; `06` validation; `07` UI; `08` tech; `09` architecture; `10` security; `11` schema; `12` API; `13` structure; `14` environment once created.
+`01` product; `02` business; `03` flow; `04` RBAC; `05` state; `06` validation; `07` UI; `08` tech; `09` architecture; `10` security; `11` schema; `12` API; `13` structure; `14` environment; `15` coding; `16` testing; `17` seed; `18` DoD; `19` implementation order; `19A` local-first/pre-deployment cross-document synchronization; `20` deployment architecture once created.
 
 If requirement changes, all affected docs must synchronize; change must not live only in code.
 
@@ -408,25 +420,43 @@ If requirement changes, all affected docs must synchronize; change must not live
 - [ ] Bulk packaging beyond XLSX/PDF artifacts.
 - [ ] Notification implementation.
 - [ ] Numeric operational abuse/rate-limit tuning.
-- [ ] Performance/availability targets.
-- [ ] Backup/restore/DR/RPO/RTO.
-- [ ] Exact signing operational provider/rotation.
-- [ ] Exact production physical topology.
 
-Unit/Division, Reviewer/Approval Scope, Team authorization, S3/object-storage initial MVP requirement, temp-password delivery direction, re-auth lifetime, public verifier max upload, canonical timezone, and Technical Log cleanup policy/default are **not TBD**.
+Renderer qualification and concrete signing/scanner implementation are capability implementation decisions owned by their relevant phases/specifications, not product-level infrastructure requirements.
+
+Application SLA/HA/DR/RPO/RTO/backup architecture/performance-load targets/physical multi-server topology are intentionally **not current MVP open product decisions**.
+
+Unit/Division, Reviewer/Approval Scope, Team authorization, S3/object-storage initial MVP requirement, temp-password delivery direction, re-auth lifetime, public verifier max upload, canonical timezone, Technical Log cleanup policy/default, local-first development posture, CI requirement, CD deferral, ClamAV inclusion, and current signing-trust objective are **not TBD**.
 
 ---
 
 ## 19. Current Documentation Progress
 
-Current authoritative draft set exists through:
+Current fixed-order authoritative draft set exists through:
 
 ```text
 01_PRD.md
-...
+02_Business_Rules.md
+03_User_Flow.md
+04_RBAC_Permission_Matrix.md
+05_State_Status_Flow.md
+06_Validation_Rules.md
+07_UI_UX_Specification.md
+08_Tech_Stack_Specification.md
+09_System_Architecture.md
+10_Security_Rules.md
+11_ERD_Database_Schema.md
+12_API_Contract.md
 13_Project_Structure.md
+14_Environment_Specification.md
+15_Coding_Rules_AGENTS.md
+16_Testing_Specification.md
+17_Seed_Dummy_Data_Specification.md
+18_Definition_of_Done.md
+19_Task_Implementation_Plan.md
 ```
 
-Next fixed-order document to create — **only after explicit user instruction**:
+Current synchronization addenda include `11A`, `12A`, historical `14A`/`15A`, and authoritative `19A_Local_First_MVP_Synchronization.md` for the local-first/pre-deployment concern.
 
-**`14_Environment_Specification.md`**.
+Next fixed-order document — **only after explicit user instruction**:
+
+**`20_Deployment_Architecture.md`**.
