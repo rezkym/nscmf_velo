@@ -1,0 +1,54 @@
+name: Temporary Docs Freeze Trigger Fix
+
+on:
+  push:
+    branches:
+      - docs/finalize-project-documentation
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Normalize remaining historical plan marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('project_doc/19_Task_Implementation_Plan.md')
+          text = p.read_text(encoding='utf-8')
+          old = '''At creation of this document:
+
+```text
+01–19 = fixed-order project documentation created
+20_Deployment_Architecture.md = NOT CREATED
+```
+
+Repository implementation is still greenfield/documentation-only until implementation begins after this planning stage.'''
+          new = '''The fixed-order project documentation is now complete through `20_Deployment_Architecture.md` and is being finalized as the Approved for Implementation baseline.
+
+Repository implementation remains greenfield/documentation-only until implementation begins by explicit user instruction.'''
+          if old not in text:
+              raise SystemExit('Expected historical plan marker not found')
+          text = text.replace(old, new, 1)
+          text = text.replace(
+              '20. claim Release/Production-Ready before `20` and required staging/readiness evidence exist.',
+              '20. claim Release/Production-Ready before applicable `18` completion evidence and `20` deployment/readiness requirements are satisfied.',
+              1,
+          )
+          p.write_text(text, encoding='utf-8')
+          PY
+          git diff --check
+          rm .github/workflows/docs-freeze-trigger-fix.yml
+          git add project_doc/19_Task_Implementation_Plan.md .github/workflows/docs-freeze-trigger-fix.yml
+          git diff --cached --check
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
+          git commit -m 'docs: normalize final implementation handoff'
+          git push origin HEAD:docs/finalize-project-documentation
