@@ -2,86 +2,75 @@
 
 ## NSCMF Digital Form & Workflow System
 
-> **Document Type:** Synchronization Addendum — not a new fixed-order project deliverable  
+> **Document Type:** Synchronization Addendum — not a new fixed-order deliverable  
 > **Applies To:** deployment/runtime/development-priority interpretation of `01_PRD.md` through `19_Task_Implementation_Plan.md`  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Decision Date:** 2026-09-02  
 > **Status:** Confirmed / Authoritative cross-document synchronization  
-> **Canonical Application / Development Timezone:** `Asia/Jakarta`  
+> **Canonical Timezone:** `Asia/Jakarta`  
 > **Next Fixed-Order Document:** `20_Deployment_Architecture.md` — only after explicit user instruction
 
 ---
 
-## 1. Purpose
+## 1. Purpose / Precedence
 
-Dokumen ini menyinkronkan keputusan user setelah `19_Task_Implementation_Plan.md` mengenai **local-first development, Docker compatibility, future server deployment scope, CI versus CD, ClamAV priority, spreadsheet renderer qualification, PDF signing trust, dan penghapusan deployment over-engineering dari current MVP interpretation**.
+This addendum records the confirmed **local-first MVP direction** before `20_Deployment_Architecture.md`.
 
-Addendum ini tidak membuat business requirement baru. Ia mempersempit dan membersihkan wording deployment/operations yang sebelumnya masih berupa TBD atau future-enterprise placeholder sehingga developer/coding agent tidak memperlakukan hal yang belum diperlukan sebagai current MVP blocker.
+It removes deployment over-engineering from current MVP interpretation without changing product/business/security behavior.
 
-Untuk concern yang secara eksplisit disinkronkan di sini, dokumen ini adalah **newer authoritative interpretation** terhadap wording lama di `01–19`. Wording lama yang bertentangan dengan keputusan ini MUST NOT digunakan untuk menghidupkan kembali requirement yang sudah dikeluarkan dari current MVP scope.
+For the concerns explicitly covered here, this is the **newer authority** over older wording in `01–19`. In particular, older references that still present HA/SLA/DR/RPO/RTO/backup/load/server-topology concerns as current TBDs or blockers are superseded.
 
-Dokumen ini tidak mengubah:
+This addendum does **not** change:
 
-- product/business meaning NSCMF;
-- canonical seven business states;
-- permission-centric RBAC dan Team-neutral authorization;
-- validation rules;
-- API contract;
-- Repository–Service Architecture;
-- MySQL 8.4 requirement;
-- database session/cache/queue baseline;
-- private storage/security rules;
-- mandatory whole-file ClamAV CLEAN rule;
-- mandatory exact XLSX/PDF behavior;
-- mandatory System/Organization cryptographic signing untuk Approved PDF;
-- public `/ispdfvalid` verification behavior;
-- TDD/testing/CI quality gates;
+- seven canonical business states;
+- permission-centric / Team-neutral authorization;
+- MySQL 8.4;
+- database session/cache/queue;
+- private local storage semantics;
+- mandatory whole-file ClamAV CLEAN;
+- exact XLSX/PDF requirements;
+- mandatory System/Organization signing for Approved PDF;
+- public `/ispdfvalid` behavior;
+- TDD/testing/CI;
 - authoritative audit retention.
 
 ---
 
-# PART A — CURRENT DEVELOPMENT POSTURE
+# 2. Local-First Development — LOCKED
 
-## 2. Local-First Development Is the Primary Current Target — LOCKED
-
-Current implementation priority is:
+Current priority:
 
 ```text
-1. Make the application run correctly on the developer's local machine.
-2. Complete and validate application behavior locally.
-3. Maintain Docker compatibility as a secondary portability target.
-4. Deploy to an actual server only when the application is ready and a real server target exists.
+1. Local native application compatibility/correctness — HIGH
+2. Docker portability compatibility — MEDIUM
+3. Actual server deployment — LATER, after the app is ready and a real server exists
 ```
 
-The project MUST NOT behave as if a production server, staging server, load balancer, cluster, or hosting platform already exists.
-
-Current development work MUST optimize for a simple, reproducible local workflow first.
-
-## 3. Recommended Local Runtime — LOCKED DIRECTION
-
-Current primary local-development topology:
+Current recommended local topology:
 
 ```text
 Developer Machine
-├── Laravel / PHP 8.5               → native local runtime
-├── Composer                         → native local tooling
-├── Vue / Vite / Node 24 LTS        → native local runtime/tooling
-├── Queue Worker                     → native local process when needed
-├── Scheduler                        → native/manual local execution when needed
+├── Laravel / PHP 8.5               → native local
+├── Composer                         → native local
+├── Vue / Vite / Node 24 LTS        → native local
+├── Queue Worker                     → native local when needed
+├── Scheduler                        → native/manual when needed
 ├── Laravel private local storage   → local filesystem
 │
 └── Local Docker infrastructure
-    ├── MySQL 8.4                   → approved/recommended local DB service
-    └── ClamAV / clamd              → introduced when attachment Phase 6 requires it
+    ├── MySQL 8.4                   → local DB
+    └── ClamAV / clamd              → add when Phase 6 begins
 ```
 
-Laravel/PHP/Vue application code does **not** need to run inside Docker during normal development.
+The application itself does **not** need to run inside Docker for normal development.
 
-A local MySQL 8.4 Docker container MAY be reused through ordinary environment configuration. The application connection still obeys `14_Environment_Specification.md`, including `utf8mb4` and application DB session timezone `+07:00`.
+A local Docker MySQL 8.4 service may be reused through normal `.env`/Laravel config. The DB connection still obeys the existing `utf8mb4` and `+07:00` session-timezone rules.
 
-## 4. Redis Is Not Part of Current MVP Runtime
+---
 
-Even if Redis is already available on the developer machine, current locked application baseline remains:
+# 3. Redis Remains Out of Current Runtime
+
+Locked baseline remains:
 
 ```text
 Session = database
@@ -89,71 +78,54 @@ Cache   = database
 Queue   = database
 ```
 
-Redis MUST NOT be introduced merely because a local Redis container already exists.
+Redis MUST NOT be added merely because a local Redis container already exists.
 
-Using Redis would require an explicit future architecture/technology decision; it is not needed to satisfy current MVP requirements.
-
----
-
-# PART B — DOCKER / PORTABILITY
-
-## 5. Docker Compatibility Is Secondary, Not the Primary Development Runtime
-
-Docker compatibility remains a valid technology requirement from `08`, but priority is:
-
-```text
-Local native compatibility → HIGH
-Docker compatibility       → MEDIUM
-Actual server deployment   → LATER, once a real server exists
-```
-
-Docker compatibility means project runtime assumptions must remain portable enough to be containerized when useful.
-
-It does **not** mean:
-
-- development must occur inside Docker;
-- Docker Compose is required for every developer action;
-- production must use containers;
-- success inside Docker proves compatibility with every possible native server automatically.
-
-A future native server still requires environment validation for PHP extensions, filesystem permissions, service management, web server/reverse proxy configuration, paths, and runtime dependencies.
+A future Redis adoption requires an explicit architecture/technology decision.
 
 ---
 
-# PART C — CURRENT MVP DEPLOYMENT SCOPE CLEANUP
+# 4. Docker Compatibility — LOCKED INTERPRETATION
 
-## 6. Removed From Current MVP Planning / Blockers — LOCKED
+Docker compatibility remains required as portability support, but it does not mean:
 
-The following concerns are **not current MVP requirements, not current implementation blockers, and must not appear as unresolved requirements that coding agents are expected to solve now**:
+- development must run in Docker;
+- Docker Compose is mandatory for every developer;
+- production must use Docker;
+- success in Docker proves compatibility with every native server.
+
+A future native server must still validate its PHP extensions, permissions, web server/reverse proxy, service management, runtime paths, and external dependencies.
+
+---
+
+# 5. Remove Deployment Over-Engineering From Current MVP — LOCKED
+
+The following are **not current MVP requirements, current blockers, or TBDs that coding agents must solve**:
 
 ```text
-application uptime SLA target
-application availability percentage target
-High Availability / HA architecture
-active-active topology
+application uptime SLA / availability percentage
+High Availability / active-active
 zero-downtime deployment requirement
 load balancer architecture
-Disaster Recovery / DR architecture
-RPO target
-RTO target
+Disaster Recovery architecture
+RPO / RTO
 backup architecture / backup policy design
-production load target / RPS target
+production RPS/load target
 application performance SLA target
 capacity-based server sizing
-Kubernetes / orchestration architecture
+Kubernetes / orchestration
 multi-server scaling architecture
 external observability platform selection
 ```
 
-These concepts MAY be introduced later only when a real operational requirement exists and the user explicitly approves the corresponding scope.
+They may be introduced later only when a real requirement exists and the user explicitly approves it.
 
-Current documentation MUST NOT treat the absence of those items as a blocker for Task/PR Done, Feature/Module Done, current MVP development completion, or readiness to begin future server deployment work.
+Do not invent current server count, VM count, CPU/RAM sizing, hosting provider, production hostname, load balancer, or cluster topology before a real server target exists.
 
-## 7. Important SLA / Performance Terminology Exception
+### Terminology safety
 
-The cleanup in §6 applies only to **application/infrastructure operational SLA/performance targets**.
+This cleanup applies to **application/infrastructure** SLA/performance language only.
 
-It MUST NOT remove or reinterpret NSCMF business data such as:
+Do **not** remove or reinterpret workbook/business concepts:
 
 ```text
 Specific Requirements (SLA)
@@ -161,233 +133,153 @@ Performance Information
 Target KPI
 ```
 
-Those are business/form concepts defined by the workbook and upstream business/validation documents and remain in scope exactly as specified.
-
-## 8. No Invented Server Topology Before a Server Exists
-
-Until the project has a real deployment target, implementation/docs MUST NOT invent as mandatory:
-
-- server count;
-- VM count;
-- CPU/RAM sizing;
-- hosting/cloud/on-prem provider;
-- load balancer;
-- cluster topology;
-- production hostname;
-- exact production filesystem mount path;
-- process count tuned for a hypothetical server.
-
-Future `20_Deployment_Architecture.md` must remain simple and local-first. It may define only the minimum future server runtime contract needed to move the already-working application from local to a real server.
-
 ---
 
-# PART D — PUBLIC `ispdfvalid`
+# 6. Public `/ispdfvalid` Boundary — LOCKED
 
-## 9. Public Surface Remains Narrow — LOCKED
+`/ispdfvalid` remains public without login for PDF verification only.
 
-`/ispdfvalid` remains publicly accessible without login because public PDF verification is an approved MVP capability.
-
-This does **not** make the rest of NSCMF a public application.
-
-Public exposure is limited to the PDF verification utility and the minimum supporting request path needed by that capability.
-
-The following remain private/internal unless a future explicit decision changes them:
+The rest of NSCMF remains private/internal, including:
 
 ```text
-Login / authenticated application
+Login / authenticated app
 Dashboard
 Create / Review / Approval / History
 Administration
 Attachments
 internal export management
-Business Timeline
-raw audits
+Timeline / raw audits
 internal JSON endpoints
 ```
 
-Do not introduce a separate verification microservice merely to satisfy this boundary. The verifier remains part of the same Laravel modular-monolith application unless future requirements justify a change.
+Do not create a separate verifier microservice just because this endpoint is public. It remains part of the same Laravel modular monolith.
 
 ---
 
-# PART E — CLAMAV
+# 7. ClamAV — LOCKED MVP, LATER PRIORITY
 
-## 10. ClamAV Remains Mandatory MVP — LOCKED
-
-The earlier project decision remains unchanged:
+ClamAV remains mandatory for attachment usability:
 
 ```text
-attachment usable
-→ fully assembled file
+assembled full file
 → whole-file ClamAV scan
 → explicit CLEAN
 → usable/downloadable
 ```
 
-ClamAV is therefore a **mandatory MVP dependency for the attachment capability**.
+It must not be removed, bypassed, or replaced by a fake CLEAN result.
 
-It MUST NOT be removed, bypassed, or replaced with a fake final CLEAN result.
-
-## 11. ClamAV Is Not an Early Bootstrap Priority
-
-Mandatory MVP does not mean Phase 0 priority.
-
-Implementation order remains aligned with `19`:
+It is **not an early bootstrap priority**. Existing implementation order remains:
 
 ```text
-identity / auth / RBAC
-→ core NSCMF / Draft
+identity/auth/RBAC
+→ core NSCMF/Draft
 → workflow
 → audit/history
-→ attachment / resumable upload
-→ ClamAV integration
+→ Phase 6 attachment/resumable upload + ClamAV
 ```
 
-Current intended implementation point remains **Phase 6 — Resumable attachments + malware security**.
+For local development, running `clamd` in Docker is the preferred simple direction when Phase 6 starts.
 
-For local development, running `clamd` in a local Docker container is an approved simple direction when Phase 6 begins. Exact future server placement is deferred until an actual server exists and MUST NOT block earlier phases.
-
-A finite scanner timeout remains required when the real integration is implemented; the exact value should be selected from actual integration behavior rather than invented now.
+Exact future server placement is deferred until a real server exists. A finite scanner timeout must be selected when the real integration is implemented, based on actual behavior rather than an invented number now.
 
 ---
 
-# PART F — SPREADSHEET PDF RENDERER
+# 8. PDF Renderer — LOCKED FIRST CANDIDATE
 
-## 12. LibreOffice Headless Is the First Candidate, Not Automatically Qualified — LOCKED
-
-To avoid over-engineering, the first renderer candidate for the exact XLSX → PDF path is:
+The first XLSX → PDF renderer candidate is:
 
 ```text
 LibreOffice Headless
 ```
 
-This is a **candidate selection for qualification**, not a declaration that LibreOffice is already production-qualified.
+This is a **qualification candidate**, not an already-qualified renderer.
 
-Required flow when Phase 8 reaches renderer implementation:
+When Phase 8 reaches PDF rendering:
 
 ```text
-exact XLSX generation is correct
-→ render official NSCMF workbook with LibreOffice Headless
-→ compare against approved workbook/PDF fidelity expectations
-→ validate layout/native-control-visible result/fonts/page behavior
-→ if qualification passes: use LibreOffice Headless
-→ if qualification fails materially: reject it and evaluate the next renderer
+correct exact XLSX
+→ render with LibreOffice Headless
+→ compare official-workbook fidelity/layout/fonts/pages/native-control-visible result
+→ PASS: qualify and use it
+→ material FAIL: reject it and evaluate the next option
 ```
 
-The project MUST NOT implement multiple renderers in advance "just in case".
+Do not pre-build several renderers "just in case".
 
-The project MUST NOT lower export fidelity requirements merely to make the first candidate pass.
+Do not lower exact fidelity requirements to make LibreOffice pass.
 
-HTML/DomPDF or other approximate HTML rendering remains forbidden as the authoritative NSCMF PDF fallback.
+HTML/DomPDF remains forbidden as the authoritative PDF fallback.
 
-## 13. Renderer Priority
-
-Renderer work is not part of initial application bootstrap.
-
-It remains a later export/PDF capability decision under the task order in `19` and therefore MUST NOT block core local development phases.
+Renderer work does not block early local development phases.
 
 ---
 
-# PART G — APPROVED PDF SIGNING / TRUST
+# 9. Approved PDF Signing Trust — LOCKED
 
-## 14. Cryptographic Signing Remains Mandatory — LOCKED
-
-Approved PDF behavior remains:
+Approved PDF signing remains mandatory:
 
 ```text
-human Approved By
-≠
-cryptographic signer
-
+human Approved By != cryptographic signer
 cryptographic signer = System/Organization
 ```
 
-An Approved PDF MUST be cryptographically signed. Signing failure MUST NOT produce an unsigned READY Approved PDF.
+Signing failure must never produce an unsigned READY Approved PDF.
 
-## 15. Public CA / Adobe Trust Is Not Current MVP Scope — LOCKED
+Current MVP does **not** require the signature to be publicly trusted by Adobe Acrobat or generic PDF readers.
 
-Current MVP does **not** require the PDF signature to appear as a publicly trusted signature in Adobe Acrobat or other generic PDF readers.
-
-Current trust objective is:
+Current trust model is:
 
 ```text
-NSCMF System/Organization signing identity
-→ signature cryptographically verifiable
-→ `/ispdfvalid` recognizes the trusted application/organization verification material
-→ exact issued-byte SHA-256 + issuance/currentness are verified
+System/Organization signing identity
+→ cryptographic verification
+→ `/ispdfvalid` recognizes trusted verification material
+→ exact PDF SHA-256 + issuance/currentness verification
 ```
 
-Therefore current MVP does not require:
+A dedicated self-managed/non-public Organization certificate/key is acceptable for MVP.
+
+Current MVP does not require:
 
 ```text
 public CA procurement
-Adobe Approved Trust List integration
-reader-vendor trust program
+Adobe trust-list integration
 TSA
 enterprise PKI architecture
 ```
 
-A dedicated non-public/self-managed Organization certificate/key identity is acceptable for MVP provided the application's verifier can validate the cryptographic signature correctly and required public verification material is preserved.
+Exact signing library, key format/container, secret injection, and rotation are implementation-time security decisions when the signing capability is reached; they do not block early local development.
 
-Public-reader trust MAY be introduced later as a separate explicit requirement.
-
-## 16. Signing Implementation Timing
-
-Exact cryptographic library, key format/container, secret injection mechanism, and rotation procedure need to be selected only when signing implementation is reached.
-
-They are security-sensitive implementation details, not reasons to block early local application development or to design enterprise PKI now.
-
-Production private key material remains forbidden from Git, ordinary DB fields, browser, logs, audits, and CI.
+Production private key material remains forbidden from Git, ordinary DB fields, browser, logs/audits, and CI.
 
 ---
 
-# PART H — CI / CD
+# 10. CI vs CD — LOCKED
 
-## 17. CI Remains Mandatory Development Baseline — LOCKED
-
-The existing CI requirement remains unchanged.
-
-Current CI intent is intentionally simple:
+CI remains mandatory and intentionally simple:
 
 ```text
 push / Pull Request
-→ install/build as applicable
-→ lint / formatting checks
+→ build/install as applicable
+→ lint / format
 → static analysis / type checks
-→ automated tests / required integration gates
+→ tests / required integration gates
 → PASS or FAIL
 ```
 
-CI exists to protect implementation quality and the TDD/testing/Definition-of-Done rules already locked by `15`, `16`, and `18`.
+Existing TDD/testing/DoD rules remain unchanged. Required failures remain failures; no retry-as-pass.
 
-Required failing gates remain failing; no retry-as-pass behavior.
+Automated **Continuous Deployment is not current MVP scope**.
 
-## 18. Continuous Deployment Is Not Current Development Scope — LOCKED
+Do not build current infrastructure for automatic staging/production deployment, container-registry promotion, blue/green, canary, GitOps, or automatic production rollback.
 
-Current project does **not** require an automated CD pipeline.
-
-Do not build current-MVP infrastructure for:
-
-```text
-automatic staging deployment
-automatic production deployment
-container registry promotion
-blue/green deployment
-canary deployment
-automatic production rollback
-GitOps deployment orchestration
-```
-
-When an actual server exists, deployment may initially be a controlled/manual operator procedure subject to the minimum runtime/security requirements in `14`, `18`, and future `20`.
-
-CI and CD MUST NOT be conflated: CI remains required; CD is deferred.
+A future real server may initially use a controlled/manual deployment procedure.
 
 ---
 
-# PART I — ENVIRONMENT / RELEASE INTERPRETATION
+# 11. Environment / Completion Interpretation
 
-## 19. Environment Classes Remain Valid Without Requiring Servers Today
-
-The environment vocabulary remains:
+Environment vocabulary remains:
 
 ```text
 local / development
@@ -397,195 +289,80 @@ staging
 production
 ```
 
-However:
+Interpretation:
 
-- local/development is the **primary active implementation environment now**;
-- testing/CI remain active verification environments;
-- staging/production are defined future runtime classes and do not imply that physical servers already exist;
-- staging-specific or production-specific evidence is required only when the project actually attempts the corresponding Release/Production-Ready claim or server deployment.
+- local/development = primary active implementation environment now;
+- testing/CI = active verification environments;
+- staging/production = future runtime classes; physical servers are not assumed to exist now;
+- normal Task/PR or Feature work is not blocked because staging/production servers are absent;
+- staging/production evidence applies only when making the corresponding Release/Production-Ready claim.
 
-An ordinary local-development feature is not blocked merely because staging/production infrastructure has not yet been provisioned.
+Removing HA/SLA/DR/RPO/RTO/backup/load architecture does not authorize a false Production-Ready claim. A future real server must still satisfy the actual locked runtime/security dependencies applicable to the product, such as HTTPS, MySQL 8.4, persistent private storage, queue worker, scheduler, real ClamAV, qualified renderer, protected signer, safe secrets, and public-validator isolation.
 
-## 20. Production-Ready Claims Stay Honest
-
-Removing HA/SLA/DR/backup/load targets from current MVP does not authorize false production-readiness claims.
-
-When the project eventually moves to a real server, it must still verify the runtime requirements that are actually part of the product/security architecture, including applicable:
-
-```text
-supported PHP/Laravel runtime
-MySQL 8.4
-HTTPS
-private persistent storage
-database session/cache/queue
-queue worker
-scheduler
-real ClamAV
-qualified renderer
-protected System/Organization signing identity
-safe secrets/configuration
-public `/ispdfvalid` isolation and security
-```
-
-No HA/SLA/DR/RPO/RTO/backup architecture claim is made by current MVP documentation.
+No HA/SLA/DR/RPO/RTO/backup architecture guarantee is claimed by current MVP documentation.
 
 ---
 
-# PART J — EFFECT ON EXISTING DOCUMENTS
+# 12. Effect on Existing Authorities
 
-## 21. `01_PRD.md`
+For deployment-related interpretation:
 
-Interpretation update:
-
-- remove application `Performance Target` and `Availability / DR` TBDs as current product requirements;
-- remove performance/SLA/availability/backup/DR/RPO/RTO/physical-topology items from Open Product Decisions;
-- preserve business `Specific Requirements (SLA)` and `Performance Information` concepts;
-- local-first development posture is an implementation/runtime direction, not a new business feature.
-
-## 22. `08_Tech_Stack_Specification.md`
-
-Existing technology decisions remain valid:
-
-```text
-MySQL 8.4
-Database Session
-Database Cache
-Database Queue
-Docker-compatible runtime
-no Redis requirement
-```
-
-Docker-compatible MUST now be read as secondary portability support, not mandatory containerized local development or production deployment.
-
-## 23. `09_System_Architecture.md`
-
-Logical architecture remains deployment-agnostic.
-
-It MUST NOT be interpreted as requiring separate physical servers/containers for logical components. Co-location is acceptable when a future server is introduced if runtime/security requirements are satisfied.
-
-## 24. `10_Security_Rules.md`
-
-Security behavior remains unchanged except the signing-trust clarification:
-
-- a public CA / Adobe-reader trust chain is not current MVP requirement;
-- `/ispdfvalid` application trust is sufficient for current MVP;
-- exact CA/public-trust integration is no longer a current unresolved blocker;
-- ClamAV remains mandatory, but physical topology is not an early-development blocker;
-- backup/DR is not a current security/deployment requirement.
-
-## 25. `14_Environment_Specification.md`
-
-Environment authority must be interpreted local-first:
-
-- native Laravel/PHP/Node development is primary;
-- local Docker MySQL 8.4 is a supported/recommended current DB topology;
-- Redis remains unused under DB session/cache/queue baseline;
-- local Docker ClamAV is appropriate when Phase 6 begins;
-- staging/production are future runtime classes, not evidence that servers must exist now;
-- physical VM/container/server counts, HA/SLA/DR/RPO/RTO/backup architecture, load targets, and observability-platform selection are not current MVP decisions;
-- LibreOffice Headless is the first renderer candidate for later qualification;
-- public-CA/Adobe trust is not required for signing MVP.
-
-## 26. `15_Coding_Rules_AGENTS.md`
-
-Coding agents MUST NOT introduce deployment/platform complexity not required by current local-first MVP.
-
-Existing prohibition against silently resolving TBDs remains, but concerns explicitly removed from current MVP by this addendum are **not TBDs to solve**; they are simply out of current scope.
-
-## 27. `16_Testing_Specification.md`
-
-Testing requirements remain authoritative.
-
-Real integration is required when the corresponding capability is implemented, but local-first development means:
-
-- early phases are not blocked by ClamAV/renderer/signing integration before their own task phase;
-- ClamAV real integration becomes applicable when attachment malware capability is implemented;
-- renderer qualification becomes applicable when PDF rendering capability is implemented;
-- cryptographic signing/verification becomes applicable when signing capability is implemented;
-- CI remains mandatory;
-- CD testing/deployment automation is not required.
-
-## 28. `18_Definition_of_Done.md`
-
-For current MVP interpretation:
-
-- HA/SLA/DR/RPO/RTO/backup architecture/performance-load target absence MUST NOT be treated as a blocker;
-- local Task/PR and Feature/Module Done remain based on their applicable functional/security/testing gates;
-- staging/production evidence applies only when making the corresponding Release/Production-Ready claim;
-- renderer/signer/ClamAV evidence is applicable only when their capability is actually being completed;
-- no removed enterprise-infrastructure concern may be reintroduced through `N/A`/TBD bookkeeping.
-
-## 29. `19_Task_Implementation_Plan.md`
-
-The task sequence remains valid with these corrections:
-
-- Phase 0 development starts **native local first**;
-- T03 minimal GitHub Actions CI remains required;
-- Docker compatibility remains secondary and must not delay normal local progress;
-- Phase 6 includes real ClamAV; local Docker ClamAV is the preferred simple development topology;
-- Phase 8 starts LibreOffice Headless as first renderer candidate and qualifies it before adoption;
-- Phase 8 signing may use a dedicated Organization certificate trusted by `/ispdfvalid`; public CA/Adobe trust is deferred/out of MVP;
-- deployment decision/blocker lists MUST NOT include HA, SLA, DR, RPO, RTO, backup architecture, performance/load targets, load balancer, Kubernetes, multi-server scaling, or observability-platform selection;
-- current implementation does not need server topology before a real server exists;
-- `20` will document a minimal local-first → future-server deployment contract, not enterprise infrastructure architecture.
+- `01_PRD.md`: application SLA/availability/DR/performance targets are not current product requirements or open decisions.
+- `08_Tech_Stack_Specification.md`: Docker-compatible remains secondary portability support; MySQL + DB session/cache/queue remain locked; Redis is not introduced.
+- `09_System_Architecture.md`: logical components do not imply separate physical servers/containers.
+- `10_Security_Rules.md`: public CA/Adobe trust is not MVP; ClamAV stays mandatory; backup/DR is not current security/deployment scope.
+- `14_Environment_Specification.md`: interpret local-first; local Docker MySQL is valid; local Docker ClamAV starts with Phase 6; hypothetical HA/SLA/DR/RPO/RTO/backup/server-count concerns are not current deployment decisions.
+- `15_Coding_Rules_AGENTS.md`: removed enterprise concerns are out of scope, not TBDs to solve.
+- `16_Testing_Specification.md`: real integrations become applicable in the phase/capability they prove; CI remains mandatory; CD is not required.
+- `18_Definition_of_Done.md`: removed enterprise-infrastructure concerns are not completion blockers; staging/production gates apply only when corresponding release claims are made.
+- `19_Task_Implementation_Plan.md`: Phase 0 is native-local first; T03 minimal CI remains; Phase 6 includes ClamAV; Phase 8 tries/qualifies LibreOffice first and uses application-trusted Organization signing; removed infrastructure concerns are not deployment blockers.
 
 ---
 
-# PART K — AGENT GUARDRAILS
+# 13. Agent Guardrails
 
-## 30. Coding Agent MUST NOT
+Coding agents MUST NOT:
 
-A coding agent MUST NOT:
-
-1. containerize the whole application merely because Docker is available locally;
-2. introduce Redis while DB session/cache/queue remains locked;
-3. design HA/load-balancing/cluster infrastructure for current MVP;
-4. invent backup/DR/RPO/RTO/SLA/performance targets;
-5. treat missing production server details as an early-development blocker;
-6. remove or bypass ClamAV because it is implemented later;
-7. mark attachment CLEAN without real whole-file malware proof;
-8. pre-build several spreadsheet renderers;
-9. treat LibreOffice as qualified before fidelity tests pass;
-10. weaken exact PDF fidelity to fit LibreOffice;
-11. require public CA/Adobe trust for current signing MVP;
-12. remove cryptographic signing merely because public CA trust is deferred;
-13. build automated CD infrastructure when only CI is required;
-14. expose the internal NSCMF application publicly merely because `/ispdfvalid` is public;
-15. remove the business field `Specific Requirements (SLA)` while cleaning application SLA terminology;
-16. remove `Performance Information` while cleaning application performance-target terminology.
+1. force the whole app into Docker for normal development;
+2. add Redis under the current DB session/cache/queue baseline;
+3. design HA/load-balancing/DR/RPO/RTO/backup/SLA/load architecture for current MVP;
+4. treat missing production server details as early-development blockers;
+5. remove/bypass ClamAV because it comes later;
+6. mark attachments CLEAN without real whole-file malware proof;
+7. treat LibreOffice as qualified before fidelity testing;
+8. pre-build multiple renderers without need;
+9. require public CA/Adobe trust for current signing MVP;
+10. remove cryptographic signing because public trust is deferred;
+11. build automated CD when only CI is required;
+12. expose internal NSCMF functions publicly because `/ispdfvalid` is public;
+13. remove business `Specific Requirements (SLA)` or `Performance Information` while cleaning infrastructure terminology.
 
 ---
 
-# PART L — CURRENT HANDOFF
+# 14. Current Handoff
 
-## 31. Current Authoritative State
-
-Fixed-order documents remain:
+Fixed-order documentation remains complete through:
 
 ```text
-01_PRD.md
-...
 19_Task_Implementation_Plan.md
 ```
 
-This addendum synchronizes their local-first/deployment interpretation without creating a new fixed-order number.
+This addendum synchronizes the cross-document local-first/pre-deployment concern without creating a new fixed-order number.
 
-## 32. Next Document
-
-Next fixed-order document remains:
+Next fixed-order document:
 
 **`20_Deployment_Architecture.md`**
 
-It MUST NOT be created until the user explicitly instructs its creation after reviewing/accepting this synchronization.
+Do not create `20` until the user explicitly instructs it after reviewing this synchronization.
 
-`20` should remain deliberately simple and focus on:
+When `20` is created, keep it deliberately simple and focus on:
 
 ```text
-primary current local development runtime
-secondary Docker portability compatibility
+primary local development runtime
+secondary Docker portability
 minimum future native-server runtime contract
 public `/ispdfvalid` exposure boundary
-required runtime components when server deployment actually occurs
+required runtime components when a real server actually exists
 ```
 
-It MUST NOT reintroduce removed HA/SLA/DR/RPO/RTO/backup/performance/load/cluster architecture as current MVP requirements.
+Do not reintroduce HA/SLA/DR/RPO/RTO/backup/performance/load/cluster architecture as current MVP requirements.
