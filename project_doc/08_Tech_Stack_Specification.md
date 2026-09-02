@@ -4,13 +4,13 @@
 
 > **Document ID:** NSCMF-TECH-008  
 > **Document Order:** 08 / 20  
-> **Status:** Draft — Confirmed Technology + Repository–Service + Environment-Decision Baseline  
+> **Status:** Draft — Confirmed Technology + Repository–Service + Environment + Development-Method Baseline  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `10_Security_Rules.md`  
-> **Synchronized With:** `09_System_Architecture.md`, `11A_Resumable_Attachment_Upload_Synchronization.md`, `12_API_Contract.md`, `12A_Repository_Service_Architecture_Synchronization.md`, confirmed decisions for upcoming `14_Environment_Specification.md`  
+> **Synchronized With:** `09_System_Architecture.md`, `11A_Resumable_Attachment_Upload_Synchronization.md`, `12_API_Contract.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `13_Project_Structure.md`, `14_Environment_Specification.md`, and confirmed pre-`15` development-process decisions  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Target Capacity Baseline:** 50 application users  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-08-31
 
 ---
 
@@ -18,11 +18,11 @@
 
 Dokumen ini menjadi **source of truth untuk technology selection, technology boundaries, dan mandatory implementation architecture style** NSCMF Digital Form & Workflow System.
 
-Dokumen mengunci runtime, backend/frontend stack, Inertia integration, UI stack, authentication, authorization package boundary, database, queue/cache/session, storage, ClamAV, exact XLSX/PDF export direction, audit approach, testing, quality gates, Docker compatibility, dependency policy, dan **Repository–Service Architecture** yang digunakan backend.
+Dokumen mengunci runtime, backend/frontend stack, Inertia integration, UI stack, authentication, authorization package boundary, database, queue/cache/session, storage, ClamAV, exact XLSX/PDF export direction, audit approach, **Test-Driven Development (TDD)**, testing, static typing/static analysis, quality gates, Docker compatibility, dependency policy, dan **Repository–Service Architecture** yang digunakan backend.
 
 Repository–Service Architecture pada proyek ini bersifat **pragmatic, Laravel-native, dan maintainability-oriented**. Tujuannya bukan meniru textbook Clean Architecture secara berlebihan, melainkan memastikan business logic, transaction boundary, persistence access, dan infrastructure integration mempunyai ownership yang jelas sehingga kode tetap rapi, mudah dirawat manusia, minim silent bug, dan tidak menjadi AI-generated abstraction noise.
 
-Exact environment variable names, runtime paths, process topology, dan secret injection tetap menjadi authority `14_Environment_Specification.md`. Dokumen ini hanya mengunci technology/boundary decisions yang sudah dikonfirmasi.
+Exact environment variable names, runtime paths, process topology, dan secret injection menjadi authority `14_Environment_Specification.md`. Exact coding-agent operational rules, Git workflow detail, TDD evidence format, dan implementation conduct akan menjadi authority `15_Coding_Rules_AGENTS.md` setelah user secara eksplisit memerintahkan pembuatannya. Dokumen ini hanya mengunci technology/development-method boundary yang sudah dikonfirmasi.
 
 ---
 
@@ -65,8 +65,10 @@ Stack MUST support:
 19. ~10 expected users / 50-user engineering baseline;
 20. Docker compatibility;
 21. no WebSocket/Redis/search-engine requirement for MVP;
-22. testing/export/security regression from bootstrap;
-23. clean Repository–Service separation without unnecessary DTO/domain-mapper ceremony.
+22. **TDD-first implementation from bootstrap**;
+23. testing/export/security regression from bootstrap;
+24. strict static analysis/type-checking with a zero-baseline policy;
+25. clean Repository–Service separation without unnecessary DTO/domain-mapper ceremony.
 
 ## 4. Architecture Style — Confirmed
 
@@ -113,7 +115,7 @@ No separate frontend/backend repositories, standalone REST-SPA architecture, mic
 | Repository layer | Contract + Eloquent implementation; meaningful domain/aggregate boundary |
 | DTO layer | **none for MVP**; no mandatory DTO-per-request/model/read-projection layer |
 | Frontend | Vue 3.x Composition API |
-| Frontend language | TypeScript |
+| Frontend language | TypeScript with `strict: true` |
 | Laravel ↔ Frontend | Inertia 3.x |
 | UI | shadcn-vue |
 | CSS | Tailwind CSS 4.x |
@@ -138,11 +140,12 @@ No separate frontend/backend repositories, standalone REST-SPA architecture, mic
 | Technical logging | Laravel technical/runtime logs; cleanup is separate configurable Core Setting |
 | Search | MySQL/Eloquent indexes |
 | Realtime | none MVP |
+| Development method | **Test-Driven Development (TDD)** |
 | Backend tests | Pest 4.x |
 | Frontend tests | Vitest 4.x + Vue Test Utils |
 | E2E | Playwright |
-| PHP quality | Pint + PHPStan/Larastan |
-| JS/TS quality | ESLint + Prettier + vue-tsc |
+| PHP quality | Pint + PHPStan/Larastan **level max, zero-baseline** |
+| JS/TS quality | ESLint + Prettier + vue-tsc, TypeScript **strict** |
 | CI | GitHub Actions |
 | Runtime packaging | Docker-compatible |
 
@@ -167,9 +170,12 @@ Use MySQL 8.4 LTS, not Innovation track without review.
 ### Frontend Packages
 Pin via `package-lock.json`; upgrades require relevant tests.
 
+### Dependency Change Approval
+Adding a new Composer or npm dependency that is not already approved by the project specifications MUST receive explicit user approval before it is introduced. A coding agent MUST NOT install a dependency merely because it makes an implementation easier. Existing locked dependencies may be installed at their approved compatible versions through the committed lockfiles.
+
 ## 6A. Environment Classes — Confirmed
 
-The environment specification MUST cover at least:
+The environment specification covers at least:
 
 ```text
 local / development
@@ -187,7 +193,7 @@ Canonical application/business timezone is:
 Asia/Jakarta
 ```
 
-`14_Environment_Specification.md` will define exact Laravel/MySQL/scheduler/log timestamp configuration so all runtime components remain consistent with this canonical timezone.
+`14_Environment_Specification.md` defines exact Laravel/MySQL/scheduler/log timestamp configuration so all runtime components remain consistent with this canonical timezone.
 
 ---
 
@@ -287,7 +293,7 @@ Complex nested payloads such as Draft persistence MAY pass the dedicated Form Re
 - `$request->all()` is forbidden for business persistence;
 - Service/Repository MUST map expected fields explicitly;
 - validated array MUST NOT be mass-assigned blindly into domain models;
-- PHPStan/Larastan array-shape annotations MAY be used where they materially improve static checking without creating a parallel DTO class hierarchy.
+- PHPStan/Larastan array-shape annotations SHOULD be used where they materially improve static checking without creating a parallel DTO class hierarchy.
 
 DTO is not forbidden forever, but adding a DTO framework/layer requires demonstrated need and specification change rather than architecture fashion.
 
@@ -439,6 +445,8 @@ Scheduler commands similarly call Services/cleanup services rather than embeddin
 ## 19. Vue 3 + TypeScript
 
 Vue handles presentation/local interaction only; not permission/state/malware/signature truth.
+
+TypeScript MUST run with `strict: true`. Project-owned frontend code MUST NOT use `any`, `as any`, blanket `@ts-ignore`, or equivalent escape hatches merely to silence type errors. A narrowly justified interoperability exception MAY exist only when the external boundary cannot be typed more safely and the exception is explicit, local, reviewed, and covered by tests.
 
 ## 20. Inertia 3
 
@@ -660,12 +668,14 @@ Confirmed:
 ```text
 fixed chunk size = 5 MiB
 max final file = 20 MB
-unfinished upload expiry = 24h since last newly accepted upload activity
+unfinished upload expiry = 24h since last newly accepted upload progress
 client SHA-256 = resume hint only
 server assembled-file SHA-256 = authoritative
 full assembled-file ClamAV = mandatory
 explicit CLEAN only = usable
 ```
+
+A byte-identical replay of an already accepted chunk is idempotent but is not new progress and MUST NOT indefinitely extend the expiry anchor.
 
 Upload metadata is relationally tracked according to `11A`/`11` authority.
 
@@ -819,7 +829,36 @@ workflow history/iterations
 PDF issuance/certificate verification history
 ```
 
-`14_Environment_Specification.md` will define the logging channel/path/rotation integration and scheduler/runtime behavior around this application setting.
+`14_Environment_Specification.md` defines the logging channel/path/rotation integration and scheduler/runtime behavior around this application setting.
+
+## 54B. Test-Driven Development — LOCKED
+
+Development of new behavior, bug fixes, and behavior changes MUST use **Test-Driven Development (TDD)**.
+
+Canonical cycle:
+
+```text
+specification / approved requirement
+→ write or update the relevant automated test first
+→ execute it and confirm RED for the intended missing/incorrect behavior
+→ implement the minimum correct production change
+→ execute the test and confirm GREEN
+→ execute the relevant regression suite
+→ refactor only while the suite remains GREEN
+```
+
+The test is derived from the authoritative specification, not reverse-engineered from the implementation merely to make existing code pass.
+
+A coding agent/developer MUST NOT:
+
+- implement the behavior first and then write a test that mirrors that implementation;
+- weaken/remove an assertion merely to obtain GREEN;
+- mark a failing relevant test skipped/todo without an approved reason;
+- change the expected business behavior in a test without the corresponding authoritative specification/requirement changing first;
+- replace a meaningful behavioral test with a mock that no longer proves the intended behavior;
+- create an artificial failing test for a pure behavior-preserving refactor when existing passing tests already provide the required safety net.
+
+Exact TDD evidence and PR enforcement belong to `15_Coding_Rules_AGENTS.md` and `16_Testing_Specification.md`.
 
 ---
 
@@ -869,17 +908,30 @@ CI MUST use a dedicated non-production signing identity/fixture and MUST NEVER r
 
 ## 62. Quality Gates
 
-Pint, PHPStan/Larastan, ESLint, Prettier, vue-tsc.
+Mandatory baseline:
+
+```text
+Pint
+PHPStan/Larastan level max
+ESLint
+Prettier
+vue-tsc
+TypeScript strict mode
+```
+
+PHPStan/Larastan starts from a **zero-baseline policy**: the project MUST NOT create a broad baseline file or mass-ignore existing project-owned errors as the normal way to pass CI. New project-owned static-analysis errors are blocking.
 
 Use `declare(strict_types=1);` for project-owned PHP files unless an explicitly documented interoperability exception exists.
 
-Prefer explicit typed method parameters/return types and PHP enums for closed domain value sets.
+Project-owned PHP code SHOULD use explicit typed method parameters/return types and PHP enums for closed domain value sets. Project-owned TypeScript MUST remain `strict` and MUST NOT normalize `any`/`as any` as an escape route.
 
 ## 63. GitHub Actions
 
-Reproducible Composer/npm installs, quality checks, Pest, frontend tests/build, Playwright, export golden tests. Real production signing key never CI fixture.
+Reproducible Composer/npm installs, quality checks, PHPStan/Larastan max, strict TypeScript/vue-tsc, Pest, frontend tests/build, Playwright, export golden tests. Real production signing key never CI fixture.
 
 CI environment belongs to the confirmed environment set and SHOULD use MySQL 8.4 service where relational behavior matters.
+
+CI MUST fail rather than silently downgrade/disable a required static-analysis, type-check, test, architecture, or security gate merely because the implementation does not yet pass it.
 
 ## 64. Docker Compatibility
 
@@ -953,7 +1005,11 @@ Technical-log automatic cleanup follows the protected application setting in §5
 40. store acknowledged production chunks only on ephemeral process/container storage;
 41. hard-code Technical Log retention so Protected Superadmin cannot use the confirmed cleanup setting;
 42. let Technical Log cleanup touch Business/Access/Security Audit or other authoritative history;
-43. provide a reusable/retrievable plaintext temporary-password screen after the one-time reveal.
+43. provide a reusable/retrievable plaintext temporary-password screen after the one-time reveal;
+44. bypass TDD by writing implementation first and manufacturing tests around it;
+45. lower PHPStan/Larastan from `max`, add a broad static-analysis baseline, or suppress project-owned errors merely to obtain a passing build;
+46. disable TypeScript strictness or normalize `any`/`as any` to bypass type errors;
+47. add a new Composer/npm dependency without explicit user approval.
 
 ---
 
@@ -971,7 +1027,7 @@ larastan/larastan --dev
 Laravel Pint / Laravel-provided tooling --dev
 ```
 
-ClamAV client and PDF signing library may be chosen after compatibility review because adapters/security semantics are authoritative.
+ClamAV client and PDF signing library may be chosen only after compatibility review **and explicit user approval** because adapters/security semantics are authoritative.
 
 No DTO framework is required for current MVP.
 
@@ -992,6 +1048,8 @@ ESLint
 Prettier
 vue-tsc
 ```
+
+Any additional runtime or development dependency not already approved by the project specifications requires explicit user approval before installation/commit.
 
 ---
 
@@ -1038,6 +1096,16 @@ vue-tsc
 - [ ] Technical Log cleanup is Protected Superadmin-configurable with default ON/30 Days;
 - [ ] authoritative audits remain permanently excluded from Technical Log cleanup.
 
+## 73A. Development Quality Acceptance
+
+- [ ] TDD is the mandatory development method for new behavior/bug fixes/behavior changes;
+- [ ] relevant tests are authored/updated from the specification before production behavior is implemented;
+- [ ] tests are not weakened to fit implementation;
+- [ ] PHPStan/Larastan runs at `max` with zero-baseline policy;
+- [ ] TypeScript runs with `strict: true`;
+- [ ] project-owned `any`/`as any` bypasses are not normalized;
+- [ ] new dependencies require explicit user approval.
+
 ## 74. Intentionally Deferred
 
 Still intentionally unresolved and MUST NOT be guessed:
@@ -1054,7 +1122,7 @@ Still intentionally unresolved and MUST NOT be guessed:
 - performance/SLA;
 - exact production physical deployment topology.
 
-The following are **no longer TBD**: temporary credential delivery direction, re-auth proof lifetime, public-validator maximum upload size, canonical application timezone, initial production storage backend class, and Technical Log cleanup policy/default.
+The following are **no longer TBD**: temporary credential delivery direction, re-auth proof lifetime, public-validator maximum upload size, canonical application timezone, initial production storage backend class, Technical Log cleanup policy/default, TDD-first development method, PHPStan/Larastan `max` zero-baseline policy, strict TypeScript policy, and dependency approval requirement.
 
 ## 75. Authority Matrix
 
@@ -1067,19 +1135,20 @@ The following are **no longer TBD**: temporary credential delivery direction, re
 | State/iteration | `05_State_Status_Flow.md` |
 | Validation | `06_Validation_Rules.md` |
 | UI | `07_UI_UX_Specification.md` |
-| **Technology + Repository–Service technology boundary** | **`08_Tech_Stack_Specification.md`** |
+| **Technology + Repository–Service technology boundary + development-method baseline** | **`08_Tech_Stack_Specification.md`** |
 | Logical architecture | `09_System_Architecture.md` |
 | Security | `10_Security_Rules.md` |
 | ERD | `11_ERD_Database_Schema.md` |
 | HTTP contract | `12_API_Contract.md` |
 | Cross-document Repository–Service synchronization | `12A_Repository_Service_Architecture_Synchronization.md` |
 | Source structure | `13_Project_Structure.md` |
-| Environment/runtime values | `14_Environment_Specification.md` once created |
+| Environment/runtime values | `14_Environment_Specification.md` |
+| Coding-agent/Git/TDD execution rules | `15_Coding_Rules_AGENTS.md` once explicitly created |
 
 ## 76. Current Documentation Handoff
 
-Documents through `13_Project_Structure.md` exist and are being synchronized with the confirmed decisions above.
+Documents through `14_Environment_Specification.md` exist.
 
 Next fixed-order document to create — **only after explicit user instruction**:
 
-**`14_Environment_Specification.md`** — must operationalize these locked technology/environment boundaries into concrete environment variables, protected runtime values, process settings, storage paths, readiness checks, scheduler integration, and secret handling without redefining business/security/architecture rules.
+**`15_Coding_Rules_AGENTS.md`** — must translate the locked architecture, TDD-first development method, strict static analysis/type policy, dependency-approval boundary, Git/PR behavior, destructive-operation guardrails, generated-artifact handling, and project synchronization rules into explicit human/developer/coding-agent instructions without redefining upstream business/security/environment authority.

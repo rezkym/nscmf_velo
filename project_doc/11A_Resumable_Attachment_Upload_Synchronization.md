@@ -6,8 +6,8 @@
 > **Applies To:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`, `11_ERD_Database_Schema.md`  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Decision Date:** 2026-08-22  
-> **Status:** Confirmed / Authoritative synchronization until merged into the corresponding source sections  
-> **Next Fixed-Order Document:** `12_API_Contract.md`
+> **Status:** Confirmed / Authoritative synchronization; downstream contract synchronized through `14_Environment_Specification.md`  
+> **Next Fixed-Order Document:** `15_Coding_Rules_AGENTS.md` — only after explicit user instruction
 
 ---
 
@@ -15,9 +15,9 @@
 
 Dokumen ini merekam keputusan final lintas-dokumen yang muncul sebelum penulisan `12_API_Contract.md`, terutama mengenai **resumable/chunk attachment upload**.
 
-Dokumen ini **tidak menambah business state NSCMF**, tidak mengubah permission model, tidak mengubah workflow Review/Approval, dan tidak mengubah fixed project-document sequence. Ia berfungsi sebagai synchronization addendum untuk memastikan dokumen 01–11 dan API Contract berikutnya menggunakan rule yang sama.
+Dokumen ini **tidak menambah business state NSCMF**, tidak mengubah permission model, tidak mengubah workflow Review/Approval, dan tidak mengubah fixed project-document sequence. Ia berfungsi sebagai synchronization addendum untuk memastikan dokumen 01–14 menggunakan rule resumable-upload yang sama.
 
-Jika terdapat wording lama pada 01–11 yang hanya menggambarkan upload satu-request biasa atau menyatakan third-login behavior masih TBD, rule pada addendum ini menjadi **confirmed newer decision** dan harus dibaca sebagai override sempit untuk concern tersebut.
+Jika terdapat wording lama pada 01–14 yang hanya menggambarkan upload satu-request biasa, menyatakan third-login behavior masih TBD, atau menghitung upload expiry dari duplicate retry tanpa progress baru, rule pada addendum ini menjadi **confirmed newer decision** dan harus dibaca sebagai override sempit untuk concern tersebut.
 
 ---
 
@@ -58,10 +58,12 @@ Karena current maximum file size adalah 20 MB, desain ini sengaja tetap sederhan
 Unfinished upload session disimpan selama:
 
 ```text
-24 hours since last successful upload activity
+24 hours since last newly accepted upload progress
 ```
 
-Setiap successful accepted chunk memperbarui `last_activity_at`/expiry anchor.
+Hanya successful acceptance dari **chunk baru yang sebelumnya belum diterima** yang memperbarui `last_activity_at`/expiry anchor.
+
+Byte-identical retry terhadap chunk index yang sudah accepted tetap idempotent tetapi **MUST NOT** memperpanjang expiry secara berulang hanya karena duplicate replay. Dengan demikian client tidak dapat mempertahankan unfinished upload tanpa batas hanya dengan mengirim ulang chunk yang sama.
 
 Setelah melewati retention:
 
@@ -239,7 +241,7 @@ server stores chunk successfully
 
 API implementation MUST make this safe.
 
-An already accepted identical chunk retry MUST NOT create duplicate logical progress or corrupt the assembled file.
+An already accepted identical chunk retry MUST NOT create duplicate logical progress, corrupt the assembled file, or refresh inactivity expiry as if new progress occurred.
 
 A conflicting different payload for an already accepted chunk index MUST be rejected rather than silently overwriting accepted bytes.
 
@@ -381,7 +383,8 @@ Security/authorization rule:
 
 - `public_id`/ID never grants access;
 - parent record + actor authorization always rechecked;
-- `client_fingerprint_sha256` is never final authoritative hash.
+- `client_fingerprint_sha256` is never final authoritative hash;
+- `last_activity_at`/`expires_at` advances only when a previously missing chunk is newly accepted; idempotent duplicate replay does not count as new progress.
 
 ### 23.2 `nscmf_attachment_upload_chunks`
 
@@ -636,7 +639,7 @@ Current confirmed minimum disclosure:
 - issuer = System/Organization;
 - do not expose Requester, Reviewer, Approver, Team, attachment data, form body, or audit data.
 
-Exact response keys/wording belong to `12`.
+Exact response keys/wording belongs to `12`.
 
 ## 40. Third Login Behavior
 
@@ -658,9 +661,9 @@ Session revocation SHOULD be Security Audited according to existing session/secu
 
 ---
 
-# PART L — ACCEPTANCE CHECKLIST BEFORE `12_API_Contract.md`
+# PART L — ACCEPTANCE CHECKLIST / CURRENT HANDOFF
 
-The following are now locked inputs to `12`:
+The following are locked and already synchronized downstream through `14_Environment_Specification.md`:
 
 - [x] Hybrid Inertia + dedicated JSON endpoint model.
 - [x] Explicit workflow action endpoints; no generic client-driven status mutation.
@@ -669,7 +672,8 @@ The following are now locked inputs to `12`:
 - [x] Page pagination, default 25, max 100, whitelist sort/filter.
 - [x] Resumable attachment upload.
 - [x] 5 MiB chunk size.
-- [x] 24h unfinished upload retention from last successful activity.
+- [x] 24h unfinished upload retention from last **newly accepted** progress.
+- [x] Duplicate idempotent chunk replay does not indefinitely refresh expiry.
 - [x] Server-authoritative accepted/missing chunk state.
 - [x] Client SHA-256 fingerprint only for resume discovery.
 - [x] Server-computed authoritative final SHA-256.
@@ -679,4 +683,4 @@ The following are now locked inputs to `12`:
 - [x] Minimum-disclosure public PDF validator.
 - [x] Third login revokes oldest active session.
 
-No `12_API_Contract.md` is created by this synchronization addendum.
+Next fixed-order document is `15_Coding_Rules_AGENTS.md`, but it MUST NOT be created until the user explicitly instructs it.
