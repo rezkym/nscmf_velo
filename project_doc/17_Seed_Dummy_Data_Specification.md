@@ -4,11 +4,11 @@
 
 > **Document ID:** NSCMF-SEED-017  
 > **Document Order:** 17 / 20  
-> **Status:** Draft — Authoritative Seed / Bootstrap / Demo Data Specification  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md` through `16_Testing_Specification.md`  
 > **Canonical Application / Seed Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -1398,7 +1398,7 @@ Demo cleanup in disposable environments must target known demo data only and rem
 
 ---
 
-# PART U — RELATIONSHIP TO DOCUMENTS 01–16
+# PART U — RELATIONSHIP TO OTHER PROJECT AUTHORITIES
 
 ## 94. No Semantic Upstream Rewrite Required
 
@@ -1416,7 +1416,7 @@ No semantic modification to `01–16` is required merely because `17` now specif
 
 These decisions are compatible with upstream rules.
 
-Historical `Next Document` wording in older documents remains historical progress metadata and does not change authority.
+Historical handoff wording in older repository versions is progress metadata only and does not change the current authority baseline.
 
 ## 95. `16` Test Isolation Remains Authoritative
 
@@ -1460,7 +1460,7 @@ It MUST use real validation/scan/render/sign flows and is not silently invented 
 
 The 20-record demo dataset is not a load-testing dataset.
 
-Any large-volume performance seed belongs to future performance/deployment work once numeric objectives are approved.
+No large-volume performance seed is required for current MVP. Add one only if a future explicit approved performance/load objective creates a real need.
 
 ---
 
@@ -1499,12 +1499,12 @@ The following are now LOCKED:
 
 `17` defines what baseline/reference/demo data exists and how safely it may be created.
 
-`18_Definition_of_Done.md` will define the authoritative completion/acceptance gate for implementation work and the project as appropriate, incorporating relevant coding/testing/seed safety without redefining these authorities.
+`18_Definition_of_Done.md` defines the authoritative completion/acceptance gates for implementation work and incorporates relevant coding/testing/seed safety without redefining this seed authority.
 
-## 104. Next Document
+## 104. Documentation Finality / Current Handoff
 
-Next fixed-order document, **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`18_Definition_of_Done.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-Do not create `18` until explicitly instructed by the user.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

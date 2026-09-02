@@ -7,7 +7,7 @@
 > **Repository:** `rezkym/nscmf_velo`  
 > **Decision Date:** 2026-08-22  
 > **Status:** Confirmed / Authoritative cross-document synchronization  
-> **Next Fixed-Order Document:** `13_Project_Structure.md`
+> **Current Fixed-Order Baseline:** `01_PRD.md` through `20_Deployment_Architecture.md` — Approved for Implementation  
 
 ---
 
@@ -968,10 +968,9 @@ Those remain for their authoritative downstream documents.
 
 ---
 
-## 50. Next Document
+## 50. Current Baseline / Handoff
 
-The architecture decision is sufficiently locked to continue with:
+This Repository–Service architecture decision is incorporated into the Approved for Implementation documentation baseline through `20_Deployment_Architecture.md`.
 
-**`13_Project_Structure.md`**
+`13_Project_Structure.md` is the fixed-order authority that materializes this architecture into project structure. Current implementation begins from `19` Phase 0 / T00 only after explicit user instruction.
 
-`13` must translate this architecture into exact physical project structure without changing the already-authoritative business, security, schema, and HTTP contracts.

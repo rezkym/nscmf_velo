@@ -4,12 +4,12 @@
 
 > **Document ID:** NSCMF-ENV-014  
 > **Document Order:** 14 / 20  
-> **Status:** Draft — Authoritative Environment / Runtime Configuration Baseline  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`, `11_ERD_Database_Schema.md`, `12_API_Contract.md`, `13_Project_Structure.md`  
 > **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`  
 > **Canonical Application / Business Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -958,7 +958,7 @@ Rules:
 - when `unix`, socket is required and host/port ignored;
 - when `tcp`, host/port are required and endpoint MUST remain private;
 - ClamAV MUST NOT be exposed publicly;
-- exact topology is deferred to deployment.
+- placement follows `20`: local development uses private Docker `clamd` when Phase 6 begins; the default future native server uses a private same-server `clamd` service/socket. The transport configuration remains flexible enough to support the approved placement safely.
 
 ## 62. ClamAV Definitions
 
@@ -972,7 +972,7 @@ The application MUST NOT silently treat scanner unavailability as CLEAN.
 
 A finite scanner timeout is mandatory.
 
-Exact numeric timeout is deployment/performance-dependent and remains TBD until integration measurement.
+Exact numeric timeout is intentionally selected from real Phase 6 integration measurements rather than guessed in advance.
 
 It MUST be explicitly configured before production rather than relying on an unknown/unbounded process default.
 
@@ -1094,16 +1094,13 @@ NSCMF_RENDERER_TIMEOUT_SECONDS=
 
 Only values relevant to the selected adapter are used.
 
-## 73. Renderer Selection — Still TBD
+## 73. Renderer Selection — First Candidate Locked, Qualification Pending
 
-This document intentionally does **not** select:
+The first renderer candidate is **LibreOffice Headless** as locked by `19A`/`20`.
 
-- LibreOffice specifically;
-- Microsoft Office automation;
-- a commercial renderer;
-- a remote rendering service.
+This is not an automatic qualification. Before production use, the actual official workbook/export pipeline MUST pass the fidelity requirements from `08`/`09`/`10`/`16`, including required fonts, page/layout behavior, visible control result, and a finite evidence-based timeout.
 
-The selected implementation MUST pass the fidelity requirements from `08`/`09`/`10`/`16` before production use.
+If LibreOffice materially fails qualification, stop and obtain an explicit user decision before adopting another renderer. Do not pre-build multiple renderer implementations and do not lower fidelity requirements.
 
 ## 74. Fonts
 
@@ -1158,7 +1155,7 @@ Production private signing material MUST NOT be stored in:
 
 ## 79. Signing Runtime Provisioning
 
-Exact signing library/provider/container/path/passphrase mechanism remains intentionally unresolved upstream.
+The signing trust model is already locked as System/Organization cryptographic signing verified by NSCMF `/ispdfvalid`; public-CA/Adobe-reader trust is not required for MVP. The concrete signing library, key container/path, passphrase/secret-injection mechanism, and rotation procedure remain implementation-time security choices.
 
 Whichever adapter is later selected MUST receive the private key through a protected runtime secret mechanism such as a read-only protected mount/reference or equivalent approved secret injection.
 
@@ -1445,7 +1442,7 @@ If deployment uses reverse proxy/load balancer, Laravel trusted-proxy configurat
 
 Do not blindly trust all forwarded headers from arbitrary internet clients.
 
-Exact proxy addresses are deferred to `20`.
+Exact trusted-proxy addresses/identities are configured from the actual host/network when a real deployment exists; `20` already defines the deployment posture.
 
 ## 103. Secure Cookie
 
@@ -1463,7 +1460,7 @@ Environment MUST NOT add broad cross-origin access merely for convenience.
 
 HSTS SHOULD be enabled only after HTTPS/proxy configuration is confirmed correct for the production host strategy.
 
-Exact max-age/subdomain/preload decision can be finalized with deployment topology.
+Exact HSTS max-age/subdomain/preload values are finalized against the actual HTTPS hostname/network when a real deployment exists.
 
 ---
 
@@ -1864,7 +1861,7 @@ Developer/coding agent MUST NOT:
 31. mark ClamAV error/timeout as CLEAN;
 32. assume a renderer is qualified without golden/fidelity testing;
 33. choose HTML PDF fallback;
-34. silently select signer provider/library/path/rotation mechanism while upstream still leaves it unresolved;
+34. silently select a concrete signer library/key-container/path/rotation mechanism before the applicable Phase 8 dependency/security decision is approved;
 35. reuse production signing identity in CI/staging/local;
 36. allow Approved PDF to become READY unsigned;
 37. overwrite registered official template binary in place;
@@ -1874,7 +1871,7 @@ Developer/coding agent MUST NOT:
 41. create scheduler task that advances NSCMF workflow;
 42. create cleanup that deletes PDF issuance metadata with 7-day binary expiry;
 43. treat runtime temp workspace as durable resumable storage;
-44. assume physical deployment topology from this document.
+44. override or contradict the deployment posture defined by `20`.
 
 ---
 
@@ -1989,32 +1986,23 @@ Developer/coding agent MUST NOT:
 
 # PART AB — INTENTIONALLY DEFERRED / NOT INVENTED
 
-## 147. Deployment-Dependent Details
+## 147. Narrow Implementation / Provisioning Choices
 
-The following remain intentionally unresolved because upstream documents have not supplied enough authority and/or they depend on physical deployment design:
+`20_Deployment_Architecture.md` now defines the deployment posture. The following narrow choices remain intentionally implementation/provisioning-time and do **not** block ordinary local development:
 
-- exact production/staging hostnames;
-- exact VM/container/platform topology;
-- exact persistent-volume host path/mount implementation;
-- queue worker process count;
-- exact worker retry/backoff/timeout numbers;
-- exact public-validator rate-limit buckets;
-- exact login/upload rate-limit numeric buckets beyond required behavior;
-- exact ClamAV physical topology and scanner timeout value;
-- exact qualified spreadsheet renderer implementation/provider;
-- exact renderer executable/endpoint and timeout;
+- actual staging/production hostnames, provider/location/IP, and supported stable/LTS Linux distro/version when a real host exists;
+- exact private persistent-storage host path/mount and permissions on that real host;
+- evidence-based worker retry/backoff/timeout values and any later worker-count tuning if a real need appears;
+- exact public-validator/login/upload rate-limit numeric buckets;
+- finite ClamAV scanner timeout selected from Phase 6 real integration behavior; topology is already local Docker `clamd` for development and private same-server `clamd` for the default future server;
+- LibreOffice Headless qualification outcome, required fonts, executable details, visual tolerance, and finite renderer timeout; LibreOffice is already the locked first candidate;
 - exact official-template operator command name;
-- exact PDF signing library/provider/CA/container/path/passphrase mechanism;
-- signing key rotation ceremony;
-- exact HSTS policy values;
-- backup/restore/DR/RPO/RTO;
-- performance/SLA/availability targets;
-- external observability/log aggregation platform;
-- exact production deployment topology.
+- exact PDF signing library, key container/path, passphrase/secret injection, and rotation mechanism; the signing trust model is already locked;
+- exact HSTS values appropriate to the actual HTTPS hostname/deployment.
 
-These items MUST NOT be silently guessed by developer/coding agent.
+These choices MUST be resolved only when their phase or real host requires them and MUST NOT be silently guessed when evidence/user approval is required.
 
-Where necessary, they are finalized by downstream implementation/testing/deployment documents or an approved upstream synchronization decision.
+HA, application SLA, DR, RPO/RTO, backup architecture, load balancers, Kubernetes/orchestration, multi-server scaling, production load targets, and external observability-platform selection are **not current MVP environment TBDs**.
 
 ---
 
@@ -2060,10 +2048,10 @@ Technical Log retention may be changed through protected typed setting
 but authoritative audit age purge remains forbidden.
 ```
 
-## 150. Next Document
+## 150. Documentation Finality / Current Handoff
 
-Next fixed-order document:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`15_Coding_Rules_AGENTS.md`**
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-It MUST translate `01–14` into explicit developer/coding-agent constraints, coding conventions, dependency rules, security guardrails, configuration-handling rules, and implementation behaviors without changing the environment/runtime authority established here.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

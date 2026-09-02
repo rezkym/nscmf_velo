@@ -4,12 +4,12 @@
 
 > **Document ID:** NSCMF-STATE-005  
 > **Document Order:** 05 / 20  
-> **Status:** Draft — Confirmed State Machine + Workflow Iteration + Permission Synchronization  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`  
 > **Synchronized With:** `06_Validation_Rules.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
-> **Last Updated:** 2026-08-21
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -623,9 +623,11 @@ APPROVED + false
 
 ---
 
-# PART M — DOWNSTREAM / ACCEPTANCE
+# PART M — MATERIALIZATION / ACCEPTANCE
 
-## 38. Technical Items Deferred to ERD/API
+## 38. Technical Materialization — Defined by ERD/API
+
+The physical representations below are already governed by `11_ERD_Database_Schema.md` and `12_API_Contract.md`; this state-flow document defines their lifecycle meaning rather than duplicating those contracts.
 
 - physical business-status representation;
 - workflow-iteration table/columns;
@@ -658,7 +660,7 @@ No Unit/Division or Reviewer/Approval scope representation is needed.
 - [ ] Archive does not change business status;
 - [ ] concurrent stale actions rejected.
 
-## 40. Relationship / Next Document
+## 40. Relationship / Documentation Handoff
 
 | Concern | Authority |
 |---|---|
@@ -673,6 +675,8 @@ No Unit/Division or Reviewer/Approval scope representation is needed.
 | Architecture | `09_System_Architecture.md` |
 | Security | `10_Security_Rules.md` |
 
-Next fixed-order document:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`11_ERD_Database_Schema.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
+
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

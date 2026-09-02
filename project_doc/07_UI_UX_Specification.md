@@ -4,13 +4,13 @@
 
 > **Document ID:** NSCMF-UIUX-007  
 > **Document Order:** 07 / 20  
-> **Status:** Draft — Confirmed UX Direction + Environment-Bound Settings Synchronization  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Visual/Flow Reference:** NSCMF FigJam proposal  
 > **UI Implementation Reference:** Vue 3 + TypeScript + Inertia 3 + shadcn-vue + Tailwind CSS 4  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -858,9 +858,11 @@ Existing FigJam remains a product/system-flow reference. Environment-specific va
 | Technology | `08_Tech_Stack_Specification.md` |
 | Architecture | `09_System_Architecture.md` |
 | Security | `10_Security_Rules.md` |
-| Environment/runtime configuration | `14_Environment_Specification.md` once created |
+| Environment/runtime configuration | `14_Environment_Specification.md` |
 
-## 73. Still Refinable / TBD
+## 73. Non-Blocking UI Tuning / Future Refinements
+
+These items are not blockers for implementation and MUST NOT be guessed into new product requirements. Apply existing locked behavior first; refine only when evidence or explicit approval requires it.
 
 - neutral grayscale/font assets/breakpoints;
 - table page size;
@@ -874,8 +876,8 @@ Existing FigJam remains a product/system-flow reference. Environment-specific va
 
 ## 74. Current Handoff
 
-Documents through `13_Project_Structure.md` already exist. The next fixed-order document to create is:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`14_Environment_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-It MUST operationalize the confirmed runtime settings without changing the UI/security/business meanings locked here.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

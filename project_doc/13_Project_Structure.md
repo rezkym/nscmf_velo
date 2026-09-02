@@ -4,12 +4,12 @@
 
 > **Document ID:** NSCMF-STRUCT-013  
 > **Document Order:** 13 / 20  
-> **Status:** Draft — Authoritative Project Structure + Environment-Decision Synchronization  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`, `11_ERD_Database_Schema.md`, `12_API_Contract.md`  
-> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`, confirmed decisions for upcoming `14_Environment_Specification.md`  
+> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `14_Environment_Specification.md`  
 > **Application Style:** Laravel 13 modular monolith + pragmatic Repository–Service Architecture + Inertia 3 + Vue 3 / TypeScript  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -539,7 +539,7 @@ No storage key/path grants authorization. Absolute host filesystem paths MUST NO
 
 ## 37. Malware Boundary
 
-`Service → MalwareScanner → ClamAvScanner → clamd`. Topology deferred to Environment/Deployment; explicit CLEAN semantics fixed.
+`Service → MalwareScanner → ClamAvScanner → clamd`. Placement follows `20`: Docker `clamd` for local Phase 6 and private same-server `clamd` for the default future native server; explicit CLEAN semantics remain fixed.
 
 ## 38. Export Infrastructure
 
@@ -1208,7 +1208,7 @@ Controller→Service, Service transaction, repository contracts/Eloquent impleme
 | HTTP contract | `12_API_Contract.md` |
 | Repository–Service synchronization | `12A_Repository_Service_Architecture_Synchronization.md` |
 | **Source-code physical structure** | **`13_Project_Structure.md`** |
-| Environment/runtime | `14_Environment_Specification.md` once created |
+| Environment/runtime | `14_Environment_Specification.md` |
 
 ## 108. Confirmed Decisions Handed to `14_Environment_Specification.md`
 
@@ -1226,44 +1226,47 @@ temporary credential = server-generated + one-time admin reveal
 official XLSX template = immutable/versioned/private + SHA-256 readiness
 Technical Log cleanup default = ON + 30 DAY, Protected-Superadmin configurable DAY/MONTH or OFF
 Approved-PDF private key = protected runtime provisioning, never source/ordinary DB/browser/log
-ClamAV/renderer physical topology = not fixed here
+ClamAV/renderer placement = governed by `20`; integration-time timeout/qualification details remain evidence-based
 ```
 
-`14` MUST translate these into explicit runtime configuration without contradicting them.
+`14` defines the explicit runtime configuration for these concerns and MUST remain consistent with this project structure.
 
-## 109. Intentionally Deferred to `14`
+## 109. Runtime Configuration Owned by `14`
 
-Exact:
+`14_Environment_Specification.md` is already the authority for runtime configuration, including:
 
-- `.env` names/values;
-- Laravel/MySQL timezone implementation details consistent with `Asia/Jakarta`;
-- DB host/user/password/connection/security values;
-- queue/cache/session implementation values;
-- private local storage disk names/root/mount/prefix/permissions;
-- ClamAV socket/host/port/timeouts/health;
-- renderer executable/container/endpoint/workdir/fonts/health;
-- official template runtime path/provisioning/readiness details;
-- signing protected mount/secret reference/certificate runtime path/passphrase source;
-- public certificate runtime/bootstrap location;
-- scheduler process/supervisor/runtime command;
-- Technical Log channel/path/rotation implementation that consumes the DB setting;
+- `.env` names/values and secret-injection boundaries;
+- Laravel/MySQL timezone implementation consistent with `Asia/Jakarta`;
+- DB connection/security values;
+- database queue/cache/session runtime values;
+- private local storage disk/root/mount/prefix/permissions;
+- ClamAV connectivity and finite timeout configuration;
+- renderer executable/workdir/fonts/health/timeout configuration;
+- official template runtime provisioning/readiness;
+- signing protected secret/certificate runtime references;
+- scheduler/process-manager/runtime command;
+- Technical Log channel/path/rotation implementation;
 - production secret injection.
 
-## 110. Intentionally Deferred to Later Documents
+Project structure MUST consume those runtime contracts without duplicating environment policy.
 
-- coding style/agent enforcement → `15`;
-- exact testing matrix → `16`;
+## 110. Later Fixed-Order Authorities — Now Available
+
+The following authorities are already part of the Approved for Implementation baseline:
+
+- coding/agent rules → `15`;
+- testing matrix → `16`;
 - seed/dummy data → `17`;
-- completion gate → `18`;
+- completion gates → `18`;
 - implementation tasks → `19`;
-- physical production topology, backup/DR, ClamAV/renderer co-location and deployment sizing → `20`.
+- deployment placement → `20`.
 
-Remaining genuine open items include official numbering SOP, exact Team master data, bulk packaging, exact numeric rate-limit buckets, signing provider/rotation mechanics, notification implementation, performance/SLA, backup/DR, and physical production topology.
+Remaining genuine non-blocking choices are limited to organization-owned Team/numbering data, optional bulk packaging/notification behavior, exact numeric rate limits, concrete signing mechanics, measured scanner/renderer tuning/qualification, and host-specific values when a real server exists. Performance/SLA, backup/DR/RPO/RTO, HA, load balancing, Kubernetes, and speculative production topology are not current MVP open items.
 
-The following are no longer open: temp-credential delivery direction, re-auth proof lifetime, public-validator max upload, canonical application timezone, initial production storage backend class, and Technical Log cleanup policy/default.
+## 111. Documentation Finality / Current Handoff
 
-## 111. Next Document
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-Next document in the fixed project sequence — **do not create until explicitly instructed by the user**:
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-**`14_Environment_Specification.md`**.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

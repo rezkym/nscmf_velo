@@ -4,12 +4,12 @@
 
 > **Document ID:** NSCMF-TEST-016  
 > **Document Order:** 16 / 20  
-> **Status:** Draft — Authoritative Testing / Verification Specification  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md` through `15_Coding_Rules_AGENTS.md`  
 > **Integrates:** `15A_Pre_Testing_Specification_Synchronization.md`  
 > **Canonical Application / Test Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -1502,29 +1502,27 @@ Public/login/other exact numeric rate-limit buckets remain TBD where upstream do
 
 Tests may prove configured limit enforcement generically but MUST NOT define the production number silently.
 
-## 111. Renderer Implementation / Fidelity Tolerance
+## 111. Renderer Qualification / Fidelity Tolerance
 
-Exact renderer implementation/topology/timeouts and any approved golden visual tolerance remain unresolved until qualification/deployment decision.
+LibreOffice Headless is the locked first candidate. Tests MUST qualify the real official-workbook path, required fonts, page/layout/control-visible output, finite timeout, and approved practical visual tolerance before the renderer capability is production-ready.
 
-Tests must not choose them silently.
+If material fidelity fails, tests must report failure; they must not select another renderer or weaken the golden criteria silently.
 
-## 112. Signing Provider / Rotation
+## 112. Signing Implementation / Rotation
 
-Exact production signing provider/library/CA/path/passphrase/rotation remains TBD.
+The MVP trust model is locked as System/Organization cryptographic signing verified through `/ispdfvalid`, without a public-CA/Adobe trust requirement. Tests use a non-production identity and MUST prove the real cryptographic contract.
 
-Integration tests prove the contract with non-production identity without deciding production provider.
+Concrete production signing library, key-container/path, passphrase injection, and rotation mechanics remain implementation-time security/dependency choices; tests must not silently decide them.
 
-## 113. ClamAV Topology / Timeout
+## 113. ClamAV Placement / Timeout
 
-Exact ClamAV socket-vs-TCP deployment and timeout value remain environment/deployment decisions where still TBD.
+Placement is already defined: local Docker `clamd` when Phase 6 begins and private same-server `clamd` for the default future native server. Tests MUST prove real whole-file integration and fail-closed behavior.
 
-Tests prove fail-closed contract and real integration without declaring the production number/topology.
+The finite timeout/capacity values are selected from real integration evidence, not invented by tests.
 
 ## 114. Performance / Load / SLA
 
-No numeric performance/load/SLA threshold is invented in `16` because upstream requirements remain open.
-
-Once approved performance objectives exist, their test thresholds must be added through the appropriate authoritative synchronization.
+No numeric performance/load/application-SLA target is a current MVP requirement. Tests MUST NOT create one. Such testing becomes mandatory only if a future explicit approved requirement reintroduces a concrete target.
 
 ## 115. Browser Expansion
 
@@ -1640,10 +1638,10 @@ The following are no longer TBD:
 - automatic retry-as-pass forbidden;
 - flaky tests remain visible defects to fix at root cause.
 
-## 125. Next Document
+## 125. Documentation Finality / Current Handoff
 
-Next fixed-order document, **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`17_Seed_Dummy_Data_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-Do not create `17` until explicitly instructed by the user.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

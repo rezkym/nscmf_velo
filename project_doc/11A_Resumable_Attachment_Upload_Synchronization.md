@@ -7,7 +7,7 @@
 > **Repository:** `rezkym/nscmf_velo`  
 > **Decision Date:** 2026-08-22  
 > **Status:** Confirmed / Authoritative synchronization; downstream contract synchronized through `14_Environment_Specification.md`  
-> **Next Fixed-Order Document:** `15_Coding_Rules_AGENTS.md` — only after explicit user instruction
+> **Current Fixed-Order Baseline:** `01_PRD.md` through `20_Deployment_Architecture.md` — Approved for Implementation  
 
 ---
 
@@ -683,4 +683,8 @@ The following are locked and already synchronized downstream through `14_Environ
 - [x] Minimum-disclosure public PDF validator.
 - [x] Third login revokes oldest active session.
 
-Next fixed-order document is `15_Coding_Rules_AGENTS.md`, but it MUST NOT be created until the user explicitly instructs it.
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
+
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
+
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

@@ -4,13 +4,13 @@
 
 > **Document ID:** NSCMF-API-012  
 > **Document Order:** 12 / 20  
-> **Status:** Draft — Authoritative API / HTTP Contract Baseline + Environment-Decision Synchronization  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`, `11_ERD_Database_Schema.md`  
-> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`, confirmed decisions for upcoming `14_Environment_Specification.md`  
+> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `14_Environment_Specification.md`  
 > **Application Style:** Laravel 13 modular monolith + Inertia 3 + Vue 3 + session authentication  
 > **Canonical Application Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -1852,19 +1852,21 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 
 ---
 
-# PART AA — REMAINING API-ADJACENT TBDs
+# PART AA — NON-BLOCKING IMPLEMENTATION-TIME / FUTURE VALUES
 
-## 133. Intentionally Unresolved
+## 133. Intentionally Unresolved Only Where Needed
 
-Still unresolved because upstream authority intentionally leaves them downstream:
+The HTTP contract is approved. The following remain implementation-time/future values rather than missing API semantics:
 
-1. bulk export packaging (ZIP/combined PDF etc.);
-2. exact operational numeric rate-limit buckets for login/upload/public-validator abuse controls;
+1. optional bulk export packaging (ZIP/combined packaging) if later approved;
+2. exact operational numeric rate-limit buckets for login/upload/public-validator controls;
 3. official numbering SOP beyond current provisional automatic/manual rules;
-4. default Team master data;
-5. signing provider/library/container/path/passphrase/rotation mechanics;
-6. notification endpoints/providers;
-7. exact physical storage root/mount, ClamAV topology, renderer topology — Environment/Deployment concern.
+4. exact production Team master data;
+5. concrete signing library/key-container/path/passphrase/rotation mechanics;
+6. notification endpoints/providers if notification is later implemented;
+7. host-specific private storage paths plus measured scanner/renderer timeout and LibreOffice qualification details.
+
+ClamAV placement, LibreOffice as first renderer candidate, signing trust, and the default deployment topology are already defined by `19A`/`20`; API implementation must not treat them as open architecture decisions.
 
 No longer TBD:
 
@@ -1940,8 +1942,8 @@ Implementation MUST NOT silently turn remaining TBDs into product facts.
 
 ## 141. Current Handoff
 
-Documents through `13_Project_Structure.md` already exist. Next fixed-order document to create **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`14_Environment_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-It MUST operationalize the locked API/runtime assumptions above without changing this HTTP contract.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

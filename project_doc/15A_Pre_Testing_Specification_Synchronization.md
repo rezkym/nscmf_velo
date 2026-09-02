@@ -8,7 +8,7 @@
 > **Decision Date:** 2026-09-01 through 2026-09-02  
 > **Status:** Historical / Integrated into `16_Testing_Specification.md`  
 > **Current Testing Authority:** `16_Testing_Specification.md`  
-> **Next Fixed-Order Document:** `17_Seed_Dummy_Data_Specification.md` — MUST NOT be created until explicit user instruction
+> **Historical Handoff:** `17_Seed_Dummy_Data_Specification.md` was next at the time; this is superseded by the completed `01–20` baseline  
 
 ---
 
@@ -184,10 +184,8 @@ Keputusan testing yang direkam di sini tidak mengubah product/business/API/schem
 
 Semua pre-`16` testing-policy decisions yang sebelumnya dicatat di `15A` telah diintegrasikan ke `16`.
 
-## 12. Next Fixed-Order Document
+## 12. Historical Handoff — Superseded
 
-Next fixed-order document:
+At the time of this addendum, `17_Seed_Dummy_Data_Specification.md` was the next planned document. That creation gate was later satisfied.
 
-**`17_Seed_Dummy_Data_Specification.md`**
-
-It MUST NOT be created until the user explicitly instructs its creation.
+The fixed-order documentation set is now complete and Approved for Implementation through `20_Deployment_Architecture.md`; `16_Testing_Specification.md` remains the testing authority.

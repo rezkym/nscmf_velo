@@ -4,15 +4,15 @@
 
 > **Document ID:** NSCMF-ARCH-009  
 > **Document Order:** 09 / 20  
-> **Status:** Draft — Confirmed Repository–Service + Resumable Attachment + Environment-Decision Baseline  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `10_Security_Rules.md`  
-> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12_API_Contract.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `13_Project_Structure.md`, confirmed decisions for upcoming `14_Environment_Specification.md`  
+> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12_API_Contract.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `13_Project_Structure.md`, `14_Environment_Specification.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Organization Model:** Single organization / single application installation  
 > **Engineering Capacity Baseline:** 50 application users  
 > **Canonical Application Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -36,7 +36,7 @@ Tujuan:
 - protected Core Settings have explicit persistence/orchestration boundary;
 - runtime infrastructure remains configurable without redefining business architecture.
 
-Exact physical folder/class names belong to `13_Project_Structure.md`. Exact environment variables/runtime paths belong to upcoming `14_Environment_Specification.md`.
+Exact physical folder/class names belong to `13_Project_Structure.md`. Exact environment variables/runtime paths belong to `14_Environment_Specification.md`.
 
 ---
 
@@ -542,7 +542,7 @@ READY binary 168h; source/audit/issuance preserved.
 
 ## 64. Signer Identity / Key Custody
 
-Human Approved By distinct. Production private key through protected runtime mounted file/secret reference or equivalent; never GitHub/source/ordinary DB/browser/log. Public cert material can remain registered for historical verification. Exact library/provider/CA/path/rotation deferred.
+Human Approved By remains distinct. Production private key is provisioned through a protected runtime mount/secret reference or equivalent and never stored in GitHub/source/ordinary DB/browser/log. Public certificate material can remain registered for historical verification. The trust model is fixed as System/Organization verification through `/ispdfvalid`; only concrete signing library/key-container/path/secret-injection/rotation mechanics remain implementation-time.
 
 ## 65. Public Verification
 
@@ -748,33 +748,30 @@ No tenant/Team scope; workflow locks; optimistic editable saves; authoritative a
 
 `13` authoritative for Controller/Service/Repository/Infrastructure/Settings physical placement.
 
-## 94. Remaining TBD
+## 94. Remaining Narrow Implementation-Time / Future Choices
 
-Still deferred:
+The logical architecture is approved. Remaining choices are limited to:
 
-- exact Team master data;
+- exact production Team master data;
 - official numbering SOP;
-- bulk packaging;
+- optional bulk packaging;
 - exact numeric rate-limit buckets;
-- signing provider/library/path/rotation;
-- notification;
-- exact ClamAV physical topology/sizing;
-- exact renderer executable/provider/topology;
-- exact private local storage root/mount/prefix values;
-- backup/DR/RPO/RTO;
-- performance/availability;
-- exact physical production deployment topology.
+- concrete signing library/key-container/rotation mechanics;
+- notification implementation if later approved;
+- finite ClamAV timeout/capacity tuning from real integration;
+- LibreOffice Headless qualification/runtime details;
+- actual host-specific storage path/hostname/provider values when a real server exists.
 
-No longer TBD: temp credential direction, re-auth lifetime, third-login behavior, public validator max upload, initial storage class, canonical timezone, Technical Log cleanup policy/default.
+Physical placement is already defined by `20`: local-native first, Docker portability secondary, and a default future single native Linux server with required runtime components co-located. HA, DR/RPO/RTO, backup architecture, performance/availability targets, load balancing, Kubernetes, and multi-server scaling are not current MVP architecture TBDs.
 
 ## 95. Authority Matrix
 
-`01` Product; `02` Business; `03` Flow; `04` RBAC; `05` State; `06` Validation; `07` UI; `08` Tech; **`09` Logical Architecture**; `10` Security; `11` Schema; `12` API; `13` Structure; `14` Environment once created.
+`01` Product; `02` Business; `03` Flow; `04` RBAC; `05` State; `06` Validation; `07` UI; `08` Tech; **`09` Logical Architecture**; `10` Security; `11` Schema; `12` API; `13` Structure; `14` Environment.
 
 ## 96. Current Documentation Handoff
 
-Documents through `13_Project_Structure.md` exist. Next fixed-order document to create **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`14_Environment_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-`14` MUST operationalize `Asia/Jakarta`, the five environment classes, MySQL/session/queue/cache, persistent Laravel private local storage, ClamAV/renderer connectivity/configurability, official template provisioning/hash readiness, protected signing identity, 15-minute re-auth, max20MB public validator, scheduler tasks, Technical Log settings-driven cleanup, and secret handling without redefining logical architecture.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

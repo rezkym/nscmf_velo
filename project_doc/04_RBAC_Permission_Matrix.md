@@ -4,10 +4,10 @@
 
 > **Document ID:** NSCMF-RBAC-004  
 > **Document Order:** 04 / 20  
-> **Status:** Draft — Confirmed Permission-Centric Authorization + Protected Settings Synchronization  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -624,12 +624,12 @@ Laravel conventional bigint IDs preferred for package compatibility.
 | Schema | `11_ERD_Database_Schema.md` |
 | API | `12_API_Contract.md` |
 | Structure | `13_Project_Structure.md` |
-| Environment | `14_Environment_Specification.md` once created |
+| Environment | `14_Environment_Specification.md` |
 
 ## 45. Current Handoff
 
-Documents through `13_Project_Structure.md` exist. Next fixed-order document to create **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`14_Environment_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-`14` MUST operationalize the Protected Settings/runtime decisions without changing RBAC semantics above.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

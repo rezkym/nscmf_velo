@@ -4,13 +4,13 @@
 
 > **Document ID:** NSCMF-TECH-008  
 > **Document Order:** 08 / 20  
-> **Status:** Draft — Confirmed Technology + Repository–Service + Environment + Development-Method Baseline  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `10_Security_Rules.md`  
 > **Synchronized With:** `09_System_Architecture.md`, `11A_Resumable_Attachment_Upload_Synchronization.md`, `12_API_Contract.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `13_Project_Structure.md`, `14_Environment_Specification.md`, and confirmed pre-`15` development-process decisions  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Target Capacity Baseline:** 50 application users  
-> **Last Updated:** 2026-08-31
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -935,7 +935,7 @@ CI MUST fail rather than silently downgrade/disable a required static-analysis, 
 
 ## 64. Docker Compatibility
 
-Logical runtime may include app/web, MySQL, queue worker, scheduler, ClamAV, qualified renderer. Exact physical topology downstream. No Kubernetes requirement.
+Logical runtime includes app/web, MySQL, database queue worker, scheduler, ClamAV, and a qualified renderer when that capability is reached. `20` defines the default future physical placement as one native Linux server with these runtime components co-located; Docker remains secondary portability support. No Kubernetes requirement.
 
 Docker compatibility MUST NOT be interpreted as permission to keep acknowledged production chunks only on an ephemeral container filesystem.
 
@@ -1106,23 +1106,21 @@ Any additional runtime or development dependency not already approved by the pro
 - [ ] project-owned `any`/`as any` bypasses are not normalized;
 - [ ] new dependencies require explicit user approval.
 
-## 74. Intentionally Deferred
+## 74. Narrow Implementation-Time / Future Choices
 
-Still intentionally unresolved and MUST NOT be guessed:
+The technology baseline is approved. The following remain intentionally unresolved only where a real organization value, optional future capability, or measured integration result is required:
 
-- exact default Team master data;
+- exact production Team master data;
 - official numbering SOP/sample;
-- bulk export packaging;
-- exact numeric abuse/rate-limit buckets beyond already locked conceptual throttling;
-- notification provider;
-- exact ClamAV physical topology/sizing;
-- exact qualified renderer executable/image/provider/topology;
-- signing provider/library/CA/container/path/passphrase/rotation ceremony;
-- backup/restore/DR/RPO/RTO;
-- performance/SLA;
-- exact production physical deployment topology.
+- optional bulk export packaging;
+- exact numeric abuse/rate-limit buckets;
+- notification provider if notification is later implemented;
+- LibreOffice Headless qualification details, required fonts, executable integration, and finite timeout;
+- exact signing library/key-container/passphrase-injection/rotation mechanics;
+- finite ClamAV timeout/capacity tuning based on real integration evidence;
+- actual host-specific paths/hostnames/provider values when a real server is provisioned.
 
-The following are **no longer TBD**: temporary credential delivery direction, re-auth proof lifetime, public-validator maximum upload size, canonical application timezone, initial production storage backend class, Technical Log cleanup policy/default, TDD-first development method, PHPStan/Larastan `max` zero-baseline policy, strict TypeScript policy, and dependency approval requirement.
+ClamAV placement, LibreOffice Headless as the first renderer candidate, the System/Organization `/ispdfvalid` trust model, local-first development, the simple future single-server deployment posture, and CI-without-automated-CD are no longer open technology decisions. HA, DR/RPO/RTO, backup architecture, load balancing, Kubernetes, multi-server scaling, and application performance/SLA targets are outside current MVP scope.
 
 ## 75. Authority Matrix
 
@@ -1143,12 +1141,12 @@ The following are **no longer TBD**: temporary credential delivery direction, re
 | Cross-document Repository–Service synchronization | `12A_Repository_Service_Architecture_Synchronization.md` |
 | Source structure | `13_Project_Structure.md` |
 | Environment/runtime values | `14_Environment_Specification.md` |
-| Coding-agent/Git/TDD execution rules | `15_Coding_Rules_AGENTS.md` once explicitly created |
+| Coding-agent/Git/TDD execution rules | `15_Coding_Rules_AGENTS.md` |
 
 ## 76. Current Documentation Handoff
 
-Documents through `14_Environment_Specification.md` exist.
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-Next fixed-order document to create — **only after explicit user instruction**:
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-**`15_Coding_Rules_AGENTS.md`** — must translate the locked architecture, TDD-first development method, strict static analysis/type policy, dependency-approval boundary, Git/PR behavior, destructive-operation guardrails, generated-artifact handling, and project synchronization rules into explicit human/developer/coding-agent instructions without redefining upstream business/security/environment authority.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

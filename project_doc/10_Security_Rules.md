@@ -4,12 +4,12 @@
 
 > **Document ID:** NSCMF-SEC-010  
 > **Document Order:** 10 / 20  
-> **Status:** Draft — Confirmed Security Baseline + Environment-Decision Synchronization  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`  
 > **Organization Model:** Single organization / single application installation  
 > **Primary Business Reference:** NSCMF Form 3.0  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -493,7 +493,7 @@ No public executable path.
 
 Community package may be transport glue only.
 
-Exact same-host/container/private-service topology is deferred to Environment/Deployment and MUST NOT change CLEAN/fail-closed semantics.
+Deployment placement follows `20`: local development uses private Docker `clamd` when Phase 6 begins; the default future native server uses private same-server `clamd`. Placement MUST NOT change CLEAN/fail-closed semantics.
 
 ## 47. Fail Closed
 
@@ -956,24 +956,21 @@ No-login; rate limit; PDF-only; max20MB; CLEAN before deep verify; temp deleted;
 
 # PART S — DOWNSTREAM / RETENTION / GUARDRAILS
 
-## 99. Exact Details Downstream
+## 99. Narrow Implementation-Time Details
 
-Still downstream/TBD:
+The following remain implementation-time details and MUST NOT be guessed before the relevant phase/evidence exists:
 
-- exact user/session/audit/signing/schema/index implementation details;
-- immutable snapshot physical structure where not already locked by `11`;
+- exact user/session/audit/schema/index implementation details where not already fixed by later authorities;
+- immutable export snapshot physical structure where not already locked by `11`;
 - exact operational numeric limiter buckets;
-- signing library/provider/CA/container/path/passphrase/rotation ceremony;
-- ClamAV physical topology/sizing;
-- exact private local storage roots/mounts/prefixes/permissions;
-- exact renderer executable/image/provider/topology;
+- exact PDF signing library, key container/path, passphrase/secret injection, and rotation mechanism; the MVP trust model is already locked as System/Organization trust through `/ispdfvalid`, with no public-CA/Adobe-trust requirement;
+- finite ClamAV timeout/capacity tuning based on real integration evidence; placement is already defined by `20`;
+- exact private local storage roots/mounts/prefixes/permissions on the actual host;
+- LibreOffice Headless qualification outcome, required fonts, executable details, and finite renderer timeout; it is already the locked first candidate;
 - Technical Log channel/path/rotation implementation that obeys the runtime setting;
-- backup/DR;
-- hosting topology;
-- performance/SLA;
-- notification.
+- notification implementation if/when that future capability is approved.
 
-The following are no longer downstream TBDs: temporary password delivery direction, third-login replacement behavior, re-auth proof lifetime, public validator max upload size, canonical application timezone, initial production storage backend class, and Technical Log cleanup policy/default.
+HA, application SLA, DR, RPO/RTO, backup architecture, load balancing, multi-server scaling, Kubernetes/orchestration, performance/load targets, external observability-platform selection, and speculative hosting topology are **not current MVP security TBDs**.
 
 ## 100. Retention Classes
 
@@ -1055,7 +1052,7 @@ No generic `retention_days` applied to all data classes.
 | Schema | `11_ERD_Database_Schema.md` |
 | API | `12_API_Contract.md` |
 | Structure | `13_Project_Structure.md` |
-| Environment/runtime | `14_Environment_Specification.md` once created |
+| Environment/runtime | `14_Environment_Specification.md` |
 
 ## 103. Security-to-Architecture Mapping
 
@@ -1081,8 +1078,8 @@ No MFA step, extra Review level, exclusive Reviewer/Approver, extra NSCMF state,
 
 ## 105. Current Handoff
 
-Documents through `13_Project_Structure.md` exist. Next fixed-order document to create **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`14_Environment_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-It MUST operationalize `Asia/Jakarta`, environment classes, MySQL/session/queue/cache, persistent Laravel local private storage, immutable template provisioning/hash verification, ClamAV/renderer configurability, protected PDF signing identity, public validator 20 MB limit, 15-minute re-auth proof, scheduler cleanup, Technical Log configurable retention, and secret handling without redefining this security policy.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

@@ -9,6 +9,7 @@ Operational entrypoint for coding agents.
 **Implementation order authority:** `project_doc/19_Task_Implementation_Plan.md`  
 **Current local-first synchronization:** `project_doc/19A_Local_First_MVP_Synchronization.md`  
 **Deployment architecture authority:** `project_doc/20_Deployment_Architecture.md`
+**Documentation baseline:** `project_doc/01_PRD.md` through `project_doc/20_Deployment_Architecture.md` are **Approved for Implementation**; change only through explicit synchronized approval.
 
 `project_doc/14A_Pre_Coding_Rules_Synchronization.md` and `project_doc/15A_Pre_Testing_Specification_Synchronization.md` are historical synchronization context; material current rules are integrated into their later fixed-order authorities.
 

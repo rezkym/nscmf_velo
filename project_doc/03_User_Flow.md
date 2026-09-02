@@ -4,11 +4,11 @@
 
 > **Document ID:** NSCMF-UF-003  
 > **Document Order:** 03 / 20  
-> **Status:** Draft — Synchronized through Confirmed Environment-Bound Decisions  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -25,7 +25,7 @@ Dokumen ini mendefinisikan **apa yang dilakukan user dari awal sampai akhir** ke
 - Tech Stack → technology;
 - Architecture → component/execution/concurrency/audit/export topology;
 - Security → authentication/session/re-auth/malware/audit/signing/public validation;
-- Environment Specification → upcoming runtime/environment operationalization;
+- Environment Specification → runtime/environment operationalization;
 - User Flow → sequence user + system response.
 
 Canonical business states remain exactly:
@@ -496,26 +496,27 @@ PDF <=20MB→CLEAN→signature/hash/issuance/currentness→minimum disclosure.
 
 ---
 
-# PART M — OPEN ITEMS / NEXT
+# PART M — NON-BLOCKING / IMPLEMENTATION-TIME ITEMS
 
-## 62. Explicit Downstream TBDs
+## 62. Remaining Non-Blocking / Implementation-Time Items
 
-- exact default Team entries;
-- official numbering SOP;
-- search/filter refinements;
-- bulk export packaging;
-- notification provider/timing;
-- numeric rate-limit buckets;
-- signing provider/path/rotation mechanics;
-- ClamAV/renderer physical topology;
-- performance/availability;
-- backup/DR/RPO/RTO;
-- exact physical deployment topology.
+The user flow is approved for implementation. Remaining items do not change the canonical flow and are resolved only when their real dependency appears:
 
-No longer TBD: temp credential direction, re-auth lifetime, public max upload, canonical timezone, initial prod storage class, Technical Log cleanup policy/default.
+- exact production Team entries;
+- official numbering SOP beyond the provisional rule;
+- optional search/filter refinements;
+- optional bulk packaging;
+- notification provider/timing if implemented;
+- exact numeric rate-limit buckets;
+- concrete signing integration mechanics;
+- evidence-based scanner/renderer timeout and LibreOffice qualification details.
+
+ClamAV placement, the LibreOffice-first renderer direction, the signing trust model, and the deployment topology are already defined by `19A`/`20`. Performance/availability, backup/DR/RPO/RTO, HA, and multi-server infrastructure are not current MVP user-flow decisions.
 
 ## 63. Current Documentation Progress
 
-Documents through `13_Project_Structure.md` exist. Next fixed-order document to create **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`14_Environment_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
+
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

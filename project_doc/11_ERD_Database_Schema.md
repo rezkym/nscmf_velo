@@ -4,13 +4,13 @@
 
 > **Document ID:** NSCMF-ERD-011  
 > **Document Order:** 11 / 20  
-> **Status:** Draft — Confirmed Database Architecture + Environment-Decision Synchronization  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
-> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md` and confirmed decisions for upcoming `14_Environment_Specification.md`  
+> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md` and `14_Environment_Specification.md`  
 > **Database:** MySQL 8.4 LTS / InnoDB / `utf8mb4`  
 > **Canonical Application Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -1700,28 +1700,25 @@ Must test DB constraints, optimistic conflicts, workflow races, package alignmen
 
 ---
 
-# PART W — INTENTIONALLY DEFERRED / NOT INVENTED HERE
+# PART W — NON-SCHEMA / IMPLEMENTATION-TIME VALUES
 
-## 77. Remaining Downstream/TBD Details
+## 77. Remaining Non-Schema / Implementation-Time Details
 
-This ERD intentionally does not invent:
+This ERD intentionally does not invent values that are not database-schema decisions:
 
-- official company numbering SOP beyond current provisional format;
-- exact initial Team master names;
-- generic organizational hierarchy;
-- Team-based authorization;
+- official company numbering SOP beyond the current provisional format;
+- exact production Team master names;
+- generic organizational hierarchy or Team-based authorization;
 - direct-user permission feature;
-- exact signing library/CA/container/path/passphrase/rotation;
-- exact physical ClamAV topology;
-- exact renderer executable/image/provider/topology;
-- exact private local storage root/mount/permissions/prefix values;
-- exact bulk export packaging/ZIP semantics;
-- notification tables/provider before approved capability;
-- backup/restore/DR/RPO/RTO;
-- performance/SLA/availability target;
-- exact production physical topology.
+- exact signing library/key-container/path/passphrase/rotation mechanics;
+- host-specific private storage root/mount/permissions/prefix values;
+- exact bulk export packaging/ZIP semantics if later approved;
+- notification tables/provider before that future capability is approved;
+- measured ClamAV/renderer timeout and LibreOffice qualification details.
 
-No future TBD may silently override confirmed schema boundaries above.
+ClamAV placement, the LibreOffice-first renderer direction, signing trust model, and deployment posture are already defined by later approved authorities and must not be re-opened by schema implementation. HA, application SLA, DR/RPO/RTO, backup architecture, performance/load targets, and speculative multi-server topology are outside current MVP schema scope.
+
+No remaining implementation-time choice may silently override the confirmed schema boundaries above.
 
 Resolved and no longer TBD:
 
@@ -1764,6 +1761,8 @@ Technical Log cleanup = typed Protected-Superadmin setting, default ON/30 Days
 
 ## 84. Current Handoff
 
-Documents through `13_Project_Structure.md` exist. Next fixed-order document to create **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`14_Environment_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
+
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.
