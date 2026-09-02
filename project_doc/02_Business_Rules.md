@@ -31,7 +31,7 @@ Dokumen bekerja bersama:
 - `11_ERD_Database_Schema.md` — physical relational materialization;
 - `12_API_Contract.md` — HTTP contract;
 - `13_Project_Structure.md` — source-code organization;
-- `14_Environment_Specification.md` — upcoming runtime/environment authority once created.
+- `14_Environment_Specification.md` — runtime/environment authority.
 
 Normative language: MUST, MUST NOT, MAY, SHOULD, TBD, PROVISIONAL.
 
@@ -556,22 +556,21 @@ Reopen Approved/Rejected → REVISION_REQUIRED or PENDING_REVIEW and starts new 
 
 ---
 
-## 26. Remaining Open Decisions
+## 26. Remaining Non-Blocking / Implementation-Time Decisions
 
-Still deferred:
+The approved business baseline is sufficient to begin implementation. The following remain intentionally unresolved only where real organization data or a later capability requires them:
 
-- exact default Team master data;
-- official NSCMF numbering SOP/sample;
-- notification provider/timing;
-- bulk export packaging;
+- exact production Team master data;
+- official NSCMF numbering SOP/sample beyond the current provisional rule;
+- notification provider/timing if notification is later implemented;
+- bulk export packaging if combined packaging is later approved;
 - exact numeric rate-limit buckets;
-- performance/availability targets;
-- backup/restore/DR/RPO/RTO;
-- signing provider/library/CA/path/rotation mechanics;
-- exact ClamAV/renderer physical topology;
-- exact production physical deployment topology.
+- exact signing library/key-container/secret-injection/rotation mechanics when Phase 8 is reached;
+- finite ClamAV/renderer timeout and qualification details based on real integration evidence.
 
-Not TBD anymore: temporary credential direction, re-auth proof lifetime, public validator max upload, canonical timezone, initial production storage class, Technical Log cleanup policy/default.
+Deployment placement is already governed by `20`: local-native first, Docker portability secondary, and a simple single-native-Linux-server default for a future real deployment. HA, application SLA, DR, RPO/RTO, backup architecture, load balancing, Kubernetes, multi-server scaling, and performance/load targets are not current MVP open decisions.
+
+Already resolved and not TBD include temporary credential direction, re-auth proof lifetime, public validator max upload, canonical timezone, storage class, Technical Log cleanup policy/default, ClamAV placement, LibreOffice Headless as first renderer candidate, signing trust objective, CI/CD posture, and deployment posture.
 
 ---
 

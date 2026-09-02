@@ -1854,17 +1854,19 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 
 # PART AA — REMAINING API-ADJACENT TBDs
 
-## 133. Intentionally Unresolved
+## 133. Intentionally Unresolved Only Where Needed
 
-Still unresolved because upstream authority intentionally leaves them downstream:
+The HTTP contract is approved. The following remain implementation-time/future values rather than missing API semantics:
 
-1. bulk export packaging (ZIP/combined PDF etc.);
-2. exact operational numeric rate-limit buckets for login/upload/public-validator abuse controls;
+1. optional bulk export packaging (ZIP/combined packaging) if later approved;
+2. exact operational numeric rate-limit buckets for login/upload/public-validator controls;
 3. official numbering SOP beyond current provisional automatic/manual rules;
-4. default Team master data;
-5. signing provider/library/container/path/passphrase/rotation mechanics;
-6. notification endpoints/providers;
-7. exact physical storage root/mount, ClamAV topology, renderer topology — Environment/Deployment concern.
+4. exact production Team master data;
+5. concrete signing library/key-container/path/passphrase/rotation mechanics;
+6. notification endpoints/providers if notification is later implemented;
+7. host-specific private storage paths plus measured scanner/renderer timeout and LibreOffice qualification details.
+
+ClamAV placement, LibreOffice as first renderer candidate, signing trust, and the default deployment topology are already defined by `19A`/`20`; API implementation must not treat them as open architecture decisions.
 
 No longer TBD:
 

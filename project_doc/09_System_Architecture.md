@@ -542,7 +542,7 @@ READY binary 168h; source/audit/issuance preserved.
 
 ## 64. Signer Identity / Key Custody
 
-Human Approved By distinct. Production private key through protected runtime mounted file/secret reference or equivalent; never GitHub/source/ordinary DB/browser/log. Public cert material can remain registered for historical verification. Exact library/provider/CA/path/rotation deferred.
+Human Approved By remains distinct. Production private key is provisioned through a protected runtime mount/secret reference or equivalent and never stored in GitHub/source/ordinary DB/browser/log. Public certificate material can remain registered for historical verification. The trust model is fixed as System/Organization verification through `/ispdfvalid`; only concrete signing library/key-container/path/secret-injection/rotation mechanics remain implementation-time.
 
 ## 65. Public Verification
 
@@ -748,24 +748,21 @@ No tenant/Team scope; workflow locks; optimistic editable saves; authoritative a
 
 `13` authoritative for Controller/Service/Repository/Infrastructure/Settings physical placement.
 
-## 94. Remaining TBD
+## 94. Remaining Narrow Implementation-Time / Future Choices
 
-Still deferred:
+The logical architecture is approved. Remaining choices are limited to:
 
-- exact Team master data;
+- exact production Team master data;
 - official numbering SOP;
-- bulk packaging;
+- optional bulk packaging;
 - exact numeric rate-limit buckets;
-- signing provider/library/path/rotation;
-- notification;
-- exact ClamAV physical topology/sizing;
-- exact renderer executable/provider/topology;
-- exact private local storage root/mount/prefix values;
-- backup/DR/RPO/RTO;
-- performance/availability;
-- exact physical production deployment topology.
+- concrete signing library/key-container/rotation mechanics;
+- notification implementation if later approved;
+- finite ClamAV timeout/capacity tuning from real integration;
+- LibreOffice Headless qualification/runtime details;
+- actual host-specific storage path/hostname/provider values when a real server exists.
 
-No longer TBD: temp credential direction, re-auth lifetime, third-login behavior, public validator max upload, initial storage class, canonical timezone, Technical Log cleanup policy/default.
+Physical placement is already defined by `20`: local-native first, Docker portability secondary, and a default future single native Linux server with required runtime components co-located. HA, DR/RPO/RTO, backup architecture, performance/availability targets, load balancing, Kubernetes, and multi-server scaling are not current MVP architecture TBDs.
 
 ## 95. Authority Matrix
 

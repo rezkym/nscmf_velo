@@ -910,7 +910,7 @@ Rules:
 - infected rejected;
 - chunk scan cannot substitute final scan.
 
-Physical production topology/timeout remains deployment/environment TBD and is not guessed here.
+Placement follows `20`: local development uses private Docker `clamd` when Phase 6 begins, while the default future native server uses private same-server `clamd`. Only the finite timeout/capacity tuning remains evidence-based and is selected from real Phase 6 integration rather than guessed.
 
 ### T44 — CLEAN promotion / attachment lifecycle
 
@@ -955,7 +955,7 @@ Real integration tests for same chunk race, duplicate finalization, durable stor
 
 ## 16. Objective
 
-Implement exact official workbook pipeline without yet depending on unresolved PDF renderer/signing provider.
+Implement the exact official workbook pipeline before Phase 8 performs LibreOffice Headless qualification and concrete signing integration.
 
 ### T47 — Official template registry
 
@@ -1490,7 +1490,7 @@ Apply `18` Level 3 using the deployment authority already defined by `20` and th
 [ ] feature-complete candidate identified
 [ ] all implementation-level blockers explicit
 [ ] staging validation requirements known
-[ ] provider/deployment TBDs not guessed
+[ ] remaining implementation-time/provider values are not guessed
 [ ] deployment/readiness assumptions align with 20_Deployment_Architecture.md
 ```
 
@@ -1714,7 +1714,7 @@ system/org signing
 public validation
 ```
 
-This milestone remains blocked on renderer/signer decision gates where unresolved.
+This milestone is complete only after LibreOffice Headless passes qualification and the concrete non-production signing integration is proven; material renderer failure or a required new signing dependency is surfaced for user decision rather than guessed.
 
 ## 32. Milestone D — Operationally Complete MVP
 

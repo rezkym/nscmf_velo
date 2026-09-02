@@ -1226,41 +1226,42 @@ temporary credential = server-generated + one-time admin reveal
 official XLSX template = immutable/versioned/private + SHA-256 readiness
 Technical Log cleanup default = ON + 30 DAY, Protected-Superadmin configurable DAY/MONTH or OFF
 Approved-PDF private key = protected runtime provisioning, never source/ordinary DB/browser/log
-ClamAV/renderer physical topology = not fixed here
+ClamAV/renderer placement = governed by `20`; integration-time timeout/qualification details remain evidence-based
 ```
 
-`14` MUST translate these into explicit runtime configuration without contradicting them.
+`14` defines the explicit runtime configuration for these concerns and MUST remain consistent with this project structure.
 
-## 109. Intentionally Deferred to `14`
+## 109. Runtime Configuration Owned by `14`
 
-Exact:
+`14_Environment_Specification.md` is already the authority for runtime configuration, including:
 
-- `.env` names/values;
-- Laravel/MySQL timezone implementation details consistent with `Asia/Jakarta`;
-- DB host/user/password/connection/security values;
-- queue/cache/session implementation values;
-- private local storage disk names/root/mount/prefix/permissions;
-- ClamAV socket/host/port/timeouts/health;
-- renderer executable/container/endpoint/workdir/fonts/health;
-- official template runtime path/provisioning/readiness details;
-- signing protected mount/secret reference/certificate runtime path/passphrase source;
-- public certificate runtime/bootstrap location;
-- scheduler process/supervisor/runtime command;
-- Technical Log channel/path/rotation implementation that consumes the DB setting;
+- `.env` names/values and secret-injection boundaries;
+- Laravel/MySQL timezone implementation consistent with `Asia/Jakarta`;
+- DB connection/security values;
+- database queue/cache/session runtime values;
+- private local storage disk/root/mount/prefix/permissions;
+- ClamAV connectivity and finite timeout configuration;
+- renderer executable/workdir/fonts/health/timeout configuration;
+- official template runtime provisioning/readiness;
+- signing protected secret/certificate runtime references;
+- scheduler/process-manager/runtime command;
+- Technical Log channel/path/rotation implementation;
 - production secret injection.
 
-## 110. Intentionally Deferred to Later Documents
+Project structure MUST consume those runtime contracts without duplicating environment policy.
 
-- coding style/agent enforcement → `15`;
-- exact testing matrix → `16`;
+## 110. Later Fixed-Order Authorities — Now Available
+
+The following authorities are already part of the Approved for Implementation baseline:
+
+- coding/agent rules → `15`;
+- testing matrix → `16`;
 - seed/dummy data → `17`;
-- completion gate → `18`;
+- completion gates → `18`;
 - implementation tasks → `19`;
-- physical production topology, backup/DR, ClamAV/renderer co-location and deployment sizing → `20`.
+- deployment placement → `20`.
 
-Remaining genuine open items include official numbering SOP, exact Team master data, bulk packaging, exact numeric rate-limit buckets, signing provider/rotation mechanics, notification implementation, performance/SLA, backup/DR, and physical production topology.
-
-The following are no longer open: temp-credential delivery direction, re-auth proof lifetime, public-validator max upload, canonical application timezone, initial production storage backend class, and Technical Log cleanup policy/default.
+Remaining genuine non-blocking choices are limited to organization-owned Team/numbering data, optional bulk packaging/notification behavior, exact numeric rate limits, concrete signing mechanics, measured scanner/renderer tuning/qualification, and host-specific values when a real server exists. Performance/SLA, backup/DR/RPO/RTO, HA, load balancing, Kubernetes, and speculative production topology are not current MVP open items.
 
 ## 111. Documentation Finality / Current Handoff
 

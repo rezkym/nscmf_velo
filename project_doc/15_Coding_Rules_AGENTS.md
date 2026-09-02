@@ -88,7 +88,7 @@ Later documents retain their own future authority:
 20_Deployment_Architecture.md
 ```
 
-`15` MUST NOT invent coverage percentages, performance targets, seed master data, physical deployment topology, or other decisions reserved for later documents.
+`15` MUST NOT override the other approved authorities. Coverage/testing thresholds come from `16`, seed/bootstrap data from `17`, completion gates from `18`, task sequencing from `19`, and deployment posture from `20`. Performance/SLA/DR-style infrastructure is outside current MVP scope unless explicitly reintroduced.
 
 ## 4. Addendum Precedence
 
@@ -118,11 +118,9 @@ STOP that decision
 
 Agent MUST NOT silently choose a "best practice" that changes product/business/security behavior.
 
-## 6. Historical Handoff Text
+## 6. Documentation Finality
 
-Old `Next Document` / progress statements are historical metadata when they conflict with the current documentation set.
-
-They MUST NOT be interpreted as proof that a newer document does not exist.
+The fixed-order baseline `01–20` is Approved for Implementation. Historical handoff/progress wording from earlier repository versions does not override the current authorities.
 
 ---
 
@@ -929,7 +927,7 @@ PDF must come from a qualified spreadsheet renderer preserving official template
 
 No HTML/DomPDF approximation fallback.
 
-Exact renderer provider/executable/topology remains unresolved until approved qualification/deployment decision.
+LibreOffice Headless is the locked first renderer candidate. Its exact executable/runtime details, fonts, finite timeout, and fidelity qualification are resolved during Phase 8; placement follows `20`.
 
 ## 69. Immutable Export Snapshot
 
@@ -945,7 +943,7 @@ Human `Approved By` is not the cryptographic signer.
 
 Signing failure → export FAILED; record remains APPROVED; no unsigned Approved fallback.
 
-Do not invent signer provider/library/CA/path/passphrase/rotation while those remain TBD.
+Do not invent or silently add a signing dependency/key mechanism. The System/Organization `/ispdfvalid` trust model is locked; concrete library, key-container/path, passphrase injection, and rotation mechanics require the applicable Phase 8 decision/dependency approval.
 
 ## 71. Signing Secret
 
@@ -1637,23 +1635,26 @@ Nested instructions MUST NOT weaken root/project rules.
 
 `15` defines **how code must be developed and how TDD integrity is protected**.
 
-`16` will define the authoritative detailed testing strategy/matrix, including test layers, fixtures, integration boundaries, concurrency/security cases, environment-specific test execution, golden/export qualification strategy, and CI testing expectations without weakening `15`.
+`16_Testing_Specification.md` defines the authoritative detailed testing strategy/matrix, including test layers, fixtures, integration boundaries, concurrency/security cases, environment-specific execution, golden/export qualification, and CI expectations without weakening `15`.
 
 `16` MUST NOT turn TDD into post-hoc testing.
 
-## 130. Items Intentionally Not Invented Here
+## 130. Decisions Owned by Other Authorities / Implementation-Time Evidence
 
-Remain outside `15` until their authority is created/approved:
+`15` governs coding conduct; it does not re-decide values owned elsewhere. Current relevant boundaries are:
 
-- numeric test coverage threshold;
-- exact performance/load thresholds;
-- exact CI runner topology;
-- exact signer provider/library/rotation ceremony;
-- exact renderer/ClamAV physical topology/timeouts where still TBD;
-- exact seed/dummy dataset;
-- Definition of Done full project gate;
-- implementation task breakdown;
-- production server/load-balancer/backup/DR topology.
+- coverage/testing thresholds → `16`;
+- seed/dummy dataset → `17`;
+- Definition of Done → `18`;
+- implementation task breakdown → `19`;
+- deployment placement → `20`;
+- exact rate-limit numeric buckets → implementation-time tuning under existing security requirements;
+- LibreOffice qualification/runtime timeout/fonts → Phase 8 evidence;
+- concrete signer library/key-container/rotation → Phase 8 decision/dependency governance;
+- finite ClamAV timeout/capacity → real Phase 6 integration evidence;
+- actual provider/hostname/Linux/storage path → real-server provisioning time.
+
+HA, application SLA, DR/RPO/RTO, backup architecture, load balancing, Kubernetes, multi-server scaling, and performance/load targets are not current MVP decisions for an agent to fill in.
 
 ## 131. Documentation Finality / Current Handoff
 

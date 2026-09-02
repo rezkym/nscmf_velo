@@ -935,7 +935,7 @@ CI MUST fail rather than silently downgrade/disable a required static-analysis, 
 
 ## 64. Docker Compatibility
 
-Logical runtime may include app/web, MySQL, queue worker, scheduler, ClamAV, qualified renderer. Exact physical topology downstream. No Kubernetes requirement.
+Logical runtime includes app/web, MySQL, database queue worker, scheduler, ClamAV, and a qualified renderer when that capability is reached. `20` defines the default future physical placement as one native Linux server with these runtime components co-located; Docker remains secondary portability support. No Kubernetes requirement.
 
 Docker compatibility MUST NOT be interpreted as permission to keep acknowledged production chunks only on an ephemeral container filesystem.
 
@@ -1106,23 +1106,21 @@ Any additional runtime or development dependency not already approved by the pro
 - [ ] project-owned `any`/`as any` bypasses are not normalized;
 - [ ] new dependencies require explicit user approval.
 
-## 74. Intentionally Deferred
+## 74. Narrow Implementation-Time / Future Choices
 
-Still intentionally unresolved and MUST NOT be guessed:
+The technology baseline is approved. The following remain intentionally unresolved only where a real organization value, optional future capability, or measured integration result is required:
 
-- exact default Team master data;
+- exact production Team master data;
 - official numbering SOP/sample;
-- bulk export packaging;
-- exact numeric abuse/rate-limit buckets beyond already locked conceptual throttling;
-- notification provider;
-- exact ClamAV physical topology/sizing;
-- exact qualified renderer executable/image/provider/topology;
-- signing provider/library/CA/container/path/passphrase/rotation ceremony;
-- backup/restore/DR/RPO/RTO;
-- performance/SLA;
-- exact production physical deployment topology.
+- optional bulk export packaging;
+- exact numeric abuse/rate-limit buckets;
+- notification provider if notification is later implemented;
+- LibreOffice Headless qualification details, required fonts, executable integration, and finite timeout;
+- exact signing library/key-container/passphrase-injection/rotation mechanics;
+- finite ClamAV timeout/capacity tuning based on real integration evidence;
+- actual host-specific paths/hostnames/provider values when a real server is provisioned.
 
-The following are **no longer TBD**: temporary credential delivery direction, re-auth proof lifetime, public-validator maximum upload size, canonical application timezone, initial production storage backend class, Technical Log cleanup policy/default, TDD-first development method, PHPStan/Larastan `max` zero-baseline policy, strict TypeScript policy, and dependency approval requirement.
+ClamAV placement, LibreOffice Headless as the first renderer candidate, the System/Organization `/ispdfvalid` trust model, local-first development, the simple future single-server deployment posture, and CI-without-automated-CD are no longer open technology decisions. HA, DR/RPO/RTO, backup architecture, load balancing, Kubernetes, multi-server scaling, and application performance/SLA targets are outside current MVP scope.
 
 ## 75. Authority Matrix
 

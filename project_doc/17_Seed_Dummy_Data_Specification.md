@@ -1416,7 +1416,7 @@ No semantic modification to `01–16` is required merely because `17` now specif
 
 These decisions are compatible with upstream rules.
 
-Historical `Next Document` wording in older documents remains historical progress metadata and does not change authority.
+Historical handoff wording in older repository versions is progress metadata only and does not change the current authority baseline.
 
 ## 95. `16` Test Isolation Remains Authoritative
 
@@ -1460,7 +1460,7 @@ It MUST use real validation/scan/render/sign flows and is not silently invented 
 
 The 20-record demo dataset is not a load-testing dataset.
 
-Any large-volume performance seed belongs to future performance/deployment work once numeric objectives are approved.
+No large-volume performance seed is required for current MVP. Add one only if a future explicit approved performance/load objective creates a real need.
 
 ---
 
@@ -1499,7 +1499,7 @@ The following are now LOCKED:
 
 `17` defines what baseline/reference/demo data exists and how safely it may be created.
 
-`18_Definition_of_Done.md` will define the authoritative completion/acceptance gate for implementation work and the project as appropriate, incorporating relevant coding/testing/seed safety without redefining these authorities.
+`18_Definition_of_Done.md` defines the authoritative completion/acceptance gates for implementation work and incorporates relevant coding/testing/seed safety without redefining this seed authority.
 
 ## 104. Documentation Finality / Current Handoff
 

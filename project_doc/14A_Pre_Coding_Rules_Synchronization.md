@@ -312,7 +312,7 @@ Current project documentation state:
 
 Repository root additionally contains synchronized `AGENTS.md`.
 
-Historical `Next Document` wording inside older documents is informational history only where it conflicts with this current status.
+Historical handoff wording inside older document versions is informational history only and cannot override the current Approved for Implementation baseline.
 
 ## 16. Decisions Locked in `15`
 

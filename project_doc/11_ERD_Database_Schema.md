@@ -1702,26 +1702,23 @@ Must test DB constraints, optimistic conflicts, workflow races, package alignmen
 
 # PART W — INTENTIONALLY DEFERRED / NOT INVENTED HERE
 
-## 77. Remaining Downstream/TBD Details
+## 77. Remaining Non-Schema / Implementation-Time Details
 
-This ERD intentionally does not invent:
+This ERD intentionally does not invent values that are not database-schema decisions:
 
-- official company numbering SOP beyond current provisional format;
-- exact initial Team master names;
-- generic organizational hierarchy;
-- Team-based authorization;
+- official company numbering SOP beyond the current provisional format;
+- exact production Team master names;
+- generic organizational hierarchy or Team-based authorization;
 - direct-user permission feature;
-- exact signing library/CA/container/path/passphrase/rotation;
-- exact physical ClamAV topology;
-- exact renderer executable/image/provider/topology;
-- exact private local storage root/mount/permissions/prefix values;
-- exact bulk export packaging/ZIP semantics;
-- notification tables/provider before approved capability;
-- backup/restore/DR/RPO/RTO;
-- performance/SLA/availability target;
-- exact production physical topology.
+- exact signing library/key-container/path/passphrase/rotation mechanics;
+- host-specific private storage root/mount/permissions/prefix values;
+- exact bulk export packaging/ZIP semantics if later approved;
+- notification tables/provider before that future capability is approved;
+- measured ClamAV/renderer timeout and LibreOffice qualification details.
 
-No future TBD may silently override confirmed schema boundaries above.
+ClamAV placement, the LibreOffice-first renderer direction, signing trust model, and deployment posture are already defined by later approved authorities and must not be re-opened by schema implementation. HA, application SLA, DR/RPO/RTO, backup architecture, performance/load targets, and speculative multi-server topology are outside current MVP schema scope.
+
+No remaining implementation-time choice may silently override the confirmed schema boundaries above.
 
 Resolved and no longer TBD:
 

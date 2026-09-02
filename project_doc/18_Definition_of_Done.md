@@ -484,9 +484,9 @@ When export is affected, completion MUST preserve:
 - signing failure produces FAILED export while NSCMF stays APPROVED;
 - no unsigned Approved-PDF fallback.
 
-Until the concrete renderer is selected/qualified, renderer-dependent production readiness remains unresolved rather than silently passing.
+LibreOffice Headless is the selected first candidate; until it passes the required qualification, renderer-dependent production readiness remains unresolved rather than silently passing.
 
-Until concrete signing provider/key mechanics are approved, provider-dependent production readiness remains unresolved rather than silently passing.
+The signing trust model is already approved; until the concrete signing integration/key mechanics are implemented and proven, signing-dependent production readiness remains unresolved rather than silently passing.
 
 ## 24. Public PDF Validator Gate
 
@@ -728,7 +728,7 @@ Exact physical topology belongs to `20_Deployment_Architecture.md` and MUST NOT 
 
 ## 39. Mandatory Capability Blockers
 
-Because Approved PDF signing and qualified workbook rendering are mandatory product/security behavior, a release that requires those capabilities cannot be declared Production-Ready while the corresponding concrete provider/runtime qualification remains unresolved.
+Because Approved PDF signing and qualified workbook rendering are mandatory product/security behavior, a release that requires those capabilities cannot be declared Production-Ready until the concrete signing integration and LibreOffice qualification/runtime evidence are complete.
 
 Host-specific provisioning choices that become necessary for an actual deployment must be resolved at that time and verified against `20`; they do not block ordinary local development.
 

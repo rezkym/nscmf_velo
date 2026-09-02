@@ -958,7 +958,7 @@ Rules:
 - when `unix`, socket is required and host/port ignored;
 - when `tcp`, host/port are required and endpoint MUST remain private;
 - ClamAV MUST NOT be exposed publicly;
-- exact topology is deferred to deployment.
+- placement follows `20`: local development uses private Docker `clamd` when Phase 6 begins; the default future native server uses a private same-server `clamd` service/socket. The transport configuration remains flexible enough to support the approved placement safely.
 
 ## 62. ClamAV Definitions
 
@@ -972,7 +972,7 @@ The application MUST NOT silently treat scanner unavailability as CLEAN.
 
 A finite scanner timeout is mandatory.
 
-Exact numeric timeout is deployment/performance-dependent and remains TBD until integration measurement.
+Exact numeric timeout is intentionally selected from real Phase 6 integration measurements rather than guessed in advance.
 
 It MUST be explicitly configured before production rather than relying on an unknown/unbounded process default.
 
@@ -1094,16 +1094,13 @@ NSCMF_RENDERER_TIMEOUT_SECONDS=
 
 Only values relevant to the selected adapter are used.
 
-## 73. Renderer Selection — Still TBD
+## 73. Renderer Selection — First Candidate Locked, Qualification Pending
 
-This document intentionally does **not** select:
+The first renderer candidate is **LibreOffice Headless** as locked by `19A`/`20`.
 
-- LibreOffice specifically;
-- Microsoft Office automation;
-- a commercial renderer;
-- a remote rendering service.
+This is not an automatic qualification. Before production use, the actual official workbook/export pipeline MUST pass the fidelity requirements from `08`/`09`/`10`/`16`, including required fonts, page/layout behavior, visible control result, and a finite evidence-based timeout.
 
-The selected implementation MUST pass the fidelity requirements from `08`/`09`/`10`/`16` before production use.
+If LibreOffice materially fails qualification, stop and obtain an explicit user decision before adopting another renderer. Do not pre-build multiple renderer implementations and do not lower fidelity requirements.
 
 ## 74. Fonts
 
@@ -1158,7 +1155,7 @@ Production private signing material MUST NOT be stored in:
 
 ## 79. Signing Runtime Provisioning
 
-Exact signing library/provider/container/path/passphrase mechanism remains intentionally unresolved upstream.
+The signing trust model is already locked as System/Organization cryptographic signing verified by NSCMF `/ispdfvalid`; public-CA/Adobe-reader trust is not required for MVP. The concrete signing library, key container/path, passphrase/secret-injection mechanism, and rotation procedure remain implementation-time security choices.
 
 Whichever adapter is later selected MUST receive the private key through a protected runtime secret mechanism such as a read-only protected mount/reference or equivalent approved secret injection.
 
@@ -1445,7 +1442,7 @@ If deployment uses reverse proxy/load balancer, Laravel trusted-proxy configurat
 
 Do not blindly trust all forwarded headers from arbitrary internet clients.
 
-Exact proxy addresses are deferred to `20`.
+Exact trusted-proxy addresses/identities are configured from the actual host/network when a real deployment exists; `20` already defines the deployment posture.
 
 ## 103. Secure Cookie
 
@@ -1463,7 +1460,7 @@ Environment MUST NOT add broad cross-origin access merely for convenience.
 
 HSTS SHOULD be enabled only after HTTPS/proxy configuration is confirmed correct for the production host strategy.
 
-Exact max-age/subdomain/preload decision can be finalized with deployment topology.
+Exact HSTS max-age/subdomain/preload values are finalized against the actual HTTPS hostname/network when a real deployment exists.
 
 ---
 
@@ -1874,7 +1871,7 @@ Developer/coding agent MUST NOT:
 41. create scheduler task that advances NSCMF workflow;
 42. create cleanup that deletes PDF issuance metadata with 7-day binary expiry;
 43. treat runtime temp workspace as durable resumable storage;
-44. assume physical deployment topology from this document.
+44. override or contradict the deployment posture defined by `20`.
 
 ---
 
