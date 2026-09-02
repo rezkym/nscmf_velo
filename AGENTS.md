@@ -4,7 +4,8 @@ Operational entrypoint for coding agents.
 
 **Full coding authority:** `project_doc/15_Coding_Rules_AGENTS.md`  
 **Full testing authority:** `project_doc/16_Testing_Specification.md`  
-**Full seed/bootstrap/demo-data authority:** `project_doc/17_Seed_Dummy_Data_Specification.md`
+**Full seed/bootstrap/demo-data authority:** `project_doc/17_Seed_Dummy_Data_Specification.md`  
+**Full Definition of Done authority:** `project_doc/18_Definition_of_Done.md`
 
 `project_doc/15A_Pre_Testing_Specification_Synchronization.md` is historical context whose material testing decisions are integrated into `16`.
 
@@ -20,8 +21,9 @@ Before modifying the repository:
 2. read `project_doc/15_Coding_Rules_AGENTS.md`;
 3. read `project_doc/16_Testing_Specification.md` for testing/TDD/CI requirements;
 4. read `project_doc/17_Seed_Dummy_Data_Specification.md` when seed/bootstrap/factory/demo/reference data is affected;
-5. read project documents relevant to the task;
-6. inspect affected code, tests, migrations, configuration, and current Git state.
+5. read `project_doc/18_Definition_of_Done.md` before claiming Task/PR, Feature/Module, or Release/Production-Ready completion;
+6. read project documents relevant to the task;
+7. inspect affected code, tests, migrations, configuration, and current Git state.
 
 Authority by concern:
 
@@ -47,9 +49,10 @@ Authority by concern:
 15A Historical pre-testing synchronization
 16 Testing / verification / CI authority
 17 Seed / bootstrap / demo-data authority
+18 Definition of Done / completion authority
 ```
 
-Do not invent requirements, routes, schema fields, permissions, states, dependencies, infrastructure, testing policy, production Team master data, or seed data when authoritative sources can be read.
+Do not invent requirements, routes, schema fields, permissions, states, dependencies, infrastructure, testing policy, production Team master data, seed data, or completion evidence when authoritative sources can be read.
 
 ---
 
@@ -110,6 +113,34 @@ Coverage percentage is not proof of correctness. Critical business/security beha
 Mocks/fakes may support isolated tests but cannot be the only proof where `16` requires real integration.
 
 A failing required test remains FAIL. Automatic retry until a later attempt passes MUST NOT convert the gate into accepted PASS evidence. Diagnose root cause, make an intentional correction, then run a fresh verification execution.
+
+---
+
+## Definition of Done
+
+`project_doc/18_Definition_of_Done.md` is authoritative for completion classification.
+
+Locked layered model:
+
+```text
+Task / Pull Request Done
+→ Feature / Module Done
+→ Release / Production-Ready Done
+```
+
+Operational rules:
+
+- every implementation PR requires at least one human review before merge;
+- security-sensitive implementation changes require explicit human security review;
+- documentation changes are required only when affected authoritative behavior/contract/schema/config/security/operational guidance changes or is materially clarified;
+- current accessibility gate remains the existing WCAG-AA-like baseline, not a formal WCAG certification claim;
+- staging is not required for every Task/PR, but is mandatory for Release/Production-Ready and staging-only proof;
+- no numeric performance/SLA/load gate may be invented before the appropriate authority approves it;
+- a required gate that did not run cannot be claimed PASS;
+- genuine N/A must have a real scope-based reason;
+- unresolved blocking TBDs prevent the affected completion level from being called Done.
+
+Green CI alone does not prove Done, and human approval alone does not authorize bypassing mandatory automated/integration/security gates.
 
 ---
 
@@ -403,6 +434,8 @@ Do not claim a commit is cryptographically signed/Verified unless Git/GitHub act
 
 The coding agent may create/update branch/PR and fix CI/review findings, but MUST NOT approve or merge its own implementation PR or enable automation that bypasses human final merge control.
 
+Every implementation PR requires at least one human review before merge. Security-sensitive implementation changes additionally require explicit human security review under `18`.
+
 ---
 
 ## Destructive Actions
@@ -417,11 +450,13 @@ Production is never a disposable automated-test/demo-reset environment.
 
 ## Verify Before Claiming Completion
 
-Run checks appropriate to the change and inspect the final diff for unrelated edits, secrets, lockfile churn, generated/runtime files, weakened tests, debug code, architecture drift, and accidental demo data exposure.
+Run checks appropriate to the change and inspect the final diff for unrelated edits, secrets, lockfile churn, generated/runtime files, weakened tests, debug code, architecture drift, accidental demo data exposure, and unresolved DoD blockers.
 
 After GitHub mutations, verify branch/commit/PR state.
 
-Never claim tests, CI, file updates, commit signing, export fidelity, seeding, or environment mutation that was not actually verified.
+Never claim tests, CI, file updates, commit signing, export fidelity, seeding, staging readiness, human review, security review, or environment mutation that was not actually verified.
+
+Completion claims must follow `project_doc/18_Definition_of_Done.md`.
 
 ---
 
@@ -463,7 +498,11 @@ Never:
 32. make tests depend on shared Demo Seeder;
 33. fabricate CLEAN/READY/signed/issuance evidence in seed data;
 34. reset Protected Superadmin password or runtime system settings during ordinary seed rerun;
-35. claim work or verification that did not occur.
+35. claim work or verification that did not occur;
+36. claim Task/PR, Feature/Module, or Release/Production-Ready Done while an applicable `18` blocker remains;
+37. fabricate human implementation/security review;
+38. call a release Production-Ready without required staging evidence;
+39. invent numeric performance/SLA/load targets to clear DoD.
 
 ---
 
@@ -475,6 +514,8 @@ Never:
 
 `project_doc/17_Seed_Dummy_Data_Specification.md` is authoritative for bootstrap/reference seed, demo users/Teams/NSCMF scenarios, and environment seed safety.
 
-The next fixed-order project document is `18_Definition_of_Done.md`.
+`project_doc/18_Definition_of_Done.md` is authoritative for Task/PR, Feature/Module, and Release/Production-Ready completion gates.
 
-Do not create `18` until the user explicitly instructs it.
+The next fixed-order project document is `19_Task_Implementation_Plan.md`.
+
+Do not create `19` until the user explicitly instructs it.
