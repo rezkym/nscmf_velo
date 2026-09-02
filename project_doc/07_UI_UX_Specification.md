@@ -860,7 +860,9 @@ Existing FigJam remains a product/system-flow reference. Environment-specific va
 | Security | `10_Security_Rules.md` |
 | Environment/runtime configuration | `14_Environment_Specification.md` |
 
-## 73. Still Refinable / TBD
+## 73. Non-Blocking UI Tuning / Future Refinements
+
+These items are not blockers for implementation and MUST NOT be guessed into new product requirements. Apply existing locked behavior first; refine only when evidence or explicit approval requires it.
 
 - neutral grayscale/font assets/breakpoints;
 - table page size;

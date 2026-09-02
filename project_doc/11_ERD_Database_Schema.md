@@ -1700,7 +1700,7 @@ Must test DB constraints, optimistic conflicts, workflow races, package alignmen
 
 ---
 
-# PART W — INTENTIONALLY DEFERRED / NOT INVENTED HERE
+# PART W — NON-SCHEMA / IMPLEMENTATION-TIME VALUES
 
 ## 77. Remaining Non-Schema / Implementation-Time Details
 

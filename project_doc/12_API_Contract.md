@@ -1852,7 +1852,7 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 
 ---
 
-# PART AA — REMAINING API-ADJACENT TBDs
+# PART AA — NON-BLOCKING IMPLEMENTATION-TIME / FUTURE VALUES
 
 ## 133. Intentionally Unresolved Only Where Needed
 

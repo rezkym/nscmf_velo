@@ -1861,7 +1861,7 @@ Developer/coding agent MUST NOT:
 31. mark ClamAV error/timeout as CLEAN;
 32. assume a renderer is qualified without golden/fidelity testing;
 33. choose HTML PDF fallback;
-34. silently select signer provider/library/path/rotation mechanism while upstream still leaves it unresolved;
+34. silently select a concrete signer library/key-container/path/rotation mechanism before the applicable Phase 8 dependency/security decision is approved;
 35. reuse production signing identity in CI/staging/local;
 36. allow Approved PDF to become READY unsigned;
 37. overwrite registered official template binary in place;

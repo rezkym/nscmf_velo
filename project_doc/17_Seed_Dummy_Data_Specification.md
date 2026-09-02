@@ -1398,7 +1398,7 @@ Demo cleanup in disposable environments must target known demo data only and rem
 
 ---
 
-# PART U — RELATIONSHIP TO DOCUMENTS 01–16
+# PART U — RELATIONSHIP TO OTHER PROJECT AUTHORITIES
 
 ## 94. No Semantic Upstream Rewrite Required
 

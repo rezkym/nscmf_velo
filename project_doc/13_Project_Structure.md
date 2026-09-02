@@ -539,7 +539,7 @@ No storage key/path grants authorization. Absolute host filesystem paths MUST NO
 
 ## 37. Malware Boundary
 
-`Service → MalwareScanner → ClamAvScanner → clamd`. Topology deferred to Environment/Deployment; explicit CLEAN semantics fixed.
+`Service → MalwareScanner → ClamAvScanner → clamd`. Placement follows `20`: Docker `clamd` for local Phase 6 and private same-server `clamd` for the default future native server; explicit CLEAN semantics remain fixed.
 
 ## 38. Export Infrastructure
 

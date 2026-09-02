@@ -623,9 +623,11 @@ APPROVED + false
 
 ---
 
-# PART M — DOWNSTREAM / ACCEPTANCE
+# PART M — MATERIALIZATION / ACCEPTANCE
 
-## 38. Technical Items Deferred to ERD/API
+## 38. Technical Materialization — Defined by ERD/API
+
+The physical representations below are already governed by `11_ERD_Database_Schema.md` and `12_API_Contract.md`; this state-flow document defines their lifecycle meaning rather than duplicating those contracts.
 
 - physical business-status representation;
 - workflow-iteration table/columns;
