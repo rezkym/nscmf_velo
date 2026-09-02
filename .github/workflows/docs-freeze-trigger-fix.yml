@@ -23,17 +23,8 @@ jobs:
           from pathlib import Path
           p = Path('project_doc/19_Task_Implementation_Plan.md')
           text = p.read_text(encoding='utf-8')
-          old = '''At creation of this document:
-
-```text
-01–19 = fixed-order project documentation created
-20_Deployment_Architecture.md = NOT CREATED
-```
-
-Repository implementation is still greenfield/documentation-only until implementation begins after this planning stage.'''
-          new = '''The fixed-order project documentation is now complete through `20_Deployment_Architecture.md` and is being finalized as the Approved for Implementation baseline.
-
-Repository implementation remains greenfield/documentation-only until implementation begins by explicit user instruction.'''
+          old = "At creation of this document:\n\n```text\n01–19 = fixed-order project documentation created\n20_Deployment_Architecture.md = NOT CREATED\n```\n\nRepository implementation is still greenfield/documentation-only until implementation begins after this planning stage."
+          new = "The fixed-order project documentation is now complete through `20_Deployment_Architecture.md` and is being finalized as the Approved for Implementation baseline.\n\nRepository implementation remains greenfield/documentation-only until implementation begins by explicit user instruction."
           if old not in text:
               raise SystemExit('Expected historical plan marker not found')
           text = text.replace(old, new, 1)
