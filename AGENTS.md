@@ -3,9 +3,10 @@
 Operational entrypoint for coding agents.
 
 **Full coding authority:** `project_doc/15_Coding_Rules_AGENTS.md`  
-**Full testing authority:** `project_doc/16_Testing_Specification.md`
+**Full testing authority:** `project_doc/16_Testing_Specification.md`  
+**Full seed/bootstrap/demo-data authority:** `project_doc/17_Seed_Dummy_Data_Specification.md`
 
-`project_doc/15A_Pre_Testing_Specification_Synchronization.md` is now a historical synchronization record whose decisions have been integrated into `16`.
+`project_doc/15A_Pre_Testing_Specification_Synchronization.md` is historical context whose material testing decisions are integrated into `16`.
 
 This file is a synchronized operational summary. It MUST NOT override or weaken `project_doc`.
 
@@ -18,8 +19,9 @@ Before modifying the repository:
 1. read this file;
 2. read `project_doc/15_Coding_Rules_AGENTS.md`;
 3. read `project_doc/16_Testing_Specification.md` for testing/TDD/CI requirements;
-4. read project documents relevant to the task;
-5. inspect affected code, tests, migrations, configuration, and current Git state.
+4. read `project_doc/17_Seed_Dummy_Data_Specification.md` when seed/bootstrap/factory/demo/reference data is affected;
+5. read project documents relevant to the task;
+6. inspect affected code, tests, migrations, configuration, and current Git state.
 
 Authority by concern:
 
@@ -44,9 +46,10 @@ Authority by concern:
 15 Coding / developer / agent rules
 15A Historical pre-testing synchronization
 16 Testing / verification / CI authority
+17 Seed / bootstrap / demo-data authority
 ```
 
-Do not invent requirements, routes, schema fields, permissions, states, dependencies, infrastructure, or testing policy when authoritative sources can be read.
+Do not invent requirements, routes, schema fields, permissions, states, dependencies, infrastructure, testing policy, production Team master data, or seed data when authoritative sources can be read.
 
 ---
 
@@ -82,15 +85,13 @@ MUST NOT:
 
 Pure behavior-preserving refactors may use an existing GREEN safety net without an artificial RED test or RED commit.
 
-PRs for applicable changes must include truthful TDD evidence required by `15` and `16`.
-
 ---
 
 ## Testing / CI Baseline
 
 `project_doc/16_Testing_Specification.md` is authoritative.
 
-Locked operational baseline includes:
+Locked operational baseline:
 
 ```text
 PHP project-owned application line coverage >= 80%
@@ -102,46 +103,13 @@ Playwright PR browser = Chromium only
 required failing test = remains FAIL; no automatic retry-as-pass
 ```
 
-Every implementation PR must run applicable required gates, including:
+Every implementation PR runs applicable required gates including Pint, PHPStan/Larastan max, Pest, coverage, ESLint, Prettier, vue-tsc, Vitest, MySQL 8.4 integration, Chromium critical journeys, real ClamAV, non-production cryptographic signing/verification, and real renderer/golden integration once a renderer is approved/qualified.
 
-- Laravel Pint;
-- PHPStan/Larastan max;
-- Pest backend tests;
-- PHP 80% line coverage;
-- ESLint;
-- Prettier check;
-- vue-tsc / strict TypeScript;
-- Vitest frontend tests;
-- frontend 80% line coverage once an approved coverage provider is configured;
-- MySQL 8.4 integration;
-- Playwright Chromium critical journeys;
-- real ClamAV integration;
-- real cryptographic PDF signing/verification using non-production identity;
-- real renderer/golden integration once renderer is approved/qualified;
-- reproducible application build.
+Coverage percentage is not proof of correctness. Critical business/security behavior still requires meaningful positive, negative, integration, and concurrency tests.
 
-Coverage percentage is not proof of correctness. Critical business/security behavior still requires meaningful positive, negative, integration, and concurrency tests where applicable.
+Mocks/fakes may support isolated tests but cannot be the only proof where `16` requires real integration.
 
-Mocks/fakes may support isolated tests but cannot be the only proof for required real infrastructure contracts.
-
-Production secrets/signing keys must never be used in CI.
-
-### Flaky tests / retries
-
-A failing required test MUST remain a failed gate. CI/test runners MUST NOT automatically retry until a later attempt passes and then treat the overall result as PASS.
-
-Required direction:
-
-```text
-FAIL
-→ diagnose root cause
-→ make an intentional corrective change
-→ run a fresh test/CI execution
-```
-
-A test that intermittently passes/fails without an intentional change is flaky and must be treated as a defect.
-
-Logs, traces, screenshots, videos, timing, and other diagnostics may be collected automatically; diagnostic collection does not change FAIL into PASS.
+A failing required test remains FAIL. Automatic retry until a later attempt passes MUST NOT convert the gate into accepted PASS evidence. Diagnose root cause, make an intentional correction, then run a fresh verification execution.
 
 ---
 
@@ -167,11 +135,9 @@ Service owns use-case orchestration and transaction boundaries. Service does not
 
 Repository owns meaningful persistence/query mechanics only. It does not decide workflow, permission, or Team authorization.
 
-Jobs/Commands enter business execution through Services.
+Jobs/Commands enter business execution through Services. Models do not orchestrate workflow.
 
-Models do not orchestrate workflow.
-
-Do not introduce a separate Actions layer, DTO architecture, generic BaseRepository, generic CRUD Service, or speculative abstraction hierarchy without an approved specification change.
+Do not introduce a separate Actions layer, DTO architecture, generic BaseRepository, generic CRUD Service, or speculative abstraction hierarchy without approved change.
 
 ---
 
@@ -228,19 +194,111 @@ Archive, upload, export, security, and other technical statuses are separate and
 - shared non-exclusive Reviewer and Approver pools;
 - Team-neutral eligibility;
 - one successful eligible Approver is sufficient;
-- Emergency Change does not bypass workflow.
+- Emergency Change does not bypass workflow;
+- no mandatory segregation of duties.
 
 ### Authentication/session
 
-Preserve locked password/session/re-auth rules from `10`/`14`. Do not add MFA, password composition, password expiry, or extend the confirmed re-auth window without an approved spec change.
+Preserve locked password/session/re-auth rules from `10`/`14`. Do not add MFA, password composition, password expiry, or extend the confirmed re-auth window without approved change.
+
+---
+
+## Seed / Bootstrap / Demo Data
+
+`project_doc/17_Seed_Dummy_Data_Specification.md` is authoritative.
+
+### Production-safe bootstrap
+
+Production-safe reference/bootstrap data includes:
+
+- explicit canonical permission catalog;
+- four canonical default roles: `Superadmin`, `Requester`, `Reviewer`, `Approver`;
+- default role-permission bundles from `04`;
+- `system_settings` singleton default only when missing: cleanup ON / 30 / DAY;
+- operator-controlled Protected Superadmin bootstrap.
+
+Production MUST NOT seed assumed Team master data.
+
+Canonical Protected Superadmin bootstrap:
+
+```text
+username                = superadmin
+name                    = Protected Superadmin
+team_id                 = NULL
+is_active               = true
+is_protected_superadmin = true
+must_change_password    = true
+role                    = Superadmin
+```
+
+Its initial temporary password is random/server-generated, revealed once to the bootstrap operator, hash-only in persistence, never hard-coded, and MUST NOT be reset on ordinary seed rerun.
+
+### Demo data
+
+Local/development demo Teams:
+
+```text
+Demo Team Alpha
+Demo Team Beta
+Demo Team Gamma
+```
+
+Canonical demo accounts:
+
+```text
+demo.requester.a → Requester
+demo.requester.b → Requester
+demo.reviewer    → Reviewer
+demo.approver    → Approver
+demo.multi       → Reviewer + Approver
+demo.disabled    → inactive Requester
+```
+
+Synthetic demo account password is exactly:
+
+```text
+password
+```
+
+It is allowed only for demo identities; hash-only persistence; demo accounts use `must_change_password=false` for repeatable exploration.
+
+Production Demo Seeder is HARD BLOCKED. Staging demo execution is explicit opt-in only. Testing/CI MUST NOT depend on the shared Demo Seeder.
+
+Canonical shared demo dataset contains 20 deterministic NSCMF scenarios:
+
+```text
+10 Activation-family
+10 Change-family
+```
+
+It covers all six family/subtype values, all seven canonical lifecycle states, representative Reviewer/Approver Return/Reject/Forward/Approve flows, Reopen from Approved and Rejected, archive scenarios, multi-reviewer collaboration, no mandatory SoD, Change Result conditions, and all Change Service Impact enum values.
+
+Demo Request Nos are manual deterministic identifiers:
+
+```text
+DEMO-ACT-001 ... DEMO-ACT-010
+DEMO-CHG-001 ... DEMO-CHG-010
+```
+
+They MUST NOT consume/pollute the global monthly automatic Request No sequence.
+
+All demo business values are synthetic. Use documentation-safe domains/IP ranges; never copy production customer, credential, service, network, attachment, audit, or secret data.
+
+Default Demo Seeder MUST NOT fabricate:
+
+- CLEAN attachment rows without real binary/scan;
+- resumable accepted-chunk state without real stored bytes;
+- READY exports without real artifact;
+- signed PDF/issuance/hash/certificate evidence without real cryptographic flow;
+- official template registry entries without actual template binary/hash/mapping.
+
+Ordinary seed reruns must be idempotent/non-destructive: do not overwrite runtime system-setting changes, reset credentials, or silently rewrite existing demo/user business activity.
 
 ---
 
 ## Validation / Concurrency
 
-Draft/Revision may be incomplete. Action gates enforce their own validation.
-
-Validation success does not equal authorization.
+Draft/Revision may be incomplete. Action gates enforce their own validation. Validation success does not equal authorization.
 
 Use optimistic `record_version` where specified.
 
@@ -254,19 +312,17 @@ Concurrency/locking behavior must be proven against real MySQL 8.4 semantics whe
 
 ## Attachments / Resumable Upload
 
-Attachments remain optional and governed by `06`, `10`, `11A`, `12`, and testing requirements in `16`.
+Attachments remain optional and governed by `06`, `10`, `11A`, `12`, and `16`.
 
 Storage is private. Current production baseline is persistent Laravel private local storage; do not silently introduce object storage.
 
 Resumable upload uses locked 5 MiB chunks. Server accepted/missing state is authoritative. Client hashes are hints only. Final assembled SHA-256 is server authoritative.
 
-Identical replay of an already accepted chunk is idempotent but is not new progress and must not indefinitely extend expiry.
+Identical replay of an accepted chunk is idempotent but not new progress and must not indefinitely extend expiry.
 
-Transport `COMPLETED` is not equivalent to attachment `CLEAN`.
+Transport `COMPLETED` is not attachment `CLEAN`.
 
 Final usability requires whole-file malware scanning and explicit CLEAN. Scanner failure/timeout/unavailability/infection fails closed.
-
-Real ClamAV integration is mandatory evidence; a fake scanner is not sufficient as the only proof.
 
 ---
 
@@ -282,8 +338,6 @@ Exports use immutable bound snapshots rather than later mutable record state.
 
 Approved PDFs require System/Organization cryptographic signing. Human `Approved By` is distinct from cryptographic signer. Signing failure never produces unsigned Approved fallback.
 
-Testing must use real non-production cryptographic signing/verification. Renderer qualification must use the real candidate/qualified renderer and golden fidelity evidence once the renderer is selected.
-
 Do not silently choose unresolved production signer/renderer/scanner deployment details.
 
 ---
@@ -296,9 +350,9 @@ Technical Logs are separate and follow their protected configurable cleanup poli
 
 Never persist or expose secret plaintext, production signing material, production credentials, temporary passwords after their one-time lifecycle, or sensitive runtime values in source/client/log/audit/ordinary DB fields.
 
-Do not expose secrets through frontend build variables or scatter environment lookups through business code.
+The literal demo password `password` is intentionally public synthetic demo data and MUST NEVER be reused as a production credential.
 
-Test fixtures/artifacts must not contain production secrets or copied production personal/business data.
+Test/seed fixtures must not contain production secrets or copied production personal/business data.
 
 ---
 
@@ -314,31 +368,17 @@ Do not use destructive migration shortcuts against shared, staging, or productio
 
 An isolated disposable test database may be reset only under the explicit disposable-test safety boundary from `15`/`16`.
 
+A future demo reset may destroy only positively identified disposable demo data under `17` and destructive-action safeguards; it never authorizes arbitrary production/shared deletion.
+
 ---
 
 ## Dependencies
 
 Any new Composer/npm dependency not already approved by project specifications requires explicit user approval before addition, including development dependencies.
 
-This also applies when frontend coverage tooling requires an additional package: do not install a Vitest coverage provider silently.
-
-When requesting approval, explain package, purpose, runtime/dev classification, why existing stack is insufficient, material maintenance/security impact, and alternative without the dependency.
+This includes packages proposed for seed/faker/import convenience or frontend coverage.
 
 Keep `composer.lock` and `package-lock.json` synchronized and avoid unrelated lockfile churn.
-
----
-
-## Generated / Runtime Artifacts
-
-Generated output follows its authoritative source. Modify source first, regenerate with approved tooling, inspect the diff, then commit required generated output.
-
-Do not hand-edit generated output to conceal mismatch.
-
-Do not commit ordinary runtime/build/test artifacts, local environment secrets, private uploads/exports, or production signing material unless an approved project specification requires a specific generated artifact in Git.
-
-The official immutable XLSX template is a controlled project input, not ordinary generated output.
-
-Golden/snapshot artifacts must never be blindly regenerated merely to make a changed test pass.
 
 ---
 
@@ -355,8 +395,6 @@ main
 → human final merge
 ```
 
-Use meaningful branch prefixes such as `feat/`, `fix/`, `docs/`, `test/`, `refactor/`, or `chore/` where appropriate.
-
 Commits use the user's/project's authenticated Git identity or configured signing mechanism where available.
 
 Do not add ChatGPT, Codex, models, or other AI systems as contributor/co-author/generated-by metadata.
@@ -364,8 +402,6 @@ Do not add ChatGPT, Codex, models, or other AI systems as contributor/co-author/
 Do not claim a commit is cryptographically signed/Verified unless Git/GitHub actually reports it.
 
 The coding agent may create/update branch/PR and fix CI/review findings, but MUST NOT approve or merge its own implementation PR or enable automation that bypasses human final merge control.
-
-For applicable feature/bug/behavior changes, preserve the separate RED test commit before implementation commit required by `16`.
 
 ---
 
@@ -375,39 +411,17 @@ Any operation that can materially erase data/work/history, overwrite immutable p
 
 A general implementation request is not blanket authorization for destructive shortcuts.
 
-An isolated disposable test environment created specifically for automated tests may be reset only when safely scoped and containing no user/shared/production data.
-
-Production is never a disposable automated-test environment.
+Production is never a disposable automated-test/demo-reset environment.
 
 ---
 
 ## Verify Before Claiming Completion
 
-Run checks appropriate to the change and inspect the final diff for unrelated edits, secrets, lockfile churn, generated/runtime files, weakened tests, debug code, and architecture drift.
+Run checks appropriate to the change and inspect the final diff for unrelated edits, secrets, lockfile churn, generated/runtime files, weakened tests, debug code, architecture drift, and accidental demo data exposure.
 
 After GitHub mutations, verify branch/commit/PR state.
 
-Never claim tests, CI, file updates, commit signing, or export fidelity that were not actually verified.
-
-A test/CI gate that has not actually run must be reported as not run, not assumed PASS.
-
----
-
-## Agent Conduct
-
-Do not hallucinate repository facts.
-
-Do not perform unrelated refactors or speculative future work.
-
-Do not create abstraction boilerplate merely because it looks enterprise.
-
-Do not game tests, static analysis, coverage, snapshots/golden files, or retry behavior.
-
-Read failures and fix root causes rather than suppressing diagnostics.
-
-Ask only for genuine unresolved decisions; do not re-ask decisions already documented.
-
-If an approved requirement changes, synchronize affected project documentation, tests, implementation, and this root entrypoint where applicable.
+Never claim tests, CI, file updates, commit signing, export fidelity, seeding, or environment mutation that was not actually verified.
 
 ---
 
@@ -429,7 +443,7 @@ Never:
 12. use approximate HTML as authoritative PDF;
 13. issue unsigned Approved PDF fallback;
 14. age-purge authoritative audits;
-15. expose/persist temporary password plaintext or signing secrets;
+15. expose/persist Protected Superadmin temporary plaintext or signing secrets;
 16. silently change locked authentication/session policy;
 17. silently introduce new infrastructure/dependencies;
 18. silently resolve a documented TBD;
@@ -438,12 +452,18 @@ Never:
 21. lower static/type strictness to make CI pass;
 22. weaken tests or game coverage;
 23. fabricate/reorder TDD evidence after implementation;
-24. automatically retry a failing required test until it passes and treat that as accepted PASS evidence;
-25. use fake-only evidence where `16` requires real MySQL/ClamAV/signing/renderer integration;
-26. blindly regenerate golden/snapshot output to accept changed behavior;
+24. retry required failing tests until a later pass masks the original failure;
+25. use fake-only evidence where `16` requires real integration;
+26. blindly regenerate golden/snapshot output;
 27. add AI/model contributor metadata;
 28. approve/merge the agent's own implementation PR;
-29. claim work or verification that did not occur.
+29. invent production Team master data;
+30. run Demo Seeder in production;
+31. use literal demo password `password` as production bootstrap/user credential;
+32. make tests depend on shared Demo Seeder;
+33. fabricate CLEAN/READY/signed/issuance evidence in seed data;
+34. reset Protected Superadmin password or runtime system settings during ordinary seed rerun;
+35. claim work or verification that did not occur.
 
 ---
 
@@ -453,8 +473,8 @@ Never:
 
 `project_doc/16_Testing_Specification.md` is authoritative for testing/TDD evidence/coverage/CI verification.
 
-`project_doc/15A_Pre_Testing_Specification_Synchronization.md` is retained as historical context and does not override `16`.
+`project_doc/17_Seed_Dummy_Data_Specification.md` is authoritative for bootstrap/reference seed, demo users/Teams/NSCMF scenarios, and environment seed safety.
 
-The next fixed-order project document is `17_Seed_Dummy_Data_Specification.md`.
+The next fixed-order project document is `18_Definition_of_Done.md`.
 
-Do not create `17` until the user explicitly instructs it.
+Do not create `18` until the user explicitly instructs it.
