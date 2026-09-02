@@ -3,7 +3,9 @@
 Operational entrypoint for coding agents.
 
 **Full coding authority:** `project_doc/15_Coding_Rules_AGENTS.md`  
-**Current pre-testing authority:** `project_doc/15A_Pre_Testing_Specification_Synchronization.md`
+**Full testing authority:** `project_doc/16_Testing_Specification.md`
+
+`project_doc/15A_Pre_Testing_Specification_Synchronization.md` is now a historical synchronization record whose decisions have been integrated into `16`.
 
 This file is a synchronized operational summary. It MUST NOT override or weaken `project_doc`.
 
@@ -15,7 +17,7 @@ Before modifying the repository:
 
 1. read this file;
 2. read `project_doc/15_Coding_Rules_AGENTS.md`;
-3. while `16_Testing_Specification.md` does not yet exist, read `project_doc/15A_Pre_Testing_Specification_Synchronization.md`;
+3. read `project_doc/16_Testing_Specification.md` for testing/TDD/CI requirements;
 4. read project documents relevant to the task;
 5. inspect affected code, tests, migrations, configuration, and current Git state.
 
@@ -40,7 +42,8 @@ Authority by concern:
 14 Environment
 14A Pre-coding governance/history
 15 Coding / developer / agent rules
-15A Pre-testing decisions / current testing synchronization
+15A Historical pre-testing synchronization
+16 Testing / verification / CI authority
 ```
 
 Do not invent requirements, routes, schema fields, permissions, states, dependencies, infrastructure, or testing policy when authoritative sources can be read.
@@ -79,14 +82,19 @@ MUST NOT:
 
 Pure behavior-preserving refactors may use an existing GREEN safety net without an artificial RED test or RED commit.
 
+PRs for applicable changes must include truthful TDD evidence required by `15` and `16`.
+
 ---
 
-## Current Testing / CI Baseline
+## Testing / CI Baseline
 
-Until `16_Testing_Specification.md` is created, these confirmed rules are mandatory:
+`project_doc/16_Testing_Specification.md` is authoritative.
+
+Locked operational baseline includes:
 
 ```text
-minimum global line coverage = 80%
+PHP project-owned application line coverage >= 80%
+frontend instrumented project-owned application line coverage >= 80%
 PHPStan/Larastan = max, zero-baseline
 TypeScript = strict
 MySQL integration authority = real MySQL 8.4
@@ -98,23 +106,23 @@ Every implementation PR must run applicable required gates, including:
 
 - Laravel Pint;
 - PHPStan/Larastan max;
-- Pest;
-- 80% minimum global line coverage;
+- Pest backend tests;
+- PHP 80% line coverage;
 - ESLint;
 - Prettier check;
 - vue-tsc / strict TypeScript;
-- Vitest;
+- Vitest frontend tests;
+- frontend 80% line coverage once an approved coverage provider is configured;
 - MySQL 8.4 integration;
-- Playwright Chromium critical journeys.
+- Playwright Chromium critical journeys;
+- real ClamAV integration;
+- real cryptographic PDF signing/verification using non-production identity;
+- real renderer/golden integration once renderer is approved/qualified;
+- reproducible application build.
 
 Coverage percentage is not proof of correctness. Critical business/security behavior still requires meaningful positive, negative, integration, and concurrency tests where applicable.
 
-Mocks/fakes may support isolated tests but cannot be the only proof for real infrastructure contracts. CI must include real paths for:
-
-- MySQL semantics where database behavior matters;
-- ClamAV;
-- cryptographic PDF signing/verification with non-production test identity;
-- the qualified spreadsheet renderer once approved/qualified.
+Mocks/fakes may support isolated tests but cannot be the only proof for required real infrastructure contracts.
 
 Production secrets/signing keys must never be used in CI.
 
@@ -128,12 +136,12 @@ Required direction:
 FAIL
 → diagnose root cause
 → make an intentional corrective change
-→ rerun test/CI
+→ run a fresh test/CI execution
 ```
 
 A test that intermittently passes/fails without an intentional change is flaky and must be treated as a defect.
 
-Logs, traces, screenshots, videos, and other diagnostics may be collected automatically; diagnostic collection does not change FAIL into PASS.
+Logs, traces, screenshots, videos, timing, and other diagnostics may be collected automatically; diagnostic collection does not change FAIL into PASS.
 
 ---
 
@@ -224,7 +232,7 @@ Archive, upload, export, security, and other technical statuses are separate and
 
 ### Authentication/session
 
-Preserve the locked password/session/re-auth rules from `10`/`14`. Do not add MFA, password composition, password expiry, or extend the confirmed re-auth window without an approved spec change.
+Preserve locked password/session/re-auth rules from `10`/`14`. Do not add MFA, password composition, password expiry, or extend the confirmed re-auth window without an approved spec change.
 
 ---
 
@@ -240,11 +248,13 @@ Workflow state changes use short Service-owned transactions with current-state r
 
 Do not hold workflow locks while performing long scanner/render/signing/file work.
 
+Concurrency/locking behavior must be proven against real MySQL 8.4 semantics where it matters.
+
 ---
 
 ## Attachments / Resumable Upload
 
-Attachments remain optional and governed by `06`, `10`, `11A`, and `12`.
+Attachments remain optional and governed by `06`, `10`, `11A`, `12`, and testing requirements in `16`.
 
 Storage is private. Current production baseline is persistent Laravel private local storage; do not silently introduce object storage.
 
@@ -255,6 +265,8 @@ Identical replay of an already accepted chunk is idempotent but is not new progr
 Transport `COMPLETED` is not equivalent to attachment `CLEAN`.
 
 Final usability requires whole-file malware scanning and explicit CLEAN. Scanner failure/timeout/unavailability/infection fails closed.
+
+Real ClamAV integration is mandatory evidence; a fake scanner is not sufficient as the only proof.
 
 ---
 
@@ -270,7 +282,9 @@ Exports use immutable bound snapshots rather than later mutable record state.
 
 Approved PDFs require System/Organization cryptographic signing. Human `Approved By` is distinct from cryptographic signer. Signing failure never produces unsigned Approved fallback.
 
-Do not silently choose unresolved signer/renderer/scanner deployment details.
+Testing must use real non-production cryptographic signing/verification. Renderer qualification must use the real candidate/qualified renderer and golden fidelity evidence once the renderer is selected.
+
+Do not silently choose unresolved production signer/renderer/scanner deployment details.
 
 ---
 
@@ -284,6 +298,8 @@ Never persist or expose secret plaintext, production signing material, productio
 
 Do not expose secrets through frontend build variables or scatter environment lookups through business code.
 
+Test fixtures/artifacts must not contain production secrets or copied production personal/business data.
+
 ---
 
 ## Database / Migrations
@@ -296,11 +312,15 @@ Once a migration becomes part of shared/applied history, it is immutable. Future
 
 Do not use destructive migration shortcuts against shared, staging, or production data.
 
+An isolated disposable test database may be reset only under the explicit disposable-test safety boundary from `15`/`16`.
+
 ---
 
 ## Dependencies
 
 Any new Composer/npm dependency not already approved by project specifications requires explicit user approval before addition, including development dependencies.
+
+This also applies when frontend coverage tooling requires an additional package: do not install a Vitest coverage provider silently.
 
 When requesting approval, explain package, purpose, runtime/dev classification, why existing stack is insufficient, material maintenance/security impact, and alternative without the dependency.
 
@@ -317,6 +337,8 @@ Do not hand-edit generated output to conceal mismatch.
 Do not commit ordinary runtime/build/test artifacts, local environment secrets, private uploads/exports, or production signing material unless an approved project specification requires a specific generated artifact in Git.
 
 The official immutable XLSX template is a controlled project input, not ordinary generated output.
+
+Golden/snapshot artifacts must never be blindly regenerated merely to make a changed test pass.
 
 ---
 
@@ -343,6 +365,8 @@ Do not claim a commit is cryptographically signed/Verified unless Git/GitHub act
 
 The coding agent may create/update branch/PR and fix CI/review findings, but MUST NOT approve or merge its own implementation PR or enable automation that bypasses human final merge control.
 
+For applicable feature/bug/behavior changes, preserve the separate RED test commit before implementation commit required by `16`.
+
 ---
 
 ## Destructive Actions
@@ -352,6 +376,8 @@ Any operation that can materially erase data/work/history, overwrite immutable p
 A general implementation request is not blanket authorization for destructive shortcuts.
 
 An isolated disposable test environment created specifically for automated tests may be reset only when safely scoped and containing no user/shared/production data.
+
+Production is never a disposable automated-test environment.
 
 ---
 
@@ -363,6 +389,8 @@ After GitHub mutations, verify branch/commit/PR state.
 
 Never claim tests, CI, file updates, commit signing, or export fidelity that were not actually verified.
 
+A test/CI gate that has not actually run must be reported as not run, not assumed PASS.
+
 ---
 
 ## Agent Conduct
@@ -373,7 +401,7 @@ Do not perform unrelated refactors or speculative future work.
 
 Do not create abstraction boilerplate merely because it looks enterprise.
 
-Do not game tests, static analysis, coverage, or retry behavior.
+Do not game tests, static analysis, coverage, snapshots/golden files, or retry behavior.
 
 Read failures and fix root causes rather than suppressing diagnostics.
 
@@ -411,9 +439,11 @@ Never:
 22. weaken tests or game coverage;
 23. fabricate/reorder TDD evidence after implementation;
 24. automatically retry a failing required test until it passes and treat that as accepted PASS evidence;
-25. add AI/model contributor metadata;
-26. approve/merge the agent's own implementation PR;
-27. claim work or verification that did not occur.
+25. use fake-only evidence where `16` requires real MySQL/ClamAV/signing/renderer integration;
+26. blindly regenerate golden/snapshot output to accept changed behavior;
+27. add AI/model contributor metadata;
+28. approve/merge the agent's own implementation PR;
+29. claim work or verification that did not occur.
 
 ---
 
@@ -421,10 +451,10 @@ Never:
 
 `project_doc/15_Coding_Rules_AGENTS.md` is authoritative for coding/developer/agent conduct.
 
-`project_doc/15A_Pre_Testing_Specification_Synchronization.md` is the current authoritative testing synchronization overlay until `16` is explicitly created.
+`project_doc/16_Testing_Specification.md` is authoritative for testing/TDD evidence/coverage/CI verification.
 
-All previously identified pre-`16` testing-policy decisions are now resolved.
+`project_doc/15A_Pre_Testing_Specification_Synchronization.md` is retained as historical context and does not override `16`.
 
-The next fixed-order project document is `16_Testing_Specification.md`.
+The next fixed-order project document is `17_Seed_Dummy_Data_Specification.md`.
 
-Do not create `16` until the user explicitly instructs it.
+Do not create `17` until the user explicitly instructs it.
