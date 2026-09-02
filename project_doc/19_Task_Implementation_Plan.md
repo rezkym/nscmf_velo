@@ -1773,7 +1773,7 @@ Do not:
 17. postpone security negative tests until final hardening when the affected behavior is already being implemented;
 18. postpone all audit writes until after workflow feature completion;
 19. mark blocked provider-dependent tasks Done using mocks/fakes only;
-20. claim Release/Production-Ready before `20` and required staging/readiness evidence exist.
+20. claim Release/Production-Ready before applicable `18` completion evidence and `20` deployment/readiness requirements are satisfied.
 
 ---
 
@@ -1781,14 +1781,9 @@ Do not:
 
 ## 35. Current Documentation State
 
-At creation of this document:
+The fixed-order project documentation is now complete through `20_Deployment_Architecture.md` and is being finalized as the Approved for Implementation baseline.
 
-```text
-01–19 = fixed-order project documentation created
-20_Deployment_Architecture.md = NOT CREATED
-```
-
-Repository implementation is still greenfield/documentation-only until implementation begins after this planning stage.
+Repository implementation remains greenfield/documentation-only until implementation begins by explicit user instruction.
 
 ## 36. Next Fixed-Order Document
 
