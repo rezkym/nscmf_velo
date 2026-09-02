@@ -1,0 +1,37 @@
+name: Temporary Post-Freeze Documentation Audit
+
+on:
+  push:
+    branches:
+      - docs/finalize-project-documentation
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect final documentation consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          docs = sorted(Path('project_doc').glob('[0-9][0-9]_*.md'))
+          print('FIXED_DOC_COUNT', len(docs))
+          for p in docs:
+              text = p.read_text(encoding='utf-8')
+              status = re.findall(r'^> \*\*Status:\*\* (.+)$', text, re.M)
+              print('STATUS', p.name, status[0].strip() if status else 'MISSING')
+          PY
+          echo '=== TBD / PROVISIONAL / DEFERRED OCCURRENCES ==='
+          grep -RniE 'TBD|PROVISIONAL|Deferred|deferred|unresolved' project_doc/0*.md project_doc/1[0-9]_*.md project_doc/20_*.md || true
+          echo '=== STALE TEMPORAL / NEXT-DOCUMENT OCCURRENCES ==='
+          grep -RniE 'upcoming|once created|not created|next fixed-order|next document|do not create|ready to proceed to 20|reserved for `20`|before `20`|until `20` exists' project_doc AGENTS.md || true
+          echo '=== DEPLOYMENT CONFLICT CANDIDATES ==='
+          grep -RniE 'physical production topology|production topology|deployment topology|backup/restore|Disaster Recovery|RPO|RTO|application SLA|availability target|load balancer|Kubernetes|multi-server|observability' project_doc/0*.md project_doc/1[0-9]_*.md project_doc/20_*.md AGENTS.md || true
+          echo '=== RENDERER / SIGNER / CLAMAV OPEN-WORDING ==='
+          grep -RniE 'Do not choose LibreOffice|renderer.*TBD|signing.*TBD|ClamAV.*TBD|provider.*TBD|topology.*TBD|LibreOffice Headless' project_doc/0*.md project_doc/1[0-9]_*.md project_doc/20_*.md AGENTS.md || true
