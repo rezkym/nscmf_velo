@@ -1,0 +1,358 @@
+name: Temporary Final Documentation Consistency Fix
+
+on:
+  push:
+    branches:
+      - docs/finalize-project-documentation
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Synchronize remaining stale documentation wording
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          D = Path('project_doc')
+
+          def load(name):
+              p = D / name
+              return p, p.read_text(encoding='utf-8')
+
+          def save(p, text):
+              p.write_text(text, encoding='utf-8')
+
+          def repl(text, old, new, label):
+              if old not in text:
+                  raise AssertionError(f'{label}: expected text not found')
+              return text.replace(old, new, 1)
+
+          def section(text, start_pattern, end_pattern, replacement, label):
+              new, n = re.subn(
+                  rf'(?ms)^{start_pattern}\n.*?(?=^{end_pattern})',
+                  replacement.rstrip() + '\n\n',
+                  text,
+                  count=1,
+              )
+              if n != 1:
+                  raise AssertionError(f'{label}: section replacement count={n}')
+              return new
+
+          # 02 Business Rules
+          p, t = load('02_Business_Rules.md')
+          t = repl(t, '`14_Environment_Specification.md` — upcoming runtime/environment authority once created.', '`14_Environment_Specification.md` — runtime/environment authority.', '02 env reference')
+          t = section(t, r'## 26\. Remaining Open Decisions', r'---\n\n## 27\.', '''## 26. Remaining Non-Blocking / Implementation-Time Decisions
+
+The approved business baseline is sufficient to begin implementation. The following remain intentionally unresolved only where real organization data or a later capability requires them:
+
+- exact production Team master data;
+- official NSCMF numbering SOP/sample beyond the current provisional rule;
+- notification provider/timing if notification is later implemented;
+- bulk export packaging if combined packaging is later approved;
+- exact numeric rate-limit buckets;
+- exact signing library/key-container/secret-injection/rotation mechanics when Phase 8 is reached;
+- finite ClamAV/renderer timeout and qualification details based on real integration evidence.
+
+Deployment placement is already governed by `20`: local-native first, Docker portability secondary, and a simple single-native-Linux-server default for a future real deployment. HA, application SLA, DR, RPO/RTO, backup architecture, load balancing, Kubernetes, multi-server scaling, and performance/load targets are not current MVP open decisions.
+
+Already resolved and not TBD include temporary credential direction, re-auth proof lifetime, public validator max upload, canonical timezone, storage class, Technical Log cleanup policy/default, ClamAV placement, LibreOffice Headless as first renderer candidate, signing trust objective, CI/CD posture, and deployment posture.''', '02 open decisions')
+          save(p, t)
+
+          # 03 User Flow
+          p, t = load('03_User_Flow.md')
+          t = t.replace('# PART M — OPEN ITEMS / NEXT', '# PART M — NON-BLOCKING / IMPLEMENTATION-TIME ITEMS')
+          t = section(t, r'## 62\. Explicit Downstream TBDs', r'## 63\.', '''## 62. Remaining Non-Blocking / Implementation-Time Items
+
+The user flow is approved for implementation. Remaining items do not change the canonical flow and are resolved only when their real dependency appears:
+
+- exact production Team entries;
+- official numbering SOP beyond the provisional rule;
+- optional search/filter refinements;
+- optional bulk packaging;
+- notification provider/timing if implemented;
+- exact numeric rate-limit buckets;
+- concrete signing integration mechanics;
+- evidence-based scanner/renderer timeout and LibreOffice qualification details.
+
+ClamAV placement, the LibreOffice-first renderer direction, the signing trust model, and the deployment topology are already defined by `19A`/`20`. Performance/availability, backup/DR/RPO/RTO, HA, and multi-server infrastructure are not current MVP user-flow decisions.''', '03 downstream items')
+          save(p, t)
+
+          # 08 Tech Stack
+          p, t = load('08_Tech_Stack_Specification.md')
+          t = repl(t, 'Logical runtime may include app/web, MySQL, queue worker, scheduler, ClamAV, qualified renderer. Exact physical topology downstream. No Kubernetes requirement.', 'Logical runtime includes app/web, MySQL, database queue worker, scheduler, ClamAV, and a qualified renderer when that capability is reached. `20` defines the default future physical placement as one native Linux server with these runtime components co-located; Docker remains secondary portability support. No Kubernetes requirement.', '08 topology')
+          t = section(t, r'## 74\. Intentionally Deferred', r'## 75\.', '''## 74. Narrow Implementation-Time / Future Choices
+
+The technology baseline is approved. The following remain intentionally unresolved only where a real organization value, optional future capability, or measured integration result is required:
+
+- exact production Team master data;
+- official numbering SOP/sample;
+- optional bulk export packaging;
+- exact numeric abuse/rate-limit buckets;
+- notification provider if notification is later implemented;
+- LibreOffice Headless qualification details, required fonts, executable integration, and finite timeout;
+- exact signing library/key-container/passphrase-injection/rotation mechanics;
+- finite ClamAV timeout/capacity tuning based on real integration evidence;
+- actual host-specific paths/hostnames/provider values when a real server is provisioned.
+
+ClamAV placement, LibreOffice Headless as the first renderer candidate, the System/Organization `/ispdfvalid` trust model, local-first development, the simple future single-server deployment posture, and CI-without-automated-CD are no longer open technology decisions. HA, DR/RPO/RTO, backup architecture, load balancing, Kubernetes, multi-server scaling, and application performance/SLA targets are outside current MVP scope.''', '08 deferred')
+          save(p, t)
+
+          # 09 Architecture
+          p, t = load('09_System_Architecture.md')
+          t = repl(t, 'Human Approved By distinct. Production private key through protected runtime mounted file/secret reference or equivalent; never GitHub/source/ordinary DB/browser/log. Public cert material can remain registered for historical verification. Exact library/provider/CA/path/rotation deferred.', 'Human Approved By remains distinct. Production private key is provisioned through a protected runtime mount/secret reference or equivalent and never stored in GitHub/source/ordinary DB/browser/log. Public certificate material can remain registered for historical verification. The trust model is fixed as System/Organization verification through `/ispdfvalid`; only concrete signing library/key-container/path/secret-injection/rotation mechanics remain implementation-time.', '09 signing')
+          t = section(t, r'## 94\. Remaining TBD', r'## 95\.', '''## 94. Remaining Narrow Implementation-Time / Future Choices
+
+The logical architecture is approved. Remaining choices are limited to:
+
+- exact production Team master data;
+- official numbering SOP;
+- optional bulk packaging;
+- exact numeric rate-limit buckets;
+- concrete signing library/key-container/rotation mechanics;
+- notification implementation if later approved;
+- finite ClamAV timeout/capacity tuning from real integration;
+- LibreOffice Headless qualification/runtime details;
+- actual host-specific storage path/hostname/provider values when a real server exists.
+
+Physical placement is already defined by `20`: local-native first, Docker portability secondary, and a default future single native Linux server with required runtime components co-located. HA, DR/RPO/RTO, backup architecture, performance/availability targets, load balancing, Kubernetes, and multi-server scaling are not current MVP architecture TBDs.''', '09 remaining')
+          save(p, t)
+
+          # 11 ERD
+          p, t = load('11_ERD_Database_Schema.md')
+          t = section(t, r'## 77\. Remaining Downstream/TBD Details', r'Resolved and no longer TBD:', '''## 77. Remaining Non-Schema / Implementation-Time Details
+
+This ERD intentionally does not invent values that are not database-schema decisions:
+
+- official company numbering SOP beyond the current provisional format;
+- exact production Team master names;
+- generic organizational hierarchy or Team-based authorization;
+- direct-user permission feature;
+- exact signing library/key-container/path/passphrase/rotation mechanics;
+- host-specific private storage root/mount/permissions/prefix values;
+- exact bulk export packaging/ZIP semantics if later approved;
+- notification tables/provider before that future capability is approved;
+- measured ClamAV/renderer timeout and LibreOffice qualification details.
+
+ClamAV placement, the LibreOffice-first renderer direction, signing trust model, and deployment posture are already defined by later approved authorities and must not be re-opened by schema implementation. HA, application SLA, DR/RPO/RTO, backup architecture, performance/load targets, and speculative multi-server topology are outside current MVP schema scope.
+
+No remaining implementation-time choice may silently override the confirmed schema boundaries above.''', '11 downstream')
+          save(p, t)
+
+          # 12 API
+          p, t = load('12_API_Contract.md')
+          t = section(t, r'## 133\. Intentionally Unresolved', r'No longer TBD:', '''## 133. Intentionally Unresolved Only Where Needed
+
+The HTTP contract is approved. The following remain implementation-time/future values rather than missing API semantics:
+
+1. optional bulk export packaging (ZIP/combined packaging) if later approved;
+2. exact operational numeric rate-limit buckets for login/upload/public-validator controls;
+3. official numbering SOP beyond current provisional automatic/manual rules;
+4. exact production Team master data;
+5. concrete signing library/key-container/path/passphrase/rotation mechanics;
+6. notification endpoints/providers if notification is later implemented;
+7. host-specific private storage paths plus measured scanner/renderer timeout and LibreOffice qualification details.
+
+ClamAV placement, LibreOffice as first renderer candidate, signing trust, and the default deployment topology are already defined by `19A`/`20`; API implementation must not treat them as open architecture decisions.''', '12 unresolved')
+          save(p, t)
+
+          # 12A addendum handoff
+          p, t = load('12A_Repository_Service_Architecture_Synchronization.md')
+          t = section(t, r'## 50\. Next Document', r'\Z', '''## 50. Current Baseline / Handoff
+
+This Repository–Service architecture decision is incorporated into the Approved for Implementation documentation baseline through `20_Deployment_Architecture.md`.
+
+`13_Project_Structure.md` is the fixed-order authority that materializes this architecture into project structure. Current implementation begins from `19` Phase 0 / T00 only after explicit user instruction.''', '12A handoff')
+          save(p, t)
+
+          # 13 Project Structure
+          p, t = load('13_Project_Structure.md')
+          t = repl(t, 'ClamAV/renderer physical topology = not fixed here', 'ClamAV/renderer placement = governed by `20`; integration-time timeout/qualification details remain evidence-based', '13 summary topology')
+          t = repl(t, '`14` MUST translate these into explicit runtime configuration without contradicting them.', '`14` defines the explicit runtime configuration for these concerns and MUST remain consistent with this project structure.', '13 env relationship')
+          t = section(t, r'## 109\. Intentionally Deferred to `14`', r'## 110\.', '''## 109. Runtime Configuration Owned by `14`
+
+`14_Environment_Specification.md` is already the authority for runtime configuration, including:
+
+- `.env` names/values and secret-injection boundaries;
+- Laravel/MySQL timezone implementation consistent with `Asia/Jakarta`;
+- DB connection/security values;
+- database queue/cache/session runtime values;
+- private local storage disk/root/mount/prefix/permissions;
+- ClamAV connectivity and finite timeout configuration;
+- renderer executable/workdir/fonts/health/timeout configuration;
+- official template runtime provisioning/readiness;
+- signing protected secret/certificate runtime references;
+- scheduler/process-manager/runtime command;
+- Technical Log channel/path/rotation implementation;
+- production secret injection.
+
+Project structure MUST consume those runtime contracts without duplicating environment policy.''', '13 env section')
+          t = section(t, r'## 110\. Intentionally Deferred to Later Documents', r'## 111\.', '''## 110. Later Fixed-Order Authorities — Now Available
+
+The following authorities are already part of the Approved for Implementation baseline:
+
+- coding/agent rules → `15`;
+- testing matrix → `16`;
+- seed/dummy data → `17`;
+- completion gates → `18`;
+- implementation tasks → `19`;
+- deployment placement → `20`.
+
+Remaining genuine non-blocking choices are limited to organization-owned Team/numbering data, optional bulk packaging/notification behavior, exact numeric rate limits, concrete signing mechanics, measured scanner/renderer tuning/qualification, and host-specific values when a real server exists. Performance/SLA, backup/DR/RPO/RTO, HA, load balancing, Kubernetes, and speculative production topology are not current MVP open items.''', '13 later docs')
+          save(p, t)
+
+          # 14 Environment
+          p, t = load('14_Environment_Specification.md')
+          t = repl(t, '- exact topology is deferred to deployment.', '- placement follows `20`: local development uses private Docker `clamd` when Phase 6 begins; the default future native server uses a private same-server `clamd` service/socket. The transport configuration remains flexible enough to support the approved placement safely.', '14 clamav topology')
+          t = repl(t, 'Exact numeric timeout is deployment/performance-dependent and remains TBD until integration measurement.', 'Exact numeric timeout is intentionally selected from real Phase 6 integration measurements rather than guessed in advance.', '14 clamav timeout')
+          t = section(t, r'## 73\. Renderer Selection — Still TBD', r'## 74\.', '''## 73. Renderer Selection — First Candidate Locked, Qualification Pending
+
+The first renderer candidate is **LibreOffice Headless** as locked by `19A`/`20`.
+
+This is not an automatic qualification. Before production use, the actual official workbook/export pipeline MUST pass the fidelity requirements from `08`/`09`/`10`/`16`, including required fonts, page/layout behavior, visible control result, and a finite evidence-based timeout.
+
+If LibreOffice materially fails qualification, stop and obtain an explicit user decision before adopting another renderer. Do not pre-build multiple renderer implementations and do not lower fidelity requirements.''', '14 renderer')
+          t = repl(t, 'Exact signing library/provider/container/path/passphrase mechanism remains intentionally unresolved upstream.', 'The signing trust model is already locked as System/Organization cryptographic signing verified by NSCMF `/ispdfvalid`; public-CA/Adobe-reader trust is not required for MVP. The concrete signing library, key container/path, passphrase/secret-injection mechanism, and rotation procedure remain implementation-time security choices.', '14 signing')
+          t = t.replace('Exact proxy addresses are deferred to `20`.', 'Exact trusted-proxy addresses/identities are configured from the actual host/network when a real deployment exists; `20` already defines the deployment posture.')
+          t = t.replace('Exact max-age/subdomain/preload decision can be finalized with deployment topology.', 'Exact HSTS max-age/subdomain/preload values are finalized against the actual HTTPS hostname/network when a real deployment exists.')
+          t = t.replace('44. assume physical deployment topology from this document.', '44. override or contradict the deployment posture defined by `20`.')
+          save(p, t)
+
+          # 14A/17/15 terminology cleanup for historical handoff text
+          p, t = load('14A_Pre_Coding_Rules_Synchronization.md')
+          t = t.replace('Historical `Next Document` wording inside older documents is informational history only where it conflicts with this current status.', 'Historical handoff wording inside older document versions is informational history only and cannot override the current Approved for Implementation baseline.')
+          save(p, t)
+
+          # 15 Coding/Agents
+          p, t = load('15_Coding_Rules_AGENTS.md')
+          t = repl(t, '`15` MUST NOT invent coverage percentages, performance targets, seed master data, physical deployment topology, or other decisions reserved for later documents.', '`15` MUST NOT override the other approved authorities. Coverage/testing thresholds come from `16`, seed/bootstrap data from `17`, completion gates from `18`, task sequencing from `19`, and deployment posture from `20`. Performance/SLA/DR-style infrastructure is outside current MVP scope unless explicitly reintroduced.', '15 authority wording')
+          t = t.replace('## 6. Historical Handoff Text\n\nOld `Next Document` / progress statements are historical metadata when they conflict with the current documentation set.\n\nThey MUST NOT be interpreted as proof that a newer document does not exist.', '## 6. Documentation Finality\n\nThe fixed-order baseline `01–20` is Approved for Implementation. Historical handoff/progress wording from earlier repository versions does not override the current authorities.')
+          t = repl(t, 'Exact renderer provider/executable/topology remains unresolved until approved qualification/deployment decision.', 'LibreOffice Headless is the locked first renderer candidate. Its exact executable/runtime details, fonts, finite timeout, and fidelity qualification are resolved during Phase 8; placement follows `20`.', '15 renderer')
+          t = repl(t, 'Do not invent signer provider/library/CA/path/passphrase/rotation while those remain TBD.', 'Do not invent or silently add a signing dependency/key mechanism. The System/Organization `/ispdfvalid` trust model is locked; concrete library, key-container/path, passphrase injection, and rotation mechanics require the applicable Phase 8 decision/dependency approval.', '15 signer')
+          t = repl(t, '`16` will define the authoritative detailed testing strategy/matrix, including test layers, fixtures, integration boundaries, concurrency/security cases, environment-specific test execution, golden/export qualification strategy, and CI testing expectations without weakening `15`.', '`16_Testing_Specification.md` defines the authoritative detailed testing strategy/matrix, including test layers, fixtures, integration boundaries, concurrency/security cases, environment-specific execution, golden/export qualification, and CI expectations without weakening `15`.', '15 testing relationship')
+          t = section(t, r'## 130\. Items Intentionally Not Invented Here', r'## 131\.', '''## 130. Decisions Owned by Other Authorities / Implementation-Time Evidence
+
+`15` governs coding conduct; it does not re-decide values owned elsewhere. Current relevant boundaries are:
+
+- coverage/testing thresholds → `16`;
+- seed/dummy dataset → `17`;
+- Definition of Done → `18`;
+- implementation task breakdown → `19`;
+- deployment placement → `20`;
+- exact rate-limit numeric buckets → implementation-time tuning under existing security requirements;
+- LibreOffice qualification/runtime timeout/fonts → Phase 8 evidence;
+- concrete signer library/key-container/rotation → Phase 8 decision/dependency governance;
+- finite ClamAV timeout/capacity → real Phase 6 integration evidence;
+- actual provider/hostname/Linux/storage path → real-server provisioning time.
+
+HA, application SLA, DR/RPO/RTO, backup architecture, load balancing, Kubernetes, multi-server scaling, and performance/load targets are not current MVP decisions for an agent to fill in.''', '15 section 130')
+          save(p, t)
+
+          # 16 Testing
+          p, t = load('16_Testing_Specification.md')
+          t = section(t, r'## 111\. Renderer Implementation / Fidelity Tolerance', r'## 115\.', '''## 111. Renderer Qualification / Fidelity Tolerance
+
+LibreOffice Headless is the locked first candidate. Tests MUST qualify the real official-workbook path, required fonts, page/layout/control-visible output, finite timeout, and approved practical visual tolerance before the renderer capability is production-ready.
+
+If material fidelity fails, tests must report failure; they must not select another renderer or weaken the golden criteria silently.
+
+## 112. Signing Implementation / Rotation
+
+The MVP trust model is locked as System/Organization cryptographic signing verified through `/ispdfvalid`, without a public-CA/Adobe trust requirement. Tests use a non-production identity and MUST prove the real cryptographic contract.
+
+Concrete production signing library, key-container/path, passphrase injection, and rotation mechanics remain implementation-time security/dependency choices; tests must not silently decide them.
+
+## 113. ClamAV Placement / Timeout
+
+Placement is already defined: local Docker `clamd` when Phase 6 begins and private same-server `clamd` for the default future native server. Tests MUST prove real whole-file integration and fail-closed behavior.
+
+The finite timeout/capacity values are selected from real integration evidence, not invented by tests.
+
+## 114. Performance / Load / SLA
+
+No numeric performance/load/application-SLA target is a current MVP requirement. Tests MUST NOT create one. Such testing becomes mandatory only if a future explicit approved requirement reintroduces a concrete target.''', '16 open integration sections')
+          save(p, t)
+
+          # 17 Seed
+          p, t = load('17_Seed_Dummy_Data_Specification.md')
+          t = t.replace('Historical `Next Document` wording in older documents remains historical progress metadata and does not change authority.', 'Historical handoff wording in older repository versions is progress metadata only and does not change the current authority baseline.')
+          t = t.replace('Any large-volume performance seed belongs to future performance/deployment work once numeric objectives are approved.', 'No large-volume performance seed is required for current MVP. Add one only if a future explicit approved performance/load objective creates a real need.')
+          t = repl(t, '`18_Definition_of_Done.md` will define the authoritative completion/acceptance gate for implementation work and the project as appropriate, incorporating relevant coding/testing/seed safety without redefining these authorities.', '`18_Definition_of_Done.md` defines the authoritative completion/acceptance gates for implementation work and incorporates relevant coding/testing/seed safety without redefining this seed authority.', '17 DoD relationship')
+          save(p, t)
+
+          # 18 DoD small remaining renderer wording
+          p, t = load('18_Definition_of_Done.md')
+          t = t.replace('Until the concrete renderer is selected/qualified, renderer-dependent production readiness remains unresolved rather than silently passing.', 'LibreOffice Headless is the selected first candidate; until it passes the required qualification, renderer-dependent production readiness remains unresolved rather than silently passing.')
+          t = t.replace('Until concrete signing provider/key mechanics are approved, provider-dependent production readiness remains unresolved rather than silently passing.', 'The signing trust model is already approved; until the concrete signing integration/key mechanics are implemented and proven, signing-dependent production readiness remains unresolved rather than silently passing.')
+          t = t.replace('Because Approved PDF signing and qualified workbook rendering are mandatory product/security behavior, a release that requires those capabilities cannot be declared Production-Ready while the corresponding concrete provider/runtime qualification remains unresolved.', 'Because Approved PDF signing and qualified workbook rendering are mandatory product/security behavior, a release that requires those capabilities cannot be declared Production-Ready until the concrete signing integration and LibreOffice qualification/runtime evidence are complete.')
+          save(p, t)
+
+          # 19 Plan
+          p, t = load('19_Task_Implementation_Plan.md')
+          t = repl(t, 'Physical production topology/timeout remains deployment/environment TBD and is not guessed here.', 'Placement follows `20`: local development uses private Docker `clamd` when Phase 6 begins, while the default future native server uses private same-server `clamd`. Only the finite timeout/capacity tuning remains evidence-based and is selected from real Phase 6 integration rather than guessed.', '19 T43')
+          t = repl(t, 'Implement exact official workbook pipeline without yet depending on unresolved PDF renderer/signing provider.', 'Implement the exact official workbook pipeline before Phase 8 performs LibreOffice Headless qualification and concrete signing integration.', '19 Phase7 objective')
+          t = t.replace('[ ] provider/deployment TBDs not guessed', '[ ] remaining implementation-time/provider values are not guessed')
+          t = repl(t, 'This milestone remains blocked on renderer/signer decision gates where unresolved.', 'This milestone is complete only after LibreOffice Headless passes qualification and the concrete non-production signing integration is proven; material renderer failure or a required new signing dependency is surfaced for user decision rather than guessed.', '19 milestone C')
+          save(p, t)
+
+          # 20 remove wording implying approved docs still contain stale conflicts
+          p, t = load('20_Deployment_Architecture.md')
+          t = repl(t, 'Jika wording deployment lama di `01–19` masih menyebut HA/SLA/DR/RPO/RTO/backup/load/server-topology sebagai current TBD/blocker, interpretasi yang berlaku adalah `19A` + dokumen ini.', 'Current approved `01–20` documentation is synchronized to this deployment posture. Historical repository versions may contain older HA/SLA/DR/RPO/RTO/backup/load/server-topology wording, but those historical statements do not override the current Approved for Implementation baseline.', '20 precedence')
+          save(p, t)
+
+          # Cross-document assertions for stale phrases discovered by the exhaustive audit.
+          files = [p for p in D.glob('*.md')] + [Path('AGENTS.md')]
+          joined = '\n'.join(p.read_text(encoding='utf-8') for p in files)
+          forbidden = [
+              'upcoming runtime/environment authority once created',
+              'performance/availability targets;\n- backup/restore/DR/RPO/RTO',
+              'ClamAV/renderer physical topology',
+              'exact production physical deployment topology',
+              'exact qualified renderer executable/image/provider/topology',
+              'exact ClamAV physical topology/sizing',
+              'exact physical production deployment topology',
+              'Renderer Selection — Still TBD',
+              'Exact renderer provider/executable/topology remains unresolved',
+              'Exact ClamAV socket-vs-TCP deployment and timeout value remain',
+              'Physical production topology/timeout remains',
+              '`16` will define the authoritative detailed testing strategy',
+              '`18_Definition_of_Done.md` will define the authoritative completion',
+              '## 50. Next Document',
+              'Historical `Next Document` wording',
+              'Old `Next Document` / progress statements',
+              'upstream requirements remain open',
+              'ready to proceed to 20_Deployment_Architecture.md',
+          ]
+          for phrase in forbidden:
+              if phrase in joined:
+                  raise AssertionError(f'Stale phrase remains: {phrase}')
+
+          fixed = sorted(D.glob('[0-9][0-9]_*.md'))
+          assert len(fixed) == 20
+          for p in fixed:
+              text = p.read_text(encoding='utf-8')
+              m = re.search(r'^> \*\*Status:\*\* (.+)$', text, re.M)
+              assert m and m.group(1).strip() == 'Approved for Implementation', p
+
+          # Confirm final deployment decisions are present in relevant authorities.
+          assert 'LibreOffice Headless is the locked first renderer candidate' in (D/'15_Coding_Rules_AGENTS.md').read_text(encoding='utf-8')
+          assert 'local Docker `clamd` when Phase 6 begins' in (D/'16_Testing_Specification.md').read_text(encoding='utf-8')
+          assert 'default future native server uses private same-server `clamd`' in (D/'19_Task_Implementation_Plan.md').read_text(encoding='utf-8')
+          assert 'Historical repository versions' in (D/'20_Deployment_Architecture.md').read_text(encoding='utf-8')
+          print('FINAL CROSS-DOCUMENT CONSISTENCY ASSERTIONS PASSED')
+          PY
+
+          git add AGENTS.md project_doc
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
+          git commit -m 'docs: finalize cross-document consistency'
+          git push origin HEAD:docs/finalize-project-documentation
