@@ -18,7 +18,7 @@ This addendum records the confirmed **local-first MVP direction** that was agree
 
 It removes deployment over-engineering from current MVP interpretation without changing product/business/security behavior.
 
-For the concerns explicitly covered here, this remains the newer synchronization authority over older wording in `01–19`. In particular, older references that still present HA/SLA/DR/RPO/RTO/backup/load/server-topology concerns as current TBDs or blockers are superseded.
+For the concerns explicitly covered here, this remains the synchronization authority that established the local-first direction later incorporated into the fixed-order baseline and `20`. Historical repository versions may contain the older HA/SLA/DR/RPO/RTO/backup/load/server-topology wording; the current approved documents must not reintroduce those concerns as MVP TBDs or blockers.
 
 `20_Deployment_Architecture.md` is now the **fixed-order authoritative deployment architecture** and controls current runtime placement/default future-server topology. This addendum remains authoritative for the cross-document cleanup/local-first decisions that led to `20`.
 

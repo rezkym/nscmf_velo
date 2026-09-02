@@ -4,12 +4,12 @@
 
 > **Document ID:** NSCMF-CODE-015  
 > **Document Order:** 15 / 20  
-> **Status:** Draft — Authoritative Coding / Human Developer / AI Agent Constitution  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md` through `14_Environment_Specification.md`  
 > **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `14A_Pre_Coding_Rules_Synchronization.md`  
 > **Operational Entry Point:** repository-root `AGENTS.md`  
-> **Last Updated:** 2026-08-31
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -1655,10 +1655,10 @@ Remain outside `15` until their authority is created/approved:
 - implementation task breakdown;
 - production server/load-balancer/backup/DR topology.
 
-## 131. Next Document
+## 131. Documentation Finality / Current Handoff
 
-Next fixed-order document, **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`16_Testing_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-Until then, implementation/testing work remains bound by all current authoritative documents including this `15` and root `AGENTS.md`.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

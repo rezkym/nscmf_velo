@@ -4,12 +4,12 @@
 
 > **Document ID:** NSCMF-TEST-016  
 > **Document Order:** 16 / 20  
-> **Status:** Draft — Authoritative Testing / Verification Specification  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md` through `15_Coding_Rules_AGENTS.md`  
 > **Integrates:** `15A_Pre_Testing_Specification_Synchronization.md`  
 > **Canonical Application / Test Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -1640,10 +1640,10 @@ The following are no longer TBD:
 - automatic retry-as-pass forbidden;
 - flaky tests remain visible defects to fix at root cause.
 
-## 125. Next Document
+## 125. Documentation Finality / Current Handoff
 
-Next fixed-order document, **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`17_Seed_Dummy_Data_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-Do not create `17` until explicitly instructed by the user.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

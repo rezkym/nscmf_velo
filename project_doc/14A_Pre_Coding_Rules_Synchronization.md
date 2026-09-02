@@ -7,7 +7,7 @@
 > **Repository:** `rezkym/nscmf_velo`  
 > **Decision Date:** 2026-08-31  
 > **Status:** Confirmed / Historical Pre-`15` Synchronization — material rules are now incorporated into `15_Coding_Rules_AGENTS.md` and root `AGENTS.md`  
-> **Current Fixed-Order Handoff:** `16_Testing_Specification.md` — only after explicit user instruction
+> **Current Status:** Historical only — fixed-order documentation is complete through `20_Deployment_Architecture.md`; operational entrypoint is root `AGENTS.md`  
 
 ---
 
@@ -27,12 +27,12 @@ Jika ada perbedaan wording mengenai coding/developer/agent conduct, `15_Coding_R
 Jika terdapat handoff/progress wording lama pada dokumen 01–14 yang masih menyebut `11`, `13`, `14`, atau `15` sebagai dokumen berikutnya, wording tersebut adalah historical progress marker dan tidak mengalahkan current project state:
 
 ```text
-01–15 complete as authoritative draft set
+01–15 were the then-current authoritative set (historical state; superseded by completed 01–20 baseline)
 11A and 12A remain authoritative synchronization addenda
 14A remains historical synchronization evidence
 root AGENTS.md exists as synchronized operational entrypoint
-next fixed-order document = 16_Testing_Specification.md
-16 must wait for explicit user instruction
+historical handoff at the time = 16_Testing_Specification.md (superseded)
+that historical creation gate was later satisfied and is no longer active
 ```
 
 Addendum ini tidak mengubah business scope, canonical states, permission model, API contract, schema facts, security behavior, atau environment/runtime product values.
@@ -348,10 +348,8 @@ This addendum remains evidence of the decisions that preceded `15`; it is not a 
 
 ---
 
-## 18. Next Document
+## 18. Historical Handoff — Superseded
 
-Next fixed-order document is now:
+At the time of this addendum, `16_Testing_Specification.md` was the next planned document. That handoff is historical and fully superseded.
 
-**`16_Testing_Specification.md`**
-
-It MUST NOT be created until the user explicitly instructs its creation.
+The fixed-order documentation set is now complete and Approved for Implementation through `20_Deployment_Architecture.md`; current operational guidance comes from root `AGENTS.md` and the fixed-order authorities.

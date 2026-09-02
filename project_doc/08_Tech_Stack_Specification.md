@@ -4,13 +4,13 @@
 
 > **Document ID:** NSCMF-TECH-008  
 > **Document Order:** 08 / 20  
-> **Status:** Draft — Confirmed Technology + Repository–Service + Environment + Development-Method Baseline  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `10_Security_Rules.md`  
 > **Synchronized With:** `09_System_Architecture.md`, `11A_Resumable_Attachment_Upload_Synchronization.md`, `12_API_Contract.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `13_Project_Structure.md`, `14_Environment_Specification.md`, and confirmed pre-`15` development-process decisions  
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Target Capacity Baseline:** 50 application users  
-> **Last Updated:** 2026-08-31
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -1143,12 +1143,12 @@ The following are **no longer TBD**: temporary credential delivery direction, re
 | Cross-document Repository–Service synchronization | `12A_Repository_Service_Architecture_Synchronization.md` |
 | Source structure | `13_Project_Structure.md` |
 | Environment/runtime values | `14_Environment_Specification.md` |
-| Coding-agent/Git/TDD execution rules | `15_Coding_Rules_AGENTS.md` once explicitly created |
+| Coding-agent/Git/TDD execution rules | `15_Coding_Rules_AGENTS.md` |
 
 ## 76. Current Documentation Handoff
 
-Documents through `14_Environment_Specification.md` exist.
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-Next fixed-order document to create — **only after explicit user instruction**:
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-**`15_Coding_Rules_AGENTS.md`** — must translate the locked architecture, TDD-first development method, strict static analysis/type policy, dependency-approval boundary, Git/PR behavior, destructive-operation guardrails, generated-artifact handling, and project synchronization rules into explicit human/developer/coding-agent instructions without redefining upstream business/security/environment authority.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

@@ -4,11 +4,11 @@
 
 > **Document ID:** NSCMF-SEED-017  
 > **Document Order:** 17 / 20  
-> **Status:** Draft — Authoritative Seed / Bootstrap / Demo Data Specification  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md` through `16_Testing_Specification.md`  
 > **Canonical Application / Seed Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -1501,10 +1501,10 @@ The following are now LOCKED:
 
 `18_Definition_of_Done.md` will define the authoritative completion/acceptance gate for implementation work and the project as appropriate, incorporating relevant coding/testing/seed safety without redefining these authorities.
 
-## 104. Next Document
+## 104. Documentation Finality / Current Handoff
 
-Next fixed-order document, **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`18_Definition_of_Done.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-Do not create `18` until explicitly instructed by the user.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

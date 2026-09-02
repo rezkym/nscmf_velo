@@ -4,12 +4,12 @@
 
 > **Document ID:** NSCMF-ENV-014  
 > **Document Order:** 14 / 20  
-> **Status:** Draft — Authoritative Environment / Runtime Configuration Baseline  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`, `11_ERD_Database_Schema.md`, `12_API_Contract.md`, `13_Project_Structure.md`  
 > **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`  
 > **Canonical Application / Business Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -1989,32 +1989,23 @@ Developer/coding agent MUST NOT:
 
 # PART AB — INTENTIONALLY DEFERRED / NOT INVENTED
 
-## 147. Deployment-Dependent Details
+## 147. Narrow Implementation / Provisioning Choices
 
-The following remain intentionally unresolved because upstream documents have not supplied enough authority and/or they depend on physical deployment design:
+`20_Deployment_Architecture.md` now defines the deployment posture. The following narrow choices remain intentionally implementation/provisioning-time and do **not** block ordinary local development:
 
-- exact production/staging hostnames;
-- exact VM/container/platform topology;
-- exact persistent-volume host path/mount implementation;
-- queue worker process count;
-- exact worker retry/backoff/timeout numbers;
-- exact public-validator rate-limit buckets;
-- exact login/upload rate-limit numeric buckets beyond required behavior;
-- exact ClamAV physical topology and scanner timeout value;
-- exact qualified spreadsheet renderer implementation/provider;
-- exact renderer executable/endpoint and timeout;
+- actual staging/production hostnames, provider/location/IP, and supported stable/LTS Linux distro/version when a real host exists;
+- exact private persistent-storage host path/mount and permissions on that real host;
+- evidence-based worker retry/backoff/timeout values and any later worker-count tuning if a real need appears;
+- exact public-validator/login/upload rate-limit numeric buckets;
+- finite ClamAV scanner timeout selected from Phase 6 real integration behavior; topology is already local Docker `clamd` for development and private same-server `clamd` for the default future server;
+- LibreOffice Headless qualification outcome, required fonts, executable details, visual tolerance, and finite renderer timeout; LibreOffice is already the locked first candidate;
 - exact official-template operator command name;
-- exact PDF signing library/provider/CA/container/path/passphrase mechanism;
-- signing key rotation ceremony;
-- exact HSTS policy values;
-- backup/restore/DR/RPO/RTO;
-- performance/SLA/availability targets;
-- external observability/log aggregation platform;
-- exact production deployment topology.
+- exact PDF signing library, key container/path, passphrase/secret injection, and rotation mechanism; the signing trust model is already locked;
+- exact HSTS values appropriate to the actual HTTPS hostname/deployment.
 
-These items MUST NOT be silently guessed by developer/coding agent.
+These choices MUST be resolved only when their phase or real host requires them and MUST NOT be silently guessed when evidence/user approval is required.
 
-Where necessary, they are finalized by downstream implementation/testing/deployment documents or an approved upstream synchronization decision.
+HA, application SLA, DR, RPO/RTO, backup architecture, load balancers, Kubernetes/orchestration, multi-server scaling, production load targets, and external observability-platform selection are **not current MVP environment TBDs**.
 
 ---
 
@@ -2060,10 +2051,10 @@ Technical Log retention may be changed through protected typed setting
 but authoritative audit age purge remains forbidden.
 ```
 
-## 150. Next Document
+## 150. Documentation Finality / Current Handoff
 
-Next fixed-order document:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`15_Coding_Rules_AGENTS.md`**
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-It MUST translate `01–14` into explicit developer/coding-agent constraints, coding conventions, dependency rules, security guardrails, configuration-handling rules, and implementation behaviors without changing the environment/runtime authority established here.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

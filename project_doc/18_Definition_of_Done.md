@@ -4,11 +4,11 @@
 
 > **Document ID:** NSCMF-DOD-018  
 > **Document Order:** 18 / 20  
-> **Status:** Draft — Authoritative Definition of Done / Completion Gate Specification  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md` through `17_Seed_Dummy_Data_Specification.md`  
 > **Canonical Application / Review Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -84,7 +84,7 @@ Canonical authority remains:
 | Seed / bootstrap / demo data | `17_Seed_Dummy_Data_Specification.md` |
 | **Completion / Done classification** | **`18_Definition_of_Done.md`** |
 
-Later documents retain their future authority:
+Later fixed-order authorities are now available and authoritative:
 
 ```text
 19_Task_Implementation_Plan.md
@@ -154,7 +154,7 @@ A documented TBD has three possible effects:
 
 TBD values MUST NOT be silently guessed to clear a gate.
 
-Examples currently still unresolved include exact renderer implementation/provider, concrete signing provider/key mechanics, selected ClamAV physical topology/timeouts, exact operational rate limits, and physical deployment details reserved for `20`.
+Examples that remain genuinely implementation-time include LibreOffice Headless qualification/runtime tuning, concrete signing library/key-container mechanics, finite ClamAV timeout tuning from real integration, and exact operational rate-limit numeric buckets. Deployment topology itself is already defined by `20`.
 
 ---
 
@@ -730,7 +730,7 @@ Exact physical topology belongs to `20_Deployment_Architecture.md` and MUST NOT 
 
 Because Approved PDF signing and qualified workbook rendering are mandatory product/security behavior, a release that requires those capabilities cannot be declared Production-Ready while the corresponding concrete provider/runtime qualification remains unresolved.
 
-Likewise, any unresolved physical/infrastructure decision from `20` that is required to safely operate the selected release blocks Production-Ready Done once that decision becomes necessary.
+Host-specific provisioning choices that become necessary for an actual deployment must be resolved at that time and verified against `20`; they do not block ordinary local development.
 
 ## 40. Production Seed / Bootstrap Readiness
 
@@ -756,33 +756,23 @@ Manual checks never replace required CI/integration evidence.
 
 ## 43. Performance / Load / SLA Boundary
 
-No numeric response-time, RPS, concurrent-user, load, SLA, RPO, or RTO gate is invented by this document.
+No numeric response-time, RPS, concurrent-user, load, application SLA, RPO, or RTO gate is a current MVP requirement. These concerns are intentionally out of current MVP scope under `19A`/`20`, not unresolved values that an agent must solve.
 
-Those targets remain unresolved until approved by the appropriate product/deployment authority, primarily where applicable in `20_Deployment_Architecture.md` or a later approved requirement.
-
-If a future approved task/release introduces a specific performance target, that approved target automatically becomes an applicable DoD gate for the affected scope.
-
-The absence of an approved numeric target MUST NOT be replaced by a guessed industry value.
+If a future explicit approved requirement introduces one of these targets, that target becomes an applicable DoD gate for the affected scope. A guessed industry value MUST NOT be substituted.
 
 ## 44. Deployment-Specific Boundary
 
-`18` defines completion/readiness logic but not physical deployment architecture.
+`18` defines completion/readiness logic; `20` defines the approved deployment posture:
 
-Do not use `18` to silently choose:
+```text
+local-native first
+→ Docker portability secondary
+→ default future deployment = one native Linux server
+```
 
-- server/VM/container count;
-- cloud/provider/on-prem topology;
-- load balancer design;
-- persistent volume implementation/path;
-- worker process counts;
-- retry/backoff/timeout numbers;
-- backup/restore design;
-- disaster recovery;
-- RPO/RTO;
-- SLA/availability target;
-- external observability/log platform.
+Do not use DoD to reintroduce HA, load balancers, DR/RPO/RTO, backup architecture, Kubernetes, multi-server scaling, application SLA/load targets, or external observability platforms as current MVP gates.
 
-Those remain the responsibility of `20` or another explicitly approved authority.
+Narrow real-host choices such as provider/hostname/Linux distro/storage path and evidence-based timeout/rate-limit tuning are resolved only when the corresponding implementation or deployment step actually needs them.
 
 ---
 
@@ -1046,7 +1036,7 @@ Even fully green CI does not override:
 - required human security review;
 - unresolved blocking TBD;
 - staging/release readiness requirement;
-- physical deployment requirements reserved for `20`.
+- physical deployment requirements defined by `20`.
 
 ## 58. No Completion by Human Approval Alone
 
@@ -1069,28 +1059,17 @@ approved specification
 
 ## 59. Current Documentation State
 
-At creation of this document:
+The fixed-order documentation set is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-```text
-01–18 = fixed-order project documentation created
-19_Task_Implementation_Plan.md = NOT CREATED
-20_Deployment_Architecture.md  = NOT CREATED
-```
+`18_Definition_of_Done.md` remains authoritative for completion classification; `19` is the implementation-sequencing authority and `20` is the deployment authority.
 
-`18_Definition_of_Done.md` is now authoritative for completion classification.
+## 60. Documentation Finality / Current Handoff
 
-It does not resolve deployment/provider TBDs belonging to `20` or other explicit future decisions.
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-## 60. Next Fixed-Order Document
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-The next fixed-order project document is:
-
-```text
-19_Task_Implementation_Plan.md
-```
-
-Do not create `19` until the user explicitly authorizes it.
-
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.
 ---
 
 # 61. Critical MUST NOT Summary

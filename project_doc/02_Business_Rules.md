@@ -4,11 +4,11 @@
 
 > **Document ID:** NSCMF-BR-002  
 > **Document Order:** 02 / 20  
-> **Status:** Draft — Synchronized through Confirmed Environment-Bound Decisions  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `project_doc/01_PRD.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -593,8 +593,8 @@ Additionally MUST NOT:
 
 ## 28. Current Documentation Status
 
-Documents through `13_Project_Structure.md` exist. Next fixed-order document to create **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`14_Environment_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-It MUST operationalize the confirmed environment/runtime decisions without redefining these Business Rules.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

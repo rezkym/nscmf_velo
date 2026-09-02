@@ -7,7 +7,7 @@
 > **Repository:** `rezkym/nscmf_velo`  
 > **Decision Date:** 2026-08-22  
 > **Status:** Confirmed / Authoritative cross-document synchronization  
-> **Next Fixed-Order Document:** `13_Project_Structure.md`
+> **Current Fixed-Order Baseline:** `01_PRD.md` through `20_Deployment_Architecture.md` — Approved for Implementation  
 
 ---
 

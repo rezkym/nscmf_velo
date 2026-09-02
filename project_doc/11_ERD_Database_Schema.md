@@ -4,13 +4,13 @@
 
 > **Document ID:** NSCMF-ERD-011  
 > **Document Order:** 11 / 20  
-> **Status:** Draft — Confirmed Database Architecture + Environment-Decision Synchronization  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
-> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md` and confirmed decisions for upcoming `14_Environment_Specification.md`  
+> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md` and `14_Environment_Specification.md`  
 > **Database:** MySQL 8.4 LTS / InnoDB / `utf8mb4`  
 > **Canonical Application Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -1764,6 +1764,8 @@ Technical Log cleanup = typed Protected-Superadmin setting, default ON/30 Days
 
 ## 84. Current Handoff
 
-Documents through `13_Project_Structure.md` exist. Next fixed-order document to create **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`14_Environment_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
+
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

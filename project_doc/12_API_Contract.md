@@ -4,13 +4,13 @@
 
 > **Document ID:** NSCMF-API-012  
 > **Document Order:** 12 / 20  
-> **Status:** Draft — Authoritative API / HTTP Contract Baseline + Environment-Decision Synchronization  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`, `11_ERD_Database_Schema.md`  
-> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`, confirmed decisions for upcoming `14_Environment_Specification.md`  
+> **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `14_Environment_Specification.md`  
 > **Application Style:** Laravel 13 modular monolith + Inertia 3 + Vue 3 + session authentication  
 > **Canonical Application Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-08-22
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -1940,8 +1940,8 @@ Implementation MUST NOT silently turn remaining TBDs into product facts.
 
 ## 141. Current Handoff
 
-Documents through `13_Project_Structure.md` already exist. Next fixed-order document to create **only after explicit user instruction**:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-**`14_Environment_Specification.md`**.
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-It MUST operationalize the locked API/runtime assumptions above without changing this HTTP contract.
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.

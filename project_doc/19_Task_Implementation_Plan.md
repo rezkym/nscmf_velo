@@ -4,11 +4,11 @@
 
 > **Document ID:** NSCMF-PLAN-019  
 > **Document Order:** 19 / 20  
-> **Status:** Draft — Authoritative Implementation Sequencing / Task Dependency Plan  
+> **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md` through `18_Definition_of_Done.md`  
 > **Canonical Application / Planning Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02
+> **Last Updated:** 2026-09-02  
 
 ---
 
@@ -1050,30 +1050,34 @@ Do not blindly regenerate golden artifacts.
 
 Some Phase 8 tasks are intentionally blocked until approved external/runtime decisions exist.
 
-### DG-01 — Spreadsheet renderer qualification decision
+### DG-01 — LibreOffice Headless qualification gate
 
-Required before T54 may be considered production-complete:
+The first renderer candidate is already locked by `19A`/`20`:
 
-- concrete renderer/provider;
-- executable/endpoint/topology as applicable;
-- required fonts;
-- timeout behavior;
-- golden/fidelity qualification;
-- explicit approved visual tolerance.
+```text
+LibreOffice Headless
+```
 
-Do not choose LibreOffice, Microsoft Office automation, commercial, or remote renderer silently.
+Before T54 may be considered production-complete, Phase 8 MUST establish:
 
-### DG-02 — PDF signing provider/runtime decision
+- real official-workbook rendering result;
+- required fonts/runtime prerequisites;
+- finite timeout behavior based on real integration;
+- golden/fidelity qualification and approved practical visual tolerance.
 
-Required before T56 may be considered production-complete:
+If LibreOffice materially fails the required fidelity, stop and consult the user before adopting another renderer. Do not pre-build multiple renderers and do not lower fidelity requirements.
 
-- signer library/provider;
-- CA/certificate model;
-- private key container/location;
-- passphrase/secret injection;
-- rotation ceremony.
+### DG-02 — PDF signing implementation gate
 
-Do not place production key in source/ordinary DB/CI.
+The trust model is already locked:
+
+```text
+System/Organization cryptographic signer
+→ trusted/verified by NSCMF /ispdfvalid
+→ public CA / Adobe trusted-reader status not required for MVP
+```
+
+Before T56 may be considered production-complete, Phase 8 still needs the concrete signer library/integration, key container/path, passphrase/secret injection, and rotation mechanics. Production private key material never belongs in source, ordinary DB, browser, logs/audits, or CI. Any new dependency still follows `15` approval rules.
 
 ### T54 — Qualified spreadsheet-to-PDF renderer adapter
 
@@ -1428,7 +1432,7 @@ Do not mark module Done if downstream mandatory capability remains blocked.
 
 ## 21. Objective
 
-Prepare a feature-complete codebase for deployment architecture and production-like staging validation without inventing physical topology owned by `20`.
+Prepare a feature-complete codebase for production-like validation and eventual server deployment under the already-approved deployment authority in `20`.
 
 ### T78 — Release candidate manifest
 
@@ -1458,25 +1462,25 @@ non-production signer
 cleanup behavior
 ```
 
-Physical staging topology remains `20`.
+Any future staging topology follows `20`; a permanent staging server is not required for ordinary local development.
 
 ### T80 — Production readiness blockers register
 
-Before claiming Release/Production-Ready, explicitly resolve or block on required open items such as:
+Before claiming Release/Production-Ready, explicitly resolve only the real capability/provisioning items required by the release, such as:
 
-- renderer qualification/provider;
-- production signing provider/key mechanism;
-- required public/login/upload rate-limit numbers where exact production value is still unresolved;
-- ClamAV production topology/timeout;
-- deployment topology;
-- backup/restore/DR/RPO/RTO if required by `20`;
-- performance/SLA targets only if later approved.
+- LibreOffice Headless qualification and renderer runtime readiness;
+- concrete production signing library/key mechanism;
+- required public/login/upload rate-limit numeric values;
+- finite ClamAV timeout based on real integration;
+- actual host/provider/hostname/Linux/storage-path choices when a real server deployment is being attempted.
+
+Do **not** add HA, application SLA, DR, RPO/RTO, backup architecture, load balancers, Kubernetes, multi-server scaling, performance/load targets, or external observability platforms as current MVP blockers.
 
 No guessed values.
 
 ### T81 — Release DoD evaluation
 
-Apply `18` Level 3 only after `20` supplies physical deployment authority where needed.
+Apply `18` Level 3 using the deployment authority already defined by `20` and the real runtime evidence required for the release.
 
 `19` itself MUST NOT declare Production-Ready merely because implementation tasks are complete.
 
@@ -1487,7 +1491,7 @@ Apply `18` Level 3 only after `20` supplies physical deployment authority where 
 [ ] all implementation-level blockers explicit
 [ ] staging validation requirements known
 [ ] provider/deployment TBDs not guessed
-[ ] ready to proceed to 20_Deployment_Architecture.md
+[ ] deployment/readiness assumptions align with 20_Deployment_Architecture.md
 ```
 
 ---
@@ -1525,7 +1529,7 @@ T38–T46 Upload     T47–T53 XLSX Export
                    ↓
                T78–T81 RC Preparation
                    ↓
-               20 Deployment Architecture
+               future server deployment/readiness per 20
 ```
 
 Some History/Audit work may begin earlier because audit writes are needed by authentication/admin/workflow tasks; in that case implement the minimum required audit repository/write path first, then complete UI/query portions in Phase 5.
@@ -1619,41 +1623,35 @@ Requirement to rate-limit remains mandatory where specified.
 
 ### ClamAV
 
-- production physical topology;
-- production timeout/capacity sizing.
+- local development placement is private Docker `clamd` when Phase 6 begins;
+- default future server placement is private same-server `clamd` per `20`;
+- finite timeout/capacity tuning must be based on real integration evidence rather than guessed in advance.
 
 ### Renderer
 
-- concrete provider/implementation;
-- executable/endpoint/topology;
-- exact timeout;
-- production font inventory;
-- approved visual tolerance.
+- LibreOffice Headless is the locked first candidate;
+- Phase 8 must qualify actual fidelity, fonts, timeout, and practical tolerance;
+- if material fidelity fails, consult the user before selecting another renderer.
 
 ### Signing
 
-- concrete signer/provider/library;
-- CA;
-- private key container/path;
-- passphrase injection;
-- rotation ceremony.
+- System/Organization signing and `/ispdfvalid` application trust are locked;
+- public CA/Adobe trusted-reader status is not required for MVP;
+- exact signer library, key container/path, passphrase injection, and rotation remain Phase 8 implementation-time security choices subject to dependency approval.
 
 ### Deployment / operations
 
-Owned primarily by `20`:
+`20` already resolves the current MVP deployment posture:
 
-- server/VM/container count;
-- hosting/provider/on-prem topology;
-- load balancer;
-- persistent volume path/mount;
-- process counts;
-- worker retry/backoff/timeouts;
-- backup/restore;
-- DR;
-- RPO/RTO;
-- SLA/availability;
-- performance/load target;
-- external observability platform.
+- native-local development first;
+- Docker compatibility secondary;
+- default future deployment is one native Linux server with required runtime components co-located;
+- no load balancer/HA/Kubernetes/multi-server architecture;
+- automated CD is not current MVP.
+
+Narrow provisioning choices such as actual provider/IP/hostname, Linux distro/version, storage host path, and evidence-based timeout/rate-limit values are resolved only when the corresponding real step needs them.
+
+HA, application SLA, DR, RPO/RTO, backup architecture, performance/load targets, and external observability-platform selection are not current MVP open decisions.
 
 ## 28. Decision Gate Handling
 
@@ -1785,16 +1783,13 @@ The fixed-order project documentation is now complete through `20_Deployment_Arc
 
 Repository implementation remains greenfield/documentation-only until implementation begins by explicit user instruction.
 
-## 36. Next Fixed-Order Document
+## 36. Documentation Finality / Current Handoff
 
-The final fixed-order project document is:
+Fixed-order project documentation is complete and **Approved for Implementation** through `20_Deployment_Architecture.md`.
 
-```text
-20_Deployment_Architecture.md
-```
+Current project handoff: implementation follows `19_Task_Implementation_Plan.md`, beginning with **Phase 0 / T00** only after explicit user instruction.
 
-Do not create `20` until the user explicitly authorizes it.
-
+This document remains authoritative for its own concern and may only be changed through an explicit, synchronized, approved requirement change.
 ## 37. Implementation Start After Documentation
 
 After `20` is approved/synchronized, implementation should begin from:
@@ -1805,7 +1800,7 @@ Phase 0 / T00
 
 using the latest approved `main` and scoped implementation branches.
 
-If the user explicitly chooses to begin implementation before `20`, only tasks that do not require unresolved physical deployment decisions may proceed; no production-readiness claim is allowed until `20` exists and applicable release gates are satisfied.
+Implementation begins only after explicit user instruction and follows the deployment authority already available in `20`; production-readiness claims still require all applicable `18` evidence.
 
 ---
 
