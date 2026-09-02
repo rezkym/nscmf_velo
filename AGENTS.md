@@ -7,7 +7,8 @@ Operational entrypoint for coding agents.
 **Full seed/bootstrap/demo-data authority:** `project_doc/17_Seed_Dummy_Data_Specification.md`  
 **Full Definition of Done authority:** `project_doc/18_Definition_of_Done.md`  
 **Implementation order authority:** `project_doc/19_Task_Implementation_Plan.md`  
-**Current local-first/pre-deployment synchronization:** `project_doc/19A_Local_First_MVP_Synchronization.md`
+**Current local-first synchronization:** `project_doc/19A_Local_First_MVP_Synchronization.md`  
+**Deployment architecture authority:** `project_doc/20_Deployment_Architecture.md`
 
 `project_doc/14A_Pre_Coding_Rules_Synchronization.md` and `project_doc/15A_Pre_Testing_Specification_Synchronization.md` are historical synchronization context; material current rules are integrated into their later fixed-order authorities.
 
@@ -24,10 +25,11 @@ Before modifying the repository:
 3. read `project_doc/16_Testing_Specification.md` for testing/TDD/CI requirements;
 4. read `project_doc/18_Definition_of_Done.md` before claiming completion;
 5. read `project_doc/19_Task_Implementation_Plan.md` for implementation order/dependencies;
-6. read `project_doc/19A_Local_First_MVP_Synchronization.md` for current local-first/deployment interpretation;
-7. read `project_doc/17_Seed_Dummy_Data_Specification.md` when seed/bootstrap/factory/demo/reference data is affected;
-8. read all other project documents relevant to the task;
-9. inspect affected code, tests, migrations, configuration, dependencies, and current Git state.
+6. read `project_doc/19A_Local_First_MVP_Synchronization.md` for current local-first interpretation;
+7. read `project_doc/20_Deployment_Architecture.md` for local/Docker/future-server runtime placement and exposure boundaries;
+8. read `project_doc/17_Seed_Dummy_Data_Specification.md` when seed/bootstrap/factory/demo/reference data is affected;
+9. read all other project documents relevant to the task;
+10. inspect affected code, tests, migrations, configuration, dependencies, and current Git state.
 
 Authority by concern:
 
@@ -55,8 +57,8 @@ Authority by concern:
 17 Seed / bootstrap / demo data
 18 Definition of Done
 19 Task implementation order / dependency plan
-19A Local-first MVP / pre-deployment synchronization
-20 Deployment Architecture — not created yet
+19A Local-first MVP cross-document synchronization
+20 Deployment Architecture
 ```
 
 Do not invent requirements, routes, schema fields, permissions, states, dependencies, infrastructure, testing policy, production Team master data, seed data, or completion evidence when authoritative sources can be read.
@@ -93,7 +95,7 @@ The application does **not** have to run inside Docker for normal development.
 
 Docker compatibility is portability support, not a requirement to containerize local development or future production.
 
-A future native server still requires validation of PHP extensions, permissions, service management, web server/reverse proxy configuration, runtime paths, and infrastructure dependencies.
+`20` defines the simple default future deployment as a **single native Linux server** with the required runtime components co-located unless a real later requirement explicitly changes the topology.
 
 ---
 
@@ -241,7 +243,7 @@ Operational rules:
 - current accessibility direction is WCAG-AA-like, not formal WCAG certification;
 - a required gate that did not run cannot be claimed PASS;
 - genuine N/A requires a real scope-based reason;
-- real blocking TBDs may block the affected capability, but concerns removed by `19A` are not TBDs to solve;
+- real blocking TBDs may block the affected capability, but concerns removed by `19A`/`20` are not TBDs to solve;
 - staging/production evidence applies when the project actually attempts the corresponding Release/Production-Ready claim; ordinary local feature work is not blocked because physical staging/production servers do not yet exist.
 
 HA/SLA/DR/RPO/RTO/backup architecture/load targets are not current completion blockers.
@@ -331,7 +333,7 @@ ClamAV is mandatory MVP for the attachment capability but is intentionally imple
 
 For local development, local Docker `clamd` is the preferred simple direction when Phase 6 begins.
 
-Do not invent a production ClamAV cluster/topology before a real server exists.
+For the future default native-server deployment, `20` places private `clamd` on the same server. Do not invent a ClamAV cluster or separate scanner service without a new requirement.
 
 ---
 
@@ -360,6 +362,8 @@ render official workbook
 
 Do not pre-build multiple renderers and do not lower fidelity requirements to force LibreOffice to pass.
 
+If qualified, `20` places LibreOffice Headless on the same future native server by default.
+
 ---
 
 # Approved PDF Signing / Public Verification
@@ -379,6 +383,8 @@ Do not require public CA procurement, Adobe trust-list integration, TSA, or ente
 Keep Login, Dashboard, workflow, History, Administration, attachments, exports management, Timeline, audits, and internal JSON endpoints private/internal.
 
 Do not split the validator into a microservice merely because it is public.
+
+`20` defines one application runtime with separate internal/public ingress contexts; public ingress routes only the validator capability.
 
 ---
 
@@ -519,38 +525,36 @@ Never:
 31. pre-build multiple renderers without need;
 32. require public CA/Adobe trust for current signing MVP;
 33. build automated CD infrastructure when only CI is required;
-34. expose internal NSCMF functions publicly because `/ispdfvalid` is public.
+34. expose internal NSCMF functions publicly because `/ispdfvalid` is public;
+35. replace the simple single-native-server default from `20` with speculative multi-server/container-orchestration infrastructure without a new requirement.
 
 ---
 
 # Current Handoff
 
-Current fixed-order documentation exists through:
+The fixed-order documentation set is complete through:
 
 ```text
-19_Task_Implementation_Plan.md
+20_Deployment_Architecture.md
 ```
 
-Current authoritative local-first/pre-deployment synchronization:
+Current local-first cross-document synchronization:
 
 ```text
 project_doc/19A_Local_First_MVP_Synchronization.md
 ```
 
-Next fixed-order project document:
-
-**`20_Deployment_Architecture.md`**
-
-Do **not** create `20` until the user explicitly instructs it after this synchronization is reviewed/accepted.
-
-When `20` is created, keep it deliberately simple:
+Current deployment authority:
 
 ```text
-primary current local development runtime
-secondary Docker portability compatibility
-minimum future native-server runtime contract
-public `/ispdfvalid` exposure boundary
-required runtime components when server deployment actually occurs
+project_doc/20_Deployment_Architecture.md
 ```
 
-Do not reintroduce HA/SLA/DR/RPO/RTO/backup/performance/load/cluster architecture as current MVP requirements.
+The next project step is implementation according to `19_Task_Implementation_Plan.md`:
+
+```text
+Phase 0
+→ T00 Bootstrap Laravel 13 / PHP 8.5 application
+```
+
+Do **not** begin coding until the user explicitly instructs implementation.
