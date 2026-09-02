@@ -2,218 +2,123 @@
 
 ## NSCMF Digital Form & Workflow System
 
-> **Document Type:** Synchronization Addendum — not a new fixed-order project deliverable  
-> **Applies To:** implementation/testing interpretation of `08_Tech_Stack_Specification.md`, `13_Project_Structure.md`, `14_Environment_Specification.md`, `15_Coding_Rules_AGENTS.md`, and repository-root `AGENTS.md`  
+> **Document Type:** Historical Synchronization Addendum — not a fixed-order project deliverable  
+> **Applies To:** implementation/testing interpretation of `08_Tech_Stack_Specification.md`, `13_Project_Structure.md`, `14_Environment_Specification.md`, `15_Coding_Rules_AGENTS.md`, and repository-root `AGENTS.md` before `16` existed  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Decision Date:** 2026-09-01 through 2026-09-02  
-> **Status:** Confirmed / Authoritative pre-`16` synchronization  
-> **Next Fixed-Order Document:** `16_Testing_Specification.md` — MUST NOT be created until explicit user instruction
+> **Status:** Historical / Integrated into `16_Testing_Specification.md`  
+> **Current Testing Authority:** `16_Testing_Specification.md`  
+> **Next Fixed-Order Document:** `17_Seed_Dummy_Data_Specification.md` — MUST NOT be created until explicit user instruction
 
 ---
 
 ## 1. Purpose
 
-Dokumen ini merekam keputusan testing/CI yang sudah dikonfirmasi user setelah `15_Coding_Rules_AGENTS.md` selesai tetapi sebelum `16_Testing_Specification.md` dibuat.
+Dokumen ini merekam keputusan testing/CI yang dikonfirmasi user setelah `15_Coding_Rules_AGENTS.md` selesai tetapi sebelum `16_Testing_Specification.md` dibuat.
 
-Dokumen ini menjaga `01–15` tetap konsisten tanpa memaksa detail testing ke Product/Business/API/Schema documents yang tidak memiliki concern tersebut.
+Keputusan di addendum ini sekarang telah diintegrasikan secara authoritative dan lebih lengkap ke:
 
-Addendum ini **tidak** mengubah product scope, business rules, RBAC, workflow states, API payloads, schema target, security behavior, atau production deployment topology.
+**`16_Testing_Specification.md`**
 
-Jika wording lama pada `08`, `13`, `14`, atau `15` lebih lemah/umum untuk concern yang dikunci di sini, addendum ini menjadi **newer narrow synchronization authority** sampai `16` mengintegrasikan testing authority secara lengkap.
+Karena itu, dokumen ini dipertahankan sebagai historical synchronization record agar asal keputusan tetap jelas, tetapi **tidak lagi menjadi testing authority utama**.
+
+Jika terdapat perbedaan wording antara addendum ini dan `16`, gunakan `16` untuk testing behavior saat ini.
 
 ---
 
-# PART A — COVERAGE POLICY
+# PART A — DECISIONS THAT WERE LOCKED BEFORE `16`
 
-## 2. Global Line Coverage Gate — LOCKED
+## 2. TDD / RED Commit
 
-Automated test coverage MUST be measured with:
+Sebelum `16` dibuat, user telah mengunci:
+
+```text
+approved requirement
+→ write test first
+→ meaningful RED
+→ commit RED test
+→ minimum production implementation
+→ GREEN
+→ implementation commit
+→ relevant regression suite
+```
+
+Feature, bug fix, atau behavior change yang memerlukan RED harus memiliki requirement-derived RED test commit sebelum production implementation commit.
+
+Pure behavior-preserving refactor tidak memerlukan artificial RED ketika existing GREEN tests sudah memadai.
+
+`16` sekarang menjadi authority lengkap untuk detail TDD evidence dan testing workflow.
+
+## 3. Coverage
+
+Locked decision:
 
 ```text
 minimum global line coverage = 80%
 ```
 
-A Pull Request/revision whose applicable measured global line coverage is below 80% MUST fail the coverage gate.
+Coverage percentage bukan pengganti meaningful behavioral testing dan tidak boleh digame dengan assertion kosong, exclusion berlebihan, atau test yang hanya mengeksekusi line tanpa membuktikan behavior.
 
-## 3. Coverage Percentage Is Not Proof of Correctness
+`16` sekarang menentukan interpretation dan scope coverage secara authoritative.
 
-The 80% metric is a minimum safety threshold, not the definition of test quality.
+## 4. Pull Request Gates
 
-Developer/coding agent MUST NOT:
-
-- write meaningless assertions merely to execute lines;
-- add tests that call code without proving behavior;
-- exclude important project-owned code merely to preserve the percentage;
-- use coverage percentage as an excuse to omit negative/security/concurrency tests;
-- treat 80% as permission to leave a critical rule untested.
-
-Critical authorization, workflow, validation, attachment-security, export/signing, audit-retention, credential/session, and concurrency behavior requires meaningful positive and negative proof independent of the percentage.
-
-Exact inclusion/exclusion mechanics and reporting commands belong to `16_Testing_Specification.md` and MUST preserve this locked baseline.
-
----
-
-# PART B — TDD COMMIT EVIDENCE
-
-## 4. Separate RED Commit — LOCKED
-
-For a new feature, bug fix, or behavior change where TDD RED applies, the requirement-derived test MUST be committed **before** the production implementation commit.
-
-Required direction:
-
-```text
-approved specification / requirement
-→ write test
-→ execute test and confirm meaningful RED
-→ commit RED test evidence
-→ implement minimum production change
-→ execute GREEN
-→ commit implementation
-→ run relevant regression suite
-```
-
-Typical history:
-
-```text
-test: cover <required behavior>
-feat: implement <required behavior>
-```
-
-or:
-
-```text
-test: reproduce <bug>
-fix: correct <bug>
-```
-
-## 5. RED Commit Integrity
-
-The RED commit MUST contain a legitimate requirement-derived test and only the harness/support needed to execute it. It MUST NOT already contain the production behavior intended to make the test pass.
-
-A coding agent MUST NOT:
-
-- implement first and reorder/rewrite history later to manufacture TDD;
-- fabricate RED using broken imports, fixtures, syntax, or unrelated failure;
-- claim an already-GREEN post-implementation test as pre-implementation RED evidence;
-- weaken the committed RED test in the implementation commit merely to obtain GREEN.
-
-Actual RED/GREEN commands/results remain required PR evidence under `15`.
-
-## 6. Pure Refactor Exception
-
-A pure behavior-preserving refactor with adequate existing GREEN tests does not require an artificial RED test or RED commit.
-
-Required evidence:
-
-```text
-existing relevant suite GREEN before refactor
-→ refactor
-→ same relevant suite GREEN after refactor
-```
-
-If behavior changes, the RED-commit requirement applies.
-
----
-
-# PART C — REQUIRED PULL REQUEST CI BASELINE
-
-## 7. Every Implementation Pull Request — Mandatory Gates
-
-Every implementation Pull Request MUST run applicable deterministic project gates before human merge eligibility.
-
-Locked baseline includes:
+Locked baseline sebelum `16`:
 
 ```text
 Laravel Pint check
 PHPStan/Larastan level max
-Pest backend test suite
-80% minimum global line-coverage gate
+Pest backend tests
+80% minimum line coverage
 ESLint
 Prettier check
-vue-tsc / TypeScript strict checking
-Vitest frontend test suite
-MySQL 8.4 integration path
-Playwright critical-journey E2E suite using Chromium
+vue-tsc / TypeScript strict
+Vitest frontend tests
+MySQL 8.4 integration
+Playwright Chromium critical journeys
 ```
 
-Required reproducible Composer/npm install/build checks from upstream docs remain applicable.
+Required gate tidak boleh dinonaktifkan/downgrade hanya agar PR menjadi hijau.
 
-A required gate MUST NOT be silently disabled, downgraded to informational-only, or bypassed because the implementation currently fails it.
+`16` sekarang mengatur lengkap gate applicability dan testing matrix.
 
-## 8. MySQL 8.4 Is Mandatory Integration Authority
+## 5. MySQL 8.4
 
-MySQL 8.4 is the mandatory relational integration target in CI for database semantics.
+Real MySQL 8.4 telah dikunci sebagai integration authority untuk database semantics.
 
-SQLite MAY be used only for narrowly isolated tests where MySQL-specific behavior is irrelevant. SQLite MUST NOT be the only proof for migrations/schema constraints, row locking/concurrency, transaction behavior, indexes/uniqueness, or repository behavior depending on MySQL semantics.
+SQLite hanya boleh dipakai pada isolated tests ketika MySQL-specific semantics tidak relevan dan tidak boleh menjadi satu-satunya bukti untuk schema, locking, concurrency, transaction, atau persistence behavior yang bergantung pada MySQL.
 
-Any older implementation-facing wording such as `SHOULD use MySQL 8.4` is superseded by this confirmed **MUST** for the integration path.
+## 6. Real Infrastructure Integration
 
----
+Keputusan yang dikunci sebelum `16`:
 
-# PART D — REAL INFRASTRUCTURE INTEGRATION
+- real ClamAV integration mandatory;
+- real cryptographic signing/verification menggunakan non-production identity mandatory;
+- production signing key/passphrase tidak pernah masuk CI;
+- real qualified renderer/golden integration mandatory setelah renderer resmi approved/qualified;
+- mocks/fakes boleh untuk isolated tests tetapi tidak boleh menjadi satu-satunya bukti untuk real infrastructure contract;
+- storage/queue/concurrency semantics memerlukan real integration ketika behavior tersebut sedang dibuktikan.
 
-## 9. Test Doubles Are Allowed but Not Sufficient
+## 7. Playwright Browser Scope
 
-Mocks/fakes/test doubles MAY be used for isolated tests, but MUST NOT become the only validation path for infrastructure whose real behavior is part of the system contract.
-
-## 10. Real ClamAV — Mandatory Integration Path
-
-CI MUST include a real ClamAV integration path proving relevant CLEAN/fail-closed behavior. Fake scanners remain allowed for isolated tests only.
-
-## 11. Real Cryptographic Signing / Verification — Mandatory Integration Path
-
-CI MUST execute real cryptographic PDF signing/verification using a dedicated non-production test identity.
-
-Production signing private keys/passphrases MUST NEVER be used in CI.
-
-The test identity may be ephemeral or a dedicated approved non-production fixture/secret. Exact production signer provider/library/CA/rotation remains separately TBD.
-
-## 12. Real Spreadsheet Renderer — Mandatory After Qualification
-
-Before an official renderer is selected/qualified, tests MUST NOT invent one as production authority.
-
-Once approved/qualified, CI MUST include a real renderer integration/golden path using the qualified implementation and required fonts/environment. Mock renderer success is never sufficient to claim fidelity.
-
-## 13. Storage / Queue / Concurrency Integration
-
-Existing requirements remain:
-
-- database queue behavior is proven by integration tests where queue semantics matter;
-- private-storage behavior is tested beyond a pure mock where persistence/private-boundary semantics matter;
-- concurrency/locking behavior is tested against MySQL semantics rather than simulated only in memory.
-
----
-
-# PART E — PLAYWRIGHT BROWSER SCOPE
-
-## 14. Chromium-Only Baseline — LOCKED
-
-Current MVP automated browser baseline is:
+Current MVP automated browser baseline telah dikunci sebagai:
 
 ```text
-Playwright browser project = Chromium only
+Chromium only
 ```
 
-Critical user journeys MUST run against Chromium in the Pull Request E2E gate.
+Firefox/WebKit bukan mandatory current MVP browser certification targets.
 
-Firefox and WebKit are not required in the current MVP automated-browser matrix. This defines certification scope only and does not authorize browser-specific code that intentionally violates web standards.
+## 8. Flaky Test / Retry Policy
 
----
-
-# PART F — FLAKY TEST / RETRY POLICY
-
-## 15. No Automatic Retry-As-Pass — LOCKED
-
-A failing automated test MUST NOT be automatically retried until a later attempt passes and then be treated as successful merge evidence.
-
-Canonical behavior:
+User mengunci:
 
 ```text
 required test FAILS
-→ required CI gate remains FAILED
+→ gate remains FAIL
 → diagnose root cause
-→ fix production code, test, fixture, environment, or synchronization issue as appropriate
-→ run the CI/test execution again
+→ make intentional corrective change
+→ run a fresh test/CI execution
 ```
 
 Forbidden acceptance pattern:
@@ -222,97 +127,34 @@ Forbidden acceptance pattern:
 attempt 1 = FAIL
 → automatic retry
 attempt 2 = PASS
-→ treat overall gate as PASS
+→ treat overall result as accepted PASS
 ```
 
-A test that sometimes fails and sometimes passes without an intentional code/environment change is a **flaky test** and is a defect to investigate.
+Flaky test harus terlihat dan diperbaiki akar masalahnya.
 
-Developer/coding agent MUST NOT:
+Automatic diagnostic collection seperti log, trace, screenshot, video, timing, atau failure dump tetap diperbolehkan dan tidak mengubah FAIL menjadi PASS.
 
-- configure automatic retry merely to turn an unstable FAIL into accepted PASS evidence;
-- hide flaky behavior behind retry counts;
-- report a test as stable because a retry eventually passed;
-- weaken/remove the test solely because it is inconveniently flaky.
-
-Diagnostic artifacts such as logs, traces, screenshots, videos, timing information, or failure dumps MAY be collected automatically. Diagnostic collection is not a retry and does not change the FAIL result.
-
-After an actual fix or intentional corrective change, the developer/agent MAY rerun the affected test or CI workflow. That new execution is a fresh verification run, not automatic retry-as-pass.
-
-If a third-party runner/tool performs an unavoidable internal retry, the project MUST NOT use the eventual-pass result as sufficient merge evidence unless `16` later defines an explicit approved exception. Current baseline is fail-visible and root-cause-first.
+`16` sekarang menjadi authority lengkap untuk retry/flaky-test policy.
 
 ---
 
-# PART G — CROSS-DOCUMENT INTERPRETATION
+# PART B — AUTHORITY AFTER `16`
 
-## 16. `08_Tech_Stack_Specification.md`
+## 9. Current Authority Chain
 
-Interpret testing/CI sections with these confirmed stronger rules:
+Testing authority sekarang:
 
-- global line coverage gate = 80%;
-- MySQL 8.4 integration is mandatory;
-- Playwright critical journeys are mandatory PR gates;
-- Playwright automated browser scope = Chromium only;
-- real ClamAV and real non-production cryptographic signing/verification paths are mandatory;
-- real qualified renderer integration becomes mandatory after renderer qualification;
-- automatic retry MUST NOT convert a failing required test into accepted PASS evidence.
+```text
+01–15 / relevant synchronization addenda
+→ 16_Testing_Specification.md = detailed testing authority
+→ root AGENTS.md = operational summary for coding agents
+```
 
-## 17. `13_Project_Structure.md`
+`15A` tidak boleh dipakai untuk mengalahkan atau melemahkan rule di `16`.
 
-No folder/layout change is required.
+## 10. Upstream Documents
 
-Existing `tests/Feature`, `Unit`, `Integration`, `Architecture`, `Fixtures`, and `Browser` structure remains valid. `tests/Browser` current baseline targets Playwright Chromium critical journeys.
-
-## 18. `14_Environment_Specification.md`
-
-Existing CI environment requirements are strengthened as follows:
-
-- MySQL 8.4 integration mandatory;
-- real ClamAV integration mandatory;
-- real signing/verification with non-production identity;
-- real renderer/golden integration mandatory once qualified;
-- Pull Request E2E uses Chromium;
-- CI enforces 80% global line coverage;
-- failing required tests remain failing and are not automatically retried into accepted PASS evidence.
-
-Production secrets remain forbidden in CI.
-
-## 19. `15_Coding_Rules_AGENTS.md`
-
-TDD evidence is additionally constrained by separate RED-commit chronology.
-
-Coding agents must preserve chronological test-before-implementation evidence, must not game coverage, must not disable required gates, and must treat flaky tests as defects rather than retrying until green.
-
-## 20. Root `AGENTS.md`
-
-Root `AGENTS.md` remains the synchronized operational summary and MUST reflect the locked rules in this addendum until `16` integrates detailed testing authority.
-
----
-
-# PART H — CURRENT STATUS / NEXT DOCUMENT
-
-## 21. Confirmed Inputs to `16`
-
-The following are now locked inputs for `16_Testing_Specification.md`:
-
-- [x] TDD mandatory.
-- [x] Meaningful RED before production implementation.
-- [x] Separate RED test commit before implementation commit for feature/bug/behavior change.
-- [x] Pure refactor does not require artificial RED.
-- [x] Global line coverage minimum = **80%**.
-- [x] Coverage percentage is not a substitute for meaningful critical-rule tests.
-- [x] Every implementation PR runs mandatory deterministic quality/testing gates.
-- [x] MySQL 8.4 integration mandatory.
-- [x] Playwright critical journeys mandatory on PR.
-- [x] Playwright automated browser baseline = **Chromium only**.
-- [x] Real ClamAV integration mandatory.
-- [x] Real cryptographic signing/verification with non-production identity mandatory.
-- [x] Real qualified renderer integration mandatory after qualification.
-- [x] Mocks/fakes allowed for isolation but cannot be the only proof for real infrastructure contracts.
-- [x] **No automatic retry-as-pass for failing required tests; flaky tests must remain visible and be fixed at root cause.**
-
-## 22. Documents That Do Not Require Semantic Change
-
-These testing decisions do not alter semantics owned by:
+Keputusan testing yang direkam di sini tidak mengubah product/business/API/schema semantics pada:
 
 ```text
 01_PRD.md
@@ -330,14 +172,22 @@ These testing decisions do not alter semantics owned by:
 12A_Repository_Service_Architecture_Synchronization.md
 ```
 
-They remain authoritative without business/API/schema modification.
+`08`, `13`, `14`, dan `15` tetap menjadi authority untuk concern masing-masing; `16` mengatur bagaimana behavior dari dokumen-dokumen tersebut dibuktikan melalui testing.
 
-## 23. Next Fixed-Order Document
+---
 
-All previously identified pre-`16` testing-policy decisions are now resolved.
+# PART C — CURRENT HANDOFF
 
-Next fixed-order document remains:
+## 11. Testing Specification Status
 
-**`16_Testing_Specification.md`**
+`16_Testing_Specification.md` sekarang sudah dibuat dan menjadi authoritative testing specification.
+
+Semua pre-`16` testing-policy decisions yang sebelumnya dicatat di `15A` telah diintegrasikan ke `16`.
+
+## 12. Next Fixed-Order Document
+
+Next fixed-order document:
+
+**`17_Seed_Dummy_Data_Specification.md`**
 
 It MUST NOT be created until the user explicitly instructs its creation.
