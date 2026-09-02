@@ -8,17 +8,19 @@
 > **Decision Date:** 2026-09-02  
 > **Status:** Confirmed / Authoritative cross-document synchronization  
 > **Canonical Timezone:** `Asia/Jakarta`  
-> **Next Fixed-Order Document:** `20_Deployment_Architecture.md` — only after explicit user instruction
+> **Deployment Authority:** `20_Deployment_Architecture.md`
 
 ---
 
 ## 1. Purpose / Precedence
 
-This addendum records the confirmed **local-first MVP direction** before `20_Deployment_Architecture.md`.
+This addendum records the confirmed **local-first MVP direction** that was agreed before `20_Deployment_Architecture.md`.
 
 It removes deployment over-engineering from current MVP interpretation without changing product/business/security behavior.
 
-For the concerns explicitly covered here, this is the **newer authority** over older wording in `01–19`. In particular, older references that still present HA/SLA/DR/RPO/RTO/backup/load/server-topology concerns as current TBDs or blockers are superseded.
+For the concerns explicitly covered here, this remains the newer synchronization authority over older wording in `01–19`. In particular, older references that still present HA/SLA/DR/RPO/RTO/backup/load/server-topology concerns as current TBDs or blockers are superseded.
+
+`20_Deployment_Architecture.md` is now the **fixed-order authoritative deployment architecture** and controls current runtime placement/default future-server topology. This addendum remains authoritative for the cross-document cleanup/local-first decisions that led to `20`.
 
 This addendum does **not** change:
 
@@ -119,7 +121,7 @@ external observability platform selection
 
 They may be introduced later only when a real requirement exists and the user explicitly approves it.
 
-Do not invent current server count, VM count, CPU/RAM sizing, hosting provider, production hostname, load balancer, or cluster topology before a real server target exists.
+Do not invent current server count, VM count, CPU/RAM sizing, hosting provider, production hostname, load balancer, or cluster topology before a real server target exists, except for the simple default future-server topology now explicitly defined by `20`.
 
 ### Terminology safety
 
@@ -181,7 +183,7 @@ identity/auth/RBAC
 
 For local development, running `clamd` in Docker is the preferred simple direction when Phase 6 starts.
 
-Exact future server placement is deferred until a real server exists. A finite scanner timeout must be selected when the real integration is implemented, based on actual behavior rather than an invented number now.
+`20` now defines the default future server placement as same-server private `clamd`. A finite scanner timeout is still selected when the real integration is implemented, based on actual behavior rather than an invented number now.
 
 ---
 
@@ -316,6 +318,7 @@ For deployment-related interpretation:
 - `16_Testing_Specification.md`: real integrations become applicable in the phase/capability they prove; CI remains mandatory; CD is not required.
 - `18_Definition_of_Done.md`: removed enterprise-infrastructure concerns are not completion blockers; staging/production gates apply only when corresponding release claims are made.
 - `19_Task_Implementation_Plan.md`: Phase 0 is native-local first; T03 minimal CI remains; Phase 6 includes ClamAV; Phase 8 tries/qualifies LibreOffice first and uses application-trusted Organization signing; removed infrastructure concerns are not deployment blockers.
+- `20_Deployment_Architecture.md`: authoritative current runtime placement/default future native-server topology.
 
 ---
 
@@ -335,34 +338,26 @@ Coding agents MUST NOT:
 10. remove cryptographic signing because public trust is deferred;
 11. build automated CD when only CI is required;
 12. expose internal NSCMF functions publicly because `/ispdfvalid` is public;
-13. remove business `Specific Requirements (SLA)` or `Performance Information` while cleaning infrastructure terminology.
+13. remove business `Specific Requirements (SLA)` or `Performance Information` while cleaning infrastructure terminology;
+14. override the simple current deployment decisions in `20` without explicit requirement change.
 
 ---
 
 # 14. Current Handoff
 
-Fixed-order documentation remains complete through:
+The fixed-order documentation set is now complete through:
 
 ```text
-19_Task_Implementation_Plan.md
+20_Deployment_Architecture.md
 ```
 
-This addendum synchronizes the cross-document local-first/pre-deployment concern without creating a new fixed-order number.
+`19A` remains the authoritative local-first cross-document synchronization, while `20` is the authoritative deployment architecture.
 
-Next fixed-order document:
-
-**`20_Deployment_Architecture.md`**
-
-Do not create `20` until the user explicitly instructs it after reviewing this synchronization.
-
-When `20` is created, keep it deliberately simple and focus on:
+The next project step is implementation according to `19_Task_Implementation_Plan.md`, beginning with:
 
 ```text
-primary local development runtime
-secondary Docker portability
-minimum future native-server runtime contract
-public `/ispdfvalid` exposure boundary
-required runtime components when a real server actually exists
+Phase 0
+→ T00 Bootstrap Laravel 13 / PHP 8.5 application
 ```
 
-Do not reintroduce HA/SLA/DR/RPO/RTO/backup/performance/load/cluster architecture as current MVP requirements.
+Do not begin implementation until the user explicitly instructs coding work.
