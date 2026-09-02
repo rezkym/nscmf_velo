@@ -1,4 +1,4 @@
-name: Temporary Post-Freeze Documentation Audit
+name: Temporary Strict Final Documentation Audit
 
 on:
   push:
@@ -13,25 +13,90 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect final documentation consistency
+      - name: Verify approved documentation baseline
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
           import re
-          docs = sorted(Path('project_doc').glob('[0-9][0-9]_*.md'))
-          print('FIXED_DOC_COUNT', len(docs))
-          for p in docs:
+
+          root = Path('.')
+          docdir = root / 'project_doc'
+          fixed = sorted(docdir.glob('[0-9][0-9]_*.md'))
+          assert len(fixed) == 20, f'Expected 20 fixed-order docs, found {len(fixed)}'
+          assert [p.name[:2] for p in fixed] == [f'{i:02d}' for i in range(1, 21)]
+
+          for p in fixed:
               text = p.read_text(encoding='utf-8')
-              status = re.findall(r'^> \*\*Status:\*\* (.+)$', text, re.M)
-              print('STATUS', p.name, status[0].strip() if status else 'MISSING')
+              statuses = re.findall(r'^> \*\*Status:\*\* (.+)$', text, flags=re.M)
+              assert len(statuses) == 1, f'{p}: status header count {len(statuses)}'
+              assert statuses[0].strip() == 'Approved for Implementation', f'{p}: {statuses[0]}'
+              assert '> **Last Updated:** 2026-09-02' in text, f'{p}: stale Last Updated'
+
+          active = fixed + [
+              docdir / '11A_Resumable_Attachment_Upload_Synchronization.md',
+              docdir / '12A_Repository_Service_Architecture_Synchronization.md',
+              docdir / '14A_Pre_Coding_Rules_Synchronization.md',
+              docdir / '15A_Pre_Testing_Specification_Synchronization.md',
+              docdir / '19A_Local_First_MVP_Synchronization.md',
+              root / 'AGENTS.md',
+          ]
+          corpus = '\n'.join(p.read_text(encoding='utf-8') for p in active)
+
+          stale_patterns = [
+              r'\*\*Status:\*\* Draft',
+              r'(?i)\bupcoming\b',
+              r'(?i)once created',
+              r'(?i)\bnot created\b',
+              r'(?i)next fixed-order document',
+              r'(?i)^## .*next document',
+              r'(?i)will define the authoritative',
+              r'(?i)deferred to Environment/Deployment',
+              r'(?i)reserved for `20`',
+              r'(?i)until `20` exists',
+              r'Physical production topology/timeout remains',
+              r'ClamAV/renderer physical topology',
+              r'exact production physical deployment topology',
+              r'exact physical production deployment topology',
+              r'Renderer Selection — Still TBD',
+              r'Exact renderer provider/executable/topology remains unresolved',
+              r'Exact ClamAV socket-vs-TCP deployment and timeout value remain',
+              r'Historical `Next Document` wording',
+              r'Old `Next Document` / progress statements',
+              r'ready to proceed to 20_Deployment_Architecture\.md',
+          ]
+          for pattern in stale_patterns:
+              m = re.search(pattern, corpus, flags=re.M)
+              assert not m, f'Stale pattern remains: {pattern}: {m.group(0) if m else ""}'
+
+          agents = (root / 'AGENTS.md').read_text(encoding='utf-8')
+          assert '01_PRD.md` through `project_doc/20_Deployment_Architecture.md` are **Approved for Implementation**' in agents
+          assert 'Phase 0' in agents and 'T00' in agents
+          assert 'Do **not** begin coding until the user explicitly instructs implementation.' in agents
+
+          plan = (docdir / '19_Task_Implementation_Plan.md').read_text(encoding='utf-8')
+          assert 'local development uses private Docker `clamd` when Phase 6 begins' in plan
+          assert 'default future native server uses private same-server `clamd`' in plan
+          assert 'LibreOffice Headless qualification gate' in plan
+          assert 'deployment/readiness assumptions align with 20_Deployment_Architecture.md' in plan
+
+          env = (docdir / '14_Environment_Specification.md').read_text(encoding='utf-8')
+          assert 'Renderer Selection — First Candidate Locked, Qualification Pending' in env
+          assert 'default future native server uses a private same-server `clamd`' in env
+
+          testing = (docdir / '16_Testing_Specification.md').read_text(encoding='utf-8')
+          assert 'LibreOffice Headless is the locked first candidate' in testing
+          assert 'local Docker `clamd` when Phase 6 begins' in testing
+          assert 'No numeric performance/load/application-SLA target is a current MVP requirement' in testing
+
+          deploy = (docdir / '20_Deployment_Architecture.md').read_text(encoding='utf-8')
+          assert 'Current approved `01–20` documentation is synchronized to this deployment posture.' in deploy
+          assert 'one native Linux server' in deploy
+
+          print('STRICT FINAL DOCUMENTATION AUDIT PASSED')
+          print('Fixed-order docs:', len(fixed))
+          print('Status: all Approved for Implementation')
           PY
-          echo '=== TBD / PROVISIONAL / DEFERRED OCCURRENCES ==='
-          grep -RniE 'TBD|PROVISIONAL|Deferred|deferred|unresolved' project_doc/0*.md project_doc/1[0-9]_*.md project_doc/20_*.md || true
-          echo '=== STALE TEMPORAL / NEXT-DOCUMENT OCCURRENCES ==='
-          grep -RniE 'upcoming|once created|not created|next fixed-order|next document|do not create|ready to proceed to 20|reserved for `20`|before `20`|until `20` exists' project_doc AGENTS.md || true
-          echo '=== DEPLOYMENT CONFLICT CANDIDATES ==='
-          grep -RniE 'physical production topology|production topology|deployment topology|backup/restore|Disaster Recovery|RPO|RTO|application SLA|availability target|load balancer|Kubernetes|multi-server|observability' project_doc/0*.md project_doc/1[0-9]_*.md project_doc/20_*.md AGENTS.md || true
-          echo '=== RENDERER / SIGNER / CLAMAV OPEN-WORDING ==='
-          grep -RniE 'Do not choose LibreOffice|renderer.*TBD|signing.*TBD|ClamAV.*TBD|provider.*TBD|topology.*TBD|LibreOffice Headless' project_doc/0*.md project_doc/1[0-9]_*.md project_doc/20_*.md AGENTS.md || true
+          echo '=== Remaining intentional TBD/provisional references for human review ==='
+          grep -RniE 'TBD|PROVISIONAL|unresolved' project_doc/0*.md project_doc/1[0-9]_*.md project_doc/20_*.md || true
