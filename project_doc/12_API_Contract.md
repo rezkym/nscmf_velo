@@ -267,6 +267,59 @@ field omitted → leave unchanged
 field: null    → explicitly clear only if nullable/clearable
 ```
 
+### 7.4.1 Repeatable Collection Semantics — LOCKED
+
+Every repeatable business collection in a PATCH-style form payload (`references`, `service_blocks`, `sla_items`, `virtual_connections`, `priority_destinations`, `facing_challenges`, `identified_problems`, `service_impacts`, `improvement_items`, `results`) uses **whole-set replacement**, never implicit per-element merge:
+
+```text
+collection key omitted  → collection left completely unchanged
+collection key = []     → all rows of that collection deleted
+collection key = [rows] → persisted set becomes exactly those rows
+```
+
+Rules:
+
+- each row is identified by its stable natural key — `row_no` for ordered structures, `reference_type` for Activation references, `service_context` for service blocks, `impact_code` for Service Impact;
+- duplicate natural key inside one request → `422 NSCMF_VALIDATION_FAILED`;
+- natural key outside its schema range (`11` CHECK) → `422`;
+- rows absent from a supplied set are deleted, not retained;
+- `row_no` is client-supplied ordering identity, never a database `id`; database `id` is never accepted as input;
+- collection replacement happens inside the same transaction and the same single `record_version` increment as the rest of the save.
+
+Row `id` values are server-managed and MUST NOT appear in request payloads.
+
+#### 7.4.1.1 Selection vs Row collections — not-started definition
+
+Repeatable collections are of two kinds, and only one kind can contain a not-started row.
+
+**Selection collections** — `references`, `service_impacts`.
+
+The natural key **is** the business value. Presence of the key means the user selected that option, so such a row is **never** a not-started row and is **always** persisted, even when its auxiliary description field is `null`:
+
+```text
+{"reference_type":"IWO","specification":null}        → persisted
+{"impact_code":"NOC15","other_description":null}     → persisted
+```
+
+Deselecting is done by omitting the row from the supplied set, never by sending it with a `null` description. `specification`/`other_description` requiredness for `OTHER` belongs to `06`, evaluated at the applicable action stage, and never causes silent discard.
+
+**Row collections** — everything else. A row is **not-started** only when every one of its own content fields listed below is `null`/blank; such a row is discarded, MUST NOT be persisted, and never occupies a `row_no`:
+
+| Collection | Natural key | Content fields deciding "not-started" |
+|---|---|---|
+| `service_blocks` | `service_context` | `service_id`, `service_status`, `service_description`, `service_location` |
+| `sla_items` | `row_no` | `requirement_text` |
+| `virtual_connections` | `row_no` | `bandwidth_mbps` |
+| `priority_destinations` | `row_no` | `destination` |
+| `facing_challenges` | `row_no` | `challenge_text` |
+| `identified_problems` | `row_no` | `problem_text` |
+| `improvement_items` | `row_no` | `plan_text`, `target_kpi` |
+| `results` | `row_no` | `result_summary`, `performance_information`, `result_status` |
+
+The natural key itself is never a content field: a row carrying only `row_no` or only `service_context` is not-started.
+
+Discard is a persistence rule only. It MUST NOT be used to bypass a `06` completeness gate: a partially started row still persists and is still judged at `FIRST_SUBMIT`/`RESUBMIT`/`REVIEW_FORWARD`.
+
 ### 7.5 Enums
 
 Wire enum values use canonical uppercase machine values exactly as specified. Unknown enum values are rejected.
@@ -644,6 +697,8 @@ PATCH /nscmf/{record}/draft
 
 Dedicated validated nested structure maps to typed relational tables; no live JSON business blob; no blind mass assignment.
 
+The exact payload is fixed: §27 for `family=ACTIVATION`, §28 for `family=CHANGE`, under the collection semantics of §7.4.1. Implementations MUST NOT define an alternative shape.
+
 Conflict → `409 NSCMF_VERSION_CONFLICT`.
 
 ---
@@ -652,17 +707,196 @@ Conflict → `409 NSCMF_VERSION_CONFLICT`.
 
 ## 27. Activation DTO
 
-Activation transport follows `06`/`11` typed fields and exact enum values. Requiredness is action-specific; Draft may be incomplete. Repeatable source-template structures use stable `row_no` where defined.
+Activation transport follows `06`/`11` typed fields and exact enum values. Requiredness is action-specific; Draft may be incomplete. Requiredness is owned by `06`, never by this transport shape.
+
+Transport rules:
+
+- keys are exactly the `11` column names for scalar fields;
+- collections follow §7.4.1 whole-set replacement;
+- Draft `PATCH` MAY omit any key; omission is "unchanged", not "clear";
+- unknown key → `422 NSCMF_VALIDATION_FAILED`; no silent ignore, no mass assignment.
+
+### 27.1 Canonical Activation payload
+
+`PATCH /nscmf/{record}/draft` for `family=ACTIVATION`:
+
+```json
+{
+  "record_version": 8,
+  "activation": {
+    "customer_name": "PT Contoh Sejahtera",
+    "contact_name": "Contoh Kontak",
+    "installation_rfs_date": "2026-09-30",
+    "lan_ip_allocation": "10.10.0.0/24\n10.10.1.10-10.10.1.20",
+    "wan_ip": "203.0.113.8/30",
+    "gateway": "203.0.113.9",
+    "pop": "POP Jakarta",
+    "regional": "Jakarta",
+    "preferred_upstream": null,
+    "secondary_upstream": null,
+    "primary_noc_link": null,
+    "secondary_noc_link": null,
+    "downlink_router": null,
+    "bandwidth_international_mbps": 100.000,
+    "bandwidth_domestic_iix_mbps": null,
+    "bandwidth_mixed_mbps": null,
+    "domain_name_1": null,
+    "domain_name_2": null,
+    "primary_dns": null,
+    "secondary_dns": null,
+    "mx_primary": null,
+    "mx_secondary": null,
+    "hosting_platform": null,
+    "hosting_capacity_gb": null,
+    "migrate_domain": false,
+    "migrate_hosting": false,
+
+    "references": [
+      { "reference_type": "IWO", "specification": null },
+      { "reference_type": "OTHER", "specification": "Nota internal 12/2026" }
+    ],
+
+    "service_blocks": [
+      {
+        "service_context": "EXISTING",
+        "service_id": "SVC-000123",
+        "service_status": "ACTIVATED",
+        "service_description": "Dedicated internet 50 Mbps",
+        "service_location": "Jl. Contoh No. 1, Jakarta"
+      },
+      {
+        "service_context": "NEW",
+        "service_id": "SVC-000124",
+        "service_status": "ACTIVATED",
+        "service_description": "Dedicated internet 100 Mbps",
+        "service_location": "Jl. Contoh No. 1, Jakarta"
+      }
+    ],
+
+    "sla_items": [
+      { "row_no": 1, "requirement_text": "Uptime layanan sesuai kontrak" }
+    ],
+
+    "virtual_connections": [
+      { "row_no": 1, "bandwidth_mbps": 50.000 }
+    ],
+
+    "priority_destinations": [
+      { "row_no": 1, "destination": "Google Global Cache" }
+    ],
+
+    "direct_site": {
+      "local_loops": null,
+      "lastmile": null,
+      "bwa": null,
+      "antenna_tower": null,
+      "direction": null,
+      "rssi": null,
+      "latency_ms": null,
+      "packet_loss_percent": null,
+      "routers": null,
+      "ups": null,
+      "stabilizer": null,
+      "cable": null
+    },
+
+    "pop_site": {
+      "switch_distribution": null,
+      "port": null,
+      "vlan_id": null,
+      "local_loops": null,
+      "routers": null,
+      "cpe_indoor": null,
+      "cpe_outdoor": null
+    }
+  }
+}
+```
+
+### 27.2 Activation closed sets
+
+```text
+reference_type   : IWO | VELOSHIP | TICKET | OTHER
+service_context  : EXISTING | NEW
+service_status   : ACTIVATED | DEACTIVATED
+row_no           : sla_items 1..3 | virtual_connections 1..3 | priority_destinations 1..3
+```
+
+`direct_site` / `pop_site` are 1:1 objects, not collections:
+
+```text
+key omitted → unchanged
+key = null  → the whole optional site block is cleared
+key = {}    → invalid; use null to clear
+```
 
 ## 28. Change DTO
 
-Change transport follows `06`/`11`, including Service Impact multi-select and Result rows max five.
+Change transport follows `06`/`11`, including Service Impact multi-select and Result rows max five, under the same transport rules as §27.
 
-Canonical values include:
+### 28.1 Canonical Change payload
+
+`PATCH /nscmf/{record}/draft` for `family=CHANGE`:
+
+```json
+{
+  "record_version": 8,
+  "change": {
+    "maintenance_purpose": "Penggantian modul optik pada core router.",
+    "target_execution_date": "2026-09-20",
+    "monitoring_period_value": 3.000,
+    "monitoring_period_unit": "DAY",
+    "rollback_scenario": "Kembalikan modul lama dan pulihkan konfigurasi tersimpan.",
+    "announcement_timing": "ONE_WEEK_BEFORE",
+
+    "facing_challenges": [
+      { "row_no": 1, "challenge_text": "Jendela pemeliharaan terbatas." }
+    ],
+
+    "identified_problems": [
+      { "row_no": 1, "problem_text": "Error rate meningkat pada uplink utama." }
+    ],
+
+    "service_impacts": [
+      { "impact_code": "NOC15", "other_description": null },
+      { "impact_code": "OTHER", "other_description": "Pelanggan enterprise wilayah timur" }
+    ],
+
+    "improvement_items": [
+      {
+        "row_no": 1,
+        "plan_text": "Ganti modul optik dan pantau error rate.",
+        "target_kpi": "Error rate 0 selama periode monitoring."
+      }
+    ],
+
+    "results": [
+      {
+        "row_no": 1,
+        "result_summary": "Modul terpasang, layanan pulih.",
+        "performance_information": "Error rate 0 selama 72 jam.",
+        "result_status": "SUCCESS"
+      }
+    ]
+  }
+}
+```
+
+### 28.2 Change closed sets
 
 ```text
-impact_code: NOC15 | NOC23 | NOC361 | REGIONAL | POP | CUSTOMER | OTHER
+impact_code             : NOC15 | NOC23 | NOC361 | REGIONAL | POP | CUSTOMER | OTHER
+announcement_timing     : ONE_WEEK_BEFORE | TWO_WEEKS_BEFORE | TWO_DAYS_BEFORE_EMERGENCY
+monitoring_period_unit  : MINUTE | HOUR | DAY | WEEK
+row_no                  : facing_challenges 1..3 | identified_problems 1..3
+                          improvement_items 1..3 | results 1..5
 ```
+
+`monitoring_period_value` is numeric `>0` when supplied; unit and value are supplied together or both `null`.
+
+`result_status` is free text max 255 per `06` §48. It is **not** an enum and MUST NOT be narrowed into one.
+
+`results` is accepted inside the Draft payload only while the record is in `DRAFT`/`REVISION_REQUIRED`. In `PENDING_REVIEW` it is accepted **only** through §29 and a `results` key sent to `PATCH /nscmf/{record}/draft` in that state is rejected, not silently dropped.
 
 ## 29. Narrow Change Result Update
 
@@ -679,7 +913,25 @@ actor owns record
 actor has nscmf.change.result.edit
 ```
 
-Accepts Result fields only. Successful mutation Business Audits changes and increments parent version.
+Request — the only accepted keys:
+
+```json
+{
+  "record_version": 9,
+  "results": [
+    {
+      "row_no": 1,
+      "result_summary": "Modul terpasang, layanan pulih.",
+      "performance_information": "Error rate 0 selama 72 jam.",
+      "result_status": "SUCCESS"
+    }
+  ]
+}
+```
+
+`results` follows §7.4.1 whole-set replacement over `row_no` `1..5`.
+
+Any other key — including any planning, header, Service Impact, attachment, or workflow field — is rejected with `422`, never ignored. Successful mutation Business Audits changes and increments parent version.
 
 ---
 
@@ -1819,6 +2071,23 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 - [ ] reasons/sign-offs/iterations correct;
 - [ ] Result endpoint narrow.
 
+## 129.1 Form Payload Contract
+
+- [ ] omitted scalar key leaves stored value unchanged; explicit `null` clears a nullable field;
+- [ ] omitted collection key leaves the collection unchanged;
+- [ ] `[]` deletes every row of that collection;
+- [ ] supplied collection becomes the exact persisted set; absent rows are deleted;
+- [ ] duplicate natural key (`row_no`, `reference_type`, `service_context`, `impact_code`) → 422;
+- [ ] `row_no` outside its schema range → 422;
+- [ ] row collection: a row carrying only its natural key is discarded and occupies no `row_no`;
+- [ ] selection collection: `{"reference_type":"IWO","specification":null}` and `{"impact_code":"NOC15","other_description":null}` are persisted, never discarded;
+- [ ] deselection happens only by omitting the row from the supplied set;
+- [ ] discard never bypasses a `06` completeness gate at Submit/Resubmit/Forward;
+- [ ] database row `id` in the request → 422;
+- [ ] unknown payload key → 422, never silently ignored;
+- [ ] whole save, including collection replacement, is one transaction and one `record_version` increment;
+- [ ] `results` inside the Draft payload while `PENDING_REVIEW` → 422.
+
 ## 130. Attachments
 
 - [ ] 5 MiB geometry / 24h inactivity;
@@ -1877,6 +2146,9 @@ public validator maximum upload = 20 MB
 canonical application timezone = Asia/Jakarta
 initial production storage backend class = persistent Laravel local private storage
 Technical Log cleanup policy/default = Protected-Superadmin setting, ON + 30 DAY by default
+Activation/Change form payload structure = fixed by §27 / §28
+repeatable collection update behavior = whole-set replacement per §7.4.1
+monitoring period unit = MINUTE | HOUR | DAY | WEEK
 ```
 
 Implementation MUST NOT silently turn remaining TBDs into product facts.
@@ -1910,7 +2182,10 @@ Implementation MUST NOT silently turn remaining TBDs into product facts.
 21. create generic arbitrary system-settings API;
 22. let non-Protected-Superadmin mutate protected Core Settings;
 23. treat re-auth proof as permanent or omit its 15-minute expiry;
-24. expose S3/object-storage concepts through current HTTP contract as if they are required.
+24. expose S3/object-storage concepts through current HTTP contract as if they are required;
+25. invent an alternative Activation/Change payload shape instead of §27/§28;
+26. merge repeatable collections element-by-element instead of §7.4.1 whole-set replacement;
+27. accept database row `id` as form input, or silently ignore unknown payload keys.
 
 ---
 

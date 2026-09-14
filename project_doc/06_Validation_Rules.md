@@ -211,9 +211,12 @@ Single-select: exactly one valid option when required.
 
 Multi-select:
 
-- duplicates normalized;
+- a duplicate option inside one submitted payload is an **Error**, rejected, not silently normalized;
 - unknown option rejected;
-- minimum selection follows field rule.
+- minimum selection follows field rule;
+- selection is expressed by presence in the submitted set; deselection is expressed by absence, never by blanking a dependent description field.
+
+Transport-level duplicate handling is owned by `12` §7.4.1.
 
 ---
 
@@ -332,7 +335,9 @@ Ticket
 Other
 ```
 
-Multi-select Optional. If `Other`, specification Required max 255. Duplicate option normalized.
+Multi-select Optional. If `Other`, specification Required max 255. Duplicate option rejected per §14.
+
+A selected reference without specification remains a valid persisted selection; only `Other` requires specification at the applicable action stage.
 
 ## 25. Customer / Contact
 
@@ -496,7 +501,9 @@ Customer
 Other
 ```
 
-Required First Submit/Resubmit, min1, multiple allowed, unknown rejected, duplicate normalized, Other → description Required max500.
+Required First Submit/Resubmit, min1, multiple allowed, unknown rejected, duplicate rejected per §14, Other → description Required max500.
+
+A selected impact without description remains a valid persisted selection; only `OTHER` requires description.
 
 These are **form impact values**, not Team authorization values.
 
@@ -522,7 +529,16 @@ Revision/Reopen: unchanged previously accepted past target MAY remain. If change
 
 ## 41. Monitoring Period
 
-Required. Amount `>0`; unit recommended minute/hour/day/week. Structured duration allowed downstream.
+Required. Amount `>0`. Unit is a closed set, canonical wire values:
+
+```text
+MINUTE
+HOUR
+DAY
+WEEK
+```
+
+Amount and unit are supplied together or both empty. Unknown unit rejected. Transport shape is owned by `12` §28.
 
 ## 42. Rollback Scenario
 
@@ -940,6 +956,8 @@ Implementation MUST NOT:
 - [ ] backend validates workflow-changing actions.
 - [ ] errors/warnings distinguishable.
 - [ ] unknown enums rejected.
+- [ ] duplicate multi-select option rejected, not silently normalized.
+- [ ] a valid selection without its optional description stays selected.
 - [ ] Team membership does not change field validation or Review/Approval action validation.
 
 ## 76. Numbering
