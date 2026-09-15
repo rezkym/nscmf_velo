@@ -32,8 +32,29 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            'serve' => false,
             'throw' => false,
+            'report' => false,
+        ],
+
+        // Durable private NSCMF binaries: upload chunks, assembly, attachments, exports, templates.
+        // Production roots must be persistent/non-ephemeral (14_Environment_Specification.md §49-§51).
+        'nscmf_private' => [
+            'driver' => 'local',
+            'root' => env('NSCMF_PRIVATE_STORAGE_ROOT') ?: storage_path('app/private/nscmf'),
+            'visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
+        // Short-lived private workspace (validator uploads, renderer scratch); may be ephemeral (§52).
+        'nscmf_runtime_tmp' => [
+            'driver' => 'local',
+            'root' => env('NSCMF_RUNTIME_TMP_ROOT') ?: storage_path('app/private/nscmf-runtime-tmp'),
+            'visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
             'report' => false,
         ],
 
