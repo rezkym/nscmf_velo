@@ -1,0 +1,162 @@
+name: CI
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ci-${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+# Required gates fail the run. No continue-on-error and no retry-as-pass
+# (16_Testing_Specification.md §83, §94). CI never receives production secrets.
+jobs:
+    backend:
+        name: Backend (Pint, PHPStan, Pest + coverage on MySQL 8.4)
+        runs-on: ubuntu-latest
+        services:
+            mysql:
+                image: mysql:8.4
+                env:
+                    MYSQL_DATABASE: nscmf_testing
+                    MYSQL_USER: nscmf
+                    MYSQL_PASSWORD: ci-disposable-password
+                    MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+                ports:
+                    - 3306:3306
+                options: >-
+                    --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=30
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+
+            - name: Set up PHP 8.5
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.5'
+                  extensions: mbstring, pdo_mysql, intl, zip, fileinfo, dom, curl
+                  coverage: pcov
+                  tools: composer:v2
+
+            - name: Install Composer dependencies
+              run: composer install --no-interaction --prefer-dist --no-progress
+
+            - name: Prepare environment
+              run: |
+                  cp .env.example .env
+                  sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-disposable-password/' .env
+                  php artisan key:generate --ansi
+
+            - name: Pint
+              run: vendor/bin/pint --test
+
+            - name: PHPStan / Larastan (level max)
+              run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+
+            - name: Pest with coverage (minimum 80%)
+              run: vendor/bin/pest --coverage --min=80
+
+    frontend:
+        name: Frontend (ESLint, Prettier, vue-tsc, Vitest + coverage, build)
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+
+            - name: Set up Node.js 24
+              uses: actions/setup-node@v7
+              with:
+                  node-version: '24'
+                  cache: npm
+
+            - name: Install npm dependencies
+              run: npm ci
+
+            - name: ESLint
+              run: npm run lint
+
+            - name: Prettier
+              run: npm run format:check
+
+            - name: vue-tsc (strict)
+              run: npm run typecheck
+
+            - name: Vitest with coverage (minimum 80% lines)
+              run: npm run test:coverage
+
+            - name: Build
+              run: npm run build
+
+    browser:
+        name: Browser (Playwright Chromium critical journeys)
+        runs-on: ubuntu-latest
+        services:
+            mysql:
+                image: mysql:8.4
+                env:
+                    MYSQL_DATABASE: nscmf
+                    MYSQL_USER: nscmf
+                    MYSQL_PASSWORD: ci-disposable-password
+                    MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+                ports:
+                    - 3306:3306
+                options: >-
+                    --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+                    --health-interval=5s
+                    --health-timeout=5s
+                    --health-retries=30
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+
+            - name: Set up PHP 8.5
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.5'
+                  extensions: mbstring, pdo_mysql, intl, zip, fileinfo, dom, curl
+                  coverage: none
+                  tools: composer:v2
+
+            - name: Set up Node.js 24
+              uses: actions/setup-node@v7
+              with:
+                  node-version: '24'
+                  cache: npm
+
+            - name: Install dependencies
+              run: |
+                  composer install --no-interaction --prefer-dist --no-progress
+                  npm ci
+
+            - name: Prepare environment and database
+              run: |
+                  cp .env.example .env
+                  sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-disposable-password/' .env
+                  php artisan key:generate --ansi
+                  php artisan migrate --force
+
+            - name: Build frontend
+              run: npm run build
+
+            - name: Install Playwright Chromium
+              run: npx playwright install --with-deps chromium
+
+            - name: Playwright
+              run: npm run test:e2e
+
+            - name: Upload Playwright diagnostics
+              if: failure()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: playwright-diagnostics
+                  path: |
+                      playwright-report/
+                      test-results/
+                  retention-days: 7
