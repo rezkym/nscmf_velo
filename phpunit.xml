@@ -33,6 +33,8 @@
         <env name="DB_DATABASE" value="nscmf_testing"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
+        <env name="NSCMF_PRIVATE_STORAGE_ROOT" value=""/>
+        <env name="NSCMF_RUNTIME_TMP_ROOT" value=""/>
         <env name="QUEUE_CONNECTION" value="database"/>
         <env name="SESSION_DRIVER" value="database"/>
         <env name="PULSE_ENABLED" value="false"/>
