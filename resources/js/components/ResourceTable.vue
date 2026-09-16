@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface ColumnDef<T = unknown> {
     key: string;
     label: string;
     sortable?: boolean;
     class?: string;
+    itemType?: T;
 }
 
 export interface TableQuery {
