@@ -31,6 +31,35 @@ const emit = defineEmits<{
 const reason = ref('');
 const validationError = ref<string | null>(null);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const panelRef = ref<HTMLElement | null>(null);
+
+const FOCUSABLE_SELECTOR =
+    'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function getFocusableElements(): HTMLElement[] {
+    if (!panelRef.value) return [];
+    return Array.from(panelRef.value.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+}
+
+function trapFocus(event: KeyboardEvent): void {
+    const focusable = getFocusableElements();
+    if (focusable.length === 0) return;
+
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
+
+    if (event.shiftKey) {
+        if (document.activeElement === first || !panelRef.value?.contains(document.activeElement)) {
+            event.preventDefault();
+            last.focus();
+        }
+    } else {
+        if (document.activeElement === last || !panelRef.value?.contains(document.activeElement)) {
+            event.preventDefault();
+            first.focus();
+        }
+    }
+}
 
 function validate(): boolean {
     const trimmed = reason.value.trim();
@@ -82,6 +111,11 @@ function handleKeydown(event: KeyboardEvent): void {
         if (!props.pending) {
             handleCancel();
         }
+        return;
+    }
+
+    if (event.key === 'Tab') {
+        trapFocus(event);
     }
 }
 
@@ -117,7 +151,10 @@ onUnmounted(() => {
         aria-modal="true"
         aria-labelledby="action-dialog-title"
     >
-        <div class="w-full max-w-lg rounded-lg bg-background p-6 shadow-lg border border-border space-y-4">
+        <div
+            ref="panelRef"
+            class="w-full max-w-lg rounded-lg bg-background p-6 shadow-lg border border-border space-y-4"
+        >
             <div class="space-y-1">
                 <h2 id="action-dialog-title" class="text-lg font-semibold text-foreground">
                     {{ title }}

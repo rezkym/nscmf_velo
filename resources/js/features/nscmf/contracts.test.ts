@@ -24,6 +24,11 @@ describe('FE-01: Typed contracts and transport boundaries', () => {
             const parsed = parseChangeResult(raw);
             expect(parsed.result_status).toBe('Dalam investigasi vendor pihak ketiga');
         });
+
+        it('rejects a missing or non-numeric row_no instead of silently defaulting to 1 (natural-key safety)', () => {
+            expect(() => parseChangeResult({ result_status: 'No row_no supplied' })).toThrow();
+            expect(() => parseChangeResult({ row_no: '2', result_status: 'String row_no' })).toThrow();
+        });
     });
 
     describe('AC2: contracts_keep_date_only_without_timezone_shift', () => {
@@ -78,6 +83,20 @@ describe('FE-01: Typed contracts and transport boundaries', () => {
             expect(parsedError.context).toBeDefined();
             expect(parsedError.context?.latest_record_version).toBe(14);
             expect(parsedError.context?.current_business_status).toBe('PENDING_REVIEW');
+        });
+
+        it('does not let an untyped context field bypass validation of latest_record_version', () => {
+            const malformedPayload = {
+                code: 'NSCMF_VERSION_CONFLICT',
+                message: 'A newer version of this record exists.',
+                context: {
+                    latest_record_version: '14', // wrong type: string instead of number
+                },
+            };
+
+            const parsedError = parseApiErrorEnvelope(malformedPayload);
+
+            expect(parsedError.context?.latest_record_version).toBeUndefined();
         });
     });
 });

@@ -88,8 +88,8 @@ const navItems = computed(() => {
                 'roles.view',
                 'teams.view',
                 'system.settings.manage',
-                'audits.access.view',
-                'audits.security.view',
+                'audit.access.view',
+                'audit.security.view',
             ]),
         },
     ];

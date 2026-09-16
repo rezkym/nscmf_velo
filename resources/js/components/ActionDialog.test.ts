@@ -139,4 +139,42 @@ describe('ActionDialog (FE-04)', () => {
         wrapper.unmount();
         document.body.removeChild(trigger);
     });
+
+    it('traps Tab focus inside the dialog per microtask_fe/FE-04.md ("trap fokus")', () => {
+        const wrapper = mount(ActionDialog, {
+            attachTo: document.body,
+            props: {
+                open: true,
+                title: 'Reject Request',
+                requestNo: 'REQ-2026-001',
+                reasonRequired: true,
+            },
+        });
+
+        const textarea = wrapper.find('textarea').element as HTMLTextAreaElement;
+        const confirmBtn = wrapper.find('[data-test="confirm-button"]').element as HTMLButtonElement;
+
+        // Tab forward from the last focusable element wraps back to the first
+        confirmBtn.focus();
+        expect(document.activeElement).toBe(confirmBtn);
+        const forwardEvent = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+        window.dispatchEvent(forwardEvent);
+        expect(document.activeElement).toBe(textarea);
+        expect(forwardEvent.defaultPrevented).toBe(true);
+
+        // Shift+Tab from the first focusable element wraps to the last
+        textarea.focus();
+        expect(document.activeElement).toBe(textarea);
+        const backwardEvent = new KeyboardEvent('keydown', {
+            key: 'Tab',
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true,
+        });
+        window.dispatchEvent(backwardEvent);
+        expect(document.activeElement).toBe(confirmBtn);
+        expect(backwardEvent.defaultPrevented).toBe(true);
+
+        wrapper.unmount();
+    });
 });

@@ -28,10 +28,39 @@ const emit = defineEmits<{
 }>();
 
 const passwordInputRef = ref<HTMLInputElement | null>(null);
+const panelRef = ref<HTMLElement | null>(null);
 
 const form = useForm({
     current_password: '',
 });
+
+const FOCUSABLE_SELECTOR =
+    'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function getFocusableElements(): HTMLElement[] {
+    if (!panelRef.value) return [];
+    return Array.from(panelRef.value.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+}
+
+function trapFocus(event: KeyboardEvent): void {
+    const focusable = getFocusableElements();
+    if (focusable.length === 0) return;
+
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
+
+    if (event.shiftKey) {
+        if (document.activeElement === first || !panelRef.value?.contains(document.activeElement)) {
+            event.preventDefault();
+            last.focus();
+        }
+    } else {
+        if (document.activeElement === last || !panelRef.value?.contains(document.activeElement)) {
+            event.preventDefault();
+            first.focus();
+        }
+    }
+}
 
 const displayError = computed(() => {
     // Form validation errors or server-driven error message
@@ -82,6 +111,10 @@ function handleKeydown(event: KeyboardEvent): void {
     if (!props.open) return;
     if (event.key === 'Escape') {
         handleCancel();
+        return;
+    }
+    if (event.key === 'Tab') {
+        trapFocus(event);
     }
 }
 
@@ -120,6 +153,7 @@ onBeforeUnmount(() => {
         aria-describedby="reauth-dialog-desc"
     >
         <div
+            ref="panelRef"
             class="relative w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-lg space-y-6 text-foreground animate-in fade-in zoom-in-95 duration-150"
         >
             <!-- Header & Context -->
@@ -137,7 +171,7 @@ onBeforeUnmount(() => {
 
             <!-- Intent re-confirmation card -->
             <div class="rounded-lg bg-muted/50 border border-border p-3.5 flex items-start gap-3 text-xs">
-                <ShieldAlert class="w-4 h-4 text-warning shrink-0 mt-0.5" aria-hidden="true" />
+                <ShieldAlert class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
                 <div class="space-y-1">
                     <p class="font-semibold text-foreground">Security Confirmation</p>
                     <p class="text-muted-foreground">
@@ -165,7 +199,7 @@ onBeforeUnmount(() => {
                     label="Current Password"
                     required
                     :disabled="form.processing"
-                    helper-text="Enter your existing account password to confirm"
+                    help="Enter your existing account password to confirm"
                 >
                     <template #default="{ id: fieldId, describedBy, disabled }">
                         <div class="relative">

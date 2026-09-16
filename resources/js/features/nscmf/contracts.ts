@@ -26,8 +26,12 @@ export function parseChangeResult(input: unknown): ChangeResultWire {
 
     const raw = input as Record<string, unknown>;
 
+    if (typeof raw.row_no !== 'number') {
+        throw new Error(`Invalid ChangeResult payload: row_no must be a number, received ${String(raw.row_no)}.`);
+    }
+
     return {
-        row_no: typeof raw.row_no === 'number' ? raw.row_no : 1,
+        row_no: raw.row_no,
         result_summary: typeof raw.result_summary === 'string' ? raw.result_summary : null,
         performance_information: typeof raw.performance_information === 'string' ? raw.performance_information : null,
         result_status: typeof raw.result_status === 'string' ? raw.result_status : null,
@@ -87,11 +91,11 @@ export function parseApiErrorEnvelope(input: unknown): ApiErrorEnvelope {
     if (raw.context && typeof raw.context === 'object') {
         const rawContext = raw.context as Record<string, unknown>;
         context = {
+            ...rawContext,
             latest_record_version:
                 typeof rawContext.latest_record_version === 'number' ? rawContext.latest_record_version : undefined,
             current_business_status:
                 typeof rawContext.current_business_status === 'string' ? rawContext.current_business_status : undefined,
-            ...rawContext,
         };
     }
 

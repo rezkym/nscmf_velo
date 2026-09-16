@@ -218,6 +218,16 @@ describe('ReauthenticationDialog.vue (FE-10)', () => {
         expect(currentForm.reset).toHaveBeenCalledWith('current_password');
     });
 
+    it('renders the password field helper text', () => {
+        const wrapper = mount(ReauthenticationDialog, {
+            props: {
+                open: true,
+            },
+        });
+
+        expect(wrapper.text()).toContain('Enter your existing account password to confirm');
+    });
+
     it('submit guard rejects while processing', async () => {
         const wrapper = mount(ReauthenticationDialog, {
             props: {
@@ -243,5 +253,43 @@ describe('ReauthenticationDialog.vue (FE-10)', () => {
         await cancelBtn.trigger('click');
 
         expect(wrapper.emitted('cancel')).toBeFalsy();
+    });
+
+    it('traps Tab focus inside the dialog per microtask_fe/FE-04.md ("trap fokus")', async () => {
+        const wrapper = mount(ReauthenticationDialog, {
+            attachTo: document.body,
+            props: {
+                open: true,
+            },
+        });
+
+        // Confirm button is disabled (and thus not focusable/tabbable) until a password is entered.
+        await wrapper.find('input[type="password"]').setValue('EnteredPassword');
+
+        const passwordInput = wrapper.find('input[type="password"]').element as HTMLInputElement;
+        const confirmBtn = wrapper.find('[data-test="confirm-button"]').element as HTMLButtonElement;
+
+        // Tab forward from the last focusable element wraps back to the first
+        confirmBtn.focus();
+        expect(document.activeElement).toBe(confirmBtn);
+        const forwardEvent = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+        window.dispatchEvent(forwardEvent);
+        expect(document.activeElement).toBe(passwordInput);
+        expect(forwardEvent.defaultPrevented).toBe(true);
+
+        // Shift+Tab from the first focusable element wraps to the last
+        passwordInput.focus();
+        expect(document.activeElement).toBe(passwordInput);
+        const backwardEvent = new KeyboardEvent('keydown', {
+            key: 'Tab',
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true,
+        });
+        window.dispatchEvent(backwardEvent);
+        expect(document.activeElement).toBe(confirmBtn);
+        expect(backwardEvent.defaultPrevented).toBe(true);
+
+        wrapper.unmount();
     });
 });

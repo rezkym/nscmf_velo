@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-export interface ColumnDef<T = unknown> {
+export interface ColumnDef {
     key: string;
     label: string;
     sortable?: boolean;
     class?: string;
-    itemType?: T;
 }
 
 export interface TableQuery {
@@ -36,7 +35,6 @@ export interface ResourceTableProps<T = Record<string, unknown>> {
     meta?: TablePaginationMeta | null;
     sortWhitelist?: string[];
     emptyText?: string;
-    errorText?: string;
     caption?: string;
     requestId?: number | string;
 }
@@ -49,7 +47,6 @@ const props = withDefaults(defineProps<ResourceTableProps>(), {
     meta: null,
     sortWhitelist: () => [],
     emptyText: 'Tidak ada data',
-    errorText: 'Terjadi kesalahan memuat data',
     caption: 'Data Table',
     requestId: undefined,
 });
@@ -100,15 +97,6 @@ const searchInput = computed({
         });
     },
 });
-
-function onSearchInput(event: Event) {
-    const target = event.target as HTMLInputElement;
-    emit('update:query', {
-        ...props.query,
-        q: target.value,
-        page: 1,
-    });
-}
 
 // Per-page change handling (AC2)
 function onPerPageChange(perPageVal: number | string) {
@@ -188,22 +176,21 @@ defineExpose({
                 <label for="table-search" class="sr-only">Cari</label>
                 <input
                     id="table-search"
-                    :value="searchInput"
+                    v-model="searchInput"
                     type="search"
                     data-testid="table-search-input"
                     placeholder="Cari..."
-                    class="rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                    @input="onSearchInput"
+                    class="rounded border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                 />
             </div>
 
             <div class="flex items-center gap-2">
-                <label for="table-per-page" class="text-sm text-gray-600">Per halaman:</label>
+                <label for="table-per-page" class="text-sm text-muted-foreground">Per halaman:</label>
                 <select
                     id="table-per-page"
                     data-testid="table-per-page-select"
                     :value="query?.per_page ?? 25"
-                    class="rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                    class="rounded border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                     @change="onPerPageChange(($event.target as HTMLSelectElement).value)"
                 >
                     <option :value="10">10</option>
@@ -219,7 +206,7 @@ defineExpose({
             v-if="loading"
             data-testid="table-loading-state"
             aria-busy="true"
-            class="rounded bg-blue-50 p-3 text-sm text-blue-700"
+            class="rounded bg-accent p-3 text-sm text-accent-foreground"
         >
             Memuat data...
         </div>
@@ -229,25 +216,20 @@ defineExpose({
             v-if="error"
             data-testid="table-error-state"
             role="alert"
-            class="rounded bg-red-50 p-4 text-sm text-red-700"
+            class="rounded bg-destructive/10 p-4 text-sm text-destructive"
         >
-            {{ error || errorText }}
-        </div>
-
-        <!-- Loading state overlay/row -->
-        <div v-if="loading" data-testid="table-loading-state" class="py-4 text-center text-sm text-gray-500">
-            Memuat data...
+            {{ error }}
         </div>
 
         <!-- Table View -->
         <div data-testid="table-scroll-container" class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
+            <table class="min-w-full divide-y divide-border text-left text-sm">
                 <caption class="sr-only">
                     {{
                         caption
                     }}
                 </caption>
-                <thead class="bg-gray-50 text-xs uppercase text-gray-700">
+                <thead class="bg-muted text-xs uppercase text-muted-foreground">
                     <tr>
                         <th
                             v-for="col in columns"
@@ -260,7 +242,7 @@ defineExpose({
                                 v-if="col.sortable"
                                 type="button"
                                 :data-testid="`sort-button-${col.key}`"
-                                class="flex items-center gap-1 font-semibold hover:text-blue-600 focus:outline-none"
+                                class="flex items-center gap-1 font-semibold hover:text-primary focus:outline-none"
                                 @click="onSortChange(col.key)"
                             >
                                 {{ col.label }}
@@ -273,11 +255,11 @@ defineExpose({
                         <th v-if="$slots.actions" class="px-4 py-3 text-right">Aksi</th>
                     </tr>
                 </thead>
-                <tbody v-if="!error && currentItems.length > 0" class="divide-y divide-gray-200 bg-white">
+                <tbody v-if="!error && currentItems.length > 0" class="divide-y divide-border bg-card">
                     <tr
                         v-for="(item, idx) in currentItems"
                         :key="typeof item.id === 'string' || typeof item.id === 'number' ? item.id : idx"
-                        class="hover:bg-gray-50"
+                        class="hover:bg-muted/50"
                     >
                         <td v-for="col in columns" :key="col.key" class="px-4 py-3">
                             <slot :name="`cell-${col.key}`" :item="item" :value="item[col.key]">
@@ -296,14 +278,14 @@ defineExpose({
         <div
             v-if="!error && currentItems.length === 0"
             data-testid="table-empty-state"
-            class="py-8 text-center text-sm text-gray-500"
+            class="py-8 text-center text-sm text-muted-foreground"
         >
             {{ emptyText }}
         </div>
 
         <!-- Pagination Bar -->
-        <div class="flex items-center justify-between border-t border-gray-200 pt-3">
-            <div class="text-sm text-gray-500">
+        <div class="flex items-center justify-between border-t border-border pt-3">
+            <div class="text-sm text-muted-foreground">
                 Halaman {{ meta?.current_page ?? query?.page ?? 1 }} dari {{ meta?.last_page ?? 1 }} (Total:
                 {{ meta?.total ?? 0 }})
             </div>
@@ -312,7 +294,7 @@ defineExpose({
                     type="button"
                     data-testid="pagination-prev"
                     :disabled="isPrevDisabled"
-                    class="rounded border border-gray-300 px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                    class="rounded border border-input px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                     @click="onPageChange((meta?.current_page ?? query?.page ?? 1) - 1)"
                 >
                     Sebelumnya
@@ -321,7 +303,7 @@ defineExpose({
                     type="button"
                     data-testid="pagination-next"
                     :disabled="isNextDisabled"
-                    class="rounded border border-gray-300 px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                    class="rounded border border-input px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                     @click="onPageChange((meta?.current_page ?? query?.page ?? 1) + 1)"
                 >
                     Berikutnya

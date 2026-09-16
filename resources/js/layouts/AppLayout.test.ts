@@ -162,6 +162,32 @@ describe('AppLayout.vue', () => {
         expect(navHrefs).not.toContain('/administration');
     });
 
+    // Regression: Administration nav must key off the real audit.* permission strings from 04_RBAC_Permission_Matrix.md
+    it('shows Administration navigation when the user holds an audit permission', () => {
+        mockPageProps.value = {
+            auth: {
+                user: {
+                    id: 6,
+                    username: 'audit.viewer',
+                    name: 'Audit Viewer',
+                    team_id: 1,
+                    team: { id: 1, name: 'Team Alpha' },
+                    must_change_password: false,
+                },
+                roles: ['Auditor'],
+                permissions: ['audit.access.view'],
+            },
+        };
+
+        const wrapper = mount(AppLayout, {
+            props: { title: 'Administration' },
+        });
+
+        const navLinks = wrapper.findAllComponents(Link);
+        const navHrefs = navLinks.map((link) => link.props('href'));
+        expect(navHrefs).toContain('/administration');
+    });
+
     // AC4: shell_is_keyboard_operable
     // skip link, toggle aria-expanded, focus menu mobile dan title bekerja
     it('AC4: shell_is_keyboard_operable — provides skip link, accessible landmarks, and keyboard operable sidebar toggle', async () => {

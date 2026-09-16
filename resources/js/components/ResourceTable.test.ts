@@ -2,14 +2,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import ResourceTable, { type ColumnDef, type TablePaginationMeta, type TableQuery } from './ResourceTable.vue';
 
-interface TestItem {
-    id: number;
-    request_no: string;
-    title: string;
-    status: string;
-}
-
-const sampleColumns: ColumnDef<TestItem>[] = [
+const sampleColumns: ColumnDef[] = [
     { key: 'request_no', label: 'Nomor Permintaan', sortable: true },
     { key: 'title', label: 'Judul', sortable: true },
     { key: 'status', label: 'Status', sortable: false },
