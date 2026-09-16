@@ -45,31 +45,17 @@ const describedBy = computed(() => {
                 class="text-sm font-medium leading-none text-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70 select-none"
             >
                 {{ label }}
-                <span
-                    v-if="required"
-                    data-required
-                    class="text-destructive font-bold ml-0.5"
-                    aria-hidden="true"
+                <span v-if="required" data-required class="text-destructive font-bold ml-0.5" aria-hidden="true"
                     >*</span
                 >
             </label>
         </div>
 
         <div class="relative">
-            <slot
-                :id="id"
-                :described-by="describedBy"
-                :disabled="disabled"
-                :readonly="readonly"
-                :has-error="!!error"
-            />
+            <slot :id="id" :described-by="describedBy" :disabled="disabled" :readonly="readonly" :has-error="!!error" />
         </div>
 
-        <p
-            v-if="help && !error"
-            :id="helpId"
-            class="text-xs text-muted-foreground leading-relaxed"
-        >
+        <p v-if="help && !error" :id="helpId" class="text-xs text-muted-foreground leading-relaxed">
             {{ help }}
         </p>
 
