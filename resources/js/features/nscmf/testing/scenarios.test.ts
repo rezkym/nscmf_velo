@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { CANONICAL_BUSINESS_STATUSES } from '../contracts';
 import {
-    CANONICAL_BUSINESS_STATUSES,
     DEMO_IDENTITIES,
     DEMO_TEAMS,
     FIXED_TEST_CLOCK,
     getDemoIdentity,
     getScenarioByRequestNo,
     getScenarios,
-    type NscmfScenarioRecord,
 } from './scenarios';
 
 describe('FE-02: Fixture deterministik dan katalog skenario UI', () => {
