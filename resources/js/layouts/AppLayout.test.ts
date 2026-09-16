@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { mount } from '@vue/test-utils';
-import { defineComponent, ref } from 'vue';
+import { ref } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
 
 import AppLayout from './AppLayout.vue';
@@ -61,7 +61,7 @@ vi.mock('@inertiajs/vue3', async () => {
 describe('AppLayout.vue', () => {
     // AC1: shell_uses_permissions_not_roles_or_team
     // role name bukan gate; Reviewer TeamGamma melihat Review untuk TeamAlpha bila permissions ada
-    it('AC1: shell_uses_permissions_not_roles_or_team — shows Review navigation based solely on permissions even if role is not Reviewer or team is TeamGamma', async () => {
+    it('AC1: shell_uses_permissions_not_roles_or_team — shows Review navigation based solely on permissions even if role is not Reviewer or team is TeamGamma', () => {
         mockPageProps.value = {
             auth: {
                 user: {
@@ -95,7 +95,7 @@ describe('AppLayout.vue', () => {
 
     // AC2: shell_combines_multi_role_permissions
     // Review dan Approval tampil bersama tanpa all-powerful bypass
-    it('AC2: shell_combines_multi_role_permissions — displays Review and Approval simultaneously when user has both permissions without requiring Superadmin bypass', async () => {
+    it('AC2: shell_combines_multi_role_permissions — displays Review and Approval simultaneously when user has both permissions without requiring Superadmin bypass', () => {
         mockPageProps.value = {
             auth: {
                 user: {
@@ -130,7 +130,7 @@ describe('AppLayout.vue', () => {
 
     // AC3: shell_hides_unavailable_navigation
     // revoked permissions memperbarui nav; bukan sekadar cache login awal
-    it('AC3: shell_hides_unavailable_navigation — hides navigation items when permissions are absent or revoked', async () => {
+    it('AC3: shell_hides_unavailable_navigation — hides navigation items when permissions are absent or revoked', () => {
         // User with no create, review, approval, or admin permissions
         mockPageProps.value = {
             auth: {
@@ -216,7 +216,7 @@ describe('AppLayout.vue', () => {
     });
 
     // Detail requirement: Setup/temp-password gate does not show normal shell
-    it('guards against displaying normal shell when user must change password', async () => {
+    it('guards against displaying normal shell when user must change password', () => {
         mockPageProps.value = {
             auth: {
                 user: {
