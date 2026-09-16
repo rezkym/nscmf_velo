@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils';
+import { reactive } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Login from './Login.vue';
@@ -27,13 +28,13 @@ vi.mock('@inertiajs/vue3', async () => {
             setup: () => () => null,
         }),
         useForm: vi.fn((initialData: { username?: string; password?: string }) => {
-            currentForm = {
+            currentForm = reactive({
                 username: initialData.username || '',
                 password: initialData.password || '',
                 processing: false,
                 errors: {},
                 hasErrors: false,
-                post: vi.fn((_url: string, _options?: Record<string, unknown>) => {}),
+                post: vi.fn(),
                 reset: vi.fn((...fields: string[]) => {
                     if (fields.length === 0 || fields.includes('password')) {
                         currentForm.password = '';
@@ -43,7 +44,7 @@ vi.mock('@inertiajs/vue3', async () => {
                     }
                 }),
                 clearErrors: vi.fn(),
-            };
+            });
             return currentForm;
         }),
     };
@@ -102,9 +103,7 @@ describe('Login.vue', () => {
         const wrapper = mount(Login);
 
         // Simulate server error return via form errors or error prop
-        currentForm.errors = {
-            username: 'These credentials do not match our records.',
-        };
+        currentForm.errors.username = 'These credentials do not match our records.';
         await wrapper.vm.$nextTick();
 
         const alert = wrapper.find('[role="alert"], [data-testid="auth-error"]');
@@ -131,7 +130,9 @@ describe('Login.vue', () => {
         await wrapper.find('form').trigger('submit.prevent');
 
         // Capture post options passed to Inertia post
-        const postOptions = (currentForm.post.mock.calls[0] as [string, { onError?: () => void; onFinish?: () => void }])[1];
+        const postOptions = (
+            currentForm.post.mock.calls[0] as [string, { onError?: () => void; onFinish?: () => void }]
+        )[1];
         expect(postOptions).toBeDefined();
 
         // Simulate failed request: onError or onFinish triggers password reset while keeping username
@@ -145,9 +146,7 @@ describe('Login.vue', () => {
         expect(currentForm.reset).toHaveBeenCalledWith('password');
 
         // Simulate throttle/delay error message displayed from server response without hardcoding bucket
-        currentForm.errors = {
-            throttle: 'Too many login attempts. Please try again in 45 seconds.',
-        };
+        currentForm.errors.throttle = 'Too many login attempts. Please try again in 45 seconds.';
         currentForm.processing = false;
         await wrapper.vm.$nextTick();
 
@@ -163,7 +162,6 @@ describe('Login.vue', () => {
     it('AC4: login_has_no_unapproved_auth_features — has no self-registration, public reset, MFA, or password-composition UI', () => {
         const wrapper = mount(Login);
         const text = wrapper.text().toLowerCase();
-        const html = wrapper.html().toLowerCase();
 
         // Must NOT have self-register / sign up
         expect(text).not.toContain('register');
