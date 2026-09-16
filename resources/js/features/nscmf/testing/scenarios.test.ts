@@ -73,6 +73,10 @@ describe('FE-02: Fixture deterministik dan katalog skenario UI', () => {
 
             itemA.title = 'ANOTHER MUTATION';
             expect(itemB.title).not.toBe('ANOTHER MUTATION');
+
+            // Negative / error lookup branches
+            expect(() => getDemoIdentity('unknown.user')).toThrow('Demo identity not found: unknown.user');
+            expect(() => getScenarioByRequestNo('UNKNOWN-REQUEST')).toThrow('Scenario not found: UNKNOWN-REQUEST');
         });
     });
 
