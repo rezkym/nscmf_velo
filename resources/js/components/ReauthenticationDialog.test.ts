@@ -82,7 +82,9 @@ describe('ReauthenticationDialog.vue (FE-10)', () => {
         await wrapper.find('form').trigger('submit.prevent');
 
         // Simulate onSuccess callback from post
-        const postOptions = (currentForm.post.mock.calls[0] as [string, { onSuccess?: () => void; onFinish?: () => void }])[1];
+        const postOptions = (
+            currentForm.post.mock.calls[0] as [string, { onSuccess?: () => void; onFinish?: () => void }]
+        )[1];
         postOptions.onSuccess?.();
         postOptions.onFinish?.();
 
@@ -146,5 +148,73 @@ describe('ReauthenticationDialog.vue (FE-10)', () => {
         });
 
         expect(wrapper.find('[role="alert"]').text()).toContain('Invalid current password.');
+
+        // When serverErrorMessage is absent, falls back to canonical REAUTH_FAILED text
+        await wrapper.setProps({
+            serverErrorMessage: undefined,
+        });
+        expect(wrapper.find('[role="alert"]').text()).toContain(
+            'Re-authentication failed. Please check your password.',
+        );
+
+        // When serverErrorMessage is absent with REAUTH_REQUIRED
+        await wrapper.setProps({
+            errorCode: 'REAUTH_REQUIRED',
+        });
+        expect(wrapper.find('[role="alert"]').text()).toContain(
+            'Re-authentication is required to perform this action.',
+        );
+
+        // Form error takes precedence
+        currentForm.errors = { current_password: 'Password must not be empty.' };
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('[role="alert"]').text()).toContain('Password must not be empty.');
+    });
+
+    it('handles keyboard escape and trigger focus restoration on close', async () => {
+        const trigger = document.createElement('button');
+        document.body.appendChild(trigger);
+        const focusSpy = vi.spyOn(trigger, 'focus');
+
+        const wrapper = mount(ReauthenticationDialog, {
+            props: {
+                open: true,
+                triggerElement: trigger,
+            },
+            attachTo: document.body,
+        });
+
+        // Press Escape
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(wrapper.emitted('cancel')).toBeTruthy();
+
+        // While open is false, focus restores to triggerElement
+        await wrapper.setProps({ open: false });
+        expect(focusSpy).toHaveBeenCalled();
+
+        // Unmount cleans up event listener
+        wrapper.unmount();
+        document.body.removeChild(trigger);
+    });
+
+    it('handles form submission error and finish callback properly', async () => {
+        const wrapper = mount(ReauthenticationDialog, {
+            props: {
+                open: true,
+            },
+        });
+
+        const passwordInput = wrapper.find<HTMLInputElement>('input[type="password"]');
+        await passwordInput.setValue('WrongPassword');
+
+        await wrapper.find('form').trigger('submit.prevent');
+
+        const postOptions = (
+            currentForm.post.mock.calls[0] as [string, { onError?: () => void; onFinish?: () => void }]
+        )[1];
+        postOptions.onError?.();
+        postOptions.onFinish?.();
+
+        expect(currentForm.reset).toHaveBeenCalledWith('current_password');
     });
 });

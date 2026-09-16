@@ -105,6 +105,18 @@ describe('ChangeTemporaryPassword.vue', () => {
         // Should be accepted by client and submitted to POST /account/temporary-password/change
         expect(currentForm.post).toHaveBeenCalledTimes(1);
         expect(currentForm.post).toHaveBeenCalledWith('/account/temporary-password/change', expect.any(Object));
+
+        // When form.processing is true, subsequent submit is ignored
+        currentForm.processing = true;
+        await wrapper.find('form').trigger('submit.prevent');
+        expect(currentForm.post).toHaveBeenCalledTimes(1);
+        currentForm.processing = false;
+
+        // Test mismatched confirmation gives feedback
+        await passwordInput.setValue('abcdef');
+        await confirmInput.setValue('different');
+        await wrapper.find('form').trigger('submit.prevent');
+        expect(wrapper.text()).toContain('Password confirmation does not match.');
     });
 
     // AC2: temporary_change_blocks_normal_navigation — shell menu/action bisnis tidak tersedia selama mandatory gate
@@ -145,6 +157,13 @@ describe('ChangeTemporaryPassword.vue', () => {
                 onFinish: expect.any(Function),
             }),
         );
+
+        // Invoke callbacks to verify handling
+        const postOptions = currentForm.post.mock.calls[0]?.[1];
+        if (postOptions) {
+            postOptions.onSuccess();
+            postOptions.onError();
+        }
 
         // Server rejection / 422 error
         currentForm.errors = {
