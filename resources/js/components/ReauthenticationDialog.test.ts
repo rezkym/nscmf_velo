@@ -217,4 +217,31 @@ describe('ReauthenticationDialog.vue (FE-10)', () => {
 
         expect(currentForm.reset).toHaveBeenCalledWith('current_password');
     });
+
+    it('submit guard rejects while processing', async () => {
+        const wrapper = mount(ReauthenticationDialog, {
+            props: {
+                open: true,
+            },
+        });
+
+        currentForm.processing = true;
+        await wrapper.find('form').trigger('submit.prevent');
+
+        expect(currentForm.post).not.toHaveBeenCalled();
+    });
+
+    it('cancel guard rejects while processing', async () => {
+        const wrapper = mount(ReauthenticationDialog, {
+            props: {
+                open: true,
+            },
+        });
+
+        currentForm.processing = true;
+        const cancelBtn = wrapper.find('[data-test="cancel-button"]');
+        await cancelBtn.trigger('click');
+
+        expect(wrapper.emitted('cancel')).toBeFalsy();
+    });
 });
