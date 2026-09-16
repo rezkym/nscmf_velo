@@ -1,10 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
-import ResourceTable, {
-    type ColumnDef,
-    type TablePaginationMeta,
-    type TableQuery,
-} from './ResourceTable.vue';
+import ResourceTable, { type ColumnDef, type TablePaginationMeta, type TableQuery } from './ResourceTable.vue';
 
 interface TestItem {
     id: number;
@@ -82,12 +78,12 @@ describe('ResourceTable.vue', () => {
 
             const emitted = wrapper.emitted('update:query');
             expect(emitted).toBeTruthy();
-            const latestQuery = (emitted && emitted[emitted.length - 1][0]) as TableQuery;
+            const latestQuery = (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
             expect(latestQuery.q).toBe('baru');
             expect(latestQuery.page).toBe(1);
         });
 
-        it('clamps or rejects per_page > 100 so per_page 101 tidak dikirim', async () => {
+        it('clamps or rejects per_page > 100 so per_page 101 tidak dikirim', () => {
             const currentQuery: TableQuery = {
                 page: 1,
                 per_page: 25,
@@ -101,17 +97,17 @@ describe('ResourceTable.vue', () => {
                 },
             });
 
-            const vm = wrapper.vm as any;
-            await vm.onPerPageChange(101);
+            const vm = wrapper.vm as unknown as { onPerPageChange: (p: number) => void };
+            vm.onPerPageChange(101);
 
             const emitted = wrapper.emitted('update:query');
             expect(emitted).toBeTruthy();
-            const latestQuery = (emitted && emitted[emitted.length - 1][0]) as TableQuery;
+            const latestQuery = (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
             expect(latestQuery.per_page).toBeLessThanOrEqual(100);
             expect(latestQuery.per_page).not.toBe(101);
         });
 
-        it('rejects unknown sort field not in whitelist: sort tak dikenal ditolak', async () => {
+        it('rejects unknown sort field not in whitelist: sort tak dikenal ditolak', () => {
             const wrapper = mount(ResourceTable, {
                 props: {
                     columns: sampleColumns,
@@ -121,12 +117,12 @@ describe('ResourceTable.vue', () => {
                 },
             });
 
-            const vm = wrapper.vm as any;
-            await vm.onSortChange('malicious_or_unknown_field');
+            const vm = wrapper.vm as unknown as { onSortChange: (s: string) => void };
+            vm.onSortChange('malicious_or_unknown_field');
 
             const emitted = wrapper.emitted('update:query');
-            if (emitted) {
-                const latestQuery = emitted[emitted.length - 1][0] as TableQuery;
+            if (emitted && emitted[emitted.length - 1]) {
+                const latestQuery = emitted[emitted.length - 1]?.[0] as TableQuery;
                 expect(latestQuery.sort).not.toBe('malicious_or_unknown_field');
             } else {
                 expect(emitted).toBeFalsy();
@@ -139,9 +135,7 @@ describe('ResourceTable.vue', () => {
             const wrapper = mount(ResourceTable, {
                 props: {
                     columns: sampleColumns,
-                    items: [
-                        { id: 1, request_no: 'REQ-01', title: 'Hasil Awal', status: 'DRAFT' },
-                    ],
+                    items: [{ id: 1, request_no: 'REQ-01', title: 'Hasil Awal', status: 'DRAFT' }],
                     requestId: 2,
                 },
             });
@@ -149,9 +143,7 @@ describe('ResourceTable.vue', () => {
             expect(wrapper.text()).toContain('Hasil Awal');
 
             await wrapper.setProps({
-                items: [
-                    { id: 99, request_no: 'REQ-OLD', title: 'Hasil Lawas Yang Terlambat', status: 'DRAFT' },
-                ],
+                items: [{ id: 99, request_no: 'REQ-OLD', title: 'Hasil Lawas Yang Terlambat', status: 'DRAFT' }],
                 requestId: 1,
             });
 
@@ -159,9 +151,7 @@ describe('ResourceTable.vue', () => {
             expect(wrapper.text()).toContain('Hasil Awal');
 
             await wrapper.setProps({
-                items: [
-                    { id: 2, request_no: 'REQ-NEW', title: 'Hasil Terkini', status: 'DRAFT' },
-                ],
+                items: [{ id: 2, request_no: 'REQ-NEW', title: 'Hasil Terkini', status: 'DRAFT' }],
                 requestId: 3,
             });
 
@@ -171,13 +161,11 @@ describe('ResourceTable.vue', () => {
     });
 
     describe('AC4: table_exposes_sort_and_pagination', () => {
-        it('sets correct aria-sort attributes on sortable column headers', async () => {
+        it('sets correct aria-sort attributes on sortable column headers', () => {
             const wrapper = mount(ResourceTable, {
                 props: {
                     columns: sampleColumns,
-                    items: [
-                        { id: 1, request_no: 'REQ-01', title: 'Permintaan 1', status: 'DRAFT' },
-                    ],
+                    items: [{ id: 1, request_no: 'REQ-01', title: 'Permintaan 1', status: 'DRAFT' }],
                     query: { page: 1, per_page: 25, sort: 'request_no', direction: 'asc' },
                     sortWhitelist: ['request_no', 'title'],
                 },
@@ -204,9 +192,7 @@ describe('ResourceTable.vue', () => {
             const wrapper = mount(ResourceTable, {
                 props: {
                     columns: sampleColumns,
-                    items: [
-                        { id: 1, request_no: 'REQ-01', title: 'Item 1', status: 'DRAFT' },
-                    ],
+                    items: [{ id: 1, request_no: 'REQ-01', title: 'Item 1', status: 'DRAFT' }],
                     query: { page: 1, per_page: 25 },
                     meta,
                 },
@@ -231,9 +217,7 @@ describe('ResourceTable.vue', () => {
             const wrapper = mount(ResourceTable, {
                 props: {
                     columns: sampleColumns,
-                    items: [
-                        { id: 1, request_no: 'REQ-01', title: 'Item 1', status: 'DRAFT' },
-                    ],
+                    items: [{ id: 1, request_no: 'REQ-01', title: 'Item 1', status: 'DRAFT' }],
                     sortWhitelist: ['request_no', 'title'],
                 },
             });
@@ -243,5 +227,79 @@ describe('ResourceTable.vue', () => {
             expect(sortButton.element.tagName.toLowerCase()).toBe('button');
             expect(sortButton.attributes('tabindex') ?? '0').not.toBe('-1');
         });
+    });
+});
+
+describe('Additional edge cases for ResourceTable coverage', () => {
+    it('renders slot content for custom cells and supports pagination click', async () => {
+        const meta: TablePaginationMeta = {
+            current_page: 2,
+            per_page: 25,
+            total: 75,
+            last_page: 3,
+            from: 26,
+            to: 50,
+        };
+
+        const wrapper = mount(ResourceTable, {
+            props: {
+                columns: sampleColumns,
+                items: [{ id: 1, request_no: 'REQ-01', title: 'Permintaan 1', status: 'DRAFT' }],
+                query: { page: 2, per_page: 25, sort: 'request_no', direction: 'desc' },
+                meta,
+            },
+            slots: {
+                'cell-status': '<span class="custom-status">Custom Status Badge</span>',
+            },
+        });
+
+        expect(wrapper.find('.custom-status').text()).toBe('Custom Status Badge');
+        expect(wrapper.text()).toContain('Halaman 2 dari 3 (Total: 75)');
+
+        const prevBtn = wrapper.find('[data-testid="pagination-prev"]');
+        await prevBtn.trigger('click');
+
+        const emitted = wrapper.emitted('update:query');
+        expect(emitted).toBeTruthy();
+        const latestQuery = (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
+        expect(latestQuery.page).toBe(1);
+
+        const nextBtn = wrapper.find('[data-testid="pagination-next"]');
+        await nextBtn.trigger('click');
+        const latestQueryNext = (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
+        expect(latestQueryNext.page).toBe(3);
+    });
+
+    it('shows loading state overlay when loading is true', () => {
+        const wrapper = mount(ResourceTable, {
+            props: {
+                columns: sampleColumns,
+                items: [],
+                loading: true,
+            },
+        });
+
+        expect(wrapper.find('[data-testid="table-loading-state"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="table-loading-state"]').text()).toContain('Memuat data...');
+    });
+
+    it('toggles sort direction when clicking the same sortable column', async () => {
+        const wrapper = mount(ResourceTable, {
+            props: {
+                columns: sampleColumns,
+                items: [{ id: 1, request_no: 'REQ-01', title: 'Permintaan 1', status: 'DRAFT' }],
+                query: { page: 1, per_page: 25, sort: 'request_no', direction: 'asc' },
+                sortWhitelist: ['request_no', 'title'],
+            },
+        });
+
+        const sortButton = wrapper.find('[data-testid="sort-button-request_no"]');
+        await sortButton.trigger('click');
+
+        const emitted = wrapper.emitted('update:query');
+        expect(emitted).toBeTruthy();
+        const latestQuery = (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
+        expect(latestQuery.sort).toBe('request_no');
+        expect(latestQuery.direction).toBe('desc');
     });
 });
