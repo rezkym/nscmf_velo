@@ -40,14 +40,14 @@ describe('RequestFeedback.vue (FE-07)', () => {
             expect(wrapper.emitted('refresh')?.length).toBe(1);
         });
 
-        it('handles 422 validation error: retains user input and displays field-level guidance without wipe', async () => {
+        it('handles 422 validation error: retains user input and displays field-level guidance without wipe', () => {
             const validationError: RequestFeedbackError = {
                 status: 422,
                 code: 'NSCMF_VALIDATION_FAILED',
                 message: 'The given data was invalid.',
                 errors: {
                     reason: ['Reason must be at least 5 characters.'],
-                    service_id: ['Service ID is required.'],
+                    service_id: 'Service ID is required.',
                 },
             };
 
@@ -279,6 +279,22 @@ describe('RequestFeedback.vue (FE-07)', () => {
             expect(wrapper.emitted('retry')?.length).toBe(1);
 
             vi.useRealTimers();
+        });
+
+        it('handles generic fallback error when status is unknown or 500', () => {
+            const genericError: RequestFeedbackError = {
+                status: 500,
+                message: 'Server failure',
+            };
+
+            const wrapper = mount(RequestFeedback, {
+                props: {
+                    error: genericError,
+                },
+            });
+
+            expect(wrapper.text()).toContain('Unexpected Error');
+            expect(wrapper.text()).toContain('An unexpected error occurred. Please try again later.');
         });
     });
 });
