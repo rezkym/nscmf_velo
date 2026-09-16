@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
+import { h } from 'vue';
 import FormField from './FormField.vue';
 
 describe('FormField.vue', () => {
@@ -12,9 +13,11 @@ describe('FormField.vue', () => {
                     help: 'Enter the registered name',
                 },
                 slots: {
-                    default: ({ id, describedBy }: { id: string; describedBy?: string }) => `
-                        <input id="${id}" aria-describedby="${describedBy}" />
-                    `,
+                    default: (slotProps: { id: string; describedBy?: string }) =>
+                        h('input', {
+                            id: slotProps.id,
+                            'aria-describedby': slotProps.describedBy,
+                        }),
                 },
             });
 
@@ -41,9 +44,11 @@ describe('FormField.vue', () => {
                     error: 'Name is required',
                 },
                 slots: {
-                    default: ({ id, describedBy }: { id: string; describedBy?: string }) => `
-                        <input id="${id}" aria-describedby="${describedBy}" />
-                    `,
+                    default: (slotProps: { id: string; describedBy?: string }) =>
+                        h('input', {
+                            id: slotProps.id,
+                            'aria-describedby': slotProps.describedBy,
+                        }),
                 },
             });
 
@@ -105,9 +110,10 @@ describe('FormField.vue', () => {
                     disabled: true,
                 },
                 slots: {
-                    default: ({ disabled }: { disabled: boolean }) => `
-                        <button :disabled="${disabled}">Action</button>
-                    `,
+                    default: (slotProps: { disabled: boolean }) =>
+                        h('button', {
+                            disabled: slotProps.disabled,
+                        }),
                 },
             });
 
@@ -121,9 +127,11 @@ describe('FormField.vue', () => {
                     readonly: true,
                 },
                 slots: {
-                    default: ({ readonly }: { readonly: boolean }) => `
-                        <input readonly="${readonly}" value="Readonly content" />
-                    `,
+                    default: (slotProps: { readonly: boolean }) =>
+                        h('input', {
+                            readonly: slotProps.readonly,
+                            value: 'Readonly content',
+                        }),
                 },
             });
 
