@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
-import Show from './Show.vue';
+import Show, { type NscmfDetailRecord } from './Show.vue';
 
 // Mock Inertia
 vi.mock('@inertiajs/vue3', () => ({
@@ -24,7 +24,7 @@ vi.mock('@inertiajs/vue3', () => ({
 
 describe('Pages/Nscmf/Show.vue (FE-18)', () => {
     it('AC1 — detail_separates_archived_and_business_status: APPROVED+is_archived tetap APPROVED bukan ARCHIVED enum', () => {
-        const record = {
+        const record: NscmfDetailRecord = {
             id: 101,
             request_no: 'NSCMF-202609-00101',
             family: 'ACTIVATION',
@@ -75,7 +75,7 @@ describe('Pages/Nscmf/Show.vue (FE-18)', () => {
 
     it('AC2 — detail_uses_effective_signoffs: approver return mengosongkan ReviewedBy efektif tetapi history tetap event lama', () => {
         // When approver returns the record, server clears effective reviewed_by_user_id / reviewed_at in iteration
-        const record = {
+        const record: NscmfDetailRecord = {
             id: 102,
             request_no: 'NSCMF-202609-00102',
             family: 'CHANGE',
@@ -113,7 +113,7 @@ describe('Pages/Nscmf/Show.vue (FE-18)', () => {
     });
 
     it('AC3 — detail_does_not_infer_signer: human ApprovedBy bukan signature status dan tidak otomatis PDF signed', () => {
-        const record = {
+        const record: NscmfDetailRecord = {
             id: 103,
             request_no: 'NSCMF-202609-00103',
             family: 'ACTIVATION',
@@ -153,7 +153,7 @@ describe('Pages/Nscmf/Show.vue (FE-18)', () => {
 
     it('AC4 — detail_renders_both_families: semua field collections/sites/results dari 05_FORM_CONTRACTS tampil sesuai data; null tidak jadi 0', () => {
         // Test Activation family with collections and direct_site/pop_site
-        const activationRecord = {
+        const activationRecord: NscmfDetailRecord = {
             id: 104,
             request_no: 'NSCMF-202609-00104',
             family: 'ACTIVATION',
@@ -229,7 +229,7 @@ describe('Pages/Nscmf/Show.vue (FE-18)', () => {
         expect(rssi.text()).not.toBe('0');
 
         // Test Change family with results and impacts
-        const changeRecord = {
+        const changeRecord: NscmfDetailRecord = {
             id: 105,
             request_no: 'NSCMF-202609-00105',
             family: 'CHANGE',
@@ -280,8 +280,8 @@ describe('Pages/Nscmf/Show.vue (FE-18)', () => {
         expect(wrapperChange.find('[data-testid="change-results"]').text()).toContain('SUCCESSFUL');
     });
 
-    it('renders tabs and handles unavailable Timeline/Attachments with neutral read-only stubs', () => {
-        const record = {
+    it('renders tabs and handles unavailable Timeline/Attachments with neutral read-only stubs', async () => {
+        const record: NscmfDetailRecord = {
             id: 106,
             request_no: 'NSCMF-202609-00106',
             family: 'ACTIVATION',
@@ -310,17 +310,23 @@ describe('Pages/Nscmf/Show.vue (FE-18)', () => {
         // Click Timeline tab
         const timelineTab = tabs.find((t) => t.text().includes('Timeline'));
         expect(timelineTab?.exists()).toBe(true);
-        timelineTab?.trigger('click');
+        await timelineTab?.trigger('click');
 
         // Timeline tab shows unavailable/read-only stub without fake evidence
         const timelineSection = wrapper.find('[data-testid="timeline-stub"]');
         expect(timelineSection.exists()).toBe(true);
         expect(timelineSection.text()).toMatch(/Timeline history unavailable|Timeline view is not available/i);
 
+        // Click back to Form Detail tab
+        const formTab = tabs.find((t) => t.text().includes('Form Detail'));
+        expect(formTab?.exists()).toBe(true);
+        await formTab?.trigger('click');
+        expect(wrapper.find('[data-testid="form-detail-section"]').exists()).toBe(true);
+
         // Click Attachments tab
         const attachmentsTab = tabs.find((t) => t.text().includes('Attachments'));
         expect(attachmentsTab?.exists()).toBe(true);
-        attachmentsTab?.trigger('click');
+        await attachmentsTab?.trigger('click');
 
         // Attachments tab shows unavailable/read-only stub without fake evidence
         const attachmentsSection = wrapper.find('[data-testid="attachments-stub"]');
@@ -329,7 +335,7 @@ describe('Pages/Nscmf/Show.vue (FE-18)', () => {
     });
 
     it('does not mount editable inputs in readonly view', () => {
-        const record = {
+        const record: NscmfDetailRecord = {
             id: 107,
             request_no: 'NSCMF-202609-00107',
             family: 'ACTIVATION',
