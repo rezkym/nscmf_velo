@@ -424,4 +424,72 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         // Close permissions modal
         vm.closePermissionsModal();
     });
+
+    it('covers onSuccess callbacks for metadata patch, post, and permissions put, plus v-model input', async () => {
+        const wrapper = mount(Index, {
+            props: {
+                roles: defaultRoles,
+                permissionCatalog: canonicalPermissions,
+                userPermissions: ['roles.view', 'roles.create', 'roles.update', 'permissions.assign'],
+            },
+        });
+
+        const vm = wrapper.vm as unknown as {
+            openCreateModal: () => void;
+            openEditMetadataModal: (role: RoleItem) => void;
+            openAssignPermissionsModal: (role: RoleItem) => void;
+            handleReauthSuccess: () => void;
+            isMetadataModalOpen: boolean;
+            isPermissionsModalOpen: boolean;
+        };
+
+        // 1. Cover L319 (v-model metadataForm.name input event) and L90 (post onSuccess)
+        vm.openCreateModal();
+        await wrapper.vm.$nextTick();
+
+        const nameInput = wrapper.find<HTMLInputElement>('input#role-name');
+        expect(nameInput.exists()).toBe(true);
+        await nameInput.setValue('Custom Manager');
+        expect(nameInput.element.value).toBe('Custom Manager');
+
+        const form = wrapper.find('[data-testid="role-metadata-form"]');
+        await form.trigger('submit.prevent');
+
+        expect(activeMetadataForm?.post).toHaveBeenCalledWith(
+            '/administration/roles',
+            expect.objectContaining({ onSuccess: expect.any(Function) }),
+        );
+        const postOptions = activeMetadataForm?.post.mock.calls[0]?.[1] as { onSuccess?: () => void };
+        expect(vm.isMetadataModalOpen).toBe(true);
+        postOptions.onSuccess?.();
+        expect(vm.isMetadataModalOpen).toBe(false);
+
+        // 2. Cover L86 (patch onSuccess)
+        vm.openEditMetadataModal(defaultRoles[1]!);
+        await wrapper.vm.$nextTick();
+        expect(vm.isMetadataModalOpen).toBe(true);
+
+        await form.trigger('submit.prevent');
+        expect(activeMetadataForm?.patch).toHaveBeenCalledWith(
+            '/administration/roles/2',
+            expect.objectContaining({ onSuccess: expect.any(Function) }),
+        );
+        const patchOptions = activeMetadataForm?.patch.mock.calls[0]?.[1] as { onSuccess?: () => void };
+        patchOptions.onSuccess?.();
+        expect(vm.isMetadataModalOpen).toBe(false);
+
+        // 3. Cover L153 (put onSuccess closePermissionsModal)
+        vm.openAssignPermissionsModal(defaultRoles[1]!);
+        await wrapper.vm.$nextTick();
+        expect(vm.isPermissionsModalOpen).toBe(true);
+
+        vm.handleReauthSuccess();
+        expect(activePermissionsForm?.put).toHaveBeenCalledWith(
+            '/administration/roles/2/permissions',
+            expect.objectContaining({ onSuccess: expect.any(Function) }),
+        );
+        const putOptions = activePermissionsForm?.put.mock.calls[0]?.[1] as { onSuccess?: () => void };
+        putOptions.onSuccess?.();
+        expect(vm.isPermissionsModalOpen).toBe(false);
+    });
 });
