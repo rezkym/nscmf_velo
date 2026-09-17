@@ -348,4 +348,69 @@ describe('Index.vue (FE-11: Team Administration)', () => {
         // Dialog should be closed
         expect(wrapper.find('[data-testid="confirm-lifecycle-action"]').exists()).toBe(false);
     });
+
+    it('covers default props fallback for permissions when mounted without permissions', () => {
+        const wrapper = mount(Index, {
+            props: {
+                permissions: null as unknown as string[],
+            },
+        });
+
+        // Permissions fallback to empty array, buttons with permissions should not be rendered
+        expect(wrapper.find('[data-testid="create-team-btn"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="edit-team-1"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="deactivate-team-1"]').exists()).toBe(false);
+    });
+
+    it('covers confirmLifecycleAction and cancelLifecycleAction guards when lifecyclePending is true or pendingLifecycleTeam is null', async () => {
+        let capturedOnFinish: (() => void) | undefined;
+        const routerPostSpy = vi.spyOn(router, 'post').mockImplementation(((_url: unknown, _data: unknown, options?: { onFinish?: () => void }) => {
+            capturedOnFinish = options?.onFinish;
+        }) as typeof router.post);
+
+        const wrapper = mount(Index, {
+            props: {
+                teams: defaultTeams,
+                permissions: ['teams.archive'],
+            },
+        });
+
+        interface IndexVm {
+            confirmLifecycleAction: (this: void) => void;
+            cancelLifecycleAction: (this: void) => void;
+        }
+        const vm = wrapper.vm as unknown as IndexVm;
+
+        // 1. Calling confirmLifecycleAction directly when pendingLifecycleTeam is null
+        vm.confirmLifecycleAction();
+        expect(routerPostSpy).not.toHaveBeenCalled();
+
+        // 2. Open deactivate dialog
+        await wrapper.find('[data-testid="deactivate-team-1"]').trigger('click');
+        const confirmBtn = wrapper.find('[data-testid="confirm-lifecycle-action"]');
+        expect(confirmBtn.exists()).toBe(true);
+        expect(confirmBtn.text()).toBe('Confirm');
+
+        // Trigger confirmLifecycleAction without calling onFinish immediately
+        await confirmBtn.trigger('click');
+
+        // lifecyclePending should be true now, button text changes to 'Processing...'
+        expect(confirmBtn.text()).toBe('Processing...');
+        expect(confirmBtn.attributes('disabled')).toBeDefined();
+
+        // 3. Calling cancelLifecycleAction directly when lifecyclePending is true
+        vm.cancelLifecycleAction();
+
+        // 4. Calling confirmLifecycleAction directly when lifecyclePending is true should return early
+        vm.confirmLifecycleAction();
+        expect(routerPostSpy).toHaveBeenCalledTimes(1);
+
+        // Invoke captured onFinish callback
+        expect(capturedOnFinish).toBeDefined();
+        capturedOnFinish!();
+        await wrapper.vm.$nextTick();
+
+        // Dialog should now be closed and lifecyclePending reset to false
+        expect(wrapper.find('[data-testid="confirm-lifecycle-action"]').exists()).toBe(false);
+    });
 });
