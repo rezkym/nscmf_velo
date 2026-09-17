@@ -37,8 +37,31 @@ describe('OneTimeCredential (FE-13)', () => {
         expect(wrapper.text()).not.toContain('synthetic-temp-pass-1234');
     });
 
+    it('AC1 edge case: new temporaryPassword updates transient state even after dismissal', async () => {
+        const wrapper = mount(OneTimeCredential, {
+            props: {
+                open: true,
+                temporaryPassword: 'synthetic-pass-1',
+                username: 'alice.test',
+            },
+        });
+
+        await wrapper.find('[data-testid="btn-dismiss-credential"]').trigger('click');
+        expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
+
+        // When a new password is provided from a subsequent server action
+        await wrapper.setProps({
+            open: true,
+            temporaryPassword: 'synthetic-pass-2-new',
+        });
+        await nextTick();
+
+        expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="temporary-password-display"]').text()).toContain('synthetic-pass-2-new');
+    });
+
     // AC2: credential_is_not_in_user_detail: subsequent GET user tidak memiliki 'Show temporary password' action.
-    it('AC2: credential_is_not_in_user_detail - component provides no retrieve or show-again trigger and advises one-time nature', async () => {
+    it('AC2: credential_is_not_in_user_detail - component provides no retrieve or show-again trigger and advises one-time nature', () => {
         const wrapper = mount(OneTimeCredential, {
             props: {
                 open: true,
@@ -85,8 +108,53 @@ describe('OneTimeCredential (FE-13)', () => {
         expect(wrapper.find('[data-testid="clipboard-feedback"]').text()).toContain('Gagal menyalin ke clipboard');
     });
 
+    it('AC3 success case: clipboard copy succeeds and renders feedback', async () => {
+        const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+        Object.assign(navigator, {
+            clipboard: {
+                writeText: writeTextSpy,
+            },
+        });
+
+        const wrapper = mount(OneTimeCredential, {
+            props: {
+                open: true,
+                temporaryPassword: 'synthetic-temp-pass-1234',
+                username: 'charlie.test',
+            },
+        });
+
+        const copyBtn = wrapper.find('[data-testid="btn-copy-credential"]');
+        await copyBtn.trigger('click');
+        await nextTick();
+
+        expect(writeTextSpy).toHaveBeenCalledWith('synthetic-temp-pass-1234');
+        expect(wrapper.find('[data-testid="clipboard-feedback"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="clipboard-feedback"]').text()).toContain('berhasil disalin ke clipboard');
+    });
+
+    it('AC3 failure without internalCredential does nothing', async () => {
+        const writeTextSpy = vi.fn();
+        Object.assign(navigator, {
+            clipboard: {
+                writeText: writeTextSpy,
+            },
+        });
+
+        const wrapper = mount(OneTimeCredential, {
+            props: {
+                open: true,
+                temporaryPassword: null,
+                username: 'empty.test',
+            },
+        });
+
+        expect(wrapper.find('[data-testid="btn-copy-credential"]').exists()).toBe(false);
+        expect(writeTextSpy).not.toHaveBeenCalled();
+    });
+
     // AC4: credential_reset_requires_new_server_result: lost value menyarankan reset baru dengan reauth bukan retrieve.
-    it('AC4: credential_reset_requires_new_server_result - lost value menyarankan reset baru dengan reauth bukan retrieve', async () => {
+    it('AC4: credential_reset_requires_new_server_result - lost value menyarankan reset baru dengan reauth bukan retrieve', () => {
         const wrapper = mount(OneTimeCredential, {
             props: {
                 open: true,
