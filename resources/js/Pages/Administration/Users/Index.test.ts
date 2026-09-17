@@ -83,6 +83,7 @@ interface ExposedIndexVm {
         team_id: number | null;
         role_ids: number[];
         processing: boolean;
+        errors: Record<string, string>;
         post: (url: string, opts?: unknown) => void;
         reset: () => void;
         clearErrors: () => void;
@@ -90,6 +91,7 @@ interface ExposedIndexVm {
     editProfileForm: {
         name: string;
         processing: boolean;
+        errors: Record<string, string>;
         patch: (url: string, opts?: unknown) => void;
         reset: () => void;
         clearErrors: () => void;
@@ -97,6 +99,7 @@ interface ExposedIndexVm {
     editTeamForm: {
         team_id: number | null;
         processing: boolean;
+        errors: Record<string, string>;
         put: (url: string, opts?: unknown) => void;
         reset: () => void;
         clearErrors: () => void;
@@ -145,6 +148,7 @@ describe('FE-12: User list, profile, roles, Team dan active status', () => {
     const roles: RoleItem[] = [
         { id: 1, name: 'Superadmin', is_protected: true },
         { id: 2, name: 'Operator' },
+        { id: 3, name: 'Auditor' },
     ];
 
     beforeEach(() => {
@@ -185,6 +189,12 @@ describe('FE-12: User list, profile, roles, Team dan active status', () => {
         vm.createForm.username = 'new.user';
         vm.createForm.team_id = 1;
         vm.createForm.role_ids = [2];
+
+        // Toggle role in create modal
+        await wrapper.find('[data-testid="create-role-option-3"] input').trigger('change');
+        expect(vm.createForm.role_ids).toContain(3);
+        await wrapper.find('[data-testid="create-role-option-3"] input').trigger('change');
+        expect(vm.createForm.role_ids).not.toContain(3);
 
         // Ensure createForm does not carry password or is_protected_superadmin in its keys
         const createKeys = Object.keys(vm.createForm);
@@ -329,6 +339,12 @@ describe('FE-12: User list, profile, roles, Team dan active status', () => {
         await wrapper.find('[data-testid="btn-edit-roles-20"]').trigger('click');
         expect(wrapper.find('[data-testid="modal-edit-roles"]').exists()).toBe(true);
 
+        // Toggle user role checkbox
+        await wrapper.find('[data-testid="role-checkbox-label-3"] input').trigger('change');
+        expect(vm.selectedRoleIds).toContain(3);
+        await wrapper.find('[data-testid="role-checkbox-label-3"] input').trigger('change');
+        expect(vm.selectedRoleIds).not.toContain(3);
+
         await wrapper.find('[data-testid="btn-save-roles"]').trigger('click');
         expect(vm.isReauthDialogOpen).toBe(true);
         expect(vm.sensitiveActionTitle).toBe('Confirm Role Assignment');
@@ -359,5 +375,197 @@ describe('FE-12: User list, profile, roles, Team dan active status', () => {
 
         vm.handleReauthSuccess();
         expect(routerPostSpy).toHaveBeenCalledWith('/administration/users/20/reset-password', {}, expect.any(Object));
+    });
+
+    it('covers empty users state and enable user flow', async () => {
+        const wrapper = mount(Index, {
+            props: {
+                users: [],
+                teams: [],
+                roles: [],
+                userPermissions: ['users.view', 'users.enable'],
+            },
+        });
+
+        expect(wrapper.text()).toContain('No users found.');
+
+        // Test enableUser
+        const disabledUser: UserItem = {
+            id: 30,
+            name: 'Disabled User',
+            username: 'disabled.user',
+            team_id: null,
+            is_active: false,
+            is_protected_superadmin: false,
+            roles: [],
+        };
+        const wrapperWithDisabled = mount(Index, {
+            props: {
+                users: [disabledUser],
+                userPermissions: ['users.view', 'users.enable'],
+            },
+        });
+
+        const enableBtn = wrapperWithDisabled.find('[data-testid="btn-enable-user-30"]');
+        expect(enableBtn.exists()).toBe(true);
+        const routerPostSpy = vi.spyOn(router, 'post');
+        await enableBtn.trigger('click');
+        expect(routerPostSpy).toHaveBeenCalledWith('/administration/users/30/enable', {});
+    });
+
+    it('covers cancel and modal closing for all dialogs', () => {
+        const testUser: UserItem = {
+            id: 40,
+            name: 'Test User',
+            username: 'test.user',
+            team_id: null,
+            is_active: true,
+            is_protected_superadmin: false,
+            roles: [],
+        };
+        const wrapper = mount(Index, {
+            props: {
+                users: [testUser],
+                userPermissions: [
+                    'users.view',
+                    'users.create',
+                    'users.update',
+                    'users.assign_team',
+                    'users.assign_roles',
+                ],
+            },
+        });
+
+        const vm = wrapper.vm as unknown as ExposedIndexVm;
+
+        // Create modal close
+        vm.openCreateModal();
+        expect(vm.isCreateModalOpen).toBe(true);
+        vm.closeCreateModal();
+        expect(vm.isCreateModalOpen).toBe(false);
+
+        // Edit profile modal close
+        vm.openEditProfileModal(testUser);
+        expect(vm.isEditProfileModalOpen).toBe(true);
+        vm.closeEditProfileModal();
+        expect(vm.isEditProfileModalOpen).toBe(false);
+
+        // Edit team modal close
+        vm.openEditTeamModal(testUser);
+        expect(vm.isEditTeamModalOpen).toBe(true);
+        vm.closeEditTeamModal();
+        expect(vm.isEditTeamModalOpen).toBe(false);
+
+        // Edit roles modal close
+        vm.openEditRolesModal(testUser);
+        expect(vm.isEditRolesModalOpen).toBe(true);
+        vm.closeEditRolesModal();
+        expect(vm.isEditRolesModalOpen).toBe(false);
+    });
+
+    it('covers error handling during sensitive actions and server error propagation', () => {
+        const targetUser: UserItem = {
+            id: 50,
+            name: 'Test Target',
+            username: 'target',
+            team_id: 1,
+            is_active: true,
+            is_protected_superadmin: false,
+            roles: [{ id: 2, name: 'Operator' }],
+        };
+        const wrapper = mount(Index, {
+            props: {
+                users: [targetUser],
+                userPermissions: ['users.view', 'users.assign_roles', 'users.disable', 'users.reset_password'],
+            },
+        });
+
+        const vm = wrapper.vm as unknown as ExposedIndexVm;
+
+        // 1. Roles save server rejection
+        vm.openEditRolesModal(targetUser);
+        vm.initiateRolesSave();
+        // Mock put to trigger onError
+        vi.spyOn(vm.editRolesForm, 'put').mockImplementation((_url: string, opts?: unknown) => {
+            const castOpts = opts as { onError?: (errs: unknown) => void } | undefined;
+            if (castOpts?.onError) {
+                castOpts.onError({ message: 'Role assign failed', error_code: 'DENIED' });
+            }
+        });
+        vm.handleReauthSuccess();
+        expect(vm.serverErrorMessage).toBe('Role assign failed');
+        expect(vm.serverErrorCode).toBe('DENIED');
+
+        // 2. Disable server rejection
+        vm.initiateDisableUser(targetUser);
+        vi.spyOn(router, 'post').mockImplementation((_url: unknown, _data?: unknown, opts?: unknown) => {
+            const castOpts = opts as { onError?: (errs: unknown) => void; onFinish?: () => void } | undefined;
+            if (castOpts?.onError) {
+                castOpts.onError({ message: 'Cannot disable', error_code: 'PROTECTED_RESOURCE' });
+            }
+            if (castOpts?.onFinish) castOpts.onFinish();
+        });
+        vm.handleReauthSuccess();
+        expect(vm.serverErrorMessage).toBe('Cannot disable');
+        expect(vm.serverErrorCode).toBe('PROTECTED_RESOURCE');
+
+        // 3. Reset password server rejection
+        vm.initiateResetPassword(targetUser);
+        vi.spyOn(router, 'post').mockImplementation((_url: unknown, _data?: unknown, opts?: unknown) => {
+            const castOpts = opts as { onError?: (errs: unknown) => void; onFinish?: () => void } | undefined;
+            if (castOpts?.onError) {
+                castOpts.onError({ message: 'Password reset failed', error_code: 'DENIED' });
+            }
+            if (castOpts?.onFinish) castOpts.onFinish();
+        });
+        vm.handleReauthSuccess();
+        expect(vm.serverErrorMessage).toBe('Password reset failed');
+    });
+
+    it('covers processing guards on form submissions', () => {
+        const targetUser: UserItem = {
+            id: 60,
+            name: 'Guard Target',
+            username: 'guard',
+            team_id: 1,
+            is_active: true,
+            is_protected_superadmin: false,
+            roles: [],
+        };
+        const wrapper = mount(Index, {
+            props: {
+                users: [targetUser],
+                userPermissions: [
+                    'users.view',
+                    'users.create',
+                    'users.update',
+                    'users.assign_team',
+                    'users.assign_roles',
+                ],
+            },
+        });
+
+        const vm = wrapper.vm as unknown as ExposedIndexVm;
+
+        // Create processing guard
+        vm.openCreateModal();
+        vm.createForm.processing = true;
+        const postSpy = vi.spyOn(vm.createForm, 'post');
+        vm.submitCreateUser();
+        expect(postSpy).not.toHaveBeenCalled();
+
+        // Edit Profile processing guard
+        vm.openEditProfileModal(targetUser);
+        vm.editProfileForm.processing = true;
+        const patchSpy = vi.spyOn(vm.editProfileForm, 'patch');
+        vm.submitEditProfile();
+        expect(patchSpy).not.toHaveBeenCalled();
+
+        // Edit Team processing guard
+        vm.openEditTeamModal(targetUser);
+        vm.editTeamForm.processing = true;
+        const putSpy = vi.spyOn(vm.editTeamForm, 'put');
+        vm.submitEditTeam();
+        expect(putSpy).not.toHaveBeenCalled();
     });
 });
