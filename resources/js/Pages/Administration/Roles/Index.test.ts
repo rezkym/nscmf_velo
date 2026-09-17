@@ -7,6 +7,7 @@ import Index, { type RoleItem } from './Index.vue';
 interface MockForm<T = Record<string, unknown>> {
     name?: string;
     permissions?: string[];
+    current_password?: string;
     data: T;
     processing: boolean;
     errors: Record<string, string>;
@@ -20,6 +21,7 @@ interface MockForm<T = Record<string, unknown>> {
 
 let activeMetadataForm: MockForm | null = null;
 let activePermissionsForm: MockForm | null = null;
+let activeReauthForm: MockForm | null = null;
 
 const { mockRouter } = vi.hoisted(() => {
     return {
@@ -62,6 +64,8 @@ vi.mock('@inertiajs/vue3', async () => {
             });
             if ('permissions' in initialData) {
                 activePermissionsForm = formInstance;
+            } else if ('current_password' in initialData) {
+                activeReauthForm = formInstance;
             } else {
                 activeMetadataForm = formInstance;
             }
@@ -220,6 +224,7 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         vi.clearAllMocks();
         activeMetadataForm = null;
         activePermissionsForm = null;
+        activeReauthForm = null;
     });
 
     it('AC1: roles_use_catalog_not_invented_permissions — tidak ada session.login/roles.archive/wildcard scope', async () => {
@@ -307,28 +312,59 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         const savePermsBtn = wrapper.find('[data-testid="save-permissions-btn"]');
         await savePermsBtn.trigger('click');
 
-        // Reauth dialog should be open
-        const reauthModal = wrapper.find('[data-testid="reauth-dialog"]');
-        expect(reauthModal.exists()).toBe(true);
-        expect(wrapper.text()).toContain('effective permissions');
-        expect(wrapper.text()).toContain('session');
+        // Reauth dialog should be open and require current password
+        const passwordInput = wrapper.find<HTMLInputElement>('input[type="password"]');
+        expect(passwordInput.exists()).toBe(true);
+        expect(passwordInput.attributes('name')).toBe('current_password');
 
-        // PUT request must NOT have been called yet
+        // Verify ReauthenticationDialog title/context is displayed
+        expect(wrapper.text()).toContain('Confirm Sensitive Action');
+
+        // PUT request and reauth POST must NOT have been called yet
         expect(activePermissionsForm?.put).not.toHaveBeenCalled();
+        expect(activeReauthForm?.post).not.toHaveBeenCalled();
 
         // Cancel reauth
-        const cancelReauthBtn = wrapper.find('[data-testid="reauth-cancel-btn"]');
+        const cancelReauthBtn = wrapper.find('[data-test="cancel-button"]');
+        expect(cancelReauthBtn.exists()).toBe(true);
         await cancelReauthBtn.trigger('click');
 
         // Still not called
         expect(activePermissionsForm?.put).not.toHaveBeenCalled();
+        expect(activeReauthForm?.post).not.toHaveBeenCalled();
 
-        // Trigger save again, then simulate reauth success
+        // Trigger save again
         await savePermsBtn.trigger('click');
-        const confirmReauthBtn = wrapper.find('[data-testid="reauth-success-btn"]');
-        await confirmReauthBtn.trigger('click');
 
-        // Now PUT /administration/roles/2/permissions should be called
+        // Confirming without password must NOT dispatch PUT or succeed
+        const confirmBtn = wrapper.find('[data-test="confirm-button"]');
+        expect(confirmBtn.exists()).toBe(true);
+        // With empty password, button should be disabled
+        expect(confirmBtn.attributes('disabled')).toBeDefined();
+
+        // Fill password and submit reauth form
+        await wrapper.find<HTMLInputElement>('input[type="password"]').setValue('SecretPassword123');
+        const reauthFormEl = wrapper.find('input[type="password"]').element.closest('form');
+        expect(reauthFormEl).not.toBeNull();
+        await wrapper.findComponent({ name: 'ReauthenticationDialog' }).find('form').trigger('submit.prevent');
+
+        // POST /account/re-authenticate must be called
+        expect(activeReauthForm?.post).toHaveBeenCalledWith(
+            '/account/re-authenticate',
+            expect.any(Object),
+        );
+
+        // PUT request must STILL be withheld until reauth POST succeeds
+        expect(activePermissionsForm?.put).not.toHaveBeenCalled();
+
+        // Simulate reauth POST success callback
+        const postCalls = activeReauthForm?.post.mock.calls;
+        const lastPostCall = postCalls?.[postCalls.length - 1];
+        const postOptions = lastPostCall?.[1] as { onSuccess?: () => void };
+        postOptions.onSuccess?.();
+        await wrapper.vm.$nextTick();
+
+        // Now PUT /administration/roles/2/permissions should be called with selected permissions
         expect(activePermissionsForm?.put).toHaveBeenCalledWith(
             '/administration/roles/2/permissions',
             expect.any(Object),
@@ -365,6 +401,7 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         const vm = wrapper.vm as unknown as {
             serverErrorCode: string | null;
             serverErrorMessage: string | null;
+            isReauthDialogOpen: boolean;
         };
         vm.serverErrorCode = 'PROTECTED_RESOURCE';
         vm.serverErrorMessage = 'This role or permission bundle is protected from modification.';
@@ -374,6 +411,21 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         expect(wrapper.text()).toContain('This role or permission bundle is protected from modification.');
         // Modal must not close optimistically
         expect(wrapper.find('[data-testid="permissions-modal"]').exists()).toBe(true);
+
+        // Fail-safe handling for server error codes:
+        // 1. REAUTH_REQUIRED opens reauth dialog and passes error
+        vm.serverErrorCode = 'REAUTH_REQUIRED';
+        vm.serverErrorMessage = null;
+        await wrapper.vm.$nextTick();
+        expect(vm.isReauthDialogOpen).toBe(true);
+        expect(wrapper.text()).toContain('Re-authentication is required to perform this action.');
+
+        // 2. REAUTH_FAILED opens reauth dialog and passes error
+        vm.serverErrorCode = 'REAUTH_FAILED';
+        vm.serverErrorMessage = 'Re-authentication failed. Please check your password.';
+        await wrapper.vm.$nextTick();
+        expect(vm.isReauthDialogOpen).toBe(true);
+        expect(wrapper.text()).toContain('Re-authentication failed. Please check your password.');
     });
 
     it('covers role creation, modal closures, and toggling logic', async () => {
