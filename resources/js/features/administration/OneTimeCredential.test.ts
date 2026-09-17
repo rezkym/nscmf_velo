@@ -133,7 +133,7 @@ describe('OneTimeCredential (FE-13)', () => {
         expect(wrapper.find('[data-testid="clipboard-feedback"]').text()).toContain('berhasil disalin ke clipboard');
     });
 
-    it('AC3 failure without internalCredential does nothing', async () => {
+    it('AC3 failure without internalCredential does nothing', () => {
         const writeTextSpy = vi.fn();
         Object.assign(navigator, {
             clipboard: {
