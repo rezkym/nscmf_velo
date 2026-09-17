@@ -49,6 +49,7 @@ const props = withDefaults(
 
 const permissionsList = computed(() => props.userPermissions ?? []);
 
+const canView = computed(() => permissionsList.value.includes('users.view'));
 const canCreate = computed(() => permissionsList.value.includes('users.create'));
 const canUpdate = computed(() => permissionsList.value.includes('users.update'));
 const canEnable = computed(() => permissionsList.value.includes('users.enable'));
@@ -92,11 +93,21 @@ function toggleCreateRole(roleId: number): void {
 }
 
 function submitCreateUser(): void {
-    if (createForm.processing) return;
+    if (!canCreate.value || createForm.processing) return;
 
     createForm.post('/administration/users', {
         onSuccess: () => {
             closeCreateModal();
+        },
+        onError: (errs) => {
+            const errMap = errs as Record<string, string | string[] | undefined>;
+            const msg = Array.isArray(errMap.message) ? errMap.message.join(', ') : errMap.message;
+            if (msg) {
+                serverErrorMessage.value = msg;
+            }
+            if (typeof errMap.error_code === 'string') {
+                serverErrorCode.value = errMap.error_code;
+            }
         },
     });
 }
@@ -125,7 +136,7 @@ function closeEditProfileModal(): void {
 }
 
 function submitEditProfile(): void {
-    if (editProfileForm.processing || !editingProfileUser.value) return;
+    if (!canUpdate.value || editProfileForm.processing || !editingProfileUser.value) return;
 
     editProfileForm.patch(`/administration/users/${editingProfileUser.value.id}`, {
         onSuccess: () => {
@@ -158,7 +169,7 @@ function closeEditTeamModal(): void {
 }
 
 function submitEditTeam(): void {
-    if (editTeamForm.processing || !editingTeamUser.value) return;
+    if (!canAssignTeam.value || editTeamForm.processing || !editingTeamUser.value) return;
 
     editTeamForm.put(`/administration/users/${editingTeamUser.value.id}/team`, {
         onSuccess: () => {
@@ -235,7 +246,7 @@ const sensitiveActionDescription = computed(() => {
 });
 
 function initiateRolesSave(): void {
-    if (!editingRolesUser.value || editRolesForm.processing) return;
+    if (!canAssignRoles.value || !editingRolesUser.value || editRolesForm.processing) return;
     pendingSensitiveAction.value = 'roles';
     pendingSensitiveUser.value = editingRolesUser.value;
     serverErrorCode.value = null;
@@ -244,7 +255,7 @@ function initiateRolesSave(): void {
 }
 
 function initiateDisableUser(user: UserItem): void {
-    if (user.is_protected_superadmin) return;
+    if (!canDisable.value || user.is_protected_superadmin) return;
     pendingSensitiveAction.value = 'disable';
     pendingSensitiveUser.value = user;
     serverErrorCode.value = null;
@@ -253,7 +264,7 @@ function initiateDisableUser(user: UserItem): void {
 }
 
 function initiateResetPassword(user: UserItem): void {
-    if (user.is_protected_superadmin) return;
+    if (!canResetPassword.value || user.is_protected_superadmin) return;
     pendingSensitiveAction.value = 'reset-password';
     pendingSensitiveUser.value = user;
     serverErrorCode.value = null;
@@ -285,9 +296,11 @@ function handleReauthSuccess(): void {
                 pendingSensitiveUser.value = null;
             },
             onError: (errs) => {
-                const errMap = errs as Record<string, string>;
-                serverErrorMessage.value = errMap.message || errMap.role_ids || 'Server rejected role assignment.';
-                serverErrorCode.value = errMap.error_code || 'DENIED';
+                const errMap = errs as Record<string, string | string[] | undefined>;
+                const msg = Array.isArray(errMap.message) ? errMap.message.join(', ') : errMap.message;
+                const roleErr = Array.isArray(errMap.role_ids) ? errMap.role_ids.join(', ') : errMap.role_ids;
+                serverErrorMessage.value = msg || roleErr || 'Server rejected role assignment.';
+                serverErrorCode.value = typeof errMap.error_code === 'string' ? errMap.error_code : 'DENIED';
             },
         });
     } else if (action === 'disable') {
@@ -296,9 +309,10 @@ function handleReauthSuccess(): void {
             {},
             {
                 onError: (errs) => {
-                    const errMap = errs as Record<string, string>;
-                    serverErrorMessage.value = errMap.message || 'Server rejected disabling user.';
-                    serverErrorCode.value = errMap.error_code || 'DENIED';
+                    const errMap = errs as Record<string, string | string[] | undefined>;
+                    const msg = Array.isArray(errMap.message) ? errMap.message.join(', ') : errMap.message;
+                    serverErrorMessage.value = msg || 'Server rejected disabling user.';
+                    serverErrorCode.value = typeof errMap.error_code === 'string' ? errMap.error_code : 'DENIED';
                 },
                 onFinish: () => {
                     pendingSensitiveAction.value = null;
@@ -312,9 +326,10 @@ function handleReauthSuccess(): void {
             {},
             {
                 onError: (errs) => {
-                    const errMap = errs as Record<string, string>;
-                    serverErrorMessage.value = errMap.message || 'Server rejected password reset.';
-                    serverErrorCode.value = errMap.error_code || 'DENIED';
+                    const errMap = errs as Record<string, string | string[] | undefined>;
+                    const msg = Array.isArray(errMap.message) ? errMap.message.join(', ') : errMap.message;
+                    serverErrorMessage.value = msg || 'Server rejected password reset.';
+                    serverErrorCode.value = typeof errMap.error_code === 'string' ? errMap.error_code : 'DENIED';
                 },
                 onFinish: () => {
                     pendingSensitiveAction.value = null;
@@ -327,11 +342,33 @@ function handleReauthSuccess(): void {
 
 // Enable User (Non-sensitive or sensitive-checked if needed, but per spec enable is standard POST)
 function enableUser(user: UserItem): void {
-    if (user.is_protected_superadmin) return;
-    router.post(`/administration/users/${user.id}/enable`, {});
+    if (!canEnable.value || user.is_protected_superadmin) return;
+    router.post(
+        `/administration/users/${user.id}/enable`,
+        {},
+        {
+            onError: (errs) => {
+                const errMap = errs as Record<string, string | string[] | undefined>;
+                const msg = Array.isArray(errMap.message) ? errMap.message.join(', ') : errMap.message;
+                serverErrorMessage.value = msg || 'Server rejected enabling user.';
+                serverErrorCode.value = typeof errMap.error_code === 'string' ? errMap.error_code : 'DENIED';
+            },
+            onFinish: () => {
+                // finished
+            },
+        },
+    );
 }
 
 defineExpose({
+    canView,
+    canCreate,
+    canUpdate,
+    canEnable,
+    canDisable,
+    canResetPassword,
+    canAssignRoles,
+    canAssignTeam,
     createForm,
     editProfileForm,
     editTeamForm,
@@ -431,7 +468,7 @@ defineExpose({
         </div>
 
         <!-- Users Table -->
-        <div class="bg-card border border-border rounded-lg overflow-hidden">
+        <div v-if="canView" class="bg-card border border-border rounded-lg overflow-hidden">
             <table class="min-w-full divide-y divide-border">
                 <thead class="bg-muted/50">
                     <tr>
@@ -692,7 +729,16 @@ defineExpose({
                                     :disabled="createForm.processing"
                                     @change="toggleCreateRole(role.id)"
                                 />
-                                <span>{{ role.name }}</span>
+                                <span class="flex items-center space-x-1.5">
+                                    <span>{{ role.name }}</span>
+                                    <span
+                                        v-if="role.is_protected"
+                                        :data-testid="`create-role-protected-${role.id}`"
+                                        class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                                    >
+                                        Protected
+                                    </span>
+                                </span>
                             </label>
                         </div>
                     </div>
@@ -866,7 +912,16 @@ defineExpose({
                             class="rounded border-input text-primary focus:ring-primary h-4 w-4"
                             @change="toggleUserRole(role.id)"
                         />
-                        <span class="font-medium text-foreground">{{ role.name }}</span>
+                        <span class="flex items-center space-x-1.5 font-medium text-foreground">
+                            <span>{{ role.name }}</span>
+                            <span
+                                v-if="role.is_protected"
+                                :data-testid="`role-protected-${role.id}`"
+                                class="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            >
+                                Protected
+                            </span>
+                        </span>
                     </label>
                 </div>
 
