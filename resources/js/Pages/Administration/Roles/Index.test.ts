@@ -1,0 +1,362 @@
+import { mount } from '@vue/test-utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { reactive } from 'vue';
+
+import Index from './Index.vue';
+
+interface MockForm<T = Record<string, unknown>> {
+    data: T;
+    processing: boolean;
+    errors: Record<string, string>;
+    hasErrors: boolean;
+    post: ReturnType<typeof vi.fn>;
+    patch: ReturnType<typeof vi.fn>;
+    put: ReturnType<typeof vi.fn>;
+    reset: ReturnType<typeof vi.fn>;
+    clearErrors: ReturnType<typeof vi.fn>;
+}
+
+let activeForm: MockForm | null = null;
+
+const { mockRouter } = vi.hoisted(() => {
+    return {
+        mockRouter: {
+            get: vi.fn(),
+            post: vi.fn(),
+            patch: vi.fn(),
+            put: vi.fn(),
+        },
+    };
+});
+
+vi.mock('@inertiajs/vue3', async () => {
+    const { defineComponent } = await import('vue');
+
+    return {
+        Head: defineComponent({
+            name: 'InertiaHead',
+            props: { title: { type: String, required: false } },
+            setup: () => () => null,
+        }),
+        Link: defineComponent({
+            name: 'InertiaLink',
+            props: { href: { type: String, required: true } },
+            setup: (_props, { slots }) => () => (slots.default ? slots.default() : null),
+        }),
+        router: mockRouter,
+        useForm: vi.fn((initialData: Record<string, unknown>) => {
+            const formInstance = reactive({
+                ...initialData,
+                data: initialData,
+                processing: false,
+                errors: {},
+                hasErrors: false,
+                post: vi.fn(),
+                patch: vi.fn(),
+                put: vi.fn(),
+                reset: vi.fn(),
+                clearErrors: vi.fn(),
+            });
+            activeForm = formInstance as unknown as MockForm;
+            return formInstance;
+        }),
+    };
+});
+
+const defaultRoles = [
+    {
+        id: 1,
+        name: 'Superadmin',
+        is_protected: true,
+        permissions: [
+            'nscmf.create',
+            'nscmf.draft.edit',
+            'nscmf.submit',
+            'nscmf.cancel',
+            'nscmf.change.result.edit',
+            'nscmf.view',
+            'nscmf.view.history',
+            'nscmf.attachment.manage',
+            'nscmf.export',
+            'nscmf.export.bulk',
+            'nscmf.timeline.view',
+            'nscmf.review',
+            'nscmf.review.forward',
+            'nscmf.review.return',
+            'nscmf.review.reject',
+            'nscmf.approve',
+            'nscmf.approval.return_reviewer',
+            'nscmf.approval.return_requester',
+            'nscmf.approval.reject',
+            'nscmf.reopen',
+            'nscmf.archive',
+            'users.view',
+            'users.create',
+            'users.update',
+            'users.enable',
+            'users.disable',
+            'users.reset_password',
+            'users.assign_roles',
+            'users.assign_team',
+            'roles.view',
+            'roles.create',
+            'roles.update',
+            'permissions.assign',
+            'teams.view',
+            'teams.create',
+            'teams.update',
+            'teams.archive',
+            'teams.assign_users',
+            'system.settings.manage',
+            'audit.access.view',
+            'audit.security.view',
+        ],
+    },
+    {
+        id: 2,
+        name: 'Requester',
+        is_protected: false,
+        permissions: [
+            'nscmf.create',
+            'nscmf.view',
+            'nscmf.view.history',
+            'nscmf.draft.edit',
+            'nscmf.submit',
+            'nscmf.cancel',
+            'nscmf.change.result.edit',
+            'nscmf.attachment.manage',
+            'nscmf.timeline.view',
+            'nscmf.export',
+            'nscmf.export.bulk',
+        ],
+    },
+    {
+        id: 3,
+        name: 'Reviewer',
+        is_protected: false,
+        permissions: [
+            'nscmf.view',
+            'nscmf.view.history',
+            'nscmf.review',
+            'nscmf.review.forward',
+            'nscmf.review.return',
+            'nscmf.review.reject',
+            'nscmf.timeline.view',
+            'nscmf.export',
+            'nscmf.export.bulk',
+        ],
+    },
+    {
+        id: 4,
+        name: 'Approver',
+        is_protected: false,
+        permissions: [
+            'nscmf.view',
+            'nscmf.view.history',
+            'nscmf.approve',
+            'nscmf.approval.return_reviewer',
+            'nscmf.approval.return_requester',
+            'nscmf.approval.reject',
+            'nscmf.timeline.view',
+            'nscmf.export',
+            'nscmf.export.bulk',
+        ],
+    },
+];
+
+const canonicalPermissions = [
+    { name: 'nscmf.create', group: 'NSCMF Core', description: 'Create new NSCMF record' },
+    { name: 'nscmf.draft.edit', group: 'NSCMF Core', description: 'Edit eligible Draft/Revision' },
+    { name: 'nscmf.submit', group: 'NSCMF Core', description: 'Submit eligible record' },
+    { name: 'nscmf.cancel', group: 'NSCMF Core', description: 'Cancel eligible Draft' },
+    { name: 'nscmf.change.result.edit', group: 'NSCMF Core', description: 'Edit Change Result' },
+    { name: 'nscmf.view', group: 'NSCMF Core', description: 'View authorized records' },
+    { name: 'nscmf.view.history', group: 'NSCMF Core', description: 'View record history' },
+    { name: 'nscmf.attachment.manage', group: 'NSCMF Core', description: 'Manage attachments' },
+    { name: 'nscmf.export', group: 'NSCMF Core', description: 'Export authorized record' },
+    { name: 'nscmf.export.bulk', group: 'NSCMF Core', description: 'Bulk export authorized records' },
+    { name: 'nscmf.timeline.view', group: 'NSCMF Core', description: 'View Business Timeline' },
+    { name: 'nscmf.review', group: 'Review', description: 'Review eligible record' },
+    { name: 'nscmf.review.forward', group: 'Review', description: 'Forward review' },
+    { name: 'nscmf.review.return', group: 'Review', description: 'Return review' },
+    { name: 'nscmf.review.reject', group: 'Review', description: 'Reject in review' },
+    { name: 'nscmf.approve', group: 'Approval', description: 'Approve eligible record' },
+    { name: 'nscmf.approval.return_reviewer', group: 'Approval', description: 'Return to Reviewer' },
+    { name: 'nscmf.approval.return_requester', group: 'Approval', description: 'Return to Requester' },
+    { name: 'nscmf.approval.reject', group: 'Approval', description: 'Reject in approval' },
+    { name: 'nscmf.reopen', group: 'Lifecycle', description: 'Reopen eligible record' },
+    { name: 'nscmf.archive', group: 'Lifecycle', description: 'Archive/unarchive record' },
+    { name: 'users.view', group: 'User Administration', description: 'View users' },
+    { name: 'users.create', group: 'User Administration', description: 'Create users' },
+    { name: 'users.update', group: 'User Administration', description: 'Update users' },
+    { name: 'users.enable', group: 'User Administration', description: 'Enable users' },
+    { name: 'users.disable', group: 'User Administration', description: 'Disable users' },
+    { name: 'users.reset_password', group: 'User Administration', description: 'Reset user password' },
+    { name: 'users.assign_roles', group: 'User Administration', description: 'Assign roles to user' },
+    { name: 'users.assign_team', group: 'User Administration', description: 'Assign team to user' },
+    { name: 'roles.view', group: 'Role Administration', description: 'View roles' },
+    { name: 'roles.create', group: 'Role Administration', description: 'Create roles' },
+    { name: 'roles.update', group: 'Role Administration', description: 'Update roles' },
+    { name: 'permissions.assign', group: 'Role Administration', description: 'Assign permissions to role' },
+    { name: 'teams.view', group: 'Team Administration', description: 'View teams' },
+    { name: 'teams.create', group: 'Team Administration', description: 'Create teams' },
+    { name: 'teams.update', group: 'Team Administration', description: 'Update teams' },
+    { name: 'teams.archive', group: 'Team Administration', description: 'Archive teams' },
+    { name: 'teams.assign_users', group: 'Team Administration', description: 'Assign users to team' },
+    { name: 'system.settings.manage', group: 'Core Settings', description: 'Manage core system settings' },
+    { name: 'audit.access.view', group: 'Privileged Audit', description: 'View access audits' },
+    { name: 'audit.security.view', group: 'Privileged Audit', description: 'View security audits' },
+];
+
+describe('Index.vue (FE-14: Role and Permission Administration)', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        activeForm = null;
+    });
+
+    it('AC1: roles_use_catalog_not_invented_permissions — tidak ada session.login/roles.archive/wildcard scope', async () => {
+        const wrapper = mount(Index, {
+            props: {
+                roles: defaultRoles,
+                permissionCatalog: canonicalPermissions,
+                userPermissions: ['roles.view', 'roles.create', 'roles.update', 'permissions.assign'],
+            },
+        });
+
+        // Verify catalog items rendered in grouped permission selector or inspection
+        expect(wrapper.text()).toContain('Role and Permission Administration');
+        
+        // Open permission selector for custom/editable role
+        const openAssignBtn = wrapper.find('[data-testid="assign-permissions-2"]');
+        expect(openAssignBtn.exists()).toBe(true);
+        await openAssignBtn.trigger('click');
+
+        // Check rendered permission names in dialog/modal
+        const pageText = wrapper.text();
+        expect(pageText).not.toContain('session.login');
+        expect(pageText).not.toContain('session.logout');
+        expect(pageText).not.toContain('roles.archive');
+        expect(pageText).not.toContain('*');
+        expect(pageText).not.toContain('wildcard');
+
+        // Check multi-role union explanation exists
+        expect(pageText).toContain('union across assigned roles');
+    });
+
+    it('AC2: roles_separate_edit_and_assign — roles.update tanpa permissions.assign dapat ubah metadata tetapi tidak permission set', async () => {
+        const wrapper = mount(Index, {
+            props: {
+                roles: defaultRoles,
+                permissionCatalog: canonicalPermissions,
+                userPermissions: ['roles.view', 'roles.update'], // lacks permissions.assign
+            },
+        });
+
+        // Edit metadata button must exist for custom/editable role
+        const editMetadataBtn = wrapper.find('[data-testid="edit-role-2"]');
+        expect(editMetadataBtn.exists()).toBe(true);
+        
+        // But assign-permissions button must NOT be available without permissions.assign
+        const assignPermsBtn = wrapper.find('[data-testid="assign-permissions-2"]');
+        expect(assignPermsBtn.exists()).toBe(false);
+
+        // Open edit metadata modal
+        await editMetadataBtn.trigger('click');
+        const formEl = wrapper.find('[data-testid="role-metadata-form"]');
+        expect(formEl.exists()).toBe(true);
+
+        // Submitting metadata form sends PATCH /administration/roles/{id}
+        await formEl.trigger('submit.prevent');
+        expect(activeForm?.patch).toHaveBeenCalledWith(
+            '/administration/roles/2',
+            expect.any(Object),
+        );
+    });
+
+    it('AC3: roles_require_explicit_sensitive_confirmation — permission change memakai reauth flow dan tidak submit saat cancel', async () => {
+        const wrapper = mount(Index, {
+            props: {
+                roles: defaultRoles,
+                permissionCatalog: canonicalPermissions,
+                userPermissions: ['roles.view', 'roles.update', 'permissions.assign'],
+            },
+        });
+
+        // Open permission assignment modal for Requester (id: 2)
+        const openAssignBtn = wrapper.find('[data-testid="assign-permissions-2"]');
+        await openAssignBtn.trigger('click');
+
+        // Toggle a permission
+        const permCheckbox = wrapper.find('[data-testid="perm-checkbox-nscmf.reopen"]');
+        expect(permCheckbox.exists()).toBe(true);
+        await permCheckbox.setValue(true);
+
+        // Click Save Permissions -> Should trigger ReauthenticationDialog rather than directly submitting PUT
+        const savePermsBtn = wrapper.find('[data-testid="save-permissions-btn"]');
+        await savePermsBtn.trigger('click');
+
+        // Reauth dialog should be open
+        const reauthModal = wrapper.find('[data-testid="reauth-dialog"]');
+        expect(reauthModal.exists()).toBe(true);
+        expect(wrapper.text()).toContain('effective permissions');
+        expect(wrapper.text()).toContain('session');
+
+        // PUT request must NOT have been called yet
+        expect(activeForm?.put).not.toHaveBeenCalled();
+
+        // Cancel reauth
+        const cancelReauthBtn = wrapper.find('[data-testid="reauth-cancel-btn"]');
+        await cancelReauthBtn.trigger('click');
+
+        // Still not called
+        expect(activeForm?.put).not.toHaveBeenCalled();
+
+        // Trigger save again, then simulate reauth success
+        await savePermsBtn.trigger('click');
+        const confirmReauthBtn = wrapper.find('[data-testid="reauth-success-btn"]');
+        await confirmReauthBtn.trigger('click');
+
+        // Now PUT /administration/roles/2/permissions should be called
+        expect(activeForm?.put).toHaveBeenCalledWith(
+            '/administration/roles/2/permissions',
+            expect.any(Object),
+        );
+    });
+
+    it('AC4: roles_handle_protected_resource — PROTECTED_RESOURCE menjaga selection dan menampilkan error, tidak sukses optimistik', async () => {
+        const wrapper = mount(Index, {
+            props: {
+                roles: defaultRoles,
+                permissionCatalog: canonicalPermissions,
+                userPermissions: ['roles.view', 'roles.update', 'permissions.assign'],
+            },
+        });
+
+        // Superadmin is protected
+        const superadminRow = wrapper.find('[data-testid="role-row-1"]');
+        expect(superadminRow.text()).toContain('Protected');
+
+        // Attempting to edit Superadmin permissions should show protected warning/disabled
+        const editSuperadminPerms = wrapper.find('[data-testid="assign-permissions-1"]');
+        expect(editSuperadminPerms.attributes('disabled')).toBeDefined();
+
+        // If a server response returns error envelope with code PROTECTED_RESOURCE for a role
+        const openAssignBtn = wrapper.find('[data-testid="assign-permissions-2"]');
+        await openAssignBtn.trigger('click');
+
+        // Set server error on form
+        if (activeForm) {
+            activeForm.errors = {
+                permissions: 'Role permissions are protected by server-side invariant.',
+            };
+        }
+        (wrapper.vm as any).serverErrorCode = 'PROTECTED_RESOURCE';
+        (wrapper.vm as any).serverErrorMessage = 'This role or permission bundle is protected from modification.';
+        await wrapper.vm.$nextTick();
+
+        // Check error display near modal
+        expect(wrapper.text()).toContain('This role or permission bundle is protected from modification.');
+        // Modal must not close optimistically
+        expect(wrapper.find('[data-testid="permissions-modal"]').exists()).toBe(true);
+    });
+});
