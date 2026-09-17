@@ -216,7 +216,7 @@ describe('Index.vue (FE-11: Team Administration)', () => {
         expect(errorElement.text()).toContain('The team name has already been taken.');
     });
 
-    it('AC4: teams_preserve_historical_snapshot — Team fixture berubah tidak mengubah label snapshot existing record di UI model', async () => {
+    it('AC4: teams_preserve_historical_snapshot — Team fixture berubah tidak mengubah label snapshot existing record di UI model', () => {
         // When historical snapshot records exist with team snapshot label, mutating/updating team data doesn't alter snapshot
         const wrapper = mount(Index, {
             props: {
