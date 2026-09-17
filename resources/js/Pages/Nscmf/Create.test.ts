@@ -30,7 +30,10 @@ vi.mock('@inertiajs/vue3', async () => {
         Link: defineComponent({
             name: 'InertiaLink',
             props: { href: { type: String, required: true } },
-            setup: (_props, { slots }) => () => (slots.default ? slots.default() : null),
+            setup:
+                (_props, { slots }) =>
+                () =>
+                    slots.default ? slots.default() : null,
         }),
         useForm: vi.fn((initialData: Record<string, unknown>) => {
             currentForm = reactive({
@@ -73,7 +76,10 @@ describe('Create.vue (FE-17: Create family, subtype dan numbering)', () => {
         expect(familySelect.exists()).toBe(true);
         await familySelect.setValue('CHANGE');
 
-        const changeOptions = wrapper.find<HTMLSelectElement>('[data-testid="subtype-select"]').findAll('option').map((o) => o.element.value);
+        const changeOptions = wrapper
+            .find<HTMLSelectElement>('[data-testid="subtype-select"]')
+            .findAll('option')
+            .map((o) => o.element.value);
         expect(changeOptions).toEqual(['MAINTENANCE', 'UPGRADE', 'EMERGENCY']);
     });
 
@@ -86,7 +92,7 @@ describe('Create.vue (FE-17: Create family, subtype dan numbering)', () => {
 
         // Switch numbering mode to MANUAL
         const manualRadio = wrapper.find('[data-testid="numbering-manual-radio"]');
-        await manualRadio.trigger('click');
+        await manualRadio.setValue();
 
         const requestNoInput = wrapper.find<HTMLInputElement>('[data-testid="manual-request-no-input"]');
         expect(requestNoInput.exists()).toBe(true);
@@ -109,6 +115,19 @@ describe('Create.vue (FE-17: Create family, subtype dan numbering)', () => {
         await requestNoInput.setValue('   ');
         await form.trigger('submit.prevent');
         expect(currentForm.post).not.toHaveBeenCalled();
+
+        // Test invalid characters regex
+        await requestNoInput.setValue('-ABC');
+        await form.trigger('submit.prevent');
+        expect(currentForm.post).not.toHaveBeenCalled();
+        expect(wrapper.text()).toContain('Request number must begin with alphanumeric');
+
+        // Switch family to CHANGE and back to ACTIVATION to exercise watcher branches
+        const familySelect = wrapper.find<HTMLSelectElement>('[data-testid="family-select"]');
+        await familySelect.setValue('CHANGE');
+        expect(currentForm.subtype).toBe('MAINTENANCE');
+        await familySelect.setValue('ACTIVATION');
+        expect(currentForm.subtype).toBe('ACTIVATION');
 
         // Legal 3 chars with outer whitespace: should trim
         await requestNoInput.setValue('  ABC  ');
