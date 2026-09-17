@@ -186,6 +186,36 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                     result_status: 'SUCCESS',
                 },
             ]);
+
+            // Cover ?? null right side when fields are omitted/undefined in partial rows
+            const partialRightSideInput: ChangeDraftInput = {
+                family: 'CHANGE',
+                record_version: 7,
+                change: {
+                    improvement_items: [
+                        { row_no: 1, target_kpi: '99.99% uptime' },
+                    ],
+                    results: [
+                        { row_no: 1, result_summary: 'Maintenance finished' },
+                    ],
+                },
+            };
+            const partialPayload = buildDraftPayload(partialRightSideInput);
+            expect(partialPayload.change.improvement_items).toEqual([
+                {
+                    row_no: 1,
+                    plan_text: null,
+                    target_kpi: '99.99% uptime',
+                },
+            ]);
+            expect(partialPayload.change.results).toEqual([
+                {
+                    row_no: 1,
+                    result_summary: 'Maintenance finished',
+                    performance_information: null,
+                    result_status: null,
+                },
+            ]);
         });
     });
 
@@ -486,6 +516,30 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                 },
             ]);
 
+            // Covers ?? null fallbacks on service_blocks with nullish fields
+            const serviceBlockSparseInput: ActivationDraftInput = {
+                family: 'ACTIVATION',
+                record_version: 8,
+                activation: {
+                    service_blocks: [
+                        {
+                            service_context: 'NEW',
+                            service_location: 'Jakarta DC',
+                        },
+                    ],
+                },
+            };
+            const sparsePayload = buildDraftPayload(serviceBlockSparseInput);
+            expect(sparsePayload.activation.service_blocks).toEqual([
+                {
+                    service_context: 'NEW',
+                    service_id: null,
+                    service_status: null,
+                    service_description: null,
+                    service_location: 'Jakarta DC',
+                },
+            ]);
+
             expect(() =>
                 buildDraftPayload({
                     family: 'ACTIVATION',
@@ -526,6 +580,20 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
             const payload = buildDraftPayload(input);
 
             expect(payload.record_version).toBe(8);
+        });
+
+        it('handles nullish/missing activation and change objects falling back to empty payload', () => {
+            const activationWithoutAct = buildDraftPayload({
+                family: 'ACTIVATION',
+                record_version: 1,
+            } as unknown as ActivationDraftInput);
+            expect(activationWithoutAct.activation).toEqual({});
+
+            const changeWithoutChg = buildDraftPayload({
+                family: 'CHANGE',
+                record_version: 2,
+            } as unknown as ChangeDraftInput);
+            expect(changeWithoutChg.change).toEqual({});
         });
     });
 });
