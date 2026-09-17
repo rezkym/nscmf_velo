@@ -117,7 +117,8 @@ describe('FE-23: Activation Direct Site and POP Site (SiteSection.vue)', () => {
                 expect(wrapper.text()).not.toContain('RSSI must be');
                 const emitted = wrapper.emitted('submit-valid');
                 expect(emitted).toBeTruthy();
-                const payload = emitted![emitted!.length - 1][0] as { direct_site?: { rssi?: number } };
+                const lastEmit = emitted?.[emitted.length - 1];
+                const payload = (lastEmit ? lastEmit[0] : {}) as { direct_site?: { rssi?: number } };
                 expect(payload.direct_site?.rssi).toBe(rssiVal);
             }
         });
@@ -160,7 +161,9 @@ describe('FE-23: Activation Direct Site and POP Site (SiteSection.vue)', () => {
             expect(clearDirectBtn.exists()).toBe(true);
             await clearDirectBtn.trigger('click');
 
-            const payload = (wrapper.vm as unknown as { getDraftPayload: () => ActivationDraftFields }).getDraftPayload();
+            const payload = (
+                wrapper.vm as unknown as { getDraftPayload: () => ActivationDraftFields }
+            ).getDraftPayload();
             expect(payload.direct_site).toBeNull();
             expect(payload.pop_site).toEqual({
                 switch_distribution: 'SW-DIST-01',
@@ -200,7 +203,9 @@ describe('FE-23: Activation Direct Site and POP Site (SiteSection.vue)', () => {
             expect(clearPopBtn.exists()).toBe(true);
             await clearPopBtn.trigger('click');
 
-            const payload = (wrapper.vm as unknown as { getDraftPayload: () => ActivationDraftFields }).getDraftPayload();
+            const payload = (
+                wrapper.vm as unknown as { getDraftPayload: () => ActivationDraftFields }
+            ).getDraftPayload();
             expect(payload.pop_site).toBeNull();
             expect(payload.direct_site).toEqual({
                 direction: 'North-East',
@@ -226,7 +231,9 @@ describe('FE-23: Activation Direct Site and POP Site (SiteSection.vue)', () => {
                 },
             });
 
-            const payload = (wrapper.vm as unknown as { getDraftPayload: () => ActivationDraftFields }).getDraftPayload();
+            const payload = (
+                wrapper.vm as unknown as { getDraftPayload: () => ActivationDraftFields }
+            ).getDraftPayload();
             expect(payload.direct_site).toBeUndefined();
             expect(payload.pop_site).toBeUndefined();
 
@@ -239,7 +246,7 @@ describe('FE-23: Activation Direct Site and POP Site (SiteSection.vue)', () => {
             expect(wire.activation).not.toHaveProperty('pop_site');
         });
 
-        it('never produces an empty object {} on wire when a block is cleared or partially filled', async () => {
+        it('never produces an empty object {} on wire when a block is cleared or partially filled', () => {
             const wrapper = mount(SiteSection, {
                 props: {
                     modelValue: {
@@ -249,7 +256,9 @@ describe('FE-23: Activation Direct Site and POP Site (SiteSection.vue)', () => {
                 },
             });
 
-            const payload = (wrapper.vm as unknown as { getDraftPayload: () => ActivationDraftFields }).getDraftPayload();
+            const payload = (
+                wrapper.vm as unknown as { getDraftPayload: () => ActivationDraftFields }
+            ).getDraftPayload();
             expect(payload.direct_site).toBeNull();
             expect(payload.pop_site).toBeNull();
 
@@ -264,7 +273,7 @@ describe('FE-23: Activation Direct Site and POP Site (SiteSection.vue)', () => {
     });
 
     describe('AC4 — sites_roundtrip_all_fields', () => {
-        it('retains numeric 0 for latency_ms, packet_loss_percent, rssi without truthy filtering dropping them', async () => {
+        it('retains numeric 0 for latency_ms, packet_loss_percent, rssi without truthy filtering dropping them', () => {
             const model: ActivationDraftFields = {
                 direct_site: {
                     latency_ms: 0,
@@ -308,7 +317,7 @@ describe('FE-23: Activation Direct Site and POP Site (SiteSection.vue)', () => {
             expect((wire.activation.direct_site as Record<string, unknown>).rssi).toBe(0);
         });
 
-        it('roundtrips all Direct Site and POP Site fields correctly', async () => {
+        it('roundtrips all Direct Site and POP Site fields correctly', () => {
             const fullDirectSite = {
                 local_loops: 'Fiber Loop West',
                 lastmile: 'FO 100m',
@@ -356,7 +365,9 @@ describe('FE-23: Activation Direct Site and POP Site (SiteSection.vue)', () => {
                 expect(el.element.value).toBe(String(val));
             }
 
-            const payload = (wrapper.vm as unknown as { getDraftPayload: () => ActivationDraftFields }).getDraftPayload();
+            const payload = (
+                wrapper.vm as unknown as { getDraftPayload: () => ActivationDraftFields }
+            ).getDraftPayload();
             expect(payload.direct_site).toEqual(fullDirectSite);
             expect(payload.pop_site).toEqual(fullPopSite);
         });
