@@ -270,7 +270,7 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
             expect(wrapper.find('[data-testid="error-ref-OTHER"]').text()).toContain('Specification is required for OTHER');
 
-            // > 255 chars
+            // > 255 chars on OTHER
             await wrapper.setProps({
                 modelValue: {
                     ...validActivationData,
@@ -282,7 +282,7 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
             expect(wrapper.find('[data-testid="error-ref-OTHER"]').text()).toContain('max 255 characters');
 
-            // 255 chars valid
+            // 255 chars valid on OTHER
             await wrapper.setProps({
                 modelValue: {
                     ...validActivationData,
@@ -293,6 +293,18 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             });
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
             expect(wrapper.find('[data-testid="error-ref-OTHER"]').exists()).toBe(false);
+
+            // Optional reference (IWO) with > 255 chars specification fails submit validation
+            await wrapper.setProps({
+                modelValue: {
+                    ...validActivationData,
+                    references: [
+                        { reference_type: 'IWO', specification: 'y'.repeat(256) },
+                    ],
+                },
+            });
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.find('[data-testid="error-ref-IWO"]').text()).toContain('max 255 characters');
         });
 
         it('requires all core fields if an optional service block is started upon submit', async () => {
@@ -352,6 +364,101 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             expect(wrapper.find('[data-testid="error-service-NEW-service_id"]').text()).toContain('max 100 characters');
             expect(wrapper.find('[data-testid="error-service-NEW-service_description"]').text()).toContain('max 2000 characters');
             expect(wrapper.find('[data-testid="error-service-NEW-service_location"]').text()).toContain('max 500 characters');
+        });
+
+        it('emits submit-invalid with errors dictionary when submit validation fails', async () => {
+            const wrapper = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Activation',
+                    modelValue: {
+                        customer_name: '',
+                        contact_name: '',
+                    },
+                },
+            });
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+            const emittedErrors = wrapper.emitted('submit-invalid')![0]![0] as Record<string, string>;
+            expect(emittedErrors.customer_name).toBeDefined();
+            expect(emittedErrors.contact_name).toBeDefined();
+        });
+
+        it('handles direct input event triggering and emits update:modelValue', async () => {
+            const wrapper = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Upgrade/Downgrade',
+                    modelValue: {
+                        ...validActivationData,
+                        service_blocks: [
+                            {
+                                service_context: 'EXISTING',
+                                service_id: 'EX-1',
+                                service_status: 'ACTIVATED',
+                                service_description: 'Desc',
+                                service_location: 'Loc',
+                            },
+                            {
+                                service_context: 'NEW',
+                                service_id: 'NEW-1',
+                                service_status: 'ACTIVATED',
+                                service_description: 'Desc',
+                                service_location: 'Loc',
+                            },
+                        ],
+                    },
+                },
+            });
+
+            const custInput = wrapper.find('[data-testid="input-customer-name"]');
+            await custInput.setValue('Updated Customer Name');
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            const rfsInput = wrapper.find('[data-testid="input-installation-rfs-date"]');
+            await rfsInput.setValue('2026-11-15');
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            const exIdInput = wrapper.find('[data-testid="input-service-EXISTING-service_id"]');
+            await exIdInput.setValue('EX-MODIFIED');
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            const exStatusSelect = wrapper.find('[data-testid="select-service-EXISTING-service_status"]');
+            await exStatusSelect.setValue('DEACTIVATED');
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            const exDescInput = wrapper.find('[data-testid="input-service-EXISTING-service_description"]');
+            await exDescInput.setValue('Updated existing desc');
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            const exLocInput = wrapper.find('[data-testid="input-service-EXISTING-service_location"]');
+            await exLocInput.setValue('Updated existing loc');
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            const statusSelect = wrapper.find('[data-testid="select-service-NEW-service_status"]');
+            await statusSelect.setValue('DEACTIVATED');
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            const descInput = wrapper.find('[data-testid="input-service-NEW-service_description"]');
+            await descInput.setValue('Updated description');
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            const locInput = wrapper.find('[data-testid="input-service-NEW-service_location"]');
+            await locInput.setValue('Updated location');
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            const specInput = wrapper.find('[data-testid="ref-spec-input-IWO"]');
+            await specInput.setValue('IWO-SPEC-UPDATED');
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            // Direct input event on status select and service id for NEW
+            const newIdInput = wrapper.find('[data-testid="input-service-NEW-service_id"]');
+            await newIdInput.setValue('NEW-MODIFIED');
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            // Toggle reference off
+            const refCheckbox = wrapper.find('[data-testid="ref-checkbox-IWO"]');
+            await refCheckbox.setValue(false);
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
         });
     });
 
