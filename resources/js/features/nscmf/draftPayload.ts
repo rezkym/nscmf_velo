@@ -169,6 +169,10 @@ function isNonEmptyString(val: unknown): boolean {
     return typeof val === 'string' && val.trim().length > 0;
 }
 
+function own<T = unknown>(obj: object, key: string): T | undefined {
+    return Object.hasOwn(obj, key) ? ((obj as Record<string, unknown>)[key] as T) : undefined;
+}
+
 function isPresent(val: unknown): boolean {
     if (val === null || val === undefined) {
         return false;
@@ -191,17 +195,23 @@ function processReferences(rows: ReferenceSelection[]): ReferenceSelection[] {
     const result: ReferenceSelection[] = [];
 
     for (const row of rows) {
-        if (!row.reference_type) {
+        if (!isPlainObject(row)) {
+            throw new Error('Reference row must be a plain object.');
+        }
+        const referenceType = own<string>(row, 'reference_type');
+        if (typeof referenceType !== 'string' || referenceType.trim().length === 0) {
             throw new Error('Reference item missing reference_type.');
         }
-        if (seen.has(row.reference_type)) {
-            throw new Error(`Duplicate reference_type found: ${row.reference_type}.`);
+        const trimmedType = referenceType.trim();
+        if (seen.has(trimmedType)) {
+            throw new Error(`Duplicate reference_type found: ${trimmedType}.`);
         }
-        seen.add(row.reference_type);
+        seen.add(trimmedType);
 
+        const specification = own<string | null>(row, 'specification');
         result.push({
-            reference_type: row.reference_type,
-            specification: row.specification !== undefined ? row.specification : null,
+            reference_type: trimmedType as ReferenceSelection['reference_type'],
+            specification: specification !== undefined ? specification : null,
         });
     }
 
@@ -213,17 +223,23 @@ function processServiceImpacts(rows: ServiceImpactSelection[]): ServiceImpactSel
     const result: ServiceImpactSelection[] = [];
 
     for (const row of rows) {
-        if (!row.impact_code) {
+        if (!isPlainObject(row)) {
+            throw new Error('ServiceImpact row must be a plain object.');
+        }
+        const impactCode = own<string>(row, 'impact_code');
+        if (typeof impactCode !== 'string' || impactCode.trim().length === 0) {
             throw new Error('ServiceImpact missing impact_code.');
         }
-        if (seen.has(row.impact_code)) {
-            throw new Error(`Duplicate impact_code found: ${row.impact_code}.`);
+        const trimmedCode = impactCode.trim();
+        if (seen.has(trimmedCode)) {
+            throw new Error(`Duplicate impact_code found: ${trimmedCode}.`);
         }
-        seen.add(row.impact_code);
+        seen.add(trimmedCode);
 
+        const otherDescription = own<string | null>(row, 'other_description');
         result.push({
-            impact_code: row.impact_code,
-            other_description: row.other_description !== undefined ? row.other_description : null,
+            impact_code: trimmedCode as ServiceImpactSelection['impact_code'],
+            other_description: otherDescription !== undefined ? otherDescription : null,
         });
     }
 
@@ -235,34 +251,51 @@ function processServiceBlocks(rows: ServiceBlockRow[]): ServiceBlockRow[] {
     const result: ServiceBlockRow[] = [];
 
     for (const row of rows) {
-        if (!row.service_context) {
+        if (!isPlainObject(row)) {
+            throw new Error('ServiceBlock row must be a plain object.');
+        }
+        const serviceContext = own<string>(row, 'service_context');
+        if (typeof serviceContext !== 'string' || serviceContext.trim().length === 0) {
             throw new Error('service_block missing service_context.');
         }
-        if (seen.has(row.service_context)) {
-            throw new Error(`Duplicate service_context found: ${row.service_context}.`);
+        const trimmedContext = serviceContext.trim();
+        if (seen.has(trimmedContext)) {
+            throw new Error(`Duplicate service_context found: ${trimmedContext}.`);
         }
-        seen.add(row.service_context);
+        seen.add(trimmedContext);
+
+        const serviceId = own<string | null>(row, 'service_id');
+        const serviceStatus = own<ServiceBlockRow['service_status']>(row, 'service_status');
+        const serviceDescription = own<string | null>(row, 'service_description');
+        const serviceLocation = own<string | null>(row, 'service_location');
 
         const hasContent =
-            isPresent(row.service_id) ||
-            isPresent(row.service_status) ||
-            isPresent(row.service_description) ||
-            isPresent(row.service_location);
+            isPresent(serviceId) ||
+            isPresent(serviceStatus) ||
+            isPresent(serviceDescription) ||
+            isPresent(serviceLocation);
 
         if (!hasContent) {
             continue; // Discard content-empty row carrying only natural key
         }
 
         result.push({
-            service_context: row.service_context,
-            service_id: row.service_id ?? null,
-            service_status: row.service_status ?? null,
-            service_description: row.service_description ?? null,
-            service_location: row.service_location ?? null,
+            service_context: trimmedContext as ServiceBlockRow['service_context'],
+            service_id: serviceId ?? null,
+            service_status: serviceStatus ?? null,
+            service_description: serviceDescription ?? null,
+            service_location: serviceLocation ?? null,
         });
     }
 
     return result;
+}
+
+function assertArrayCollection<T>(rows: unknown, name: string): T[] {
+    if (!Array.isArray(rows)) {
+        throw new Error(`${name} must be an array.`);
+    }
+    return rows as T[];
 }
 
 function processSlaItems(rows: SlaItemRow[]): SlaItemRow[] {
@@ -270,16 +303,20 @@ function processSlaItems(rows: SlaItemRow[]): SlaItemRow[] {
     const result: SlaItemRow[] = [];
 
     for (const row of rows) {
-        const rowNo = assertValidRowNo(row.row_no, 3);
+        if (!isPlainObject(row)) {
+            throw new Error('SlaItem row must be a plain object.');
+        }
+        const rowNo = assertValidRowNo(own(row, 'row_no'), 3);
         if (seen.has(rowNo)) {
             throw new Error(`Duplicate row_no found: ${rowNo}.`);
         }
         seen.add(rowNo);
 
-        if (isNonEmptyString(row.requirement_text)) {
+        const requirementText = own<string | null>(row, 'requirement_text');
+        if (isNonEmptyString(requirementText)) {
             result.push({
                 row_no: rowNo,
-                requirement_text: row.requirement_text!,
+                requirement_text: requirementText,
             });
         }
     }
@@ -292,16 +329,20 @@ function processVirtualConnections(rows: VirtualConnectionRow[]): VirtualConnect
     const result: VirtualConnectionRow[] = [];
 
     for (const row of rows) {
-        const rowNo = assertValidRowNo(row.row_no, 3);
+        if (!isPlainObject(row)) {
+            throw new Error('VirtualConnection row must be a plain object.');
+        }
+        const rowNo = assertValidRowNo(own(row, 'row_no'), 3);
         if (seen.has(rowNo)) {
             throw new Error(`Duplicate row_no found: ${rowNo}.`);
         }
         seen.add(rowNo);
 
-        if (row.bandwidth_mbps !== null && row.bandwidth_mbps !== undefined && !Number.isNaN(row.bandwidth_mbps)) {
+        const bandwidthMbps = own<number | null>(row, 'bandwidth_mbps');
+        if (bandwidthMbps !== null && bandwidthMbps !== undefined && !Number.isNaN(bandwidthMbps)) {
             result.push({
                 row_no: rowNo,
-                bandwidth_mbps: Number(row.bandwidth_mbps),
+                bandwidth_mbps: Number(bandwidthMbps),
             });
         }
     }
@@ -314,16 +355,20 @@ function processPriorityDestinations(rows: PriorityDestinationRow[]): PriorityDe
     const result: PriorityDestinationRow[] = [];
 
     for (const row of rows) {
-        const rowNo = assertValidRowNo(row.row_no, 3);
+        if (!isPlainObject(row)) {
+            throw new Error('PriorityDestination row must be a plain object.');
+        }
+        const rowNo = assertValidRowNo(own(row, 'row_no'), 3);
         if (seen.has(rowNo)) {
             throw new Error(`Duplicate row_no found: ${rowNo}.`);
         }
         seen.add(rowNo);
 
-        if (isNonEmptyString(row.destination)) {
+        const destination = own<string | null>(row, 'destination');
+        if (isNonEmptyString(destination)) {
             result.push({
                 row_no: rowNo,
-                destination: row.destination!,
+                destination: destination,
             });
         }
     }
@@ -336,16 +381,20 @@ function processFacingChallenges(rows: FacingChallengeRow[]): FacingChallengeRow
     const result: FacingChallengeRow[] = [];
 
     for (const row of rows) {
-        const rowNo = assertValidRowNo(row.row_no, 3);
+        if (!isPlainObject(row)) {
+            throw new Error('FacingChallenge row must be a plain object.');
+        }
+        const rowNo = assertValidRowNo(own(row, 'row_no'), 3);
         if (seen.has(rowNo)) {
             throw new Error(`Duplicate row_no found: ${rowNo}.`);
         }
         seen.add(rowNo);
 
-        if (isNonEmptyString(row.challenge_text)) {
+        const challengeText = own<string | null>(row, 'challenge_text');
+        if (isNonEmptyString(challengeText)) {
             result.push({
                 row_no: rowNo,
-                challenge_text: row.challenge_text!,
+                challenge_text: challengeText,
             });
         }
     }
@@ -358,16 +407,20 @@ function processIdentifiedProblems(rows: IdentifiedProblemRow[]): IdentifiedProb
     const result: IdentifiedProblemRow[] = [];
 
     for (const row of rows) {
-        const rowNo = assertValidRowNo(row.row_no, 3);
+        if (!isPlainObject(row)) {
+            throw new Error('IdentifiedProblem row must be a plain object.');
+        }
+        const rowNo = assertValidRowNo(own(row, 'row_no'), 3);
         if (seen.has(rowNo)) {
             throw new Error(`Duplicate row_no found: ${rowNo}.`);
         }
         seen.add(rowNo);
 
-        if (isNonEmptyString(row.problem_text)) {
+        const problemText = own<string | null>(row, 'problem_text');
+        if (isNonEmptyString(problemText)) {
             result.push({
                 row_no: rowNo,
-                problem_text: row.problem_text!,
+                problem_text: problemText,
             });
         }
     }
@@ -380,21 +433,27 @@ function processImprovementItems(rows: ImprovementItemRow[]): ImprovementItemRow
     const result: ImprovementItemRow[] = [];
 
     for (const row of rows) {
-        const rowNo = assertValidRowNo(row.row_no, 3);
+        if (!isPlainObject(row)) {
+            throw new Error('ImprovementItem row must be a plain object.');
+        }
+        const rowNo = assertValidRowNo(own(row, 'row_no'), 3);
         if (seen.has(rowNo)) {
             throw new Error(`Duplicate row_no found: ${rowNo}.`);
         }
         seen.add(rowNo);
 
-        const hasContent = isNonEmptyString(row.plan_text) || isNonEmptyString(row.target_kpi);
+        const planText = own<string | null>(row, 'plan_text');
+        const targetKpi = own<string | null>(row, 'target_kpi');
+
+        const hasContent = isNonEmptyString(planText) || isNonEmptyString(targetKpi);
         if (!hasContent) {
             continue;
         }
 
         result.push({
             row_no: rowNo,
-            plan_text: row.plan_text ?? null,
-            target_kpi: row.target_kpi ?? null,
+            plan_text: planText ?? null,
+            target_kpi: targetKpi ?? null,
         });
     }
 
@@ -406,16 +465,23 @@ function processChangeResults(rows: ChangeResultRow[]): ChangeResultRow[] {
     const result: ChangeResultRow[] = [];
 
     for (const row of rows) {
-        const rowNo = assertValidRowNo(row.row_no, 5);
+        if (!isPlainObject(row)) {
+            throw new Error('ChangeResult row must be a plain object.');
+        }
+        const rowNo = assertValidRowNo(own(row, 'row_no'), 5);
         if (seen.has(rowNo)) {
             throw new Error(`Duplicate row_no found: ${rowNo}.`);
         }
         seen.add(rowNo);
 
+        const resultSummary = own<string | null>(row, 'result_summary');
+        const performanceInformation = own<string | null>(row, 'performance_information');
+        const resultStatus = own<string | null>(row, 'result_status');
+
         const hasContent =
-            isNonEmptyString(row.result_summary) ||
-            isNonEmptyString(row.performance_information) ||
-            isNonEmptyString(row.result_status);
+            isNonEmptyString(resultSummary) ||
+            isNonEmptyString(performanceInformation) ||
+            isNonEmptyString(resultStatus);
 
         if (!hasContent) {
             continue;
@@ -423,35 +489,98 @@ function processChangeResults(rows: ChangeResultRow[]): ChangeResultRow[] {
 
         result.push({
             row_no: rowNo,
-            result_summary: row.result_summary ?? null,
-            performance_information: row.performance_information ?? null,
-            result_status: row.result_status ?? null,
+            result_summary: resultSummary ?? null,
+            performance_information: performanceInformation ?? null,
+            result_status: resultStatus ?? null,
         });
     }
 
     return result;
 }
 
-function validateSiteBlock(site: DirectSiteBlock | PopSiteBlock | null | undefined, name: string): unknown {
+const DIRECT_SITE_KEYS: readonly (keyof DirectSiteBlock)[] = [
+    'local_loops',
+    'lastmile',
+    'bwa',
+    'antenna_tower',
+    'direction',
+    'rssi',
+    'latency_ms',
+    'packet_loss_percent',
+    'routers',
+    'ups',
+    'stabilizer',
+    'cable',
+] as const;
+
+const POP_SITE_KEYS: readonly (keyof PopSiteBlock)[] = [
+    'switch_distribution',
+    'port',
+    'vlan_id',
+    'local_loops',
+    'routers',
+    'cpe_indoor',
+    'cpe_outdoor',
+] as const;
+
+function isPlainObject(val: unknown): val is Record<string, unknown> {
+    if (val === null || typeof val !== 'object' || Array.isArray(val)) {
+        return false;
+    }
+    const proto = Object.getPrototypeOf(val);
+    return proto === null || proto === Object.prototype;
+}
+
+function processSiteBlock<T extends DirectSiteBlock | PopSiteBlock>(
+    site: unknown,
+    allowedKeys: readonly (keyof T)[],
+    name: string,
+): T | null | undefined {
     if (site === undefined) {
         return undefined;
     }
     if (site === null) {
         return null;
     }
-    if (typeof site === 'object' && Object.keys(site).length === 0) {
+    if (!isPlainObject(site)) {
+        throw new Error(`${name} must be a plain object or null.`);
+    }
+
+    const built: Record<string, unknown> = {};
+    let hasContent = false;
+
+    for (const key of allowedKeys) {
+        const strKey = key as string;
+        if (Object.hasOwn(site, strKey)) {
+            const val = site[strKey];
+            if (isPresent(val)) {
+                hasContent = true;
+                built[strKey] = val;
+            } else if (val === null || (typeof val === 'string' && val.trim().length === 0)) {
+                built[strKey] = null;
+            }
+        }
+    }
+
+    if (!hasContent) {
         throw new Error(`Empty object {} is invalid for ${name}; use null to clear the block.`);
     }
-    return site;
+
+    return built as T;
+}
+
+function assertValidRecordVersion(recordVersion: unknown): number {
+    if (typeof recordVersion !== 'number' || !Number.isSafeInteger(recordVersion) || recordVersion < 1) {
+        throw new Error('record_version is required and must be a safe positive integer (>= 1)');
+    }
+    return recordVersion;
 }
 
 export function buildDraftPayload(input: ActivationDraftInput): ActivationDraftWirePayload;
 export function buildDraftPayload(input: ChangeDraftInput): ChangeDraftWirePayload;
 export function buildDraftPayload(input: DraftPayloadInput): DraftWirePayload;
 export function buildDraftPayload(input: DraftPayloadInput): DraftWirePayload {
-    if (typeof input.record_version !== 'number') {
-        throw new Error('record_version is required and must be a number');
-    }
+    const recordVersion = assertValidRecordVersion(input.record_version);
 
     if (input.family === 'ACTIVATION') {
         const wireActivation: Record<string, unknown> = {};
@@ -487,36 +616,48 @@ export function buildDraftPayload(input: DraftPayloadInput): DraftWirePayload {
         ];
 
         for (const key of scalarKeys) {
-            if (key in act) {
+            if (Object.hasOwn(act, key)) {
                 wireActivation[key] = act[key];
             }
         }
 
-        if ('references' in act && act.references !== undefined) {
-            wireActivation.references = processReferences(act.references);
+        if (Object.hasOwn(act, 'references') && act.references !== undefined) {
+            wireActivation.references = processReferences(
+                assertArrayCollection<ReferenceSelection>(act.references, 'references'),
+            );
         }
-        if ('service_blocks' in act && act.service_blocks !== undefined) {
-            wireActivation.service_blocks = processServiceBlocks(act.service_blocks);
+        if (Object.hasOwn(act, 'service_blocks') && act.service_blocks !== undefined) {
+            wireActivation.service_blocks = processServiceBlocks(
+                assertArrayCollection<ServiceBlockRow>(act.service_blocks, 'service_blocks'),
+            );
         }
-        if ('sla_items' in act && act.sla_items !== undefined) {
-            wireActivation.sla_items = processSlaItems(act.sla_items);
+        if (Object.hasOwn(act, 'sla_items') && act.sla_items !== undefined) {
+            wireActivation.sla_items = processSlaItems(assertArrayCollection<SlaItemRow>(act.sla_items, 'sla_items'));
         }
-        if ('virtual_connections' in act && act.virtual_connections !== undefined) {
-            wireActivation.virtual_connections = processVirtualConnections(act.virtual_connections);
+        if (Object.hasOwn(act, 'virtual_connections') && act.virtual_connections !== undefined) {
+            wireActivation.virtual_connections = processVirtualConnections(
+                assertArrayCollection<VirtualConnectionRow>(act.virtual_connections, 'virtual_connections'),
+            );
         }
-        if ('priority_destinations' in act && act.priority_destinations !== undefined) {
-            wireActivation.priority_destinations = processPriorityDestinations(act.priority_destinations);
+        if (Object.hasOwn(act, 'priority_destinations') && act.priority_destinations !== undefined) {
+            wireActivation.priority_destinations = processPriorityDestinations(
+                assertArrayCollection<PriorityDestinationRow>(act.priority_destinations, 'priority_destinations'),
+            );
         }
 
-        if ('direct_site' in act) {
-            wireActivation.direct_site = validateSiteBlock(act.direct_site, 'direct_site');
+        if (Object.hasOwn(act, 'direct_site')) {
+            wireActivation.direct_site = processSiteBlock<DirectSiteBlock>(
+                act.direct_site,
+                DIRECT_SITE_KEYS,
+                'direct_site',
+            );
         }
-        if ('pop_site' in act) {
-            wireActivation.pop_site = validateSiteBlock(act.pop_site, 'pop_site');
+        if (Object.hasOwn(act, 'pop_site')) {
+            wireActivation.pop_site = processSiteBlock<PopSiteBlock>(act.pop_site, POP_SITE_KEYS, 'pop_site');
         }
 
         return {
-            record_version: input.record_version,
+            record_version: recordVersion,
             activation: wireActivation,
         };
     }
@@ -535,29 +676,37 @@ export function buildDraftPayload(input: DraftPayloadInput): DraftWirePayload {
         ];
 
         for (const key of scalarKeys) {
-            if (key in chg) {
+            if (Object.hasOwn(chg, key)) {
                 wireChange[key] = chg[key];
             }
         }
 
-        if ('facing_challenges' in chg && chg.facing_challenges !== undefined) {
-            wireChange.facing_challenges = processFacingChallenges(chg.facing_challenges);
+        if (Object.hasOwn(chg, 'facing_challenges') && chg.facing_challenges !== undefined) {
+            wireChange.facing_challenges = processFacingChallenges(
+                assertArrayCollection<FacingChallengeRow>(chg.facing_challenges, 'facing_challenges'),
+            );
         }
-        if ('identified_problems' in chg && chg.identified_problems !== undefined) {
-            wireChange.identified_problems = processIdentifiedProblems(chg.identified_problems);
+        if (Object.hasOwn(chg, 'identified_problems') && chg.identified_problems !== undefined) {
+            wireChange.identified_problems = processIdentifiedProblems(
+                assertArrayCollection<IdentifiedProblemRow>(chg.identified_problems, 'identified_problems'),
+            );
         }
-        if ('service_impacts' in chg && chg.service_impacts !== undefined) {
-            wireChange.service_impacts = processServiceImpacts(chg.service_impacts);
+        if (Object.hasOwn(chg, 'service_impacts') && chg.service_impacts !== undefined) {
+            wireChange.service_impacts = processServiceImpacts(
+                assertArrayCollection<ServiceImpactSelection>(chg.service_impacts, 'service_impacts'),
+            );
         }
-        if ('improvement_items' in chg && chg.improvement_items !== undefined) {
-            wireChange.improvement_items = processImprovementItems(chg.improvement_items);
+        if (Object.hasOwn(chg, 'improvement_items') && chg.improvement_items !== undefined) {
+            wireChange.improvement_items = processImprovementItems(
+                assertArrayCollection<ImprovementItemRow>(chg.improvement_items, 'improvement_items'),
+            );
         }
-        if ('results' in chg && chg.results !== undefined) {
-            wireChange.results = processChangeResults(chg.results);
+        if (Object.hasOwn(chg, 'results') && chg.results !== undefined) {
+            wireChange.results = processChangeResults(assertArrayCollection<ChangeResultRow>(chg.results, 'results'));
         }
 
         return {
-            record_version: input.record_version,
+            record_version: recordVersion,
             change: wireChange,
         };
     }

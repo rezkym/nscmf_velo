@@ -5,6 +5,7 @@ import {
     type ChangeDraftInput,
     type DirectSiteBlock,
     type DraftPayloadInput,
+    type PopSiteBlock,
 } from './draftPayload';
 
 describe('FE-19: Repeatable rows and Draft payload semantics', () => {
@@ -192,12 +193,8 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                 family: 'CHANGE',
                 record_version: 7,
                 change: {
-                    improvement_items: [
-                        { row_no: 1, target_kpi: '99.99% uptime' },
-                    ],
-                    results: [
-                        { row_no: 1, result_summary: 'Maintenance finished' },
-                    ],
+                    improvement_items: [{ row_no: 1, target_kpi: '99.99% uptime' }],
+                    results: [{ row_no: 1, result_summary: 'Maintenance finished' }],
                 },
             };
             const partialPayload = buildDraftPayload(partialRightSideInput);
@@ -560,6 +557,301 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
             ).toThrow(/record_version is required/i);
         });
 
+        it('remediates SEC-FE-19 findings F-1 to F-5 with strict regression checks', () => {
+            // F-1: record_version must be safe integer >= 1, rejects non-finite, floats, <= 0
+            expect(() =>
+                buildDraftPayload({ family: 'ACTIVATION', record_version: NaN } as unknown as ActivationDraftInput),
+            ).toThrow(/safe positive integer/i);
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: Infinity,
+                } as unknown as ActivationDraftInput),
+            ).toThrow(/safe positive integer/i);
+            expect(() =>
+                buildDraftPayload({ family: 'ACTIVATION', record_version: -1 } as unknown as ActivationDraftInput),
+            ).toThrow(/safe positive integer/i);
+            expect(() =>
+                buildDraftPayload({ family: 'ACTIVATION', record_version: 0 } as unknown as ActivationDraftInput),
+            ).toThrow(/safe positive integer/i);
+            expect(() =>
+                buildDraftPayload({ family: 'ACTIVATION', record_version: 1.5 } as unknown as ActivationDraftInput),
+            ).toThrow(/safe positive integer/i);
+            expect(() =>
+                buildDraftPayload({ family: 'ACTIVATION', record_version: 1e21 } as unknown as ActivationDraftInput),
+            ).toThrow(/safe positive integer/i);
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: '1' as unknown as number,
+                } as unknown as ActivationDraftInput),
+            ).toThrow(/safe positive integer/i);
+
+            // F-2 & F-5: Site blocks reject non-plain-objects, empty content, only unknown keys, and allowlist fields
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: { direct_site: 'not-an-object' as unknown as DirectSiteBlock },
+                }),
+            ).toThrow(/must be a plain object or null/i);
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: { pop_site: [1, 2, 3] as unknown as DirectSiteBlock },
+                }),
+            ).toThrow(/must be a plain object or null/i);
+            // All declared fields undefined or whitespace -> empty content -> throws
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        direct_site: {
+                            local_loops: undefined,
+                            routers: '   ',
+                            cable: '',
+                        } as unknown as DirectSiteBlock,
+                    },
+                }),
+            ).toThrow(/Empty object {} is invalid for direct_site/i);
+            // Only unknown keys present -> dropped by allowlist -> empty content -> throws
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        direct_site: {
+                            approved_by: 99,
+                            record_version: 999,
+                        } as unknown as DirectSiteBlock,
+                    },
+                }),
+            ).toThrow(/Empty object {} is invalid for direct_site/i);
+            // Valid site block with null field and extra fields stripped
+            const sitePayload = buildDraftPayload({
+                family: 'ACTIVATION',
+                record_version: 1,
+                activation: {
+                    direct_site: {
+                        routers: 'Core Router A',
+                        ups: null,
+                        approved_by: 99,
+                    } as unknown as DirectSiteBlock,
+                    pop_site: {
+                        port: 'Gi0/0/1',
+                        vlan_id: null,
+                        secret_field: 'hacked',
+                    } as unknown as DirectSiteBlock,
+                },
+            });
+            expect(sitePayload.activation.direct_site).toEqual({
+                routers: 'Core Router A',
+                ups: null,
+            });
+            expect(sitePayload.activation.direct_site).not.toHaveProperty('approved_by');
+            expect(sitePayload.activation.pop_site).toEqual({
+                port: 'Gi0/0/1',
+                vlan_id: null,
+            });
+            expect(sitePayload.activation.pop_site).not.toHaveProperty('secret_field');
+
+            // F-3: Natural keys must be strings and whitespace variants collide fail-closed
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        references: [{ reference_type: 123 as unknown as 'IWO' }],
+                    },
+                }),
+            ).toThrow(/missing reference_type/i);
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        references: [{ reference_type: 'IWO' }, { reference_type: '  IWO  ' as unknown as 'IWO' }],
+                    },
+                }),
+            ).toThrow(/duplicate reference_type found: IWO/i);
+
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        service_blocks: [{ service_context: { evil: 1 } as unknown as 'EXISTING' }],
+                    },
+                }),
+            ).toThrow(/missing service_context/i);
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        service_blocks: [
+                            { service_context: 'EXISTING', service_id: 'S1' },
+                            { service_context: ' EXISTING  ' as unknown as 'EXISTING', service_id: 'S2' },
+                        ],
+                    },
+                }),
+            ).toThrow(/duplicate service_context found: EXISTING/i);
+
+            expect(() =>
+                buildDraftPayload({
+                    family: 'CHANGE',
+                    record_version: 1,
+                    change: {
+                        service_impacts: [{ impact_code: 5 as unknown as 'NOC15' }],
+                    },
+                }),
+            ).toThrow(/missing impact_code/i);
+            expect(() =>
+                buildDraftPayload({
+                    family: 'CHANGE',
+                    record_version: 1,
+                    change: {
+                        service_impacts: [{ impact_code: 'NOC15' }, { impact_code: ' NOC15 ' as unknown as 'NOC15' }],
+                    },
+                }),
+            ).toThrow(/duplicate impact_code found: NOC15/i);
+
+            // F-4: All 10 collection call sites guard against non-array values and non-plain-object elements
+            const nonArrayPayloads: (() => void)[] = [
+                () =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: { references: 'IWO' as unknown as [] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: { service_blocks: { service_context: 'EXISTING' } as unknown as [] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: { sla_items: 'invalid' as unknown as [] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: { virtual_connections: 123 as unknown as [] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: { priority_destinations: {} as unknown as [] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'CHANGE',
+                        record_version: 1,
+                        change: { facing_challenges: 'none' as unknown as [] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'CHANGE',
+                        record_version: 1,
+                        change: { identified_problems: {} as unknown as [] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'CHANGE',
+                        record_version: 1,
+                        change: { service_impacts: 42 as unknown as [] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'CHANGE',
+                        record_version: 1,
+                        change: { improvement_items: true as unknown as [] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'CHANGE',
+                        record_version: 1,
+                        change: { results: 'x' as unknown as [] },
+                    }),
+            ];
+            for (const fn of nonArrayPayloads) {
+                expect(fn).toThrow(/must be an array/i);
+            }
+
+            const nonPlainObjectElementPayloads: (() => void)[] = [
+                () =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: { references: [null as unknown as { reference_type: 'IWO' }] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: { service_blocks: ['bad' as unknown as { service_context: 'NEW' }] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: { sla_items: [null as unknown as { row_no: 1 }] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: { virtual_connections: [123 as unknown as { row_no: 1 }] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: { priority_destinations: [undefined as unknown as { row_no: 1 }] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'CHANGE',
+                        record_version: 1,
+                        change: { facing_challenges: [null as unknown as { row_no: 1 }] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'CHANGE',
+                        record_version: 1,
+                        change: { identified_problems: [false as unknown as { row_no: 1 }] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'CHANGE',
+                        record_version: 1,
+                        change: { service_impacts: [null as unknown as { impact_code: 'NOC15' }] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'CHANGE',
+                        record_version: 1,
+                        change: { improvement_items: ['plan' as unknown as { row_no: 1 }] },
+                    }),
+                () =>
+                    buildDraftPayload({
+                        family: 'CHANGE',
+                        record_version: 1,
+                        change: { results: [null as unknown as { row_no: 1 }] },
+                    }),
+            ];
+            for (const fn of nonPlainObjectElementPayloads) {
+                expect(fn).toThrow(/must be a plain object/i);
+            }
+        });
+
         it('throws error when family is unsupported', () => {
             expect(() =>
                 buildDraftPayload({
@@ -594,6 +886,272 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                 record_version: 2,
             } as unknown as ChangeDraftInput);
             expect(changeWithoutChg.change).toEqual({});
+        });
+
+        it('resists prototype pollution in site blocks and scalar paths (NEW-1 regression)', () => {
+            const proto = Object.prototype as Record<string, unknown>;
+            proto['routers'] = 'ATTACKER-CONTROLLED';
+            proto['vlan_id'] = 4094;
+            proto['customer_name'] = 'EVIL-CUSTOMER';
+            proto['maintenance_purpose'] = 'EVIL-PURPOSE';
+
+            try {
+                // Empty direct_site object must still throw even when Object.prototype has allowlisted keys
+                expect(() =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: {
+                            direct_site: {} as unknown as DirectSiteBlock,
+                        },
+                    }),
+                ).toThrow(/empty object.*invalid.*null/i);
+
+                // Populated direct_site must only contain its own properties, not prototype properties
+                const payloadDirect = buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        direct_site: { cable: 'Fiber 12C' },
+                    },
+                });
+                const directJson = JSON.stringify(payloadDirect);
+                expect(directJson).not.toContain('ATTACKER-CONTROLLED');
+                expect(payloadDirect.activation.direct_site).toEqual({ cable: 'Fiber 12C' });
+
+                // Populated pop_site must not pick up vlan_id from prototype
+                const payloadPop = buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        pop_site: { port: 'Gi0/0/1' },
+                    },
+                });
+                const popJson = JSON.stringify(payloadPop);
+                expect(popJson).not.toContain('4094');
+                expect(payloadPop.activation.pop_site).toEqual({ port: 'Gi0/0/1' });
+
+                // Empty activation / change objects must not pick up scalar prototype pollution
+                const emptyActPayload = buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {},
+                });
+                expect(JSON.stringify(emptyActPayload)).not.toContain('EVIL-CUSTOMER');
+                expect(emptyActPayload.activation).toEqual({});
+
+                const emptyChgPayload = buildDraftPayload({
+                    family: 'CHANGE',
+                    record_version: 1,
+                    change: {},
+                });
+                expect(JSON.stringify(emptyChgPayload)).not.toContain('EVIL-PURPOSE');
+                expect(emptyChgPayload.change).toEqual({});
+            } finally {
+                delete proto['routers'];
+                delete proto['vlan_id'];
+                delete proto['customer_name'];
+                delete proto['maintenance_purpose'];
+            }
+        });
+
+        it('normalizes blank-string fields inside site blocks to null (NEW-2 contract ruling)', () => {
+            // A blank string or whitespace string in a site field represents a field-level clear
+            // and is converted to null on the wire, preserving the key without dropping it.
+            const payload = buildDraftPayload({
+                family: 'ACTIVATION',
+                record_version: 1,
+                activation: {
+                    direct_site: {
+                        routers: '',
+                        ups: '   ',
+                        cable: 'Fiber 12C',
+                    } as unknown as DirectSiteBlock,
+                    pop_site: {
+                        port: 'Gi0/0/1',
+                        vlan_id: '' as unknown as number,
+                    } as unknown as PopSiteBlock,
+                },
+            });
+
+            expect(payload.activation.direct_site).toEqual({
+                routers: null,
+                ups: null,
+                cable: 'Fiber 12C',
+            });
+            expect(payload.activation.pop_site).toEqual({
+                port: 'Gi0/0/1',
+                vlan_id: null,
+            });
+
+            // If ALL allowlisted fields in a site block are blank or null, hasContent is false -> throws F-5 empty error
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        direct_site: {
+                            routers: '',
+                            ups: '   ',
+                        } as unknown as DirectSiteBlock,
+                    },
+                }),
+            ).toThrow(/Empty object {} is invalid for direct_site/i);
+        });
+
+        it('resists prototype pollution in repeatable row value reads and natural keys (BF-1 regression)', () => {
+            const proto = Object.prototype as Record<string, unknown>;
+            proto['service_id'] = 'POLLUTED-SERVICE-ID';
+            proto['service_status'] = 'ACTIVATED';
+            proto['service_description'] = 'POLLUTED-DESC';
+            proto['service_location'] = 'POLLUTED-LOC';
+            proto['row_no'] = 1;
+            proto['reference_type'] = 'IWO';
+            proto['specification'] = 'POLLUTED-SPEC';
+            proto['challenge_text'] = 'POLLUTED-CHALLENGE';
+            proto['problem_text'] = 'POLLUTED-PROBLEM';
+            proto['destination'] = 'POLLUTED-DEST';
+            proto['bandwidth_mbps'] = 9999;
+            proto['requirement_text'] = 'POLLUTED-REQ';
+            proto['plan_text'] = 'POLLUTED-PLAN';
+            proto['target_kpi'] = 'POLLUTED-KPI';
+            proto['result_summary'] = 'POLLUTED-SUMMARY';
+            proto['performance_information'] = 'POLLUTED-PERF';
+            proto['result_status'] = 'POLLUTED-STATUS';
+            proto['other_description'] = 'POLLUTED-OTHER';
+
+            try {
+                // 1. A content-empty row carrying only service_context must NOT pick up prototype values to manufacture content
+                const emptyServicePayload = buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        service_blocks: [{ service_context: 'NEW' }],
+                    },
+                });
+                // Since it is content-empty, it must be discarded
+                expect(emptyServicePayload.activation.service_blocks).toEqual([]);
+                const serviceJson = JSON.stringify(emptyServicePayload);
+                expect(serviceJson).not.toContain('POLLUTED-SERVICE-ID');
+                expect(serviceJson).not.toContain('POLLUTED-DESC');
+                expect(serviceJson).not.toContain('POLLUTED-LOC');
+                expect(serviceJson).not.toContain('ACTIVATED');
+
+                // 2. Polluted row_no must not satisfy natural key requirement for an empty row
+                expect(() =>
+                    buildDraftPayload({
+                        family: 'CHANGE',
+                        record_version: 1,
+                        change: {
+                            facing_challenges: [{} as unknown as { row_no: number }],
+                        },
+                    }),
+                ).toThrow(/Invalid row_no: undefined/i);
+
+                expect(() =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: {
+                            sla_items: [{} as unknown as { row_no: number }],
+                        },
+                    }),
+                ).toThrow(/Invalid row_no: undefined/i);
+
+                expect(() =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: {
+                            virtual_connections: [{} as unknown as { row_no: number }],
+                        },
+                    }),
+                ).toThrow(/Invalid row_no: undefined/i);
+
+                // 3. Polluted natural keys (reference_type, impact_code, service_context) must not satisfy missing checks
+                expect(() =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: {
+                            references: [{ specification: 'SPEC' } as unknown as { reference_type: 'IWO' }],
+                        },
+                    }),
+                ).toThrow(/Reference item missing reference_type/i);
+
+                expect(() =>
+                    buildDraftPayload({
+                        family: 'CHANGE',
+                        record_version: 1,
+                        change: {
+                            service_impacts: [{ other_description: 'DESC' } as unknown as { impact_code: 'NOC15' }],
+                        },
+                    }),
+                ).toThrow(/ServiceImpact missing impact_code/i);
+
+                expect(() =>
+                    buildDraftPayload({
+                        family: 'ACTIVATION',
+                        record_version: 1,
+                        activation: {
+                            service_blocks: [{ service_id: 'S1' } as unknown as { service_context: 'NEW' }],
+                        },
+                    }),
+                ).toThrow(/service_block missing service_context/i);
+
+                // 4. Content-empty rows with valid row_no must still be discarded and NOT pick up content
+                const challengesPayload = buildDraftPayload({
+                    family: 'CHANGE',
+                    record_version: 1,
+                    change: {
+                        facing_challenges: [{ row_no: 1 }],
+                        identified_problems: [{ row_no: 1 }],
+                        improvement_items: [{ row_no: 1 }],
+                        results: [{ row_no: 1 }],
+                    },
+                });
+                expect(challengesPayload.change.facing_challenges).toEqual([]);
+                expect(challengesPayload.change.identified_problems).toEqual([]);
+                expect(challengesPayload.change.improvement_items).toEqual([]);
+                expect(challengesPayload.change.results).toEqual([]);
+
+                const activationRowsPayload = buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        sla_items: [{ row_no: 1 }],
+                        virtual_connections: [{ row_no: 1 }],
+                        priority_destinations: [{ row_no: 1 }],
+                    },
+                });
+                expect(activationRowsPayload.activation.sla_items).toEqual([]);
+                expect(activationRowsPayload.activation.virtual_connections).toEqual([]);
+                expect(activationRowsPayload.activation.priority_destinations).toEqual([]);
+
+                // 5. Assert none of the polluted strings or numbers reach JSON wire output
+                const allJson = JSON.stringify(challengesPayload) + JSON.stringify(activationRowsPayload);
+                expect(allJson).not.toContain('POLLUTED');
+                expect(allJson).not.toContain('9999');
+            } finally {
+                delete proto['service_id'];
+                delete proto['service_status'];
+                delete proto['service_description'];
+                delete proto['service_location'];
+                delete proto['row_no'];
+                delete proto['reference_type'];
+                delete proto['specification'];
+                delete proto['challenge_text'];
+                delete proto['problem_text'];
+                delete proto['destination'];
+                delete proto['bandwidth_mbps'];
+                delete proto['requirement_text'];
+                delete proto['plan_text'];
+                delete proto['target_kpi'];
+                delete proto['result_summary'];
+                delete proto['performance_information'];
+                delete proto['result_status'];
+                delete proto['other_description'];
+            }
         });
     });
 });
