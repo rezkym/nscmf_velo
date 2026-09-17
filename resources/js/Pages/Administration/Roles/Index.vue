@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
 import { ShieldAlert, ShieldCheck } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
+import ReauthenticationDialog from '@/components/ReauthenticationDialog.vue';
 import FormField from '@/components/ui/FormField.vue';
 
 export interface PermissionCatalogItem {
@@ -104,6 +105,29 @@ const permissionsForm = useForm({
     permissions: [] as string[],
 });
 
+const permissionsError = computed(() => {
+    const errors = permissionsForm.errors as Record<string, string | undefined>;
+    return errors.permissions;
+});
+
+const metadataNameError = computed(() => {
+    const errors = metadataForm.errors as Record<string, string | undefined>;
+    return errors.name;
+});
+
+const permissionsDisplayError = computed(() => {
+    return serverErrorMessage.value || permissionsError.value || null;
+});
+
+watch(
+    () => serverErrorCode.value,
+    (code) => {
+        if (code === 'REAUTH_REQUIRED' || code === 'REAUTH_FAILED') {
+            isReauthDialogOpen.value = true;
+        }
+    },
+);
+
 function openAssignPermissionsModal(role: RoleItem): void {
     if (role.is_protected) return;
     selectedRoleForPermissions.value = role;
@@ -191,8 +215,9 @@ defineExpose({
             <div>
                 <h1 class="text-2xl font-bold tracking-tight text-foreground">Role and Permission Administration</h1>
                 <p class="text-sm text-muted-foreground mt-1">
-                    Manage roles and assign permissions from canonical server catalog. Users with multiple roles receive the
-                    effective union across assigned roles. Changing role permissions revokes active sessions for affected users.
+                    Manage roles and assign permissions from canonical server catalog. Users with multiple roles receive
+                    the effective union across assigned roles. Changing role permissions revokes active sessions for
+                    affected users.
                 </p>
             </div>
             <button
@@ -212,8 +237,8 @@ defineExpose({
             <div class="text-sm">
                 <span class="font-semibold text-foreground">Multi-Role Authorization Principle:</span>
                 <span class="text-muted-foreground ml-1">
-                    Effective permissions are computed as the union across assigned roles. Role labels do not bypass domain invariants.
-                    Protected Superadmin rules are enforced server-side.
+                    Effective permissions are computed as the union across assigned roles. Role labels do not bypass
+                    domain invariants. Protected Superadmin rules are enforced server-side.
                 </span>
             </div>
         </div>
@@ -223,16 +248,28 @@ defineExpose({
             <table class="min-w-full divide-y divide-border">
                 <thead class="bg-muted/50">
                     <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        <th
+                            scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        >
                             Role Name
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        <th
+                            scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        >
                             Type
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        <th
+                            scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        >
                             Assigned Permissions
                         </th>
-                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        <th
+                            scope="col"
+                            class="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        >
                             Actions
                         </th>
                     </tr>
@@ -257,7 +294,8 @@ defineExpose({
                             </span>
                         </td>
                         <td class="px-6 py-4 text-sm text-muted-foreground">
-                            <span class="font-medium text-foreground">{{ role.permissions.length }}</span> permissions assigned
+                            <span class="font-medium text-foreground">{{ role.permissions.length }}</span> permissions
+                            assigned
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
                             <button
@@ -308,12 +346,7 @@ defineExpose({
                 </div>
 
                 <form data-testid="role-metadata-form" @submit.prevent="submitMetadataForm" class="space-y-4">
-                    <FormField
-                        id="role-name"
-                        label="Role Name"
-                        required
-                        :error="(metadataForm.errors as Record<string, string | undefined>).name"
-                    >
+                    <FormField id="role-name" label="Role Name" required :error="metadataNameError">
                         <input
                             id="role-name"
                             v-model="metadataForm.name"
@@ -357,27 +390,30 @@ defineExpose({
             role="dialog"
             aria-modal="true"
         >
-            <div class="bg-card border border-border rounded-xl shadow-lg w-full max-w-3xl p-6 space-y-6 max-h-[90vh] flex flex-col">
+            <div
+                class="bg-card border border-border rounded-xl shadow-lg w-full max-w-3xl p-6 space-y-6 max-h-[90vh] flex flex-col"
+            >
                 <div class="border-b border-border pb-4">
                     <h3 class="text-lg font-semibold text-foreground">
                         Assign Permissions: {{ selectedRoleForPermissions?.name }}
                     </h3>
                     <p class="text-xs text-muted-foreground mt-1">
-                        Select permissions from the server catalog. Effective user capabilities equal the union across assigned roles.
-                        Changes require password re-authentication and immediately revoke active sessions of affected users.
+                        Select permissions from the server catalog. Effective user capabilities equal the union across
+                        assigned roles. Changes require password re-authentication and immediately revoke active
+                        sessions of affected users.
                     </p>
                 </div>
 
                 <!-- Server Error Alert (e.g. PROTECTED_RESOURCE) -->
                 <div
-                    v-if="serverErrorMessage || (permissionsForm.errors as Record<string, string | undefined>).permissions"
+                    v-if="permissionsDisplayError"
                     class="p-4 rounded-md bg-destructive/15 border border-destructive/30 text-destructive text-sm flex items-start space-x-2"
                 >
                     <ShieldAlert class="w-5 h-5 flex-shrink-0 mt-0.5" />
                     <div>
                         <div class="font-medium">Update Rejected</div>
                         <div class="text-xs mt-0.5">
-                            {{ serverErrorMessage || (permissionsForm.errors as Record<string, string | undefined>).permissions }}
+                            {{ permissionsDisplayError }}
                         </div>
                     </div>
                 </div>
@@ -385,7 +421,9 @@ defineExpose({
                 <!-- Grouped Permission Selector from Server Catalog -->
                 <div class="overflow-y-auto space-y-6 pr-2 flex-1">
                     <div v-for="(items, groupName) in groupedPermissions" :key="groupName" class="space-y-2">
-                        <h4 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-1">
+                        <h4
+                            class="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-1"
+                        >
                             {{ groupName }}
                         </h4>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -416,7 +454,8 @@ defineExpose({
                 <!-- Modal Footer -->
                 <div class="flex items-center justify-between pt-4 border-t border-border">
                     <div class="text-xs text-muted-foreground">
-                        <span class="font-medium text-foreground">{{ selectedPermissions.length }}</span> permissions selected
+                        <span class="font-medium text-foreground">{{ selectedPermissions.length }}</span> permissions
+                        selected
                     </div>
                     <div class="flex items-center space-x-3">
                         <button
@@ -442,41 +481,14 @@ defineExpose({
         </div>
 
         <!-- Explicit Sensitive Re-Authentication Dialog (FE-10 / AC3) -->
-        <div
-            v-if="isReauthDialogOpen"
-            data-testid="reauth-dialog"
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-        >
-            <div class="bg-card border border-border rounded-xl shadow-lg w-full max-w-md p-6 space-y-4">
-                <h3 class="text-lg font-semibold text-foreground">
-                    Confirm Sensitive Permission Change
-                </h3>
-                <p class="text-sm text-muted-foreground">
-                    Modifying role permissions changes the effective permissions of all assigned users and causes immediate
-                    session revocation for affected active accounts. Current password confirmation is required.
-                </p>
-
-                <div class="flex items-center justify-end space-x-3 pt-4 border-t border-border">
-                    <button
-                        type="button"
-                        data-testid="reauth-cancel-btn"
-                        class="px-4 py-2 text-sm font-medium text-foreground bg-muted rounded-md hover:bg-muted/80 focus:outline-none"
-                        @click="handleReauthCancel"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        data-testid="reauth-success-btn"
-                        class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                        @click="handleReauthSuccess"
-                    >
-                        Confirm Re-authentication
-                    </button>
-                </div>
-            </div>
-        </div>
+        <ReauthenticationDialog
+            :open="isReauthDialogOpen"
+            target-action-title="Confirm Sensitive Action"
+            target-action-description="Modifying role permissions changes the effective permissions of all assigned users and causes immediate session revocation for affected active accounts. Current password confirmation is required."
+            :error-code="serverErrorCode ?? undefined"
+            :server-error-message="serverErrorMessage ?? undefined"
+            @cancel="handleReauthCancel"
+            @success="handleReauthSuccess"
+        />
     </div>
 </template>

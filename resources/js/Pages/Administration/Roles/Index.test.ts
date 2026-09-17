@@ -46,7 +46,10 @@ vi.mock('@inertiajs/vue3', async () => {
         Link: defineComponent({
             name: 'InertiaLink',
             props: { href: { type: String, required: true } },
-            setup: (_props, { slots }) => () => (slots.default ? slots.default() : null),
+            setup:
+                (_props, { slots }) =>
+                () =>
+                    slots.default ? slots.default() : null,
         }),
         router: mockRouter,
         useForm: vi.fn((initialData: Record<string, unknown>) => {
@@ -238,7 +241,7 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
 
         // Verify catalog items rendered in grouped permission selector or inspection
         expect(wrapper.text()).toContain('Role and Permission Administration');
-        
+
         // Open permission selector for custom/editable role
         const openAssignBtn = wrapper.find('[data-testid="assign-permissions-2"]');
         expect(openAssignBtn.exists()).toBe(true);
@@ -268,7 +271,7 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         // Edit metadata button must exist for custom/editable role
         const editMetadataBtn = wrapper.find('[data-testid="edit-role-2"]');
         expect(editMetadataBtn.exists()).toBe(true);
-        
+
         // But assign-permissions button must NOT be available without permissions.assign
         const assignPermsBtn = wrapper.find('[data-testid="assign-permissions-2"]');
         expect(assignPermsBtn.exists()).toBe(false);
@@ -284,10 +287,7 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         expect(vm.isMetadataModalOpen).toBe(true);
 
         vm.submitMetadataForm();
-        expect(activeMetadataForm?.patch).toHaveBeenCalledWith(
-            '/administration/roles/2',
-            expect.any(Object),
-        );
+        expect(activeMetadataForm?.patch).toHaveBeenCalledWith('/administration/roles/2', expect.any(Object));
     });
 
     it('AC3: roles_require_explicit_sensitive_confirmation — permission change memakai reauth flow dan tidak submit saat cancel', async () => {
@@ -349,10 +349,7 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         await wrapper.findComponent({ name: 'ReauthenticationDialog' }).find('form').trigger('submit.prevent');
 
         // POST /account/re-authenticate must be called
-        expect(activeReauthForm?.post).toHaveBeenCalledWith(
-            '/account/re-authenticate',
-            expect.any(Object),
-        );
+        expect(activeReauthForm?.post).toHaveBeenCalledWith('/account/re-authenticate', expect.any(Object));
 
         // PUT request must STILL be withheld until reauth POST succeeds
         expect(activePermissionsForm?.put).not.toHaveBeenCalled();
@@ -454,10 +451,7 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
 
         // Submit new role creation
         vm.submitMetadataForm();
-        expect(activeMetadataForm?.post).toHaveBeenCalledWith(
-            '/administration/roles',
-            expect.any(Object),
-        );
+        expect(activeMetadataForm?.post).toHaveBeenCalledWith('/administration/roles', expect.any(Object));
 
         // Close metadata modal
         vm.closeMetadataModal();
