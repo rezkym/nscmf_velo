@@ -28,10 +28,12 @@ export const IMPACT_OPTIONS: readonly ServiceImpactSelection['impact_code'][] = 
     'CUSTOMER',
     'OTHER',
 ] as const;
+
+export const VALID_IMPACTS_SET = new Set<string>(IMPACT_OPTIONS);
 </script>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { buildDraftPayload, type ChangeDraftWirePayload } from '../draftPayload';
 
 const props = withDefaults(defineProps<PurposeImpactSectionProps>(), {
@@ -53,53 +55,178 @@ const emit = defineEmits<{
     (e: 'validate', errors: Record<string, string>): void;
 }>();
 
+// F-24-9: Dirty state tracking
+const isDirty = ref<boolean>(false);
+
+// Canonical subtype mapping and validation (F-24-1)
+type CanonicalChangeSubtype = 'Maintenance' | 'Upgrade' | 'Emergency';
+
+const normalizedSubtype = computed<CanonicalChangeSubtype | null>(() => {
+    const raw = props.subtype as string | undefined;
+    if (raw === undefined || raw === null) return 'Maintenance';
+    const trimmed = raw.trim();
+    if (trimmed === 'Maintenance' || trimmed === 'MAINTENANCE' || trimmed === 'maintenance') {
+        return 'Maintenance';
+    }
+    if (trimmed === 'Upgrade' || trimmed === 'UPGRADE' || trimmed === 'upgrade') {
+        return 'Upgrade';
+    }
+    if (trimmed === 'Emergency' || trimmed === 'EMERGENCY' || trimmed === 'emergency') {
+        return 'Emergency';
+    }
+    return null;
+});
+
+// Helper to sanitize incoming modelValue and guard types (F-24-11, F-24-5, F-24-2)
+const incomingHasChallenges = ref<boolean>(false);
+const incomingHasProblems = ref<boolean>(false);
+const incomingHasImpacts = ref<boolean>(false);
+const invalidImpactCodes = ref<string[]>([]);
+
+function sanitizePurpose(val: unknown): string {
+    if (typeof val === 'string') return val;
+    return '';
+}
+
+function sanitizeChallenges(val: unknown): FacingChallengeRow[] {
+    if (!Array.isArray(val)) return [];
+    return val
+        .slice(0, 3)
+        .map((c, i) => {
+            if (!c || typeof c !== 'object') return { row_no: i + 1, challenge_text: '' };
+            const rowNo = typeof c.row_no === 'number' && c.row_no >= 1 && c.row_no <= 3 ? c.row_no : i + 1;
+            const text = typeof c.challenge_text === 'string' ? c.challenge_text : '';
+            return { row_no: rowNo, challenge_text: text };
+        });
+}
+
+function sanitizeProblems(val: unknown): IdentifiedProblemRow[] {
+    if (!Array.isArray(val)) return [];
+    return val
+        .slice(0, 3)
+        .map((p, i) => {
+            if (!p || typeof p !== 'object') return { row_no: i + 1, problem_text: '' };
+            const rowNo = typeof p.row_no === 'number' && p.row_no >= 1 && p.row_no <= 3 ? p.row_no : i + 1;
+            const text = typeof p.problem_text === 'string' ? p.problem_text : '';
+            return { row_no: rowNo, problem_text: text };
+        });
+}
+
+function sanitizeImpacts(val: unknown): ServiceImpactSelection[] {
+    invalidImpactCodes.value = [];
+    if (!Array.isArray(val)) return [];
+    const list: ServiceImpactSelection[] = [];
+    for (const item of val) {
+        if (!item || typeof item !== 'object') continue;
+        const code = (item.impact_code ?? '') as string;
+        if (!VALID_IMPACTS_SET.has(code)) {
+            if (code) invalidImpactCodes.value.push(code);
+            continue;
+        }
+        const desc = typeof item.other_description === 'string' ? item.other_description : null;
+        list.push({
+            impact_code: code as ServiceImpactSelection['impact_code'],
+            other_description: code === 'OTHER' ? desc : null,
+        });
+    }
+    return list;
+}
+
 // Internal reactive fields
-const maintenancePurpose = ref<string>(props.modelValue?.maintenance_purpose || '');
-const facingChallenges = ref<FacingChallengeRow[]>(
-    props.modelValue?.facing_challenges ? JSON.parse(JSON.stringify(props.modelValue.facing_challenges)) : [],
-);
-const identifiedProblems = ref<IdentifiedProblemRow[]>(
-    props.modelValue?.identified_problems ? JSON.parse(JSON.stringify(props.modelValue.identified_problems)) : [],
-);
-const serviceImpacts = ref<ServiceImpactSelection[]>(
-    props.modelValue?.service_impacts ? JSON.parse(JSON.stringify(props.modelValue.service_impacts)) : [],
-);
+const maintenancePurpose = ref<string>(sanitizePurpose(props.modelValue?.maintenance_purpose));
+const facingChallenges = ref<FacingChallengeRow[]>(sanitizeChallenges(props.modelValue?.facing_challenges));
+const identifiedProblems = ref<IdentifiedProblemRow[]>(sanitizeProblems(props.modelValue?.identified_problems));
+const serviceImpacts = ref<ServiceImpactSelection[]>(sanitizeImpacts(props.modelValue?.service_impacts));
+
+function updateIncomingFlags(mv?: PurposeImpactModelValue | null) {
+    if (!mv) {
+        incomingHasChallenges.value = false;
+        incomingHasProblems.value = false;
+        incomingHasImpacts.value = false;
+        return;
+    }
+    incomingHasChallenges.value = Object.hasOwn(mv, 'facing_challenges') && mv.facing_challenges !== undefined;
+    incomingHasProblems.value = Object.hasOwn(mv, 'identified_problems') && mv.identified_problems !== undefined;
+    incomingHasImpacts.value = Object.hasOwn(mv, 'service_impacts') && mv.service_impacts !== undefined;
+}
+updateIncomingFlags(props.modelValue);
 
 // Errors state for validation
 const errors = ref<Record<string, string>>({});
 
-// Keep local state in sync when props.modelValue changes externally
+function syncFromProps(val?: PurposeImpactModelValue | null) {
+    updateIncomingFlags(val);
+    maintenancePurpose.value = sanitizePurpose(val?.maintenance_purpose);
+    facingChallenges.value = sanitizeChallenges(val?.facing_challenges);
+    identifiedProblems.value = sanitizeProblems(val?.identified_problems);
+    serviceImpacts.value = sanitizeImpacts(val?.service_impacts);
+}
+
+// Keep local state in sync when props.modelValue changes externally (guard against clobbering in-flight user edits F-24-9)
 watch(
     () => props.modelValue,
     (newVal) => {
-        if (!newVal) return;
-        maintenancePurpose.value = newVal.maintenance_purpose || '';
-        facingChallenges.value = newVal.facing_challenges ? JSON.parse(JSON.stringify(newVal.facing_challenges)) : [];
-        identifiedProblems.value = newVal.identified_problems
-            ? JSON.parse(JSON.stringify(newVal.identified_problems))
-            : [];
-        serviceImpacts.value = newVal.service_impacts ? JSON.parse(JSON.stringify(newVal.service_impacts)) : [];
+        if (!isDirty.value) {
+            syncFromProps(newVal);
+        } else {
+            updateIncomingFlags(newVal);
+            if (newVal) {
+                // If modelValue updated collections externally with >=3 rows, sync collections
+                if (Array.isArray(newVal.facing_challenges)) {
+                    facingChallenges.value = sanitizeChallenges(newVal.facing_challenges);
+                }
+                if (Array.isArray(newVal.identified_problems)) {
+                    identifiedProblems.value = sanitizeProblems(newVal.identified_problems);
+                }
+            }
+        }
     },
     { deep: true },
 );
 
+// F-24-12: clear stale errors when subtype changes
+watch(
+    () => props.subtype,
+    () => {
+        delete errors.value.subtype;
+        delete errors.value.maintenance_purpose;
+        delete errors.value.facing_challenges;
+    },
+);
+
 function notifyUpdate() {
-    emit('update:modelValue', {
+    const payload: PurposeImpactModelValue = {
         maintenance_purpose: maintenancePurpose.value.trim() ? maintenancePurpose.value : null,
-        facing_challenges: facingChallenges.value.map((c, i) => ({
-            row_no: c.row_no || i + 1,
+        record_version: typeof props.modelValue?.record_version === 'number' ? props.modelValue.record_version : 1,
+    };
+
+    if (incomingHasChallenges.value || facingChallenges.value.length > 0) {
+        payload.facing_challenges = facingChallenges.value.map((c, i) => ({
+            row_no: typeof c.row_no === 'number' ? c.row_no : i + 1,
             challenge_text: c.challenge_text ?? null,
-        })),
-        identified_problems: identifiedProblems.value.map((p, i) => ({
-            row_no: p.row_no || i + 1,
+        }));
+    }
+
+    if (incomingHasProblems.value || identifiedProblems.value.length > 0) {
+        payload.identified_problems = identifiedProblems.value.map((p, i) => ({
+            row_no: typeof p.row_no === 'number' ? p.row_no : i + 1,
             problem_text: p.problem_text ?? null,
-        })),
-        service_impacts: serviceImpacts.value.map((item) => ({
+        }));
+    }
+
+    if (incomingHasImpacts.value || serviceImpacts.value.length > 0) {
+        payload.service_impacts = serviceImpacts.value.map((item) => ({
             impact_code: item.impact_code,
-            other_description: item.impact_code === 'OTHER' ? (item.other_description ?? null) : null,
-        })),
-        record_version: props.modelValue?.record_version ?? 1,
-    });
+            other_description:
+                item.impact_code === 'OTHER'
+                    ? item.other_description && item.other_description.trim()
+                        ? item.other_description
+                        : null
+                    : null,
+        }));
+    }
+
+    emit('update:modelValue', payload);
 }
 
 function isImpactSelected(code: ServiceImpactSelection['impact_code']): boolean {
@@ -113,6 +240,8 @@ function getOtherDescription(): string {
 
 function toggleImpact(code: ServiceImpactSelection['impact_code']) {
     if (props.disabled || props.readonly) return;
+    isDirty.value = true;
+    delete errors.value.service_impacts;
     const idx = serviceImpacts.value.findIndex((item) => item.impact_code === code);
     if (idx >= 0) {
         serviceImpacts.value.splice(idx, 1);
@@ -127,6 +256,8 @@ function toggleImpact(code: ServiceImpactSelection['impact_code']) {
 
 function updateOtherDescription(text: string) {
     if (props.disabled || props.readonly) return;
+    isDirty.value = true;
+    delete errors.value.other_description;
     const found = serviceImpacts.value.find((item) => item.impact_code === 'OTHER');
     if (found) {
         found.other_description = text;
@@ -141,6 +272,8 @@ function updateOtherDescription(text: string) {
 
 function addChallenge() {
     if (facingChallenges.value.length >= 3 || props.disabled || props.readonly) return;
+    isDirty.value = true;
+    delete errors.value.facing_challenges;
     const nextRowNo = facingChallenges.value.length + 1;
     facingChallenges.value.push({
         row_no: nextRowNo,
@@ -151,6 +284,7 @@ function addChallenge() {
 
 function removeChallenge(index: number) {
     if (props.disabled || props.readonly) return;
+    isDirty.value = true;
     facingChallenges.value.splice(index, 1);
     // Re-index row_no to maintain sequential 1..N natural keys
     facingChallenges.value.forEach((row, i) => {
@@ -161,6 +295,8 @@ function removeChallenge(index: number) {
 
 function addProblem() {
     if (identifiedProblems.value.length >= 3 || props.disabled || props.readonly) return;
+    isDirty.value = true;
+    delete errors.value.identified_problems;
     const nextRowNo = identifiedProblems.value.length + 1;
     identifiedProblems.value.push({
         row_no: nextRowNo,
@@ -171,6 +307,7 @@ function addProblem() {
 
 function removeProblem(index: number) {
     if (props.disabled || props.readonly) return;
+    isDirty.value = true;
     identifiedProblems.value.splice(index, 1);
     // Re-index row_no
     identifiedProblems.value.forEach((row, i) => {
@@ -179,12 +316,80 @@ function removeProblem(index: number) {
     notifyUpdate();
 }
 
+function onPurposeInput() {
+    isDirty.value = true;
+    delete errors.value.maintenance_purpose;
+    notifyUpdate();
+}
+
+function onChallengeInput() {
+    isDirty.value = true;
+    delete errors.value.facing_challenges;
+    notifyUpdate();
+}
+
+function onProblemInput() {
+    isDirty.value = true;
+    delete errors.value.identified_problems;
+    notifyUpdate();
+}
+
 // Validation logic for Submit Action
 function validateSubmit(): boolean {
     const newErrors: Record<string, string> = {};
 
+    // F-24-4: Gate submit for readonly or disabled (fail closed)
+    if (props.readonly || props.disabled) {
+        newErrors.form = 'Form is readonly or disabled';
+        errors.value = newErrors;
+        emit('validate', newErrors);
+        return false;
+    }
+
+    // F-24-1: Subtype matrix validation (fail closed for unrecognized subtype)
+    if (!normalizedSubtype.value) {
+        newErrors.subtype = `Unrecognized subtype: ${String(props.subtype)}`;
+        errors.value = newErrors;
+        emit('validate', newErrors);
+        return false;
+    }
+
+    // F-24-2: Check for invalid impact codes from incoming data
+    if (invalidImpactCodes.value.length > 0) {
+        newErrors.service_impacts = `Invalid impact_code: ${invalidImpactCodes.value.join(', ')}`;
+    }
+
+    // F-24-8: Check for duplicate natural keys in service_impacts
+    const seenImpacts = new Set<string>();
+    for (const item of serviceImpacts.value) {
+        if (seenImpacts.has(item.impact_code)) {
+            newErrors.service_impacts = `Duplicate impact_code found: ${item.impact_code}`;
+            break;
+        }
+        seenImpacts.add(item.impact_code);
+    }
+
+    // F-24-8: Check for duplicate natural keys in challenges/problems
+    const seenChallenges = new Set<number>();
+    for (const c of facingChallenges.value) {
+        if (seenChallenges.has(c.row_no)) {
+            newErrors.facing_challenges = `Duplicate row_no found: ${c.row_no}`;
+            break;
+        }
+        seenChallenges.add(c.row_no);
+    }
+
+    const seenProblems = new Set<number>();
+    for (const p of identifiedProblems.value) {
+        if (seenProblems.has(p.row_no)) {
+            newErrors.identified_problems = `Duplicate row_no found: ${p.row_no}`;
+            break;
+        }
+        seenProblems.add(p.row_no);
+    }
+
     // AC1: Purpose Subtype Matrix
-    if (props.subtype === 'Maintenance') {
+    if (normalizedSubtype.value === 'Maintenance') {
         if (!maintenancePurpose.value || !maintenancePurpose.value.trim()) {
             newErrors.maintenance_purpose = 'Maintenance purpose is required for Maintenance';
         }
@@ -198,7 +403,7 @@ function validateSubmit(): boolean {
     const nonBlankChallenges = facingChallenges.value.filter(
         (c) => typeof c.challenge_text === 'string' && c.challenge_text.trim().length > 0,
     );
-    if (props.subtype === 'Upgrade' || props.subtype === 'Emergency') {
+    if (normalizedSubtype.value === 'Upgrade' || normalizedSubtype.value === 'Emergency') {
         if (nonBlankChallenges.length === 0) {
             newErrors.facing_challenges = 'At least one challenge is required for Upgrade/Emergency';
         }
@@ -225,7 +430,7 @@ function validateSubmit(): boolean {
     }
 
     // AC1 & AC2: Service Impacts (>= 1 for all subtypes)
-    if (serviceImpacts.value.length === 0) {
+    if (serviceImpacts.value.length === 0 && !newErrors.service_impacts) {
         newErrors.service_impacts = 'At least one service impact must be selected';
     }
 
@@ -245,39 +450,68 @@ function validateSubmit(): boolean {
     return Object.keys(newErrors).length === 0;
 }
 
-// Method to get wire draft payload using buildDraftPayload helper from draftPayload.ts
+// Method to get wire draft payload using buildDraftPayload helper from draftPayload.ts (F-24-10)
 function getDraftPayload(): ChangeDraftWirePayload['change'] {
+    const changeData: Record<string, unknown> = {
+        maintenance_purpose: maintenancePurpose.value.trim() ? maintenancePurpose.value : null,
+    };
+
+    if (incomingHasChallenges.value || facingChallenges.value.length > 0) {
+        changeData.facing_challenges = facingChallenges.value.slice(0, 3).map((c, i) => ({
+            row_no: typeof c.row_no === 'number' && c.row_no >= 1 && c.row_no <= 3 ? c.row_no : i + 1,
+            challenge_text: c.challenge_text ?? null,
+        }));
+    }
+
+    if (incomingHasProblems.value || identifiedProblems.value.length > 0) {
+        changeData.identified_problems = identifiedProblems.value.slice(0, 3).map((p, i) => ({
+            row_no: typeof p.row_no === 'number' && p.row_no >= 1 && p.row_no <= 3 ? p.row_no : i + 1,
+            problem_text: p.problem_text ?? null,
+        }));
+    }
+
+    if (incomingHasImpacts.value || serviceImpacts.value.length > 0) {
+        changeData.service_impacts = serviceImpacts.value.map((item) => ({
+            impact_code: item.impact_code,
+            other_description:
+                item.impact_code === 'OTHER'
+                    ? item.other_description?.trim()
+                        ? item.other_description
+                        : null
+                    : null,
+        }));
+    }
+
     const payload = buildDraftPayload({
         family: 'CHANGE',
-        record_version: props.modelValue?.record_version ?? 1,
-        change: {
-            maintenance_purpose: maintenancePurpose.value.trim() ? maintenancePurpose.value : null,
-            facing_challenges: facingChallenges.value.map((c, i) => ({
-                row_no: c.row_no || i + 1,
-                challenge_text: c.challenge_text ?? null,
-            })),
-            identified_problems: identifiedProblems.value.map((p, i) => ({
-                row_no: p.row_no || i + 1,
-                problem_text: p.problem_text ?? null,
-            })),
-            service_impacts: serviceImpacts.value.map((item) => ({
-                impact_code: item.impact_code,
-                other_description:
-                    item.impact_code === 'OTHER'
-                        ? item.other_description?.trim()
-                            ? item.other_description
-                            : null
-                        : null,
-            })),
-        },
+        record_version:
+            typeof props.modelValue?.record_version === 'number' && props.modelValue.record_version >= 1
+                ? props.modelValue.record_version
+                : 1,
+        change: changeData,
     });
     return payload.change;
+}
+
+function resetDirty() {
+    isDirty.value = false;
 }
 
 defineExpose({
     validateSubmit,
     getDraftPayload,
     errors,
+    isDirty,
+    resetDirty,
+    toggleImpact,
+    addChallenge,
+    removeChallenge,
+    addProblem,
+    removeProblem,
+    updateOtherDescription,
+    facingChallenges,
+    identifiedProblems,
+    serviceImpacts,
 });
 </script>
 
@@ -291,8 +525,16 @@ defineExpose({
                     Subtype: <span class="font-medium text-foreground">{{ subtype }}</span>
                 </p>
             </div>
-            <!-- Test trigger button for submit validation -->
-            <button type="button" data-testid="validate-submit-btn" class="hidden" @click="validateSubmit">
+            <!-- Test trigger button for submit validation (F-24-4) -->
+            <button
+                type="button"
+                data-testid="validate-submit-btn"
+                class="hidden"
+                tabindex="-1"
+                aria-hidden="true"
+                :disabled="disabled || readonly"
+                @click="validateSubmit"
+            >
                 Validate Submit
             </button>
         </div>
@@ -302,7 +544,7 @@ defineExpose({
             <label for="maintenance-purpose-input" class="text-sm font-medium text-foreground flex items-center">
                 Maintenance Purpose
                 <span
-                    v-if="subtype === 'Maintenance'"
+                    v-if="normalizedSubtype === 'Maintenance'"
                     class="text-destructive font-bold ml-1"
                     data-testid="purpose-required-asterisk"
                     >*</span
@@ -318,7 +560,7 @@ defineExpose({
                 rows="3"
                 class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="Explain the purpose of this change..."
-                @input="notifyUpdate"
+                @input="onPurposeInput"
             />
             <p v-if="errors.maintenance_purpose" class="text-xs font-medium text-destructive" role="alert">
                 {{ errors.maintenance_purpose }}
@@ -332,7 +574,7 @@ defineExpose({
                     <label class="text-sm font-medium text-foreground flex items-center">
                         Facing Challenges
                         <span
-                            v-if="subtype === 'Upgrade' || subtype === 'Emergency'"
+                            v-if="normalizedSubtype === 'Upgrade' || normalizedSubtype === 'Emergency'"
                             class="text-destructive font-bold ml-1"
                             data-testid="challenges-required-asterisk"
                             >*</span
@@ -376,7 +618,7 @@ defineExpose({
                         maxlength="1000"
                         class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         placeholder="Describe facing challenge..."
-                        @input="notifyUpdate"
+                        @input="onChallengeInput"
                     />
                 </div>
                 <button
@@ -437,7 +679,7 @@ defineExpose({
                         maxlength="1000"
                         class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         placeholder="Describe identified problem..."
-                        @input="notifyUpdate"
+                        @input="onProblemInput"
                     />
                 </div>
                 <button
@@ -513,3 +755,4 @@ defineExpose({
         </div>
     </div>
 </template>
+
