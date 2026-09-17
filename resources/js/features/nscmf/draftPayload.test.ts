@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+    type ActivationDraftInput,
     buildDraftPayload,
+    type ChangeDraftInput,
+    type DirectSiteBlock,
     type DraftPayloadInput,
 } from './draftPayload';
 
 describe('FE-19: Repeatable rows and Draft payload semantics', () => {
     describe('AC1: payload_replaces_collections', () => {
         it('produces full desired array when a row is removed (whole-set replacement)', () => {
-            const input: DraftPayloadInput = {
+            const input: ActivationDraftInput = {
                 family: 'ACTIVATION',
                 record_version: 3,
                 activation: {
@@ -21,14 +24,14 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
             const payload = buildDraftPayload(input);
             expect(payload.record_version).toBe(3);
             expect(payload.activation).toHaveProperty('sla_items');
-            expect((payload.activation as Record<string, unknown>).sla_items).toEqual([
+            expect(payload.activation.sla_items).toEqual([
                 { row_no: 1, requirement_text: '99.9% uptime' },
                 { row_no: 2, requirement_text: 'MTTR < 4h' },
             ]);
         });
 
         it('omits collection key when omitted from input (omission is unchanged, not clear)', () => {
-            const input: DraftPayloadInput = {
+            const input: ActivationDraftInput = {
                 family: 'ACTIVATION',
                 record_version: 5,
                 activation: {
@@ -44,7 +47,7 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
         });
 
         it('sends explicit [] when collection is empty array to clear all rows', () => {
-            const input: DraftPayloadInput = {
+            const input: ChangeDraftInput = {
                 family: 'CHANGE',
                 record_version: 2,
                 change: {
@@ -61,7 +64,7 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
 
     describe('AC2: payload_keeps_selected_null_items', () => {
         it('keeps selection items with null detail (IWO with null specification)', () => {
-            const input: DraftPayloadInput = {
+            const input: ActivationDraftInput = {
                 family: 'ACTIVATION',
                 record_version: 1,
                 activation: {
@@ -73,14 +76,14 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
             };
 
             const payload = buildDraftPayload(input);
-            expect((payload.activation as Record<string, unknown>).references).toEqual([
+            expect(payload.activation.references).toEqual([
                 { reference_type: 'IWO', specification: null },
                 { reference_type: 'OTHER', specification: 'Nota internal' },
             ]);
         });
 
         it('keeps selection items with null detail (NOC15 with null other_description)', () => {
-            const input: DraftPayloadInput = {
+            const input: ChangeDraftInput = {
                 family: 'CHANGE',
                 record_version: 4,
                 change: {
@@ -92,7 +95,7 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
             };
 
             const payload = buildDraftPayload(input);
-            expect((payload.change as Record<string, unknown>).service_impacts).toEqual([
+            expect(payload.change.service_impacts).toEqual([
                 { impact_code: 'NOC15', other_description: null },
                 { impact_code: 'OTHER', other_description: 'Pelanggan VIP' },
             ]);
@@ -101,7 +104,7 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
 
     describe('AC3: payload_discards_empty_content_rows', () => {
         it('discards content-empty numbered rows (row_no only) while keeping partial rows that have content', () => {
-            const input: DraftPayloadInput = {
+            const input: ActivationDraftInput = {
                 family: 'ACTIVATION',
                 record_version: 2,
                 activation: {
@@ -129,17 +132,11 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
             };
 
             const payload = buildDraftPayload(input);
-            const act = payload.activation as Record<string, unknown>;
+            const act = payload.activation;
 
-            expect(act.sla_items).toEqual([
-                { row_no: 1, requirement_text: 'Latency < 20ms' },
-            ]);
-            expect(act.virtual_connections).toEqual([
-                { row_no: 2, bandwidth_mbps: 100 },
-            ]);
-            expect(act.priority_destinations).toEqual([
-                { row_no: 2, destination: 'IXP Core' },
-            ]);
+            expect(act.sla_items).toEqual([{ row_no: 1, requirement_text: 'Latency < 20ms' }]);
+            expect(act.virtual_connections).toEqual([{ row_no: 2, bandwidth_mbps: 100 }]);
+            expect(act.priority_destinations).toEqual([{ row_no: 2, destination: 'IXP Core' }]);
             expect(act.service_blocks).toEqual([
                 {
                     service_context: 'NEW',
@@ -152,7 +149,7 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
         });
 
         it('discards empty Change rows while preserving partial plan or result with content', () => {
-            const input: DraftPayloadInput = {
+            const input: ChangeDraftInput = {
                 family: 'CHANGE',
                 record_version: 7,
                 change: {
@@ -176,17 +173,11 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
             };
 
             const payload = buildDraftPayload(input);
-            const chg = payload.change as Record<string, unknown>;
+            const chg = payload.change;
 
-            expect(chg.facing_challenges).toEqual([
-                { row_no: 1, challenge_text: 'Downtime constraint' },
-            ]);
-            expect(chg.identified_problems).toEqual([
-                { row_no: 2, problem_text: 'High packet drop' },
-            ]);
-            expect(chg.improvement_items).toEqual([
-                { row_no: 1, plan_text: 'Add redundant link', target_kpi: null },
-            ]);
+            expect(chg.facing_challenges).toEqual([{ row_no: 1, challenge_text: 'Downtime constraint' }]);
+            expect(chg.identified_problems).toEqual([{ row_no: 2, problem_text: 'High packet drop' }]);
+            expect(chg.improvement_items).toEqual([{ row_no: 1, plan_text: 'Add redundant link', target_kpi: null }]);
             expect(chg.results).toEqual([
                 {
                     row_no: 1,
@@ -218,10 +209,7 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                     family: 'ACTIVATION',
                     record_version: 1,
                     activation: {
-                        references: [
-                            { reference_type: 'IWO' },
-                            { reference_type: 'IWO', specification: 'Second' },
-                        ],
+                        references: [{ reference_type: 'IWO' }, { reference_type: 'IWO', specification: 'Second' }],
                     },
                 }),
             ).toThrow(/duplicate.*reference_type/i);
@@ -244,10 +232,7 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                     family: 'CHANGE',
                     record_version: 1,
                     change: {
-                        service_impacts: [
-                            { impact_code: 'NOC15' },
-                            { impact_code: 'NOC15' },
-                        ],
+                        service_impacts: [{ impact_code: 'NOC15' }, { impact_code: 'NOC15' }],
                     },
                 }),
             ).toThrow(/duplicate.*impact_code/i);
@@ -276,7 +261,7 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
         });
 
         it('prevents Change fields from leaking into Activation and vice versa', () => {
-            const actPayload = buildDraftPayload({
+            const actInput: DraftPayloadInput = {
                 family: 'ACTIVATION',
                 record_version: 1,
                 activation: {
@@ -285,12 +270,13 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                 change: {
                     maintenance_purpose: 'Sneaky leak',
                 },
-            });
+            };
+            const actPayload = buildDraftPayload(actInput);
 
             expect(actPayload).not.toHaveProperty('change');
-            expect(actPayload.activation).not.toHaveProperty('maintenance_purpose');
+            expect('activation' in actPayload && actPayload.activation).not.toHaveProperty('maintenance_purpose');
 
-            const chgPayload = buildDraftPayload({
+            const chgInput: DraftPayloadInput = {
                 family: 'CHANGE',
                 record_version: 1,
                 change: {
@@ -299,25 +285,27 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                 activation: {
                     customer_name: 'Sneaky leak',
                 },
-            });
+            };
+            const chgPayload = buildDraftPayload(chgInput);
 
             expect(chgPayload).not.toHaveProperty('activation');
-            expect(chgPayload.change).not.toHaveProperty('customer_name');
+            expect('change' in chgPayload && chgPayload.change).not.toHaveProperty('customer_name');
         });
     });
 
     describe('AC5: payload_site_clear_is_null', () => {
         it('sends null when site block is explicitly cleared, rejects empty object {}', () => {
-            const payload = buildDraftPayload({
+            const input: ActivationDraftInput = {
                 family: 'ACTIVATION',
                 record_version: 8,
                 activation: {
                     direct_site: null,
                     pop_site: null,
                 },
-            });
+            };
+            const payload = buildDraftPayload(input);
 
-            const act = payload.activation as Record<string, unknown>;
+            const act = payload.activation;
             expect(act.direct_site).toBeNull();
             expect(act.pop_site).toBeNull();
 
@@ -326,20 +314,39 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                     family: 'ACTIVATION',
                     record_version: 8,
                     activation: {
-                        direct_site: {} as any,
+                        direct_site: {} as unknown as DirectSiteBlock,
                     },
                 }),
             ).toThrow(/empty object.*invalid.*null/i);
         });
 
+        it('throws validation error when record_version is missing or not a number', () => {
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: undefined as unknown as number,
+                }),
+            ).toThrow(/record_version is required/i);
+        });
+
+        it('throws error when family is unsupported', () => {
+            expect(() =>
+                buildDraftPayload({
+                    family: 'INVALID' as unknown as 'ACTIVATION',
+                    record_version: 1,
+                }),
+            ).toThrow(/unsupported family/i);
+        });
+
         it('includes current record_version without client-side incrementation', () => {
-            const payload = buildDraftPayload({
+            const input: ActivationDraftInput = {
                 family: 'ACTIVATION',
                 record_version: 8,
                 activation: {
                     customer_name: 'PT Alpha',
                 },
-            });
+            };
+            const payload = buildDraftPayload(input);
 
             expect(payload.record_version).toBe(8);
         });
