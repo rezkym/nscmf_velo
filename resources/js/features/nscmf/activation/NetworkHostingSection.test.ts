@@ -53,14 +53,16 @@ describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)
             await gwInput.setValue('2001:db8:85a3::1');
 
             expect(wrapper.emitted('update:modelValue')).toBeTruthy();
-            const lastEmitted = wrapper.emitted('update:modelValue')?.slice(-1)[0][0] as ActivationDraftFields;
+            const updateEvents = wrapper.emitted('update:modelValue')!;
+            const lastRow = updateEvents[updateEvents.length - 1];
+            expect(lastRow).toBeDefined();
+            const lastEmitted = lastRow![0] as ActivationDraftFields;
             expect(lastEmitted.wan_ip).toBe('2001:db8:85a3::8a2e:370:7334/64');
             expect(lastEmitted.gateway).toBe('2001:db8:85a3::1');
             expect(lastEmitted.lan_ip_allocation).toBe('192.0.2.0/24, 2001:db8::1, 10.0.0.1 - 10.0.0.50\nfe80::1/64');
 
             // Exposed getDraftPayload() keeps them exact
-            const vm = wrapper.vm as any;
-            const payload = vm.getDraftPayload();
+            const payload = wrapper.vm.getDraftPayload();
             expect(payload.wan_ip).toBe('2001:db8:85a3::8a2e:370:7334/64');
             expect(payload.gateway).toBe('2001:db8:85a3::1');
             expect(payload.lan_ip_allocation).toBe('192.0.2.0/24, 2001:db8::1, 10.0.0.1 - 10.0.0.50\nfe80::1/64');
@@ -102,8 +104,7 @@ describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)
             expect(wrapper.find('[data-testid="indicator-migrate_domain-dependency"]').exists()).toBe(true);
 
             // In draft mode, incomplete values remain editable and exportable
-            const vm = wrapper.vm as any;
-            const draft = vm.getDraftPayload();
+            const draft = wrapper.vm.getDraftPayload();
             expect(draft.migrate_domain).toBe(true);
             expect(draft.domain_name_1).toBeNull();
 
@@ -172,8 +173,7 @@ describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)
             await migDomainCheckbox.setValue(true);
             await migHostingCheckbox.setValue(true);
 
-            const vm = wrapper.vm as any;
-            const draft = vm.getDraftPayload();
+            const draft = wrapper.vm.getDraftPayload();
 
             expect(draft.migrate_domain).toBe(true);
             expect(draft.migrate_hosting).toBe(true);
@@ -230,8 +230,7 @@ describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)
             await regionalInput.setValue('Region IX - Remote');
             await downlinkRouter.setValue('Cisco-ASR9000-Core-01');
 
-            const vm = wrapper.vm as any;
-            const draft = vm.getDraftPayload();
+            const draft = wrapper.vm.getDraftPayload();
             expect(draft.pop).toBe('Custom Edge PoP-99');
             expect(draft.regional).toBe('Region IX - Remote');
             expect(draft.downlink_router).toBe('Cisco-ASR9000-Core-01');
@@ -239,7 +238,7 @@ describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)
     });
 
     describe('AC4 — domain_limits_and_nulls', () => {
-        it('enforces boundary limits: domain max 253, hosting max 255', async () => {
+        it('enforces boundary limits: domain max 253, hosting max 255', () => {
             const wrapper = mount(NetworkHostingSection, {
                 props: {
                     modelValue: {},
@@ -255,7 +254,7 @@ describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)
             expect(hp.attributes('maxlength')).toBe('255');
         });
 
-        it('explicitly normalizes blank/whitespace strings to null in draft export', async () => {
+        it('explicitly normalizes blank/whitespace strings to null in draft export', () => {
             const wrapper = mount(NetworkHostingSection, {
                 props: {
                     modelValue: {
@@ -281,8 +280,7 @@ describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)
                 },
             });
 
-            const vm = wrapper.vm as any;
-            const draft = vm.getDraftPayload();
+            const draft = wrapper.vm.getDraftPayload();
 
             expect(draft.lan_ip_allocation).toBeNull();
             expect(draft.wan_ip).toBeNull();
@@ -303,7 +301,7 @@ describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)
             expect(draft.hosting_platform).toBeNull();
         });
 
-        it('displays server validation errors accurately mapped to corresponding fields via serverErrors prop', async () => {
+        it('displays server validation errors accurately mapped to corresponding fields via serverErrors prop', () => {
             const wrapper = mount(NetworkHostingSection, {
                 props: {
                     modelValue: defaultData,
