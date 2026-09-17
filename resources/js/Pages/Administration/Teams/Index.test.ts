@@ -138,6 +138,14 @@ describe('Index.vue (FE-11: Team Administration)', () => {
         await formEl.trigger('submit.prevent');
 
         expect(currentForm.patch).toHaveBeenCalledWith('/administration/teams/1', expect.any(Object));
+
+        // Test onSuccess callback of patch
+        const patchCall = currentForm.patch.mock.calls[0];
+        if (patchCall && patchCall[1]?.onSuccess) {
+            patchCall[1].onSuccess();
+        }
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('input#team-name').exists()).toBe(false);
     });
 
     it('AC2: teams_support_deactivate_and_reactivate — correct POST endpoint, reason/input bila kontrak mensyaratkan, pending tidak double', async () => {
@@ -217,7 +225,16 @@ describe('Index.vue (FE-11: Team Administration)', () => {
         // Verify useForm post was called to /administration/teams with ONLY name
         expect(currentForm.post).toHaveBeenCalledWith('/administration/teams', expect.any(Object));
 
-        // Check server validation error display near field
+        // Test onSuccess callback of post
+        const postCall = currentForm.post.mock.calls[0];
+        if (postCall && postCall[1]?.onSuccess) {
+            postCall[1].onSuccess();
+        }
+        await wrapper.vm.$nextTick();
+        expect(wrapper.find('input#team-name').exists()).toBe(false);
+
+        // Reopen create modal to check server validation error display near field
+        await createBtn.trigger('click');
         currentForm.errors = { name: 'The team name has already been taken.' };
         await wrapper.vm.$nextTick();
 
@@ -245,5 +262,90 @@ describe('Index.vue (FE-11: Team Administration)', () => {
 
         // Even if Team Alpha name is updated or displayed, the snapshot in existing records remains preserved
         expect(wrapper.text()).toContain('Team Alpha (Original Historical)');
+    });
+
+    it('displays empty state when no teams are configured', () => {
+        const wrapper = mount(Index, {
+            props: {
+                teams: [],
+                permissions: ['teams.view'],
+            },
+        });
+
+        expect(wrapper.text()).toContain('No teams configured.');
+    });
+
+    it('covers closeFormModal and cancel button in form modal', async () => {
+        const wrapper = mount(Index, {
+            props: {
+                teams: defaultTeams,
+                permissions: ['teams.create'],
+            },
+        });
+
+        // Open create modal
+        await wrapper.find('[data-testid="create-team-btn"]').trigger('click');
+        const input = wrapper.find<HTMLInputElement>('input#team-name');
+        expect(input.exists()).toBe(true);
+
+        // Trigger input event to ensure v-model update runs through input handler
+        await input.setValue('New Team Name');
+
+        // Cancel modal
+        const cancelBtn = wrapper.findAll('button').find((b) => b.text() === 'Cancel');
+        expect(cancelBtn).toBeDefined();
+        await cancelBtn!.trigger('click');
+
+        // Modal closed
+        expect(wrapper.find('input#team-name').exists()).toBe(false);
+    });
+
+    it('guards form submission and displays Saving... when form.processing is true', async () => {
+        const wrapper = mount(Index, {
+            props: {
+                teams: defaultTeams,
+                permissions: ['teams.create'],
+            },
+        });
+
+        await wrapper.find('[data-testid="create-team-btn"]').trigger('click');
+
+        currentForm.name = 'Valid Team Name';
+        currentForm.processing = true;
+        await wrapper.vm.$nextTick();
+
+        // Button should show "Saving..." and be disabled
+        const saveBtn = wrapper.find('[data-testid="save-team-btn"]');
+        expect(saveBtn.text()).toBe('Saving...');
+        expect(saveBtn.attributes('disabled')).toBeDefined();
+
+        // Submit form while processing
+        const formEl = wrapper.find('form');
+        await formEl.trigger('submit.prevent');
+
+        // Neither post nor patch should be called because form.processing guard returned early
+        expect(currentForm.post).not.toHaveBeenCalled();
+        expect(currentForm.patch).not.toHaveBeenCalled();
+    });
+
+    it('covers cancelLifecycleAction when lifecycle dialog is open', async () => {
+        const wrapper = mount(Index, {
+            props: {
+                teams: defaultTeams,
+                permissions: ['teams.archive'],
+            },
+        });
+
+        // Open deactivate dialog
+        await wrapper.find('[data-testid="deactivate-team-1"]').trigger('click');
+        expect(wrapper.find('[data-testid="confirm-lifecycle-action"]').exists()).toBe(true);
+
+        // Click cancel
+        const cancelBtn = wrapper.findAll('button').find((b) => b.text() === 'Cancel');
+        expect(cancelBtn).toBeDefined();
+        await cancelBtn!.trigger('click');
+
+        // Dialog should be closed
+        expect(wrapper.find('[data-testid="confirm-lifecycle-action"]').exists()).toBe(false);
     });
 });
