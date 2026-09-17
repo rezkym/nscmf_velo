@@ -156,6 +156,61 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
             expect(wrapper.text()).not.toContain('EXISTING service block is required');
         });
+
+        it('F-20-3: handles canonical machine values and fails closed for unrecognized subtype', async () => {
+            // Canonical machine value 'ACTIVATION' maps to Activation requirement
+            const wrapperCanonicalAct = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'ACTIVATION' as unknown as 'Activation',
+                    modelValue: {
+                        customer_name: 'C',
+                        contact_name: 'K',
+                        installation_rfs_date: '2026-01-01',
+                        references: [],
+                        service_blocks: [],
+                    },
+                },
+            });
+            expect(wrapperCanonicalAct.find('[data-testid="indicator-new-service"]').text()).toContain('Required');
+            await wrapperCanonicalAct.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapperCanonicalAct.emitted('submit-valid')).toBeFalsy();
+            expect(wrapperCanonicalAct.find('[data-testid="error-service-NEW"]').text()).toContain('NEW service block is required');
+
+            // Canonical machine value 'UPGRADE_DOWNGRADE' maps to Upgrade/Downgrade requirement
+            const wrapperCanonicalUD = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'UPGRADE_DOWNGRADE' as unknown as 'Activation',
+                    modelValue: {
+                        customer_name: 'C',
+                        contact_name: 'K',
+                        installation_rfs_date: '2026-01-01',
+                        references: [],
+                        service_blocks: [],
+                    },
+                },
+            });
+            expect(wrapperCanonicalUD.find('[data-testid="indicator-existing-service"]').text()).toContain('Required');
+            expect(wrapperCanonicalUD.find('[data-testid="indicator-new-service"]').text()).toContain('Required');
+
+            // Unrecognized / bogus subtype fails closed (emits submit-invalid with unrecognized subtype error)
+            const wrapperBogus = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Bogus' as unknown as 'Activation',
+                    modelValue: {
+                        customer_name: 'C',
+                        contact_name: 'K',
+                        installation_rfs_date: '2026-01-01',
+                        references: [],
+                        service_blocks: [],
+                    },
+                },
+            });
+            await wrapperBogus.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapperBogus.emitted('submit-valid')).toBeFalsy();
+            expect(wrapperBogus.emitted('submit-invalid')).toBeTruthy();
+            const errs = wrapperBogus.emitted('submit-invalid')?.[0]?.[0] as Record<string, string>;
+            expect(errs.subtype).toBe('Unrecognized subtype: Bogus');
+        });
     });
 
     describe('AC2 — activation_keeps_partial_draft', () => {
@@ -209,6 +264,128 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
 
             expect(wrapper.vm.getDraftPayload().service_blocks?.[0]?.service_id).toBe('SID-PARTIAL');
         });
+
+        it('retains entered specification when a reference is unticked and re-ticked (anti-clobber)', async () => {
+            const wrapper = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Activation',
+                    modelValue: {
+                        customer_name: 'PT Telco',
+                        contact_name: 'Budi',
+                        installation_rfs_date: '2026-10-01',
+                        references: [
+                            { reference_type: 'OTHER', specification: 'Custom Spec 123' },
+                        ],
+                    },
+                },
+            });
+
+            // Untick OTHER
+            const otherCheckbox = wrapper.find('[data-testid="ref-checkbox-OTHER"]');
+            await otherCheckbox.setValue(false);
+            expect(wrapper.vm.getDraftPayload().references).toEqual([]);
+
+            // Re-tick OTHER: specification must still be 'Custom Spec 123'
+            await otherCheckbox.setValue(true);
+            expect(wrapper.vm.getDraftPayload().references).toEqual([
+                { reference_type: 'OTHER', specification: 'Custom Spec 123' },
+            ]);
+        });
+
+        it('F-20-4: exposes isDirty and does not let stale modelValue clobber in-flight user edits', async () => {
+            const wrapper = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Activation',
+                    modelValue: {
+                        customer_name: 'Server Initial',
+                        contact_name: 'Contact 1',
+                        installation_rfs_date: '2026-10-01',
+                    },
+                },
+            });
+
+            expect(wrapper.vm.isDirty).toBe(false);
+
+            // User types dirty edit into customer name
+            const custInput = wrapper.find('[data-testid="input-customer-name"]');
+            await custInput.setValue('Dirty Local Edit');
+
+            expect(wrapper.vm.isDirty).toBe(true);
+            expect(wrapper.vm.getDraftPayload().customer_name).toBe('Dirty Local Edit');
+
+            // Stale modelValue arrives from parent re-render
+            await wrapper.setProps({
+                modelValue: {
+                    customer_name: 'Server Initial',
+                    contact_name: 'Contact 1',
+                    installation_rfs_date: '2026-10-01',
+                },
+            });
+
+            // Must NOT clobber in-flight dirty edit!
+            expect(wrapper.vm.isDirty).toBe(true);
+            expect(wrapper.vm.getDraftPayload().customer_name).toBe('Dirty Local Edit');
+            expect((custInput.element as HTMLInputElement).value).toBe('Dirty Local Edit');
+
+            // resetDirty allows parent to explicitly clear dirty state if needed
+            wrapper.vm.resetDirty();
+            expect(wrapper.vm.isDirty).toBe(false);
+        });
+
+        it('F-20-5: does not emit empty collections if modelValue omitted them and form has no content for them', () => {
+            const wrapper = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Deactivation',
+                    modelValue: {
+                        customer_name: 'Seeded Customer',
+                        contact_name: 'Seeded Contact',
+                        // references and service_blocks omitted!
+                    },
+                },
+            });
+
+            const draft = wrapper.vm.getDraftPayload();
+            // Should NOT fabricate empty references array or not-started service blocks
+            expect(draft.references).toBeUndefined();
+            expect(draft.service_blocks).toBeUndefined();
+        });
+
+        it('F-20-10: builds draft from an explicit allowlist and does not echo unmodelled props', () => {
+            const wrapper = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Activation',
+                    modelValue: {
+                        customer_name: 'Customer',
+                        contact_name: 'Contact',
+                        installation_rfs_date: '2026-10-01',
+                        password: 'SECRET_PASSWORD',
+                        token: 'SECRET_TOKEN',
+                        internal_notes: 'CONFIDENTIAL',
+                    } as unknown as ActivationDraftFields,
+                },
+            });
+
+            const draft = wrapper.vm.getDraftPayload() as Record<string, unknown>;
+            expect(draft.password).toBeUndefined();
+            expect(draft.token).toBeUndefined();
+            expect(draft.internal_notes).toBeUndefined();
+            expect(Object.keys(draft).sort()).toEqual([
+                'contact_name',
+                'customer_name',
+                'installation_rfs_date',
+            ]);
+        });
+
+        it('F-20-11: mounts safely when modelValue is null', () => {
+            expect(() => {
+                mount(GeneralServiceSection, {
+                    props: {
+                        subtype: 'Activation',
+                        modelValue: null as unknown as ActivationDraftFields,
+                    },
+                });
+            }).not.toThrow();
+        });
     });
 
     describe('AC3 — activation_submit_errors_are_specific', () => {
@@ -241,6 +418,14 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             expect(wrapper.find('[data-testid="error-customer-name"]').text()).toContain('max 150 characters');
             expect(wrapper.find('[data-testid="error-contact-name"]').text()).toContain('max 150 characters');
 
+            // M1/M2/M3 defense: assert maxlength attributes on DOM inputs
+            expect(wrapper.find('[data-testid="input-customer-name"]').attributes('maxlength')).toBe('150');
+            expect(wrapper.find('[data-testid="input-contact-name"]').attributes('maxlength')).toBe('150');
+            expect(wrapper.find('[data-testid="input-service-EXISTING-service_id"]').attributes('maxlength')).toBe('100');
+            expect(wrapper.find('[data-testid="input-service-NEW-service_id"]').attributes('maxlength')).toBe('100');
+            expect(wrapper.find('[data-testid="input-service-NEW-service_description"]').attributes('maxlength')).toBe('2000');
+            expect(wrapper.find('[data-testid="input-service-NEW-service_location"]').attributes('maxlength')).toBe('500');
+
             // 150 chars is valid
             await wrapper.setProps({
                 modelValue: {
@@ -252,6 +437,16 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
             expect(wrapper.find('[data-testid="error-customer-name"]').exists()).toBe(false);
             expect(wrapper.find('[data-testid="error-contact-name"]').exists()).toBe(false);
+
+            // M12 defense: whitespace-only customer name must be rejected as required
+            await wrapper.setProps({
+                modelValue: {
+                    ...validActivationData,
+                    customer_name: '     ',
+                },
+            });
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.find('[data-testid="error-customer-name"]').text()).toContain('Customer name is required');
         });
 
         it('requires specification max 255 for OTHER reference upon submit, but OTHER specification is not required in draft', async () => {
@@ -279,6 +474,7 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
                     ],
                 },
             });
+            expect(wrapper.find('[data-testid="ref-spec-input-OTHER"]').attributes('maxlength')).toBe('255');
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
             expect(wrapper.find('[data-testid="error-ref-OTHER"]').text()).toContain('max 255 characters');
 
@@ -305,6 +501,96 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             });
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
             expect(wrapper.find('[data-testid="error-ref-IWO"]').text()).toContain('max 255 characters');
+        });
+
+        it('F-20-9: surfaces error for unknown/prototype-chain reference_type instead of silently dropping', async () => {
+            const wrapper = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Activation',
+                    modelValue: {
+                        ...validActivationData,
+                        references: [
+                            { reference_type: 'toString' as unknown as 'OTHER', specification: 'Custom Spec' },
+                        ],
+                    },
+                },
+            });
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.emitted('submit-valid')).toBeFalsy();
+            expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+            const errs = wrapper.emitted('submit-invalid')?.[0]?.[0] as Record<string, string>;
+            expect(errs.references).toBe('Invalid reference_type: toString');
+        });
+
+        it('F-20-7: gates validateSubmit when disabled or readonly is set', () => {
+            const wrapperReadonly = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Activation',
+                    readonly: true,
+                    modelValue: validActivationData,
+                },
+            });
+
+            // validateSubmit must fail closed when readonly
+            expect(wrapperReadonly.vm.validateSubmit()).toBe(false);
+            expect(wrapperReadonly.emitted('submit-valid')).toBeFalsy();
+            expect(wrapperReadonly.emitted('submit-invalid')).toBeTruthy();
+            const errsRO = wrapperReadonly.emitted('submit-invalid')?.[0]?.[0] as Record<string, string>;
+            expect(errsRO.form).toBe('Form is readonly or disabled');
+
+            const wrapperDisabled = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Activation',
+                    disabled: true,
+                    modelValue: validActivationData,
+                },
+            });
+
+            // validateSubmit must fail closed when disabled
+            expect(wrapperDisabled.vm.validateSubmit()).toBe(false);
+            expect(wrapperDisabled.emitted('submit-valid')).toBeFalsy();
+            expect(wrapperDisabled.emitted('submit-invalid')).toBeTruthy();
+            const errsDis = wrapperDisabled.emitted('submit-invalid')?.[0]?.[0] as Record<string, string>;
+            expect(errsDis.form).toBe('Form is readonly or disabled');
+
+            // Hidden trigger button has aria-hidden and tabindex -1
+            const btn = wrapperDisabled.find('[data-testid="validate-submit-btn"]');
+            expect(btn.attributes('aria-hidden')).toBe('true');
+            expect(btn.attributes('tabindex')).toBe('-1');
+        });
+
+        it('F-20-2: enforces max length limits in value path and prevents over-long payload submission', async () => {
+            const wrapper = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Activation',
+                    modelValue: {
+                        ...validActivationData,
+                        customer_name: 'a'.repeat(151),
+                        contact_name: 'b'.repeat(151),
+                        service_blocks: [
+                            {
+                                service_context: 'NEW',
+                                service_id: 's'.repeat(101),
+                                service_status: 'ACTIVATED',
+                                service_description: 'd'.repeat(2001),
+                                service_location: 'l'.repeat(501),
+                            },
+                        ],
+                    },
+                },
+            });
+
+            // validateSubmit rejects over-long values with submit-invalid
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.emitted('submit-valid')).toBeFalsy();
+            expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+            const errs = wrapper.emitted('submit-invalid')?.[0]?.[0] as Record<string, string>;
+            expect(errs.customer_name).toContain('max 150 characters');
+            expect(errs.contact_name).toContain('max 150 characters');
+            expect(errs.service_NEW_service_id).toContain('max 100 characters');
+            expect(errs.service_NEW_service_description).toContain('max 2000 characters');
+            expect(errs.service_NEW_service_location).toContain('max 500 characters');
         });
 
         it('requires all core fields if an optional service block is started upon submit', async () => {
@@ -513,6 +799,51 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             expect(wrapperDeactivation.find('[data-testid="indicator-rfs-date"]').text()).toContain('Optional');
             await wrapperDeactivation.find('[data-testid="validate-submit-btn"]').trigger('click');
             expect(wrapperDeactivation.find('[data-testid="error-installation-rfs-date"]').exists()).toBe(false);
+
+            // M13 defense: Upgrade/Downgrade subtype MUST require RFS date
+            const wrapperUpgrade = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Upgrade/Downgrade',
+                    modelValue: {
+                        ...validActivationData,
+                        installation_rfs_date: '',
+                    },
+                },
+            });
+            expect(wrapperUpgrade.find('[data-testid="indicator-rfs-date"]').text()).toContain('Required');
+            await wrapperUpgrade.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapperUpgrade.find('[data-testid="error-installation-rfs-date"]').text()).toContain('Installation date (RFS) is required');
+        });
+
+        it('M5/M6 defense: verifies disabled/readonly attributes on inputs and reference checkboxes', () => {
+            const wrapper = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Activation',
+                    readonly: true,
+                    modelValue: validActivationData,
+                },
+            });
+
+            // Text inputs must have readonly attribute
+            expect(wrapper.find('[data-testid="input-customer-name"]').attributes('readonly')).toBeDefined();
+            expect(wrapper.find('[data-testid="input-contact-name"]').attributes('readonly')).toBeDefined();
+
+            // Checkboxes must be disabled when readonly is true
+            expect(wrapper.find('[data-testid="ref-checkbox-IWO"]').attributes('disabled')).toBeDefined();
+            expect(wrapper.find('[data-testid="ref-checkbox-OTHER"]').attributes('disabled')).toBeDefined();
+        });
+
+        it('M4 defense: ensures requestDate header renders as text and does not use raw HTML sink', () => {
+            const wrapper = mount(GeneralServiceSection, {
+                props: {
+                    subtype: 'Activation',
+                    requestDate: '<img src=x onerror=1>',
+                    modelValue: validActivationData,
+                },
+            });
+            const header = wrapper.find('[data-testid="request-date-header"]');
+            expect(header.find('img').exists()).toBe(false);
+            expect(header.text()).toContain('<img src=x onerror=1>');
         });
     });
 });
