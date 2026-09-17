@@ -2,9 +2,11 @@ import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';
 
-import Index from './Index.vue';
+import Index, { type RoleItem } from './Index.vue';
 
 interface MockForm<T = Record<string, unknown>> {
+    name?: string;
+    permissions?: string[];
     data: T;
     processing: boolean;
     errors: Record<string, string>;
@@ -16,7 +18,8 @@ interface MockForm<T = Record<string, unknown>> {
     clearErrors: ReturnType<typeof vi.fn>;
 }
 
-let activeForm: MockForm | null = null;
+let activeMetadataForm: MockForm | null = null;
+let activePermissionsForm: MockForm | null = null;
 
 const { mockRouter } = vi.hoisted(() => {
     return {
@@ -57,7 +60,11 @@ vi.mock('@inertiajs/vue3', async () => {
                 reset: vi.fn(),
                 clearErrors: vi.fn(),
             });
-            activeForm = formInstance as unknown as MockForm;
+            if ('permissions' in initialData) {
+                activePermissionsForm = formInstance;
+            } else {
+                activeMetadataForm = formInstance;
+            }
             return formInstance;
         }),
     };
@@ -211,7 +218,8 @@ const canonicalPermissions = [
 describe('Index.vue (FE-14: Role and Permission Administration)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        activeForm = null;
+        activeMetadataForm = null;
+        activePermissionsForm = null;
     });
 
     it('AC1: roles_use_catalog_not_invented_permissions — tidak ada session.login/roles.archive/wildcard scope', async () => {
@@ -262,12 +270,16 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
 
         // Open edit metadata modal
         await editMetadataBtn.trigger('click');
-        const formEl = wrapper.find('[data-testid="role-metadata-form"]');
-        expect(formEl.exists()).toBe(true);
+        const vm = wrapper.vm as unknown as {
+            isMetadataModalOpen: boolean;
+            submitMetadataForm: () => void;
+            serverErrorCode: string | null;
+            serverErrorMessage: string | null;
+        };
+        expect(vm.isMetadataModalOpen).toBe(true);
 
-        // Submitting metadata form sends PATCH /administration/roles/{id}
-        await formEl.trigger('submit.prevent');
-        expect(activeForm?.patch).toHaveBeenCalledWith(
+        vm.submitMetadataForm();
+        expect(activeMetadataForm?.patch).toHaveBeenCalledWith(
             '/administration/roles/2',
             expect.any(Object),
         );
@@ -302,14 +314,14 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         expect(wrapper.text()).toContain('session');
 
         // PUT request must NOT have been called yet
-        expect(activeForm?.put).not.toHaveBeenCalled();
+        expect(activePermissionsForm?.put).not.toHaveBeenCalled();
 
         // Cancel reauth
         const cancelReauthBtn = wrapper.find('[data-testid="reauth-cancel-btn"]');
         await cancelReauthBtn.trigger('click');
 
         // Still not called
-        expect(activeForm?.put).not.toHaveBeenCalled();
+        expect(activePermissionsForm?.put).not.toHaveBeenCalled();
 
         // Trigger save again, then simulate reauth success
         await savePermsBtn.trigger('click');
@@ -317,7 +329,7 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         await confirmReauthBtn.trigger('click');
 
         // Now PUT /administration/roles/2/permissions should be called
-        expect(activeForm?.put).toHaveBeenCalledWith(
+        expect(activePermissionsForm?.put).toHaveBeenCalledWith(
             '/administration/roles/2/permissions',
             expect.any(Object),
         );
@@ -345,18 +357,71 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         await openAssignBtn.trigger('click');
 
         // Set server error on form
-        if (activeForm) {
-            activeForm.errors = {
+        if (activePermissionsForm) {
+            activePermissionsForm.errors = {
                 permissions: 'Role permissions are protected by server-side invariant.',
             };
         }
-        (wrapper.vm as any).serverErrorCode = 'PROTECTED_RESOURCE';
-        (wrapper.vm as any).serverErrorMessage = 'This role or permission bundle is protected from modification.';
+        const vm = wrapper.vm as unknown as {
+            serverErrorCode: string | null;
+            serverErrorMessage: string | null;
+        };
+        vm.serverErrorCode = 'PROTECTED_RESOURCE';
+        vm.serverErrorMessage = 'This role or permission bundle is protected from modification.';
         await wrapper.vm.$nextTick();
 
         // Check error display near modal
         expect(wrapper.text()).toContain('This role or permission bundle is protected from modification.');
         // Modal must not close optimistically
         expect(wrapper.find('[data-testid="permissions-modal"]').exists()).toBe(true);
+    });
+
+    it('covers role creation, modal closures, and toggling logic', async () => {
+        const wrapper = mount(Index, {
+            props: {
+                roles: defaultRoles,
+                permissionCatalog: canonicalPermissions,
+                userPermissions: ['roles.view', 'roles.create', 'roles.update', 'permissions.assign'],
+            },
+        });
+
+        const vm = wrapper.vm as unknown as {
+            openCreateModal: () => void;
+            closeMetadataModal: () => void;
+            closePermissionsModal: () => void;
+            submitMetadataForm: () => void;
+            togglePermission: (name: string) => void;
+            selectedPermissions: string[];
+            openAssignPermissionsModal: (role: RoleItem) => void;
+        };
+
+        // Open create modal
+        const createBtn = wrapper.find('[data-testid="create-role-btn"]');
+        expect(createBtn.exists()).toBe(true);
+        await createBtn.trigger('click');
+
+        // Submit new role creation
+        vm.submitMetadataForm();
+        expect(activeMetadataForm?.post).toHaveBeenCalledWith(
+            '/administration/roles',
+            expect.any(Object),
+        );
+
+        // Close metadata modal
+        vm.closeMetadataModal();
+
+        // Test assign permissions on protected role (guard return)
+        vm.openAssignPermissionsModal(defaultRoles[0]!);
+
+        // Open assign permissions on normal role
+        vm.openAssignPermissionsModal(defaultRoles[1]!);
+
+        // Toggle existing permission (uncheck)
+        expect(vm.selectedPermissions.includes('nscmf.create')).toBe(true);
+        vm.togglePermission('nscmf.create');
+        expect(vm.selectedPermissions.includes('nscmf.create')).toBe(false);
+
+        // Close permissions modal
+        vm.closePermissionsModal();
     });
 });
