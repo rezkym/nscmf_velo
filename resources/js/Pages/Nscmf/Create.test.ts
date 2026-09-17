@@ -152,6 +152,18 @@ describe('Create.vue (FE-17: Create family, subtype dan numbering)', () => {
         const autoRadio = wrapper.find<HTMLInputElement>('[data-testid="numbering-auto-radio"]');
         expect(autoRadio.element.checked).toBe(true);
 
+        // Exercise v-model on numbering_mode radio (lines 161/182)
+        const manualRadio = wrapper.find<HTMLInputElement>('[data-testid="numbering-manual-radio"]');
+        await manualRadio.setValue();
+        expect(currentForm.numbering_mode).toBe('MANUAL');
+        await autoRadio.setValue();
+        expect(currentForm.numbering_mode).toBe('AUTOMATIC');
+
+        // Exercise v-model on subtype select (line 138)
+        const subtypeSelect = wrapper.find<HTMLSelectElement>('[data-testid="subtype-select"]');
+        await subtypeSelect.setValue('DEACTIVATION');
+        expect(currentForm.subtype).toBe('DEACTIVATION');
+
         // Request number input should either not be present or read-only indicating server-generated
         const manualInput = wrapper.find('[data-testid="manual-request-no-input"]');
         expect(manualInput.exists()).toBe(false);
