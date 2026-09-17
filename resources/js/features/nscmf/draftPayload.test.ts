@@ -190,7 +190,39 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
     });
 
     describe('AC4: payload_blocks_duplicate_keys_and_wrong_family', () => {
-        it('throws validation error when natural keys are duplicated within a collection', () => {
+        it('throws validation error when natural keys are missing or duplicated within a collection', () => {
+            // Missing natural keys
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        references: [{ reference_type: '' as unknown as 'IWO' }],
+                    },
+                }),
+            ).toThrow(/missing reference_type/i);
+
+            expect(() =>
+                buildDraftPayload({
+                    family: 'CHANGE',
+                    record_version: 1,
+                    change: {
+                        service_impacts: [{ impact_code: '' as unknown as 'NOC15' }],
+                    },
+                }),
+            ).toThrow(/missing impact_code/i);
+
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        service_blocks: [{ service_context: '' as unknown as 'EXISTING' }],
+                    },
+                }),
+            ).toThrow(/missing service_context/i);
+
+            // Duplicate keys across collections
             expect(() =>
                 buildDraftPayload({
                     family: 'ACTIVATION',
@@ -199,6 +231,71 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                         sla_items: [
                             { row_no: 1, requirement_text: 'Rule A' },
                             { row_no: 1, requirement_text: 'Rule B' },
+                        ],
+                    },
+                }),
+            ).toThrow(/duplicate.*row_no/i);
+
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        virtual_connections: [
+                            { row_no: 2, bandwidth_mbps: 10 },
+                            { row_no: 2, bandwidth_mbps: 20 },
+                        ],
+                    },
+                }),
+            ).toThrow(/duplicate.*row_no/i);
+
+            expect(() =>
+                buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: {
+                        priority_destinations: [
+                            { row_no: 3, destination: '8.8.8.8' },
+                            { row_no: 3, destination: '1.1.1.1' },
+                        ],
+                    },
+                }),
+            ).toThrow(/duplicate.*row_no/i);
+
+            expect(() =>
+                buildDraftPayload({
+                    family: 'CHANGE',
+                    record_version: 1,
+                    change: {
+                        facing_challenges: [
+                            { row_no: 1, challenge_text: 'Challenge 1' },
+                            { row_no: 1, challenge_text: 'Challenge 2' },
+                        ],
+                    },
+                }),
+            ).toThrow(/duplicate.*row_no/i);
+
+            expect(() =>
+                buildDraftPayload({
+                    family: 'CHANGE',
+                    record_version: 1,
+                    change: {
+                        identified_problems: [
+                            { row_no: 2, problem_text: 'Problem 1' },
+                            { row_no: 2, problem_text: 'Problem 2' },
+                        ],
+                    },
+                }),
+            ).toThrow(/duplicate.*row_no/i);
+
+            expect(() =>
+                buildDraftPayload({
+                    family: 'CHANGE',
+                    record_version: 1,
+                    change: {
+                        improvement_items: [
+                            { row_no: 3, plan_text: 'Plan A' },
+                            { row_no: 3, plan_text: 'Plan B' },
                         ],
                     },
                 }),
@@ -254,10 +351,33 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                     family: 'CHANGE',
                     record_version: 1,
                     change: {
+                        results: [{ row_no: 0, result_status: 'Too low' }],
+                    },
+                }),
+            ).toThrow(/row_no.*1..5/i);
+
+            expect(() =>
+                buildDraftPayload({
+                    family: 'CHANGE',
+                    record_version: 1,
+                    change: {
                         results: [{ row_no: 6, result_status: 'Too high' }],
                     },
                 }),
             ).toThrow(/row_no.*1..5/i);
+
+            expect(() =>
+                buildDraftPayload({
+                    family: 'CHANGE',
+                    record_version: 1,
+                    change: {
+                        results: [
+                            { row_no: 1, result_status: 'OK' },
+                            { row_no: 1, result_summary: 'Duplicate' },
+                        ],
+                    },
+                }),
+            ).toThrow(/duplicate row_no/i);
         });
 
         it('prevents Change fields from leaking into Activation and vice versa', () => {
@@ -294,7 +414,7 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
     });
 
     describe('AC5: payload_site_clear_is_null', () => {
-        it('sends null when site block is explicitly cleared, rejects empty object {}', () => {
+        it('sends null when site block is explicitly cleared, rejects empty object {}, and passes through valid site block', () => {
             const input: ActivationDraftInput = {
                 family: 'ACTIVATION',
                 record_version: 8,
@@ -308,6 +428,63 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
             const act = payload.activation;
             expect(act.direct_site).toBeNull();
             expect(act.pop_site).toBeNull();
+
+            // Pass through valid populated site block
+            const populatedInput: ActivationDraftInput = {
+                family: 'ACTIVATION',
+                record_version: 8,
+                activation: {
+                    direct_site: {
+                        local_loops: 'Fiber Optic',
+                        antenna_tower: 'Tower 45m',
+                        latency_ms: 12,
+                    },
+                    pop_site: {
+                        switch_distribution: 'Cisco Catalyst',
+                        vlan_id: 100,
+                    },
+                },
+            };
+            const populatedPayload = buildDraftPayload(populatedInput);
+            expect(populatedPayload.activation.direct_site).toEqual({
+                local_loops: 'Fiber Optic',
+                antenna_tower: 'Tower 45m',
+                latency_ms: 12,
+            });
+            expect(populatedPayload.activation.pop_site).toEqual({
+                switch_distribution: 'Cisco Catalyst',
+                vlan_id: 100,
+            });
+
+            // validateSiteBlock returns undefined when site is explicitly undefined in activation
+            const undefinedSiteInput: ActivationDraftInput = {
+                family: 'ACTIVATION',
+                record_version: 8,
+                activation: {
+                    direct_site: undefined,
+                },
+            };
+            const undefinedSitePayload = buildDraftPayload(undefinedSiteInput);
+            expect(undefinedSitePayload.activation.direct_site).toBeUndefined();
+
+            // Retains service_block with non-string content (covers isPresent non-string branch)
+            const serviceBlockNumericInput: ActivationDraftInput = {
+                family: 'ACTIVATION',
+                record_version: 8,
+                activation: {
+                    service_blocks: [{ service_context: 'EXISTING', service_id: 12345 as unknown as string }],
+                },
+            };
+            const serviceBlockNumericPayload = buildDraftPayload(serviceBlockNumericInput);
+            expect(serviceBlockNumericPayload.activation.service_blocks).toEqual([
+                {
+                    service_context: 'EXISTING',
+                    service_id: 12345,
+                    service_status: null,
+                    service_description: null,
+                    service_location: null,
+                },
+            ]);
 
             expect(() =>
                 buildDraftPayload({
