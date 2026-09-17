@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/vue3';
 import { mount } from '@vue/test-utils';
 import { reactive } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,11 +18,6 @@ interface MockForm {
 
 let currentForm: MockForm;
 
-const mockRouter = {
-    post: vi.fn(),
-    get: vi.fn(),
-};
-
 vi.mock('@inertiajs/vue3', async () => {
     const { defineComponent } = await import('vue');
 
@@ -34,9 +30,19 @@ vi.mock('@inertiajs/vue3', async () => {
         Link: defineComponent({
             name: 'InertiaLink',
             props: { href: { type: String, required: true } },
-            setup: (_props, { slots }) => () => slots.default ? slots.default() : null,
+            setup:
+                (_props, { slots }) =>
+                () =>
+                    slots.default ? slots.default() : null,
         }),
-        router: mockRouter,
+        router: {
+            post: vi.fn((_url: string, _data: unknown, options?: { onFinish?: () => void }) => {
+                if (options?.onFinish) {
+                    options.onFinish();
+                }
+            }),
+            get: vi.fn(),
+        },
         useForm: vi.fn((initialData: { name?: string }) => {
             currentForm = reactive({
                 name: initialData.name || '',
@@ -125,6 +131,13 @@ describe('Index.vue (FE-11: Team Administration)', () => {
         expect(formText).not.toContain('reviewer scope');
         expect(formText).not.toContain('approval scope');
         expect(formText).not.toContain('permission mapping');
+
+        // Submit patch update
+        currentForm.name = 'Team Alpha Updated';
+        const formEl = wrapper.find('form');
+        await formEl.trigger('submit.prevent');
+
+        expect(currentForm.patch).toHaveBeenCalledWith('/administration/teams/1', expect.any(Object));
     });
 
     it('AC2: teams_support_deactivate_and_reactivate — correct POST endpoint, reason/input bila kontrak mensyaratkan, pending tidak double', async () => {
@@ -152,7 +165,7 @@ describe('Index.vue (FE-11: Team Administration)', () => {
         await confirmBtn.trigger('click');
 
         // Should call router.post to /administration/teams/1/deactivate
-        expect(mockRouter.post).toHaveBeenCalledWith(
+        expect(vi.spyOn(router, 'post')).toHaveBeenCalledWith(
             '/administration/teams/1/deactivate',
             expect.any(Object),
             expect.any(Object),
@@ -166,7 +179,7 @@ describe('Index.vue (FE-11: Team Administration)', () => {
         const confirmReactivateBtn = wrapper.find('[data-testid="confirm-lifecycle-action"]');
         await confirmReactivateBtn.trigger('click');
 
-        expect(mockRouter.post).toHaveBeenCalledWith(
+        expect(vi.spyOn(router, 'post')).toHaveBeenCalledWith(
             '/administration/teams/2/reactivate',
             expect.any(Object),
             expect.any(Object),
@@ -198,14 +211,11 @@ describe('Index.vue (FE-11: Team Administration)', () => {
 
         // Submit form
         currentForm.name = 'Team Alpha';
-        const submitBtn = wrapper.find('[data-testid="save-team-btn"]');
-        await submitBtn.trigger('click');
+        const formEl = wrapper.find('form');
+        await formEl.trigger('submit.prevent');
 
         // Verify useForm post was called to /administration/teams with ONLY name
-        expect(currentForm.post).toHaveBeenCalledWith(
-            '/administration/teams',
-            expect.any(Object),
-        );
+        expect(currentForm.post).toHaveBeenCalledWith('/administration/teams', expect.any(Object));
 
         // Check server validation error display near field
         currentForm.errors = { name: 'The team name has already been taken.' };
@@ -216,13 +226,18 @@ describe('Index.vue (FE-11: Team Administration)', () => {
         expect(errorElement.text()).toContain('The team name has already been taken.');
     });
 
-    it('AC4: teams_preserve_historical_snapshot — Team fixture berubah tidak mengubah label snapshot existing record di UI model', async () => {
+    it('AC4: teams_preserve_historical_snapshot — Team fixture berubah tidak mengubah label snapshot existing record di UI model', () => {
         // When historical snapshot records exist with team snapshot label, mutating/updating team data doesn't alter snapshot
         const wrapper = mount(Index, {
             props: {
                 teams: defaultTeams,
                 historicalSnapshots: [
-                    { id: 101, request_no: 'REQ-001', team_id: 1, team_snapshot_name: 'Team Alpha (Original Historical)' },
+                    {
+                        id: 101,
+                        request_no: 'REQ-001',
+                        team_id: 1,
+                        team_snapshot_name: 'Team Alpha (Original Historical)',
+                    },
                 ],
                 permissions: ['teams.view'],
             },
