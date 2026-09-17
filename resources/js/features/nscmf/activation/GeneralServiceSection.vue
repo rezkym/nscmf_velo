@@ -30,14 +30,31 @@ const emit = defineEmits<{
     (e: 'submit-invalid', errors: Record<string, string>): void;
 }>();
 
-// Form internal states
-const customerName = ref<string>(props.modelValue.customer_name ?? '');
-const contactName = ref<string>(props.modelValue.contact_name ?? '');
-const installationRfsDate = ref<string>(props.modelValue.installation_rfs_date ?? '');
+// Form internal states with F-20-11 null guard
+const customerName = ref<string>(props.modelValue?.customer_name ?? '');
+const contactName = ref<string>(props.modelValue?.contact_name ?? '');
+const installationRfsDate = ref<string>(props.modelValue?.installation_rfs_date ?? '');
 
 // Reference multi-select
 const ALL_REFERENCE_TYPES = ['IWO', 'VELOSHIP', 'TICKET', 'OTHER'] as const;
 type ReferenceType = (typeof ALL_REFERENCE_TYPES)[number];
+const VALID_REFERENCE_TYPES_SET = new Set<string>(ALL_REFERENCE_TYPES);
+
+// Track incoming collection presence to honour 12 §7.4.1 (omitted => unchanged)
+const incomingHasReferences = ref<boolean>(false);
+const incomingHasServiceBlocks = ref<boolean>(false);
+
+// Invalid/unrecognized references passed from props
+const invalidReferenceTypes = ref<string[]>([]);
+
+// Dirty tracking for in-flight local edits
+const isDirty = ref<boolean>(false);
+function markDirty() {
+    isDirty.value = true;
+}
+function resetDirty() {
+    isDirty.value = false;
+}
 
 // Preserve state per reference type so toggling off/on or toggling others does not discard entered values
 const refSelected = ref<Record<ReferenceType, boolean>>({
@@ -77,24 +94,36 @@ const newBlock = ref<ServiceBlockState>({
 
 // Initialize state from props.modelValue
 function syncFromProps(val: ActivationDraftFields) {
-    customerName.value = val.customer_name ?? '';
-    contactName.value = val.contact_name ?? '';
-    installationRfsDate.value = val.installation_rfs_date ?? '';
+    if (val.customer_name !== undefined) {
+        customerName.value = val.customer_name ?? '';
+    }
+    if (val.contact_name !== undefined) {
+        contactName.value = val.contact_name ?? '';
+    }
+    if (val.installation_rfs_date !== undefined) {
+        installationRfsDate.value = val.installation_rfs_date ?? '';
+    }
 
     // Reset reference selections
     for (const t of ALL_REFERENCE_TYPES) {
         refSelected.value[t] = false;
         refSpecifications.value[t] = '';
     }
+    invalidReferenceTypes.value = [];
 
-    if (val.references && Array.isArray(val.references)) {
+    if (val.references !== undefined && Array.isArray(val.references)) {
+        incomingHasReferences.value = true;
         for (const refItem of val.references) {
             const refType = refItem.reference_type;
-            if (refType in refSelected.value) {
+            if (VALID_REFERENCE_TYPES_SET.has(refType)) {
                 refSelected.value[refType] = true;
                 refSpecifications.value[refType] = refItem.specification ?? '';
+            } else {
+                invalidReferenceTypes.value.push(String(refType));
             }
         }
+    } else {
+        incomingHasReferences.value = false;
     }
 
     // Reset service blocks
@@ -111,7 +140,8 @@ function syncFromProps(val: ActivationDraftFields) {
         service_location: '',
     };
 
-    if (val.service_blocks && Array.isArray(val.service_blocks)) {
+    if (val.service_blocks !== undefined && Array.isArray(val.service_blocks)) {
+        incomingHasServiceBlocks.value = true;
         for (const sb of val.service_blocks) {
             if (sb.service_context === 'EXISTING') {
                 existingBlock.value = {
@@ -129,6 +159,8 @@ function syncFromProps(val: ActivationDraftFields) {
                 };
             }
         }
+    } else {
+        incomingHasServiceBlocks.value = false;
     }
 }
 
@@ -136,23 +168,43 @@ watch(
     () => props.modelValue,
     (newVal) => {
         if (newVal) {
-            syncFromProps(newVal);
+            // Guard against clobbering in-flight user typing (F-20-4)
+            if (!isDirty.value) {
+                syncFromProps(newVal);
+            }
         }
     },
     { immediate: true, deep: true },
 );
 
-// Requirement matrix based on subtype
+// Canonical subtype mapping and validation (F-20-3)
+type CanonicalSubtype = 'Activation' | 'Upgrade/Downgrade' | 'Deactivation';
+
+const normalizedSubtype = computed<CanonicalSubtype | null>(() => {
+    const raw = props.subtype as string | undefined;
+    if (!raw) return 'Activation';
+    if (raw === 'Activation' || raw === 'ACTIVATION' || raw === 'activation') {
+        return 'Activation';
+    }
+    if (raw === 'Upgrade/Downgrade' || raw === 'UPGRADE_DOWNGRADE' || raw === 'upgrade_downgrade') {
+        return 'Upgrade/Downgrade';
+    }
+    if (raw === 'Deactivation' || raw === 'DEACTIVATION' || raw === 'deactivation') {
+        return 'Deactivation';
+    }
+    return null;
+});
+
 const isExistingRequired = computed(() => {
-    return props.subtype === 'Upgrade/Downgrade' || props.subtype === 'Deactivation';
+    return normalizedSubtype.value === 'Upgrade/Downgrade' || normalizedSubtype.value === 'Deactivation';
 });
 
 const isNewRequired = computed(() => {
-    return props.subtype === 'Activation' || props.subtype === 'Upgrade/Downgrade';
+    return normalizedSubtype.value === 'Activation' || normalizedSubtype.value === 'Upgrade/Downgrade';
 });
 
 const isRfsRequired = computed(() => {
-    return props.subtype === 'Activation' || props.subtype === 'Upgrade/Downgrade';
+    return normalizedSubtype.value === 'Activation' || normalizedSubtype.value === 'Upgrade/Downgrade';
 });
 
 // Helper to check if a block has started (any core field non-empty)
@@ -175,7 +227,7 @@ function getDraftPayload(): ActivationDraftFields {
         if (refSelected.value[t]) {
             references.push({
                 reference_type: t,
-                specification: refSpecifications.value[t].trim() !== '' ? refSpecifications.value[t] : null,
+                specification: refSpecifications.value[t].trim() !== '' ? refSpecifications.value[t].slice(0, 255) : null,
             });
         }
     }
@@ -187,10 +239,10 @@ function getDraftPayload(): ActivationDraftFields {
     if (existingHasContent || isExistingRequired.value) {
         service_blocks.push({
             service_context: 'EXISTING',
-            service_id: existingBlock.value.service_id.trim() !== '' ? existingBlock.value.service_id : null,
+            service_id: existingBlock.value.service_id.trim() !== '' ? existingBlock.value.service_id.slice(0, 100) : null,
             service_status: existingBlock.value.service_status !== '' ? existingBlock.value.service_status : null,
-            service_description: existingBlock.value.service_description.trim() !== '' ? existingBlock.value.service_description : null,
-            service_location: existingBlock.value.service_location.trim() !== '' ? existingBlock.value.service_location : null,
+            service_description: existingBlock.value.service_description.trim() !== '' ? existingBlock.value.service_description.slice(0, 2000) : null,
+            service_location: existingBlock.value.service_location.trim() !== '' ? existingBlock.value.service_location.slice(0, 500) : null,
         });
     }
 
@@ -199,35 +251,68 @@ function getDraftPayload(): ActivationDraftFields {
     if (newHasContent || isNewRequired.value) {
         service_blocks.push({
             service_context: 'NEW',
-            service_id: newBlock.value.service_id.trim() !== '' ? newBlock.value.service_id : null,
+            service_id: newBlock.value.service_id.trim() !== '' ? newBlock.value.service_id.slice(0, 100) : null,
             service_status: newBlock.value.service_status !== '' ? newBlock.value.service_status : null,
-            service_description: newBlock.value.service_description.trim() !== '' ? newBlock.value.service_description : null,
-            service_location: newBlock.value.service_location.trim() !== '' ? newBlock.value.service_location : null,
+            service_description: newBlock.value.service_description.trim() !== '' ? newBlock.value.service_description.slice(0, 2000) : null,
+            service_location: newBlock.value.service_location.trim() !== '' ? newBlock.value.service_location.slice(0, 500) : null,
         });
     }
 
-    // Notice: G03 forbids adding wire fields like request_date to draft payload
-    return {
-        ...props.modelValue,
-        customer_name: customerName.value,
-        contact_name: contactName.value,
+    // Explicit allowlist of fields owned by this section (F-20-10)
+    // Never emit unmodelled keys from props.modelValue
+    // Only include references / service_blocks if form has content OR incoming modelValue provided them (F-20-5)
+    const payload: ActivationDraftFields = {
+        customer_name: customerName.value.slice(0, 150),
+        contact_name: contactName.value.slice(0, 150),
         installation_rfs_date: installationRfsDate.value || null,
-        references,
-        service_blocks,
     };
+
+    if (references.length > 0 || incomingHasReferences.value) {
+        payload.references = references;
+    }
+
+    const hasAnyBlockContent = existingHasContent || newHasContent;
+    if (hasAnyBlockContent || incomingHasServiceBlocks.value) {
+        payload.service_blocks = service_blocks;
+    }
+
+    return payload;
 }
 
 function handleFieldInput() {
+    markDirty();
     emit('update:modelValue', getDraftPayload());
 }
 
 function handleReferenceToggle(t: ReferenceType, checked: boolean) {
+    markDirty();
     refSelected.value[t] = checked;
     handleFieldInput();
 }
 
 function validateSubmit(): boolean {
     const errs: Record<string, string> = {};
+
+    // Gate submit for readonly or disabled (F-20-7 fail closed)
+    if (props.readonly || props.disabled) {
+        errs['form'] = 'Form is readonly or disabled';
+        errors.value = errs;
+        emit('submit-invalid', errs);
+        return false;
+    }
+
+    // Subtype matrix validation (F-20-3 fail closed for unrecognized subtype)
+    if (!normalizedSubtype.value) {
+        errs['subtype'] = `Unrecognized subtype: ${String(props.subtype)}`;
+        errors.value = errs;
+        emit('submit-invalid', errs);
+        return false;
+    }
+
+    // Check for invalid reference types from incoming data (F-20-9)
+    if (invalidReferenceTypes.value.length > 0) {
+        errs['references'] = `Invalid reference_type: ${invalidReferenceTypes.value.join(', ')}`;
+    }
 
     // 1. Customer Name
     if (!customerName.value || customerName.value.trim() === '') {
@@ -337,6 +422,8 @@ function validateSubmit(): boolean {
 defineExpose({
     getDraftPayload,
     validateSubmit,
+    isDirty,
+    resetDirty,
 });
 </script>
 
@@ -507,8 +594,7 @@ defineExpose({
                         v-model="existingBlock.service_status"
                         data-testid="select-service-EXISTING-service_status"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                        :disabled="disabled"
-                        :readonly="readonly"
+                        :disabled="disabled || readonly"
                         @change="handleFieldInput"
                     >
                         <option value="">-- Select Status --</option>
@@ -605,8 +691,7 @@ defineExpose({
                         v-model="newBlock.service_status"
                         data-testid="select-service-NEW-service_status"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                        :disabled="disabled"
-                        :readonly="readonly"
+                        :disabled="disabled || readonly"
                         @change="handleFieldInput"
                     >
                         <option value="">-- Select Status --</option>
@@ -665,6 +750,9 @@ defineExpose({
             type="button"
             data-testid="validate-submit-btn"
             class="hidden"
+            tabindex="-1"
+            aria-hidden="true"
+            :disabled="disabled || readonly"
             @click="validateSubmit"
         >
             Validate Submit
