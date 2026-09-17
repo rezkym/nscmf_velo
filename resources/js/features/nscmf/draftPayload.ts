@@ -338,12 +338,20 @@ function processVirtualConnections(rows: VirtualConnectionRow[]): VirtualConnect
         }
         seen.add(rowNo);
 
-        const bandwidthMbps = own<number | null>(row, 'bandwidth_mbps');
-        if (bandwidthMbps !== null && bandwidthMbps !== undefined && !Number.isNaN(bandwidthMbps)) {
-            result.push({
-                row_no: rowNo,
-                bandwidth_mbps: Number(bandwidthMbps),
-            });
+        const bandwidthRaw = own<unknown>(row, 'bandwidth_mbps');
+        if (bandwidthRaw !== null && bandwidthRaw !== undefined) {
+            let num: number | null = null;
+            if (typeof bandwidthRaw === 'number') {
+                num = bandwidthRaw;
+            } else if (typeof bandwidthRaw === 'string' && bandwidthRaw.trim().length > 0) {
+                num = Number(bandwidthRaw);
+            }
+            if (num !== null && Number.isFinite(num) && num > 0) {
+                result.push({
+                    row_no: rowNo,
+                    bandwidth_mbps: num,
+                });
+            }
         }
     }
 
@@ -580,11 +588,20 @@ export function buildDraftPayload(input: ActivationDraftInput): ActivationDraftW
 export function buildDraftPayload(input: ChangeDraftInput): ChangeDraftWirePayload;
 export function buildDraftPayload(input: DraftPayloadInput): DraftWirePayload;
 export function buildDraftPayload(input: DraftPayloadInput): DraftWirePayload {
-    const recordVersion = assertValidRecordVersion(input.record_version);
+    if (!isPlainObject(input)) {
+        throw new Error('input must be a plain object.');
+    }
 
-    if (input.family === 'ACTIVATION') {
+    const recordVersion = assertValidRecordVersion(own(input, 'record_version'));
+    const family = own<string>(input, 'family');
+
+    if (family === 'ACTIVATION') {
         const wireActivation: Record<string, unknown> = {};
-        const act = input.activation ?? {};
+        const rawAct = own<unknown>(input, 'activation');
+        if (rawAct !== undefined && !isPlainObject(rawAct)) {
+            throw new Error('activation must be a plain object.');
+        }
+        const act = (rawAct as ActivationDraftFields | undefined) ?? {};
 
         const scalarKeys: (keyof ActivationDraftFields)[] = [
             'customer_name',
@@ -662,9 +679,13 @@ export function buildDraftPayload(input: DraftPayloadInput): DraftWirePayload {
         };
     }
 
-    if (input.family === 'CHANGE') {
+    if (family === 'CHANGE') {
         const wireChange: Record<string, unknown> = {};
-        const chg = input.change ?? {};
+        const rawChg = own<unknown>(input, 'change');
+        if (rawChg !== undefined && !isPlainObject(rawChg)) {
+            throw new Error('change must be a plain object.');
+        }
+        const chg = (rawChg as ChangeDraftFields | undefined) ?? {};
 
         const scalarKeys: (keyof ChangeDraftFields)[] = [
             'maintenance_purpose',
