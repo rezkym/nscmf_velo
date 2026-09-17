@@ -38,18 +38,21 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
 
             // Decimal units are visible
             expect(wrapper.find('[data-testid="unit-bandwidth-international"]').text()).toContain('Mbps');
+            expect(wrapper.find('[data-testid="unit-bandwidth-domestic-iix"]').text()).toContain('Mbps');
+            expect(wrapper.find('[data-testid="unit-bandwidth-mixed"]').text()).toContain('Mbps');
 
             // Edit decimal to positive value
             await intlInput.setValue('150.875');
             const emitted = wrapper.emitted('update:modelValue');
-            expect(emitted).toBeTruthy();
-            const latest = emitted![emitted!.length - 1][0] as ActivationDraftFields;
+            expect(emitted).toBeDefined();
+            const latest = emitted![emitted!.length - 1]![0] as ActivationDraftFields;
             expect(latest.bandwidth_international_mbps).toBe(150.875);
 
             // Blank input converts to null
             await intlInput.setValue('');
             const emittedBlank = wrapper.emitted('update:modelValue');
-            const latestBlank = emittedBlank![emittedBlank!.length - 1][0] as ActivationDraftFields;
+            expect(emittedBlank).toBeDefined();
+            const latestBlank = emittedBlank![emittedBlank!.length - 1]![0] as ActivationDraftFields;
             expect(latestBlank.bandwidth_international_mbps).toBeNull();
 
             // Zero gets validation feedback
@@ -60,11 +63,33 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
             await intlInput.setValue('-5.25');
             expect(wrapper.find('[data-testid="error-bandwidth-international"]').text()).toContain('greater than 0');
 
+            // Domestic IIX and Mixed positive decimals and invalid values
+            const iixInput = wrapper.find<HTMLInputElement>('[data-testid="input-bandwidth-domestic-iix"]');
+            await iixInput.setValue('200.75');
+            const emittedIix = wrapper.emitted('update:modelValue');
+            expect(emittedIix).toBeDefined();
+            const latestIix = emittedIix![emittedIix!.length - 1]![0] as ActivationDraftFields;
+            expect(latestIix.bandwidth_domestic_iix_mbps).toBe(200.75);
+
+            await iixInput.setValue('-1');
+            expect(wrapper.find('[data-testid="error-bandwidth-domestic-iix"]').text()).toContain('greater than 0');
+
+            const mixedInput = wrapper.find<HTMLInputElement>('[data-testid="input-bandwidth-mixed"]');
+            await mixedInput.setValue('300.123');
+            const emittedMixed = wrapper.emitted('update:modelValue');
+            expect(emittedMixed).toBeDefined();
+            const latestMixed = emittedMixed![emittedMixed!.length - 1]![0] as ActivationDraftFields;
+            expect(latestMixed.bandwidth_mixed_mbps).toBe(300.123);
+
+            await mixedInput.setValue('0');
+            expect(wrapper.find('[data-testid="error-bandwidth-mixed"]').text()).toContain('greater than 0');
+
             // Virtual connections also preserve positive decimals and reject <= 0
             const vc1Input = wrapper.find<HTMLInputElement>('[data-testid="input-vc-1"]');
             await vc1Input.setValue('12.345');
             const emittedVc = wrapper.emitted('update:modelValue');
-            const latestVc = emittedVc![emittedVc!.length - 1][0] as ActivationDraftFields;
+            expect(emittedVc).toBeDefined();
+            const latestVc = emittedVc![emittedVc!.length - 1]![0] as ActivationDraftFields;
             expect(latestVc.virtual_connections?.find((vc) => vc.row_no === 1)?.bandwidth_mbps).toBe(12.345);
 
             await vc1Input.setValue('0');
@@ -95,7 +120,7 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
             slaRows = wrapper.findAll('[data-testid^="sla-row-"]');
             expect(slaRows.length).toBe(3);
 
-            // 4th row cannot be added; button is disabled or hidden
+            // 4th row cannot be added; button is disabled
             expect(addBtn.attributes('disabled')).toBeDefined();
             await addBtn.trigger('click');
             slaRows = wrapper.findAll('[data-testid^="sla-row-"]');
@@ -111,7 +136,8 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
 
             // Should now have 2 rows re-indexed to row_no 1 and 2, with content intact ('SLA Row 1' and 'SLA Row 3')
             const emitted = wrapper.emitted('update:modelValue');
-            const latest = emitted![emitted!.length - 1][0] as ActivationDraftFields;
+            expect(emitted).toBeDefined();
+            const latest = emitted![emitted!.length - 1]![0] as ActivationDraftFields;
             expect(latest.sla_items).toEqual([
                 { row_no: 1, requirement_text: 'SLA Row 1' },
                 { row_no: 2, requirement_text: 'SLA Row 3' },
@@ -152,7 +178,8 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
 
             await wrapper.find('[data-testid="remove-priority-dest-1"]').trigger('click');
             const emitted = wrapper.emitted('update:modelValue');
-            const latest = emitted![emitted!.length - 1][0] as ActivationDraftFields;
+            expect(emitted).toBeDefined();
+            const latest = emitted![emitted!.length - 1]![0] as ActivationDraftFields;
             expect(latest.priority_destinations).toEqual([
                 { row_no: 1, destination: 'Custom Edge Server 2' },
                 { row_no: 2, destination: 'Custom Edge Server 3' },
@@ -186,10 +213,30 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
             const sla1Input = wrapper.find('[data-testid="input-sla-1"]');
             expect(sla1Input.attributes('maxlength')).toBe('1000');
         });
+
+        it('emits submit-invalid when bandwidth values are non-positive on validateSubmit', async () => {
+            const wrapper = mount(BandwidthSection, {
+                props: {
+                    modelValue: {
+                        bandwidth_international_mbps: 100,
+                    },
+                },
+            });
+
+            const intlInput = wrapper.find<HTMLInputElement>('[data-testid="input-bandwidth-international"]');
+            await intlInput.setValue('-50');
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+            const emittedErr = wrapper.emitted('submit-invalid');
+            expect(emittedErr).toBeDefined();
+            const errs = emittedErr![0]![0] as Record<string, string>;
+            expect(errs.bandwidth_international).toBeDefined();
+        });
     });
 
     describe('Accessibility and readonly / disabled controls', () => {
-        it('honors disabled and readonly props across inputs and control buttons', async () => {
+        it('honors disabled and readonly props across inputs and control buttons', () => {
             const wrapper = mount(BandwidthSection, {
                 props: {
                     disabled: true,
@@ -198,8 +245,37 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
             });
 
             expect(wrapper.find('[data-testid="input-bandwidth-international"]').attributes('disabled')).toBeDefined();
+            expect(wrapper.find('[data-testid="input-bandwidth-domestic-iix"]').attributes('disabled')).toBeDefined();
+            expect(wrapper.find('[data-testid="input-bandwidth-mixed"]').attributes('disabled')).toBeDefined();
+            expect(wrapper.find('[data-testid="input-vc-1"]').attributes('disabled')).toBeDefined();
             expect(wrapper.find('[data-testid="add-sla-row-btn"]').attributes('disabled')).toBeDefined();
             expect(wrapper.find('[data-testid="remove-sla-row-1"]').attributes('disabled')).toBeDefined();
+            expect(wrapper.find('[data-testid="add-priority-dest-btn"]').attributes('disabled')).toBeDefined();
+            expect(wrapper.find('[data-testid="remove-priority-dest-1"]').attributes('disabled')).toBeDefined();
+        });
+
+        it('displays empty state placeholders when sla and priority destinations are empty and reacts to external prop updates', async () => {
+            const wrapper = mount(BandwidthSection, {
+                props: {
+                    modelValue: {},
+                },
+            });
+
+            expect(wrapper.text()).toContain('No specific SLA requirements added yet.');
+            expect(wrapper.text()).toContain('No priority destinations added yet.');
+
+            await wrapper.setProps({
+                modelValue: {
+                    bandwidth_international_mbps: 250.5,
+                    sla_items: [{ row_no: 1, requirement_text: 'Updated SLA' }],
+                    priority_destinations: [{ row_no: 1, destination: 'Updated Dest' }],
+                },
+            });
+
+            expect(wrapper.text()).not.toContain('No specific SLA requirements added yet.');
+            expect(wrapper.text()).not.toContain('No priority destinations added yet.');
+            expect(wrapper.find<HTMLTextAreaElement>('[data-testid="input-sla-1"]').element.value).toBe('Updated SLA');
+            expect(wrapper.find<HTMLInputElement>('[data-testid="input-priority-dest-1"]').element.value).toBe('Updated Dest');
         });
     });
 });
