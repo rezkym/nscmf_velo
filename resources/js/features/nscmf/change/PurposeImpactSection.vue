@@ -1,9 +1,5 @@
 <script lang="ts">
-import type {
-    FacingChallengeRow,
-    IdentifiedProblemRow,
-    ServiceImpactSelection,
-} from '../draftPayload';
+import type { FacingChallengeRow, IdentifiedProblemRow, ServiceImpactSelection } from '../draftPayload';
 
 export type ChangeSubtype = 'Maintenance' | 'Upgrade' | 'Emergency';
 
@@ -36,10 +32,7 @@ export const IMPACT_OPTIONS: readonly ServiceImpactSelection['impact_code'][] = 
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import {
-    buildDraftPayload,
-    type ChangeDraftWirePayload,
-} from '../draftPayload';
+import { buildDraftPayload, type ChangeDraftWirePayload } from '../draftPayload';
 
 const props = withDefaults(defineProps<PurposeImpactSectionProps>(), {
     subtype: 'Maintenance',
@@ -82,7 +75,9 @@ watch(
         if (!newVal) return;
         maintenancePurpose.value = newVal.maintenance_purpose || '';
         facingChallenges.value = newVal.facing_challenges ? JSON.parse(JSON.stringify(newVal.facing_challenges)) : [];
-        identifiedProblems.value = newVal.identified_problems ? JSON.parse(JSON.stringify(newVal.identified_problems)) : [];
+        identifiedProblems.value = newVal.identified_problems
+            ? JSON.parse(JSON.stringify(newVal.identified_problems))
+            : [];
         serviceImpacts.value = newVal.service_impacts ? JSON.parse(JSON.stringify(newVal.service_impacts)) : [];
     },
     { deep: true },
@@ -267,7 +262,12 @@ function getDraftPayload(): ChangeDraftWirePayload['change'] {
             })),
             service_impacts: serviceImpacts.value.map((item) => ({
                 impact_code: item.impact_code,
-                other_description: item.impact_code === 'OTHER' ? (item.other_description?.trim() ? item.other_description : null) : null,
+                other_description:
+                    item.impact_code === 'OTHER'
+                        ? item.other_description?.trim()
+                            ? item.other_description
+                            : null
+                        : null,
             })),
         },
     });
@@ -287,15 +287,12 @@ defineExpose({
         <div class="section-header flex items-center justify-between pb-2 border-b">
             <div>
                 <h3 class="text-lg font-semibold text-foreground">Change Purpose, Problems & Service Impacts</h3>
-                <p class="text-sm text-muted-foreground">Subtype: <span class="font-medium text-foreground">{{ subtype }}</span></p>
+                <p class="text-sm text-muted-foreground">
+                    Subtype: <span class="font-medium text-foreground">{{ subtype }}</span>
+                </p>
             </div>
             <!-- Test trigger button for submit validation -->
-            <button
-                type="button"
-                data-testid="validate-submit-btn"
-                class="hidden"
-                @click="validateSubmit"
-            >
+            <button type="button" data-testid="validate-submit-btn" class="hidden" @click="validateSubmit">
                 Validate Submit
             </button>
         </div>
@@ -304,7 +301,12 @@ defineExpose({
         <div class="form-group space-y-1.5" data-testid="maintenance-purpose-group">
             <label for="maintenance-purpose-input" class="text-sm font-medium text-foreground flex items-center">
                 Maintenance Purpose
-                <span v-if="subtype === 'Maintenance'" class="text-destructive font-bold ml-1" data-testid="purpose-required-asterisk">*</span>
+                <span
+                    v-if="subtype === 'Maintenance'"
+                    class="text-destructive font-bold ml-1"
+                    data-testid="purpose-required-asterisk"
+                    >*</span
+                >
                 <span class="text-xs text-muted-foreground ml-2">(Max 4,000 chars)</span>
             </label>
             <textarea
@@ -329,7 +331,12 @@ defineExpose({
                 <div>
                     <label class="text-sm font-medium text-foreground flex items-center">
                         Facing Challenges
-                        <span v-if="subtype === 'Upgrade' || subtype === 'Emergency'" class="text-destructive font-bold ml-1" data-testid="challenges-required-asterisk">*</span>
+                        <span
+                            v-if="subtype === 'Upgrade' || subtype === 'Emergency'"
+                            class="text-destructive font-bold ml-1"
+                            data-testid="challenges-required-asterisk"
+                            >*</span
+                        >
                         <span class="text-xs text-muted-foreground ml-2">(Max 3 rows, 1,000 chars each)</span>
                     </label>
                 </div>
@@ -352,8 +359,14 @@ defineExpose({
                 No challenges added. (Draft accepts 0 rows)
             </div>
 
-            <div v-for="(challenge, index) in facingChallenges" :key="challenge.row_no || index" class="flex items-start gap-2">
-                <span class="text-xs font-semibold text-muted-foreground pt-2.5 w-6 text-center">#{{ challenge.row_no }}</span>
+            <div
+                v-for="(challenge, index) in facingChallenges"
+                :key="challenge.row_no || index"
+                class="flex items-start gap-2"
+            >
+                <span class="text-xs font-semibold text-muted-foreground pt-2.5 w-6 text-center"
+                    >#{{ challenge.row_no }}</span
+                >
                 <div class="flex-1">
                     <input
                         type="text"
@@ -407,8 +420,14 @@ defineExpose({
                 No problems added. (Draft accepts 0 rows)
             </div>
 
-            <div v-for="(problem, index) in identifiedProblems" :key="problem.row_no || index" class="flex items-start gap-2">
-                <span class="text-xs font-semibold text-muted-foreground pt-2.5 w-6 text-center">#{{ problem.row_no }}</span>
+            <div
+                v-for="(problem, index) in identifiedProblems"
+                :key="problem.row_no || index"
+                class="flex items-start gap-2"
+            >
+                <span class="text-xs font-semibold text-muted-foreground pt-2.5 w-6 text-center"
+                    >#{{ problem.row_no }}</span
+                >
                 <div class="flex-1">
                     <input
                         type="text"
@@ -439,7 +458,9 @@ defineExpose({
                 <label class="text-sm font-medium text-foreground flex items-center">
                     Service Impacts
                     <span class="text-destructive font-bold ml-1">*</span>
-                    <span class="text-xs text-muted-foreground ml-2">(Multiselect; Team does NOT filter impact options)</span>
+                    <span class="text-xs text-muted-foreground ml-2"
+                        >(Multiselect; Team does NOT filter impact options)</span
+                    >
                 </label>
             </div>
 
@@ -448,11 +469,7 @@ defineExpose({
             </p>
 
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-                <div
-                    v-for="impactCode in IMPACT_OPTIONS"
-                    :key="impactCode"
-                    class="flex items-center space-x-2"
-                >
+                <div v-for="impactCode in IMPACT_OPTIONS" :key="impactCode" class="flex items-center space-x-2">
                     <input
                         type="checkbox"
                         :id="`impact-checkbox-${impactCode}`"
