@@ -492,4 +492,153 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         putOptions.onSuccess?.();
         expect(vm.isPermissionsModalOpen).toBe(false);
     });
+
+    it('covers remaining branches, statements, and functions to achieve 100% coverage', async () => {
+        // 1. Mount with empty roles, undefined userPermissions, and permission catalog item with no description
+        const catalogWithNoDesc = [
+            { name: 'custom.perm', group: 'Custom Group' },
+            { name: 'custom.perm2', group: 'Custom Group', description: 'Has description' },
+        ];
+        const emptyWrapper = mount(Index, {
+            props: {
+                roles: [],
+                permissionCatalog: catalogWithNoDesc,
+                userPermissions: null as unknown as string[],
+            },
+        });
+
+        // Verify empty table state (L284, L288 branch)
+        expect(emptyWrapper.text()).toContain('No roles available.');
+
+        // Verify grouped permission selector rendering with and without description (L387-409, L407)
+        const emptyVm = emptyWrapper.vm as unknown as {
+            openAssignPermissionsModal: (role: RoleItem) => void;
+            isPermissionsModalOpen: boolean;
+        };
+        emptyVm.openAssignPermissionsModal({
+            id: 99,
+            name: 'Test Role',
+            is_protected: false,
+            permissions: [],
+        });
+        await emptyWrapper.vm.$nextTick();
+        expect(emptyWrapper.text()).toContain('Custom Group');
+        expect(emptyWrapper.text()).toContain('custom.perm');
+        expect(emptyWrapper.text()).toContain('Has description');
+
+        // 2. Test metadataForm.processing branches and guards
+        const wrapper = mount(Index, {
+            props: {
+                roles: defaultRoles,
+                permissionCatalog: canonicalPermissions,
+                userPermissions: ['roles.view', 'roles.create', 'roles.update', 'permissions.assign'],
+            },
+        });
+
+        const vm = wrapper.vm as unknown as {
+            openCreateModal: () => void;
+            openAssignPermissionsModal: (role: RoleItem) => void;
+            closeMetadataModal: () => void;
+            closePermissionsModal: () => void;
+            submitMetadataForm: () => void;
+            initiateSavePermissions: () => void;
+            handleReauthCancel: () => void;
+            handleReauthSuccess: () => void;
+            isMetadataModalOpen: boolean;
+            isPermissionsModalOpen: boolean;
+            isReauthDialogOpen: boolean;
+            serverErrorCode: string | null;
+            serverErrorMessage: string | null;
+        };
+
+        // Open metadata modal and test metadataForm.processing ternary (L345) & guard (L82)
+        vm.openCreateModal();
+        await wrapper.vm.$nextTick();
+        if (activeMetadataForm) {
+            activeMetadataForm.processing = true;
+        }
+        await wrapper.vm.$nextTick();
+        const saveRoleBtn = wrapper.find('[data-testid="save-role-btn"]');
+        expect(saveRoleBtn.text()).toBe('Saving...');
+
+        // Guard: submitMetadataForm when processing is true does nothing
+        vm.submitMetadataForm();
+        expect(activeMetadataForm?.post).not.toHaveBeenCalled();
+
+        if (activeMetadataForm) {
+            activeMetadataForm.processing = false;
+        }
+        vm.closeMetadataModal();
+
+        // 3. Test permissionsForm.processing branches, ternary, and guards (L118, L137, L437)
+        vm.openAssignPermissionsModal(defaultRoles[1]!);
+        await wrapper.vm.$nextTick();
+        expect(vm.isPermissionsModalOpen).toBe(true);
+
+        if (activePermissionsForm) {
+            activePermissionsForm.processing = true;
+        }
+        await wrapper.vm.$nextTick();
+
+        // Ternary on save permissions button (L437)
+        const savePermsBtn = wrapper.find('[data-testid="save-permissions-btn"]');
+        expect(savePermsBtn.text()).toBe('Saving...');
+
+        // Guard: closePermissionsModal when processing is true does not close
+        vm.closePermissionsModal();
+        expect(vm.isPermissionsModalOpen).toBe(true);
+
+        // Guard: initiateSavePermissions when processing is true does not open reauth dialog
+        vm.initiateSavePermissions();
+        expect(vm.isReauthDialogOpen).toBe(false);
+
+        if (activePermissionsForm) {
+            activePermissionsForm.processing = false;
+        }
+
+        // Guard: initiateSavePermissions when selectedRoleForPermissions is null (L137)
+        vm.closePermissionsModal(); // now it closes and nulls selectedRoleForPermissions
+        expect(vm.isPermissionsModalOpen).toBe(false);
+        vm.initiateSavePermissions();
+        expect(vm.isReauthDialogOpen).toBe(false);
+
+        // Guard: handleReauthSuccess when selectedRoleForPermissions is null (L148)
+        vm.handleReauthSuccess();
+        expect(activePermissionsForm?.put).not.toHaveBeenCalled();
+
+        // 4. Test handleReauthCancel and handleReauthSuccess dialog closing & execution (L142-144, L146-150)
+        vm.openAssignPermissionsModal(defaultRoles[1]!);
+        await wrapper.vm.$nextTick();
+        vm.initiateSavePermissions();
+        expect(vm.isReauthDialogOpen).toBe(true);
+
+        vm.handleReauthCancel();
+        expect(vm.isReauthDialogOpen).toBe(false);
+
+        vm.initiateSavePermissions();
+        expect(vm.isReauthDialogOpen).toBe(true);
+
+        vm.handleReauthSuccess();
+        expect(vm.isReauthDialogOpen).toBe(false);
+        expect(activePermissionsForm?.put).toHaveBeenCalledWith(
+            '/administration/roles/2/permissions',
+            expect.objectContaining({ onError: expect.any(Function) }),
+        );
+
+        // Trigger onError callback to cover L155-158
+        const putCalls = activePermissionsForm?.put.mock.calls;
+        const lastPutCall = putCalls?.[putCalls.length - 1];
+        const putOptions = lastPutCall?.[1] as { onError?: () => void };
+        putOptions.onError?.();
+
+        // 5. Test L380 fallback branch: permissionsForm.errors.permissions when serverErrorMessage is null
+        vm.serverErrorMessage = null;
+        if (activePermissionsForm) {
+            activePermissionsForm.errors = {
+                permissions: 'Validation error: permissions cannot be empty',
+            };
+        }
+        await wrapper.vm.$nextTick();
+        expect(wrapper.text()).toContain('Validation error: permissions cannot be empty');
+    });
 });
