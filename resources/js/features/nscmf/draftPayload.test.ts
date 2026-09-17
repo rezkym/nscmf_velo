@@ -1355,6 +1355,37 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                 expect(
                     Object.keys((validActRowsPayload.activation.priority_destinations as Array<object>)[0]!),
                 ).toEqual(['row_no', 'destination']);
+
+                // 7. Surviving-path pinning for detail reads without own property (L211 specification, L239 other_description)
+                const nullDetailRefPayload = buildDraftPayload({
+                    family: 'ACTIVATION',
+                    record_version: 1,
+                    activation: { references: [{ reference_type: 'IWO' }] },
+                });
+                expect(nullDetailRefPayload.activation.references).toEqual([
+                    { reference_type: 'IWO', specification: null },
+                ]);
+
+                const nullDetailImpactPayload = buildDraftPayload({
+                    family: 'CHANGE',
+                    record_version: 1,
+                    change: { service_impacts: [{ impact_code: 'NOC15' }] },
+                });
+                expect(nullDetailImpactPayload.change.service_impacts).toEqual([
+                    { impact_code: 'NOC15', other_description: null },
+                ]);
+
+                // 8. Surviving-path pinning for container-level family guard (L596 family)
+                // proto['family'] is 'POLLUTED-FAMILY', omit-own family with valid own record_version must throw Unsupported family
+                proto['family'] = 'ACTIVATION';
+                const familyResult = (() => {
+                    try {
+                        return buildDraftPayload({ record_version: 1 } as never);
+                    } catch (e) {
+                        return (e as Error).message;
+                    }
+                })();
+                expect(familyResult).toMatch(/unsupported family/i);
             } finally {
                 delete proto['service_id'];
                 delete proto['service_status'];
@@ -1376,6 +1407,7 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                 delete proto['performance_information'];
                 delete proto['result_status'];
                 delete proto['other_description'];
+                delete proto['family'];
             }
         });
     });
