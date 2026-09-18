@@ -1,0 +1,436 @@
+import { mount } from '@vue/test-utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent, h, nextTick } from 'vue';
+
+import Setup from './Setup.vue';
+
+// Mock Inertia router and useForm
+const mockPost = vi.fn();
+const mockPatch = vi.fn();
+const mockVisit = vi.fn();
+
+let mockFormState: Record<string, any> = {};
+
+vi.mock('@inertiajs/vue3', () => ({
+    Head: defineComponent({
+        props: ['title'],
+        setup: () => () => h('div', { class: 'inertia-head' }),
+    }),
+    useForm: (initialValues: any) => {
+        const formObj = {
+            ...initialValues,
+            errors: {},
+            processing: false,
+            wasSuccessful: false,
+            hasErrors: false,
+            recentlySuccessful: false,
+            data() {
+                const copy = { ...this };
+                delete copy.errors;
+                delete copy.processing;
+                delete copy.wasSuccessful;
+                delete copy.hasErrors;
+                delete copy.recentlySuccessful;
+                delete copy.data;
+                delete copy.transform;
+                delete copy.reset;
+                delete copy.clearErrors;
+                delete copy.setError;
+                delete copy.post;
+                delete copy.patch;
+                return copy;
+            },
+            transform(callback: any) {
+                return callback(this.data());
+            },
+            reset(...fields: string[]) {
+                if (fields.length === 0) {
+                    Object.assign(this, initialValues);
+                } else {
+                    for (const f of fields) {
+                        this[f] = initialValues[f];
+                    }
+                }
+            },
+            clearErrors(...fields: string[]) {
+                if (fields.length === 0) {
+                    this.errors = {};
+                } else {
+                    for (const f of fields) {
+                        delete this.errors[f];
+                    }
+                }
+            },
+            setError(field: string, message: string) {
+                this.errors[field] = message;
+            },
+            post: vi.fn((url, options) => {
+                mockPost(url, options);
+                mockFormState.lastAction = { method: 'post', url, options };
+            }),
+            patch: vi.fn((url, options) => {
+                mockPatch(url, options);
+                mockFormState.lastAction = { method: 'patch', url, options };
+            }),
+        };
+        mockFormState = formObj;
+        return formObj;
+    },
+    router: {
+        visit: vi.fn((url, options) => mockVisit(url, options)),
+        post: vi.fn((url, data, options) => mockPost(url, { data, ...options })),
+    },
+}));
+
+describe('FE-15: Initial Setup Wizard Composition', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockFormState = {};
+    });
+
+    const defaultProps = {
+        readiness: {
+            roles_configured: false,
+            teams_configured: false,
+            users_configured: false,
+            setup_completed: false,
+            signing_ready: true,
+        },
+        roles: [],
+        teams: [],
+        users: [],
+        permissionCatalog: [
+            { name: 'nscmf.create', group: 'NSCMF Management', description: 'Create NSCMF' },
+            { name: 'nscmf.review', group: 'Review & Approval', description: 'Review NSCMF' },
+            { name: 'nscmf.approve', group: 'Review & Approval', description: 'Approve NSCMF' },
+            { name: 'teams.create', group: 'Master Data & Administration', description: 'Create Teams' },
+            { name: 'users.create', group: 'User & Access Management', description: 'Create Users' },
+        ],
+        userPermissions: [
+            'roles.create',
+            'roles.update',
+            'permissions.assign',
+            'teams.create',
+            'teams.update',
+            'users.create',
+            'users.update',
+            'users.assign_roles',
+            'users.assign_team',
+        ],
+    };
+
+    // AC1 — setup_has_exact_supported_steps:
+    // Empat langkah: Role Setup (template/manual), Team Setup, Users & Role Assignment, Complete.
+    // Progress stepper accessible, LARANGAN: tidak ada Unit/Division/Scope atau personal signature upload step.
+    it('AC1 — setup_has_exact_supported_steps: renders 4 exact steps and prohibits Unit/Division/Scope or personal signature upload', () => {
+        const wrapper = mount(Setup, {
+            props: defaultProps,
+        });
+
+        // Accessible Stepper present
+        const stepper = wrapper.find('[data-testid="setup-stepper"]');
+        expect(stepper.exists()).toBe(true);
+        expect(stepper.attributes('role')).toBe('navigation');
+        expect(stepper.attributes('aria-label')).toBe('Setup progress');
+
+        // Check exact steps
+        const stepItems = wrapper.findAll('[data-testid="stepper-step"]');
+        expect(stepItems).toHaveLength(4);
+
+        const stepTexts = stepItems.map((s) => s.text().toLowerCase());
+        expect(stepTexts[0]).toContain('role');
+        expect(stepTexts[1]).toContain('team');
+        expect(stepTexts[2]).toContain('user');
+        expect(stepTexts[3]).toContain('complete');
+
+        // PROHIBITED terms checks across the entire component
+        const html = wrapper.html().toLowerCase();
+        expect(html).not.toContain('unit');
+        expect(html).not.toContain('division');
+        expect(html).not.toContain('reviewer scope');
+        expect(html).not.toContain('approval scope');
+        expect(html).not.toContain('signature upload');
+        expect(html).not.toContain('private-key upload');
+        expect(html).not.toContain('upload signature');
+        expect(html).not.toContain('private key');
+
+        // Check Role Setup offers Template or Manual mode
+        expect(wrapper.find('[data-testid="role-mode-template"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="role-mode-manual"]').exists()).toBe(true);
+    });
+
+    // AC2 — setup_does_not_fake_completion: Team create gagal keeps step; stale page tidak menandai setup ready.
+    // Data wajib TIDAK boleh diisi fake defaults untuk menyelesaikan wizard.
+    it('AC2 — setup_does_not_fake_completion: mutation failure keeps current step; cannot jump forward with fake completion', async () => {
+        const wrapper = mount(Setup, {
+            props: {
+                ...defaultProps,
+                readiness: {
+                    roles_configured: true,
+                    teams_configured: false,
+                    users_configured: false,
+                    setup_completed: false,
+                    signing_ready: true,
+                },
+            },
+        });
+
+        // Should start at step 2 (Team Setup) since roles are already configured
+        expect(wrapper.find('[data-testid="step-team-setup"]').exists()).toBe(true);
+
+        // Attempting to proceed without completing team configuration should not advance
+        const nextButton = wrapper.find('[data-testid="btn-next-step"]');
+        expect(nextButton.attributes('disabled')).toBeDefined();
+
+        // Fill team creation form
+        const teamInput = wrapper.find('[data-testid="input-team-name"]');
+        expect(teamInput.exists()).toBe(true);
+        await teamInput.setValue('NOC Team');
+
+        const createTeamBtn = wrapper.find('[data-testid="btn-create-team"]');
+        await createTeamBtn.trigger('click');
+
+        // Verify POST was sent to /administration/teams
+        expect(mockPost).toHaveBeenCalledWith(
+            '/administration/teams',
+            expect.objectContaining({
+                onSuccess: expect.any(Function),
+                onError: expect.any(Function),
+            }),
+        );
+
+        // Simulate server failure / validation error
+        if (mockFormState.lastAction?.options?.onError) {
+            mockFormState.lastAction.options.onError({ name: 'Team creation failed' });
+        }
+        await nextTick();
+
+        // Step remains Team Setup, NOT advanced to step 3
+        expect(wrapper.find('[data-testid="step-team-setup"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="step-users-setup"]').exists()).toBe(false);
+
+        // Stale page: Next step button still disabled because teams are not yet confirmed in props/server state
+        expect(wrapper.find('[data-testid="btn-next-step"]').attributes('disabled')).toBeDefined();
+    });
+
+    // AC3 — setup_reuses_one_time_credential_safely: next step tidak membawa password ke history/summary.
+    it('AC3 — setup_reuses_one_time_credential_safely: temporary credentials are one-time and purged, not retained in summary or step history', async () => {
+        const wrapper = mount(Setup, {
+            props: {
+                ...defaultProps,
+                readiness: {
+                    roles_configured: true,
+                    teams_configured: true,
+                    users_configured: false,
+                    setup_completed: false,
+                    signing_ready: true,
+                },
+                teams: [{ id: 1, name: 'Operations', is_active: true }],
+                roles: [{ id: 10, name: 'Requester', permissions: ['nscmf.create'] }],
+            },
+        });
+
+        // Step 3: Users & Role Assignment
+        expect(wrapper.find('[data-testid="step-users-setup"]').exists()).toBe(true);
+
+        // Fill user creation form
+        await wrapper.find('[data-testid="input-user-name"]').setValue('Alice Bob');
+        await wrapper.find('[data-testid="input-user-username"]').setValue('alice.bob');
+        await wrapper.find('[data-testid="select-user-team"]').setValue('1');
+        await wrapper.find('[data-testid="checkbox-role-10"]').setValue(true);
+
+        // Submit create user
+        await wrapper.find('[data-testid="btn-create-user"]').trigger('click');
+
+        expect(mockPost).toHaveBeenCalledWith(
+            '/administration/users',
+            expect.objectContaining({
+                onSuccess: expect.any(Function),
+            }),
+        );
+
+        // Simulate server response providing a temporary password via flash / callback
+        const syntheticTempPassword = 'synthetic-temp-password-12345';
+        if (mockFormState.lastAction?.options?.onSuccess) {
+            mockFormState.lastAction.options.onSuccess({
+                props: {
+                    flash: {
+                        temporary_password: syntheticTempPassword,
+                        username: 'alice.bob',
+                    },
+                },
+            });
+        }
+        await nextTick();
+
+        // OneTimeCredential modal opens
+        const oneTimeDialog = wrapper.find('[data-testid="one-time-credential-container"]');
+        expect(oneTimeDialog.exists()).toBe(true);
+        expect(oneTimeDialog.text()).toContain(syntheticTempPassword);
+
+        // Dismiss the one-time credential modal
+        await wrapper.find('[data-testid="btn-dismiss-credential"]').trigger('click');
+        await nextTick();
+
+        // Modal closed
+        expect(wrapper.find('[data-testid="one-time-credential-container"]').exists()).toBe(false);
+
+        // Advance to Step 4 (Complete) with user confirmed
+        await wrapper.setProps({
+            readiness: {
+                roles_configured: true,
+                teams_configured: true,
+                users_configured: true,
+                setup_completed: false,
+                signing_ready: true,
+            },
+            users: [
+                {
+                    id: 99,
+                    name: 'Alice Bob',
+                    username: 'alice.bob',
+                    team_id: 1,
+                    team_name: 'Operations',
+                    is_active: true,
+                    is_protected_superadmin: false,
+                    roles: [{ id: 10, name: 'Requester' }],
+                },
+            ],
+        });
+        await nextTick();
+
+        // Now next step button should be enabled
+        const nextBtn = wrapper.find('[data-testid="btn-next-step"]');
+        expect(nextBtn.attributes('disabled')).toBeUndefined();
+        await nextBtn.trigger('click');
+        await nextTick();
+
+        // In Step 4 (Complete / Summary)
+        expect(wrapper.find('[data-testid="step-complete"]').exists()).toBe(true);
+
+        // CRITICAL CHECK: Summary MUST NOT leak the temporary password!
+        const summaryText = wrapper.find('[data-testid="step-complete"]').text();
+        expect(summaryText).not.toContain(syntheticTempPassword);
+        expect(summaryText).toContain('Alice Bob');
+        expect(summaryText).toContain('alice.bob');
+    });
+
+    // AC4 — setup_can_resume_from_server_state: projection hasil reopen menentukan posisi tanpa rerun mutation.
+    it('AC4 — setup_can_resume_from_server_state: server readiness projection determines initial step position on reload', async () => {
+        // Case A: Fresh setup -> Starts at Step 1 (Role Setup)
+        const wrapper1 = mount(Setup, {
+            props: {
+                ...defaultProps,
+                readiness: {
+                    roles_configured: false,
+                    teams_configured: false,
+                    users_configured: false,
+                    setup_completed: false,
+                    signing_ready: true,
+                },
+            },
+        });
+        expect(wrapper1.find('[data-testid="step-role-setup"]').exists()).toBe(true);
+
+        // Case B: Roles already configured -> Starts at Step 2 (Team Setup)
+        const wrapper2 = mount(Setup, {
+            props: {
+                ...defaultProps,
+                readiness: {
+                    roles_configured: true,
+                    teams_configured: false,
+                    users_configured: false,
+                    setup_completed: false,
+                    signing_ready: true,
+                },
+                roles: [{ id: 1, name: 'Superadmin', permissions: [] }],
+            },
+        });
+        expect(wrapper2.find('[data-testid="step-role-setup"]').exists()).toBe(false);
+        expect(wrapper2.find('[data-testid="step-team-setup"]').exists()).toBe(true);
+
+        // Case C: Roles and Teams configured -> Starts at Step 3 (Users Setup)
+        const wrapper3 = mount(Setup, {
+            props: {
+                ...defaultProps,
+                readiness: {
+                    roles_configured: true,
+                    teams_configured: true,
+                    users_configured: false,
+                    setup_completed: false,
+                    signing_ready: true,
+                },
+                roles: [{ id: 1, name: 'Superadmin', permissions: [] }],
+                teams: [{ id: 1, name: 'NOC', is_active: true }],
+            },
+        });
+        expect(wrapper3.find('[data-testid="step-users-setup"]').exists()).toBe(true);
+
+        // Case D: Roles, Teams, and Users configured -> Starts at Step 4 (Complete)
+        const wrapper4 = mount(Setup, {
+            props: {
+                ...defaultProps,
+                readiness: {
+                    roles_configured: true,
+                    teams_configured: true,
+                    users_configured: true,
+                    setup_completed: false,
+                    signing_ready: true,
+                },
+                roles: [{ id: 1, name: 'Superadmin', permissions: [] }],
+                teams: [{ id: 1, name: 'NOC', is_active: true }],
+                users: [
+                    {
+                        id: 2,
+                        name: 'Admin',
+                        username: 'admin',
+                        team_id: 1,
+                        is_active: true,
+                        is_protected_superadmin: true,
+                        roles: [{ id: 1, name: 'Superadmin' }],
+                    },
+                ],
+            },
+        });
+        expect(wrapper4.find('[data-testid="step-complete"]').exists()).toBe(true);
+
+        // Signing readiness status safe display (not private key upload)
+        const signingStatus = wrapper4.find('[data-testid="signing-readiness-status"]');
+        expect(signingStatus.exists()).toBe(true);
+        expect(signingStatus.text()).toContain('Siap');
+    });
+
+    // Invariants & Boundaries checks
+    it('guards protected superadmin team: does not auto-assign team to protected superadmin with null team', () => {
+        const superadminUser = {
+            id: 1,
+            name: 'Protected Superadmin',
+            username: 'superadmin',
+            team_id: null,
+            team_name: null,
+            is_active: true,
+            is_protected_superadmin: true,
+            roles: [{ id: 1, name: 'Superadmin' }],
+        };
+
+        const wrapper = mount(Setup, {
+            props: {
+                ...defaultProps,
+                readiness: {
+                    roles_configured: true,
+                    teams_configured: true,
+                    users_configured: true,
+                    setup_completed: false,
+                    signing_ready: true,
+                },
+                teams: [{ id: 1, name: 'Network Admin', is_active: true }],
+                users: [superadminUser],
+            },
+        });
+
+        // In user list or summary, superadmin team remains explicitly null/unassigned, not altered
+        const summary = wrapper.text();
+        expect(summary).toContain('Protected Superadmin');
+        expect(summary).not.toContain('Network Admin (Superadmin)');
+    });
+});
