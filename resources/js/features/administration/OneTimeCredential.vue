@@ -18,20 +18,47 @@ const emit = defineEmits<{
     (e: 'dismiss'): void;
 }>();
 
-// Transient state: strictly kept in memory, never persisted or remembered
+// Module-scope consumed registry: survives component unmount and remount (HARD GATE 2 / N-13-2).
+// Keyed by non-reversible hash tokens so raw plaintext credentials are never retained in memory (N-13-4).
+const moduleConsumedTokens: Set<string> = (globalThis as unknown as Record<string, Set<string>>).__alyaOneTimeConsumedTokens ??= new Set<string>();
+
+// Transient state: strictly kept in memory during active reveal, cleared on close/dismiss/unmount.
 const internalCredential = ref<string | null>(null);
 const copySuccess = ref(false);
 const copyError = ref<string | null>(null);
 
-// Authoritative revealed-credential identity tracking for this instance.
-// Keyed to the credential payload and associated username. Once a payload has been revealed
-// or dismissed, or when the dialog closes, this identity is marked consumed.
-// A subsequent reveal is allowed ONLY if the credential payload changes to a new, unrevealed value.
+// Identity tracking: instance-level exposed set pointing to module registry for inspection/asserts.
 const revealedCredentialKey = ref<string | null>(null);
-const consumedCredentialKeys = ref<Set<string>>(new Set());
+const consumedCredentialKeys = ref<Set<string>>(moduleConsumedTokens);
+defineExpose({ consumedCredentialKeys, internalCredential });
+
+/**
+ * Deterministic, non-reversible token hashing to prevent raw credential retention in memory (N-13-4).
+ * Uses a double-mixed 64-bit non-cryptographic hash (fast, browser-safe, pure synchronous TS, zero dependencies).
+ */
+function hashToken(raw: string): string {
+    let h1 = 0xdeadbeef ^ 0;
+    let h2 = 0x41c64e6d ^ 0;
+    for (let i = 0; i < raw.length; i++) {
+        const ch = raw.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+}
 
 function makeCredentialKey(password: string | null | undefined, username: string | null | undefined): string {
-    return `${username || ''}:::${password || ''}`;
+    if (!password) return '';
+    const userPart = username || '';
+    const hashedPw = hashToken(password);
+    return userPart ? `${userPart}:::hash:${hashedPw}` : `hash:${hashedPw}`;
+}
+
+function makePasswordOnlyKey(password: string | null | undefined): string {
+    if (!password) return '';
+    return `hash:${hashToken(password)}`;
 }
 
 function purgeTransientState(): void {
@@ -56,14 +83,13 @@ watch(
             }
 
             const currentKey = makeCredentialKey(newPassword, newUsername);
-            const passwordOnlyKey = makeCredentialKey(newPassword, null);
+            const passwordOnlyKey = makePasswordOnlyKey(newPassword);
 
             // If this credential identity (or raw password) has already been consumed, fail closed:
-            // do not re-render plaintext (F-13-1, AC1 verbatim).
+            // do not re-render plaintext (F-13-1, AC1 verbatim, N-13-1, N-13-2).
             if (
-                consumedCredentialKeys.value.has(currentKey) ||
-                consumedCredentialKeys.value.has(passwordOnlyKey) ||
-                (revealedCredentialKey.value !== null && revealedCredentialKey.value !== currentKey)
+                moduleConsumedTokens.has(currentKey) ||
+                moduleConsumedTokens.has(passwordOnlyKey)
             ) {
                 internalCredential.value = null;
                 return;
@@ -75,23 +101,22 @@ watch(
         } else {
             // Dialog closed via open prop: mark the current revealed credential consumed (F-13-1, F-13-3, F-13-6)
             if (revealedCredentialKey.value) {
-                consumedCredentialKeys.value.add(revealedCredentialKey.value);
+                moduleConsumedTokens.add(revealedCredentialKey.value);
             }
             const [, oldPassword, oldUsername] = oldVal || [false, null, null];
-            const activePassword = internalCredential.value || oldPassword || newPassword;
+            const activePassword = internalCredential.value || oldPassword;
             const activeUsername = oldUsername || newUsername;
             if (activePassword) {
-                // Key both the active username and the raw password so it cannot be re-rendered
-                // even if reopened under a different username!
-                consumedCredentialKeys.value.add(makeCredentialKey(activePassword, activeUsername));
-                consumedCredentialKeys.value.add(makeCredentialKey(activePassword, newUsername));
-                consumedCredentialKeys.value.add(makeCredentialKey(activePassword, null));
-            }
-            // Once closed, any credential that was previously delivered to this instance is consumed
-            if (newPassword) {
-                consumedCredentialKeys.value.add(makeCredentialKey(newPassword, null));
+                // Key both the active username and the password-only hash so it cannot be re-rendered
+                // even if reopened under a different username (N-13-1)!
+                moduleConsumedTokens.add(makeCredentialKey(activePassword, activeUsername));
+                if (newUsername) {
+                    moduleConsumedTokens.add(makeCredentialKey(activePassword, newUsername));
+                }
+                moduleConsumedTokens.add(makePasswordOnlyKey(activePassword));
             }
             purgeTransientState();
+            revealedCredentialKey.value = null;
         }
     },
     { immediate: true },
@@ -112,21 +137,31 @@ async function copyCredential(): Promise<void> {
 
 function handleDismiss(): void {
     if (revealedCredentialKey.value) {
-        consumedCredentialKeys.value.add(revealedCredentialKey.value);
-        revealedCredentialKey.value = null;
+        moduleConsumedTokens.add(revealedCredentialKey.value);
     }
     if (props.temporaryPassword) {
-        consumedCredentialKeys.value.add(makeCredentialKey(props.temporaryPassword, props.username));
+        // HARD GATE 1 / N-13-1: consume BOTH username-keyed and username-agnostic password token
+        moduleConsumedTokens.add(makeCredentialKey(props.temporaryPassword, props.username));
+        moduleConsumedTokens.add(makePasswordOnlyKey(props.temporaryPassword));
     }
+    revealedCredentialKey.value = null;
     purgeTransientState();
     emit('dismiss');
 }
 
 onBeforeUnmount(() => {
-    // Purge memory immediately on unmount (F-13-4)
+    // Purge memory immediately on unmount (F-13-4, N-13-2)
+    // Mark the revealed credential as consumed in the module registry so recreating/remounting
+    // the component while parent holds stale props will fail closed.
+    if (revealedCredentialKey.value) {
+        moduleConsumedTokens.add(revealedCredentialKey.value);
+    }
+    if (props.temporaryPassword) {
+        moduleConsumedTokens.add(makeCredentialKey(props.temporaryPassword, props.username));
+        moduleConsumedTokens.add(makePasswordOnlyKey(props.temporaryPassword));
+    }
     purgeTransientState();
     revealedCredentialKey.value = null;
-    consumedCredentialKeys.value.clear();
 });
 </script>
 

@@ -1,10 +1,15 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 
 import OneTimeCredential from './OneTimeCredential.vue';
 
 describe('OneTimeCredential (FE-13)', () => {
+    beforeEach(() => {
+        // Clear cross-instance test pollution so each unit test begins with an isolated session state
+        const g = globalThis as unknown as Record<string, Set<string>>;
+        g.__alyaOneTimeConsumedTokens?.clear();
+    });
     // AC1: credential_is_once_only: dismiss lalu reopen component tidak menampilkan credential lama.
     it('AC1: credential_is_once_only - dismiss lalu reopen component tidak menampilkan credential lama', async () => {
         const wrapper = mount(OneTimeCredential, {
@@ -270,6 +275,156 @@ describe('OneTimeCredential (FE-13)', () => {
             // Stale copyError must NOT leak
             expect(wrapper.find('[data-testid="clipboard-feedback"]').exists()).toBe(false);
             expect(wrapper.text()).not.toContain('Gagal menyalin ke clipboard');
+        });
+
+        // RE-SEC-FE-13 regressions (N-13-1, N-13-2, N-13-3, N-13-4)
+        it('R5 (N-13-1): dismiss click then username swap while dialog is open does NOT re-display old password under new label', async () => {
+            const el = document.createElement('div');
+            document.body.appendChild(el);
+            const wrapper = mount(OneTimeCredential, {
+                attachTo: el,
+                props: {
+                    open: true,
+                    temporaryPassword: 'synthetic-temp-pass-user1',
+                    username: 'user1.test',
+                },
+            });
+
+            expect(el.innerHTML).toContain('synthetic-temp-pass-user1');
+
+            // Click dismiss button
+            await wrapper.find('[data-testid="btn-dismiss-credential"]').trigger('click');
+            await nextTick();
+            expect(el.innerHTML).not.toContain('synthetic-temp-pass-user1');
+            expect(wrapper.find('[data-testid="credential-lost-advisory"]').exists()).toBe(true);
+
+            // Parent swaps username while open
+            await wrapper.setProps({ username: 'user2.test' });
+            await nextTick();
+
+            // Must NOT re-display old password under new label
+            expect(el.innerHTML).not.toContain('synthetic-temp-pass-user1');
+            expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
+            expect(wrapper.find('[data-testid="credential-lost-advisory"]').exists()).toBe(true);
+            el.remove();
+        });
+
+        it('R6 (N-13-1): dismiss click then null username does NOT re-display old password', async () => {
+            const el = document.createElement('div');
+            document.body.appendChild(el);
+            const wrapper = mount(OneTimeCredential, {
+                attachTo: el,
+                props: {
+                    open: true,
+                    temporaryPassword: 'synthetic-temp-pass-user1',
+                    username: 'user1.test',
+                },
+            });
+
+            await wrapper.find('[data-testid="btn-dismiss-credential"]').trigger('click');
+            await nextTick();
+
+            await wrapper.setProps({ username: null });
+            await nextTick();
+
+            expect(el.innerHTML).not.toContain('synthetic-temp-pass-user1');
+            expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
+            el.remove();
+        });
+
+        it('R7 (N-13-2): unmount and fresh mount with stale prop does NOT re-display previously revealed credential', () => {
+            const el1 = document.createElement('div');
+            document.body.appendChild(el1);
+            const w1 = mount(OneTimeCredential, {
+                attachTo: el1,
+                props: {
+                    open: true,
+                    temporaryPassword: 'stale-recreated-pw-5678',
+                    username: 'user1.test',
+                },
+            });
+            expect(el1.innerHTML).toContain('stale-recreated-pw-5678');
+            w1.unmount();
+            el1.remove();
+
+            // Fresh instance created with the same stale prop held by parent
+            const el2 = document.createElement('div');
+            document.body.appendChild(el2);
+            const w2 = mount(OneTimeCredential, {
+                attachTo: el2,
+                props: {
+                    open: true,
+                    temporaryPassword: 'stale-recreated-pw-5678',
+                    username: 'user2.test',
+                },
+            });
+
+            expect(el2.innerHTML).not.toContain('stale-recreated-pw-5678');
+            expect(w2.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
+            expect(w2.find('[data-testid="credential-lost-advisory"]').exists()).toBe(true);
+            w2.unmount();
+            el2.remove();
+        });
+
+        it('R8 (N-13-3): close via open:false then genuinely new payload reveals new plaintext exactly once', async () => {
+            const el = document.createElement('div');
+            document.body.appendChild(el);
+            const wrapper = mount(OneTimeCredential, {
+                attachTo: el,
+                props: {
+                    open: true,
+                    temporaryPassword: 'initial-temp-password-1',
+                    username: 'alice.test',
+                },
+            });
+
+            expect(el.innerHTML).toContain('initial-temp-password-1');
+
+            // Close via prop only (ESC/backdrop)
+            await wrapper.setProps({ open: false });
+            await nextTick();
+            expect(el.innerHTML).not.toContain('initial-temp-password-1');
+
+            // Reopen with genuinely new payload
+            await wrapper.setProps({
+                open: true,
+                temporaryPassword: 'new-temp-password-2',
+                username: 'alice.test',
+            });
+            await nextTick();
+
+            // Must reveal the new password exactly once
+            expect(el.innerHTML).toContain('new-temp-password-2');
+            expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(true);
+            expect(wrapper.find('[data-testid="credential-lost-advisory"]').exists()).toBe(false);
+
+            // Re-closing and reopening with that same new password must now refuse
+            await wrapper.setProps({ open: false });
+            await nextTick();
+            await wrapper.setProps({ open: true });
+            await nextTick();
+            expect(el.innerHTML).not.toContain('new-temp-password-2');
+            expect(wrapper.find('[data-testid="credential-lost-advisory"]').exists()).toBe(true);
+
+            el.remove();
+        });
+
+        it('R9 (N-13-4): consumed-key set contains no plaintext substring of the password after dismiss', async () => {
+            const secretPassword = 'super-secret-probe-password-xyz';
+            const wrapper = mount(OneTimeCredential, {
+                props: {
+                    open: true,
+                    temporaryPassword: secretPassword,
+                    username: 'secret.user',
+                },
+            });
+
+            await wrapper.find('[data-testid="btn-dismiss-credential"]').trigger('click');
+            await nextTick();
+
+            const vm = wrapper.vm as unknown as Record<string, unknown>;
+            const consumedDump = JSON.stringify([...((vm.consumedCredentialKeys as Set<string>) || [])]);
+            expect(consumedDump.includes(secretPassword)).toBe(false);
         });
     });
 });
