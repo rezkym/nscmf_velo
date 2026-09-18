@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, nextTick } from 'vue';
+import { defineComponent, h, nextTick, reactive } from 'vue';
 
 import Setup from './Setup.vue';
 
@@ -9,15 +9,32 @@ const mockPost = vi.fn();
 const mockPatch = vi.fn();
 const mockVisit = vi.fn();
 
-let mockFormState: Record<string, any> = {};
+interface MockFormRecord {
+    [key: string]: unknown;
+    errors: Record<string, string>;
+    processing: boolean;
+    wasSuccessful: boolean;
+    hasErrors: boolean;
+    recentlySuccessful: boolean;
+    lastAction?: { method: string; url: string; options?: { onSuccess?: (page?: unknown) => void; onError?: (errs: unknown) => void } };
+    data: () => Record<string, unknown>;
+    transform: (callback: (data: Record<string, unknown>) => unknown) => unknown;
+    reset: (...fields: string[]) => void;
+    clearErrors: (...fields: string[]) => void;
+    setError: (field: string, message: string) => void;
+    post: (url: string, options?: { onSuccess?: (page?: unknown) => void; onError?: (errs: unknown) => void }) => void;
+    patch: (url: string, options?: { onSuccess?: (page?: unknown) => void; onError?: (errs: unknown) => void }) => void;
+}
+
+let createdForms: MockFormRecord[] = [];
 
 vi.mock('@inertiajs/vue3', () => ({
     Head: defineComponent({
         props: ['title'],
         setup: () => () => h('div', { class: 'inertia-head' }),
     }),
-    useForm: (initialValues: any) => {
-        const formObj = {
+    useForm: vi.fn((initialValues: Record<string, unknown>) => {
+        const formObj: MockFormRecord = reactive({
             ...initialValues,
             errors: {},
             processing: false,
@@ -25,7 +42,7 @@ vi.mock('@inertiajs/vue3', () => ({
             hasErrors: false,
             recentlySuccessful: false,
             data() {
-                const copy = { ...this };
+                const copy: Record<string, unknown> = { ...(formObj as Record<string, unknown>) };
                 delete copy.errors;
                 delete copy.processing;
                 delete copy.wasSuccessful;
@@ -40,52 +57,52 @@ vi.mock('@inertiajs/vue3', () => ({
                 delete copy.patch;
                 return copy;
             },
-            transform(callback: any) {
-                return callback(this.data());
+            transform(callback: (data: Record<string, unknown>) => unknown) {
+                return callback(formObj.data());
             },
             reset(...fields: string[]) {
                 if (fields.length === 0) {
-                    Object.assign(this, initialValues);
+                    Object.assign(formObj, initialValues);
                 } else {
                     for (const f of fields) {
-                        this[f] = initialValues[f];
+                        (formObj as Record<string, unknown>)[f] = initialValues[f];
                     }
                 }
             },
             clearErrors(...fields: string[]) {
                 if (fields.length === 0) {
-                    this.errors = {};
+                    formObj.errors = {};
                 } else {
                     for (const f of fields) {
-                        delete this.errors[f];
+                        delete formObj.errors[f];
                     }
                 }
             },
             setError(field: string, message: string) {
-                this.errors[field] = message;
+                formObj.errors[field] = message;
             },
-            post: vi.fn((url, options) => {
+            post: vi.fn((url: string, options?: { onSuccess?: (page?: unknown) => void; onError?: (errs: unknown) => void }) => {
                 mockPost(url, options);
-                mockFormState.lastAction = { method: 'post', url, options };
+                formObj.lastAction = { method: 'post', url, options };
             }),
-            patch: vi.fn((url, options) => {
+            patch: vi.fn((url: string, options?: { onSuccess?: (page?: unknown) => void; onError?: (errs: unknown) => void }) => {
                 mockPatch(url, options);
-                mockFormState.lastAction = { method: 'patch', url, options };
+                formObj.lastAction = { method: 'patch', url, options };
             }),
-        };
-        mockFormState = formObj;
+        });
+        createdForms.push(formObj);
         return formObj;
-    },
+    }),
     router: {
-        visit: vi.fn((url, options) => mockVisit(url, options)),
-        post: vi.fn((url, data, options) => mockPost(url, { data, ...options })),
+        visit: vi.fn((url: string, options?: unknown) => mockVisit(url, options)),
+        post: vi.fn((url: string, data?: unknown, options?: unknown) => mockPost(url, { data, ...(options as object) })),
     },
 }));
 
 describe('FE-15: Initial Setup Wizard Composition', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockFormState = {};
+        createdForms = [];
     });
 
     const defaultProps = {
@@ -200,8 +217,9 @@ describe('FE-15: Initial Setup Wizard Composition', () => {
         );
 
         // Simulate server failure / validation error
-        if (mockFormState.lastAction?.options?.onError) {
-            mockFormState.lastAction.options.onError({ name: 'Team creation failed' });
+        const teamFormObj = createdForms.find((f) => f.lastAction?.url === '/administration/teams');
+        if (teamFormObj?.lastAction?.options?.onError) {
+            teamFormObj.lastAction.options.onError({ name: 'Team creation failed' });
         }
         await nextTick();
 
@@ -251,8 +269,9 @@ describe('FE-15: Initial Setup Wizard Composition', () => {
 
         // Simulate server response providing a temporary password via flash / callback
         const syntheticTempPassword = 'synthetic-temp-password-12345';
-        if (mockFormState.lastAction?.options?.onSuccess) {
-            mockFormState.lastAction.options.onSuccess({
+        const userFormObj = createdForms.find((f) => f.lastAction?.url === '/administration/users');
+        if (userFormObj?.lastAction?.options?.onSuccess) {
+            userFormObj.lastAction.options.onSuccess({
                 props: {
                     flash: {
                         temporary_password: syntheticTempPassword,
@@ -316,7 +335,7 @@ describe('FE-15: Initial Setup Wizard Composition', () => {
     });
 
     // AC4 — setup_can_resume_from_server_state: projection hasil reopen menentukan posisi tanpa rerun mutation.
-    it('AC4 — setup_can_resume_from_server_state: server readiness projection determines initial step position on reload', async () => {
+    it('AC4 — setup_can_resume_from_server_state: server readiness projection determines initial step position on reload', () => {
         // Case A: Fresh setup -> Starts at Step 1 (Role Setup)
         const wrapper1 = mount(Setup, {
             props: {
@@ -432,5 +451,188 @@ describe('FE-15: Initial Setup Wizard Composition', () => {
         const summary = wrapper.text();
         expect(summary).toContain('Protected Superadmin');
         expect(summary).not.toContain('Network Admin (Superadmin)');
+    });
+
+    it('covers role template and manual role creation interactions', async () => {
+        const wrapper = mount(Setup, {
+            props: {
+                ...defaultProps,
+                readiness: {
+                    roles_configured: false,
+                    teams_configured: false,
+                    users_configured: false,
+                    setup_completed: false,
+                    signing_ready: true,
+                },
+                roles: [],
+            },
+        });
+
+        // Apply template
+        const applyBtn = wrapper.find('[data-testid="btn-apply-template"]');
+        await applyBtn.trigger('click');
+        expect(mockPost).toHaveBeenCalledWith(
+            '/administration/roles/template',
+            expect.objectContaining({
+                onSuccess: expect.any(Function),
+            }),
+        );
+
+        // Switch to manual mode
+        const manualRadio = wrapper.find('[data-testid="role-mode-manual"] input[type="radio"]');
+        await manualRadio.setValue(true);
+        await nextTick();
+
+        // Fill manual role
+        const roleNameInput = wrapper.find('[data-testid="input-manual-role-name"]');
+        await roleNameInput.setValue('Custom Operator');
+
+        // Toggle permission
+        const permCheckbox = wrapper.find('input[type="checkbox"]');
+        expect(permCheckbox.exists()).toBe(true);
+        await permCheckbox.trigger('click');
+        await permCheckbox.trigger('click'); // toggle off then on
+        await permCheckbox.trigger('click');
+
+        // Submit manual role
+        const createManualBtn = wrapper.find('[data-testid="btn-create-manual-role"]');
+        await createManualBtn.trigger('click');
+        expect(mockPost).toHaveBeenCalledWith(
+            '/administration/roles',
+            expect.objectContaining({
+                onSuccess: expect.any(Function),
+            }),
+        );
+
+        // Trigger onSuccess callback of manual role creation
+        const roleFormObj = createdForms.find((f) => f.lastAction?.url === '/administration/roles');
+        if (roleFormObj?.lastAction?.options?.onSuccess) {
+            roleFormObj.lastAction.options.onSuccess();
+        }
+    });
+
+    it('covers step navigation (previous, next, and direct click)', async () => {
+        const wrapper = mount(Setup, {
+            props: {
+                ...defaultProps,
+                readiness: {
+                    roles_configured: true,
+                    teams_configured: true,
+                    users_configured: true,
+                    setup_completed: false,
+                    signing_ready: true,
+                },
+                roles: [{ id: 1, name: 'Superadmin', permissions: ['all'] }],
+                teams: [{ id: 1, name: 'Network Team', is_active: true }],
+                users: [
+                    {
+                        id: 1,
+                        name: 'Admin',
+                        username: 'admin',
+                        team_id: 1,
+                        is_active: true,
+                        is_protected_superadmin: true,
+                        roles: [{ id: 1, name: 'Superadmin' }],
+                    },
+                ],
+            },
+        });
+
+        // Currently at step 4
+        expect(wrapper.find('[data-testid="step-complete"]').exists()).toBe(true);
+
+        // Click Previous step
+        const prevBtn = wrapper.find('[data-testid="btn-prev-step"]');
+        await prevBtn.trigger('click');
+        expect(wrapper.find('[data-testid="step-users-setup"]').exists()).toBe(true);
+
+        await prevBtn.trigger('click');
+        expect(wrapper.find('[data-testid="step-team-setup"]').exists()).toBe(true);
+
+        await prevBtn.trigger('click');
+        expect(wrapper.find('[data-testid="step-role-setup"]').exists()).toBe(true);
+
+        // Next step
+        const nextBtn = wrapper.find('[data-testid="btn-next-step"]');
+        await nextBtn.trigger('click');
+        expect(wrapper.find('[data-testid="step-team-setup"]').exists()).toBe(true);
+
+        // Finalize setup
+        await nextBtn.trigger('click');
+        await nextBtn.trigger('click');
+        expect(wrapper.find('[data-testid="step-complete"]').exists()).toBe(true);
+
+        const finalizeBtn = wrapper.find('[data-testid="btn-finalize-setup"]');
+        await finalizeBtn.trigger('click');
+        expect(mockPost).toHaveBeenCalledWith(
+            '/administration/setup/complete',
+            expect.objectContaining({
+                onSuccess: expect.any(Function),
+            }),
+        );
+        const finishFormObj = createdForms.find((f) => f.lastAction?.url === '/administration/setup/complete');
+        if (finishFormObj?.lastAction?.options?.onSuccess) {
+            finishFormObj.lastAction.options.onSuccess();
+        }
+        expect(mockVisit).toHaveBeenCalledWith('/dashboard', undefined);
+    });
+
+    it('handles watch on props.readiness falling back when readiness resets', async () => {
+        const wrapper = mount(Setup, {
+            props: {
+                ...defaultProps,
+                readiness: {
+                    roles_configured: true,
+                    teams_configured: true,
+                    users_configured: true,
+                    setup_completed: false,
+                    signing_ready: true,
+                },
+                roles: [{ id: 1, name: 'Superadmin', permissions: ['all'] }],
+                teams: [{ id: 1, name: 'Network Team', is_active: true }],
+                users: [{ id: 1, name: 'Admin', username: 'admin', team_id: 1, is_active: true, is_protected_superadmin: true, roles: [{ id: 1, name: 'Superadmin' }] }],
+            },
+        });
+
+        expect(wrapper.find('[data-testid="step-complete"]').exists()).toBe(true);
+
+        // Fallback when users unconfigured
+        await wrapper.setProps({
+            readiness: {
+                roles_configured: true,
+                teams_configured: true,
+                users_configured: false,
+                setup_completed: false,
+                signing_ready: true,
+            },
+        });
+        await nextTick();
+        expect(wrapper.find('[data-testid="step-users-setup"]').exists()).toBe(true);
+
+        // Fallback when teams unconfigured
+        await wrapper.setProps({
+            readiness: {
+                roles_configured: true,
+                teams_configured: false,
+                users_configured: false,
+                setup_completed: false,
+                signing_ready: true,
+            },
+        });
+        await nextTick();
+        expect(wrapper.find('[data-testid="step-team-setup"]').exists()).toBe(true);
+
+        // Fallback when roles unconfigured
+        await wrapper.setProps({
+            readiness: {
+                roles_configured: false,
+                teams_configured: false,
+                users_configured: false,
+                setup_completed: false,
+                signing_ready: true,
+            },
+        });
+        await nextTick();
+        expect(wrapper.find('[data-testid="step-role-setup"]').exists()).toBe(true);
     });
 });
