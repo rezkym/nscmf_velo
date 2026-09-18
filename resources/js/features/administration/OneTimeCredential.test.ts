@@ -168,4 +168,108 @@ describe('OneTimeCredential (FE-13)', () => {
         expect(wrapper.text()).toContain('Lakukan reset password baru');
         expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
     });
+
+    // Regressions covering SEC-FE-13 audit findings (F-13-1, F-13-2, F-13-3, F-13-7, F-13-8)
+    describe('Lifecycle & state replay regressions (SEC-FE-13)', () => {
+        it('R1: close via open prop only (no dismiss button click) purges credential on reopen', async () => {
+            const wrapper = mount(OneTimeCredential, {
+                props: {
+                    open: true,
+                    temporaryPassword: 'synthetic-temp-pass-1234',
+                    username: 'alice.test',
+                },
+            });
+
+            expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(true);
+            expect(wrapper.text()).toContain('synthetic-temp-pass-1234');
+
+            // Close via open prop ONLY without clicking dismiss
+            await wrapper.setProps({ open: false });
+            await nextTick();
+            expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
+            expect(wrapper.text()).not.toContain('synthetic-temp-pass-1234');
+
+            // Reopen with the same unchanged prop payload
+            await wrapper.setProps({ open: true });
+            await nextTick();
+
+            // Credential MUST NOT be re-displayed; advisory rendered instead
+            expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
+            expect(wrapper.text()).not.toContain('synthetic-temp-pass-1234');
+            expect(wrapper.find('[data-testid="credential-lost-advisory"]').exists()).toBe(true);
+        });
+
+        it('R2: unmount purges internal state so no plaintext residue remains in vm or DOM', () => {
+            const el = document.createElement('div');
+            document.body.appendChild(el);
+            const w1 = mount(OneTimeCredential, {
+                attachTo: el,
+                props: {
+                    open: true,
+                    temporaryPassword: 'synthetic-temp-pass-1234',
+                    username: 'alice.test',
+                },
+            });
+            expect(el.innerHTML).toContain('synthetic-temp-pass-1234');
+            w1.unmount();
+            expect(el.innerHTML).not.toContain('synthetic-temp-pass-1234');
+            expect(el.innerHTML).toBe('');
+            el.remove();
+        });
+
+        it('R3: reopen with new username but old password prop does not display old password under new label', async () => {
+            const wrapper = mount(OneTimeCredential, {
+                props: {
+                    open: true,
+                    temporaryPassword: 'synthetic-temp-pass-1234',
+                    username: 'alice.test',
+                },
+            });
+
+            // Close via prop
+            await wrapper.setProps({ open: false });
+            await nextTick();
+
+            // Reopen with new username but old password
+            await wrapper.setProps({ open: true, username: 'bob.test' });
+            await nextTick();
+
+            expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
+            expect(wrapper.text()).not.toContain('synthetic-temp-pass-1234');
+        });
+
+        it('R4: copyError and copySuccess are reset on every transition through watch (F-13-2)', async () => {
+            const writeTextSpy = vi.fn().mockRejectedValue(new Error('denied'));
+            Object.assign(navigator, {
+                clipboard: {
+                    writeText: writeTextSpy,
+                },
+            });
+
+            const wrapper = mount(OneTimeCredential, {
+                props: {
+                    open: true,
+                    temporaryPassword: 'synthetic-temp-pass-1234',
+                    username: 'charlie.test',
+                },
+            });
+
+            // Trigger copy failure
+            await wrapper.find('[data-testid="btn-copy-credential"]').trigger('click');
+            await nextTick();
+            expect(wrapper.find('[data-testid="clipboard-feedback"]').text()).toContain('Gagal menyalin ke clipboard');
+
+            // Close dialog
+            await wrapper.setProps({ open: false });
+            await nextTick();
+
+            // Reopen dialog (lands on advisory branch)
+            await wrapper.setProps({ open: true });
+            await nextTick();
+
+            // Stale copyError must NOT leak
+            expect(wrapper.find('[data-testid="clipboard-feedback"]').exists()).toBe(false);
+            expect(wrapper.text()).not.toContain('Gagal menyalin ke clipboard');
+        });
+    });
 });

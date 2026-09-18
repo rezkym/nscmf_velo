@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { AlertTriangle, Check, Copy, KeyRound, ShieldAlert } from '@lucide/vue';
-import { ref, watch } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 
 export interface OneTimeCredentialProps {
     open?: boolean;
@@ -22,32 +22,76 @@ const emit = defineEmits<{
 const internalCredential = ref<string | null>(null);
 const copySuccess = ref(false);
 const copyError = ref<string | null>(null);
-const dismissed = ref(false);
 
-// When modal opens with a temporary password, store it transiently
+// Authoritative revealed-credential identity tracking for this instance.
+// Keyed to the credential payload and associated username. Once a payload has been revealed
+// or dismissed, or when the dialog closes, this identity is marked consumed.
+// A subsequent reveal is allowed ONLY if the credential payload changes to a new, unrevealed value.
+const revealedCredentialKey = ref<string | null>(null);
+const consumedCredentialKeys = ref<Set<string>>(new Set());
+
+function makeCredentialKey(password: string | null | undefined, username: string | null | undefined): string {
+    return `${username || ''}:::${password || ''}`;
+}
+
+function purgeTransientState(): void {
+    internalCredential.value = null;
+    copySuccess.value = false;
+    copyError.value = null;
+}
+
+// Watch dialog open state, password, and username.
+// Evaluates on open transitions and prop payload changes.
 watch(
-    () => [props.open, props.temporaryPassword] as const,
-    ([isOpen, newPassword], oldVal) => {
-        const [, oldPassword] = oldVal || [false, null];
+    () => [props.open, props.temporaryPassword, props.username] as const,
+    ([isOpen, newPassword, newUsername], oldVal) => {
+        // Reset copy feedback on every state transition (F-13-2)
+        copySuccess.value = false;
+        copyError.value = null;
+
         if (isOpen) {
-            // If it was already dismissed and the password prop hasn't changed to a new string, keep it purged
-            if (dismissed.value && newPassword === oldPassword) {
+            if (!newPassword) {
                 internalCredential.value = null;
                 return;
             }
-            if (newPassword) {
-                internalCredential.value = newPassword;
-                dismissed.value = false;
-                copySuccess.value = false;
-                copyError.value = null;
-            } else {
+
+            const currentKey = makeCredentialKey(newPassword, newUsername);
+            const passwordOnlyKey = makeCredentialKey(newPassword, null);
+
+            // If this credential identity (or raw password) has already been consumed, fail closed:
+            // do not re-render plaintext (F-13-1, AC1 verbatim).
+            if (
+                consumedCredentialKeys.value.has(currentKey) ||
+                consumedCredentialKeys.value.has(passwordOnlyKey) ||
+                (revealedCredentialKey.value !== null && revealedCredentialKey.value !== currentKey)
+            ) {
                 internalCredential.value = null;
+                return;
             }
+
+            // Fresh unrevealed credential: arm the identity and reveal
+            revealedCredentialKey.value = currentKey;
+            internalCredential.value = newPassword;
         } else {
-            // Instantly clear memory when modal closes
-            internalCredential.value = null;
-            copySuccess.value = false;
-            copyError.value = null;
+            // Dialog closed via open prop: mark the current revealed credential consumed (F-13-1, F-13-3, F-13-6)
+            if (revealedCredentialKey.value) {
+                consumedCredentialKeys.value.add(revealedCredentialKey.value);
+            }
+            const [, oldPassword, oldUsername] = oldVal || [false, null, null];
+            const activePassword = internalCredential.value || oldPassword || newPassword;
+            const activeUsername = oldUsername || newUsername;
+            if (activePassword) {
+                // Key both the active username and the raw password so it cannot be re-rendered
+                // even if reopened under a different username!
+                consumedCredentialKeys.value.add(makeCredentialKey(activePassword, activeUsername));
+                consumedCredentialKeys.value.add(makeCredentialKey(activePassword, newUsername));
+                consumedCredentialKeys.value.add(makeCredentialKey(activePassword, null));
+            }
+            // Once closed, any credential that was previously delivered to this instance is consumed
+            if (newPassword) {
+                consumedCredentialKeys.value.add(makeCredentialKey(newPassword, null));
+            }
+            purgeTransientState();
         }
     },
     { immediate: true },
@@ -67,13 +111,23 @@ async function copyCredential(): Promise<void> {
 }
 
 function handleDismiss(): void {
-    // Purge memory immediately on dismiss
-    internalCredential.value = null;
-    dismissed.value = true;
-    copySuccess.value = false;
-    copyError.value = null;
+    if (revealedCredentialKey.value) {
+        consumedCredentialKeys.value.add(revealedCredentialKey.value);
+        revealedCredentialKey.value = null;
+    }
+    if (props.temporaryPassword) {
+        consumedCredentialKeys.value.add(makeCredentialKey(props.temporaryPassword, props.username));
+    }
+    purgeTransientState();
     emit('dismiss');
 }
+
+onBeforeUnmount(() => {
+    // Purge memory immediately on unmount (F-13-4)
+    purgeTransientState();
+    revealedCredentialKey.value = null;
+    consumedCredentialKeys.value.clear();
+});
 </script>
 
 <template>
