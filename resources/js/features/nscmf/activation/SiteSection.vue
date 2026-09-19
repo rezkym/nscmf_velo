@@ -89,11 +89,88 @@ function formatNumericField(val: number | null | undefined): string {
     return String(val);
 }
 
+const MAX_TEXT_LENGTH = 255;
+
+const DIRECT_SITE_KEYS = [
+    'local_loops',
+    'lastmile',
+    'bwa',
+    'antenna_tower',
+    'direction',
+    'rssi',
+    'latency_ms',
+    'packet_loss_percent',
+    'routers',
+    'ups',
+    'stabilizer',
+    'cable',
+] as const;
+
+const POP_SITE_KEYS = [
+    'switch_distribution',
+    'port',
+    'vlan_id',
+    'local_loops',
+    'routers',
+    'cpe_indoor',
+    'cpe_outdoor',
+] as const;
+
+const EMPTY_DIRECT_SITE: DirectSiteForm = {
+    local_loops: '',
+    lastmile: '',
+    bwa: '',
+    antenna_tower: '',
+    direction: '',
+    rssi: '',
+    latency_ms: '',
+    packet_loss_percent: '',
+    routers: '',
+    ups: '',
+    stabilizer: '',
+    cable: '',
+};
+
+const EMPTY_POP_SITE: PopSiteForm = {
+    switch_distribution: '',
+    port: '',
+    vlan_id: '',
+    local_loops: '',
+    routers: '',
+    cpe_indoor: '',
+    cpe_outdoor: '',
+};
+
+function clampText(value: string): string {
+    return value.slice(0, MAX_TEXT_LENGTH);
+}
+
+function blockHasContent(block: object, keys: readonly string[]): boolean {
+    const rec = block as Record<string, unknown>;
+    for (const key of keys) {
+        if (!Object.hasOwn(rec, key)) {
+            continue;
+        }
+        const value = rec[key];
+        if (value === null || value === undefined) {
+            continue;
+        }
+        if (typeof value === 'string' && value.trim() === '') {
+            continue;
+        }
+        if (typeof value === 'number' && !Number.isFinite(value)) {
+            continue;
+        }
+        return true;
+    }
+    return false;
+}
+
 function syncFromProps(val: ActivationDraftFields) {
     if (Object.hasOwn(val, 'direct_site')) {
         if (val.direct_site === null) {
             directSiteState.value = 'cleared';
-        } else if (val.direct_site !== undefined) {
+        } else if (val.direct_site !== undefined && blockHasContent(val.direct_site, DIRECT_SITE_KEYS)) {
             directSiteState.value = 'active';
             directSiteForm.value = {
                 local_loops: val.direct_site.local_loops ?? '',
@@ -111,15 +188,17 @@ function syncFromProps(val: ActivationDraftFields) {
             };
         } else {
             directSiteState.value = 'unmodified';
+            directSiteForm.value = { ...EMPTY_DIRECT_SITE };
         }
     } else {
         directSiteState.value = 'unmodified';
+        directSiteForm.value = { ...EMPTY_DIRECT_SITE };
     }
 
     if (Object.hasOwn(val, 'pop_site')) {
         if (val.pop_site === null) {
             popSiteState.value = 'cleared';
-        } else if (val.pop_site !== undefined) {
+        } else if (val.pop_site !== undefined && blockHasContent(val.pop_site, POP_SITE_KEYS)) {
             popSiteState.value = 'active';
             popSiteForm.value = {
                 switch_distribution: val.pop_site.switch_distribution ?? '',
@@ -132,9 +211,11 @@ function syncFromProps(val: ActivationDraftFields) {
             };
         } else {
             popSiteState.value = 'unmodified';
+            popSiteForm.value = { ...EMPTY_POP_SITE };
         }
     } else {
         popSiteState.value = 'unmodified';
+        popSiteForm.value = { ...EMPTY_POP_SITE };
     }
 }
 
@@ -160,54 +241,54 @@ function buildDirectSitePayload(): DirectSiteBlock | null | undefined {
     let hasAnyField = false;
 
     if (directSiteForm.value.local_loops.trim() !== '') {
-        res.local_loops = directSiteForm.value.local_loops;
+        res.local_loops = clampText(directSiteForm.value.local_loops);
         hasAnyField = true;
     }
     if (directSiteForm.value.lastmile.trim() !== '') {
-        res.lastmile = directSiteForm.value.lastmile;
+        res.lastmile = clampText(directSiteForm.value.lastmile);
         hasAnyField = true;
     }
     if (directSiteForm.value.bwa.trim() !== '') {
-        res.bwa = directSiteForm.value.bwa;
+        res.bwa = clampText(directSiteForm.value.bwa);
         hasAnyField = true;
     }
     if (directSiteForm.value.antenna_tower.trim() !== '') {
-        res.antenna_tower = directSiteForm.value.antenna_tower;
+        res.antenna_tower = clampText(directSiteForm.value.antenna_tower);
         hasAnyField = true;
     }
     if (directSiteForm.value.direction.trim() !== '') {
-        res.direction = directSiteForm.value.direction;
+        res.direction = clampText(directSiteForm.value.direction);
         hasAnyField = true;
     }
     if (directSiteForm.value.rssi.trim() !== '') {
         const n = Number(directSiteForm.value.rssi.trim());
-        res.rssi = isNaN(n) ? null : n;
+        res.rssi = Number.isFinite(n) ? n : null;
         hasAnyField = true;
     }
     if (directSiteForm.value.latency_ms.trim() !== '') {
         const n = Number(directSiteForm.value.latency_ms.trim());
-        res.latency_ms = isNaN(n) ? null : n;
+        res.latency_ms = Number.isFinite(n) ? n : null;
         hasAnyField = true;
     }
     if (directSiteForm.value.packet_loss_percent.trim() !== '') {
         const n = Number(directSiteForm.value.packet_loss_percent.trim());
-        res.packet_loss_percent = isNaN(n) ? null : n;
+        res.packet_loss_percent = Number.isFinite(n) ? n : null;
         hasAnyField = true;
     }
     if (directSiteForm.value.routers.trim() !== '') {
-        res.routers = directSiteForm.value.routers;
+        res.routers = clampText(directSiteForm.value.routers);
         hasAnyField = true;
     }
     if (directSiteForm.value.ups.trim() !== '') {
-        res.ups = directSiteForm.value.ups;
+        res.ups = clampText(directSiteForm.value.ups);
         hasAnyField = true;
     }
     if (directSiteForm.value.stabilizer.trim() !== '') {
-        res.stabilizer = directSiteForm.value.stabilizer;
+        res.stabilizer = clampText(directSiteForm.value.stabilizer);
         hasAnyField = true;
     }
     if (directSiteForm.value.cable.trim() !== '') {
-        res.cable = directSiteForm.value.cable;
+        res.cable = clampText(directSiteForm.value.cable);
         hasAnyField = true;
     }
 
@@ -230,32 +311,32 @@ function buildPopSitePayload(): PopSiteBlock | null | undefined {
     let hasAnyField = false;
 
     if (popSiteForm.value.switch_distribution.trim() !== '') {
-        res.switch_distribution = popSiteForm.value.switch_distribution;
+        res.switch_distribution = clampText(popSiteForm.value.switch_distribution);
         hasAnyField = true;
     }
     if (popSiteForm.value.port.trim() !== '') {
-        res.port = popSiteForm.value.port;
+        res.port = clampText(popSiteForm.value.port);
         hasAnyField = true;
     }
     if (popSiteForm.value.vlan_id.trim() !== '') {
         const n = Number(popSiteForm.value.vlan_id.trim());
-        res.vlan_id = isNaN(n) ? null : n;
+        res.vlan_id = Number.isFinite(n) ? n : null;
         hasAnyField = true;
     }
     if (popSiteForm.value.local_loops.trim() !== '') {
-        res.local_loops = popSiteForm.value.local_loops;
+        res.local_loops = clampText(popSiteForm.value.local_loops);
         hasAnyField = true;
     }
     if (popSiteForm.value.routers.trim() !== '') {
-        res.routers = popSiteForm.value.routers;
+        res.routers = clampText(popSiteForm.value.routers);
         hasAnyField = true;
     }
     if (popSiteForm.value.cpe_indoor.trim() !== '') {
-        res.cpe_indoor = popSiteForm.value.cpe_indoor;
+        res.cpe_indoor = clampText(popSiteForm.value.cpe_indoor);
         hasAnyField = true;
     }
     if (popSiteForm.value.cpe_outdoor.trim() !== '') {
-        res.cpe_outdoor = popSiteForm.value.cpe_outdoor;
+        res.cpe_outdoor = clampText(popSiteForm.value.cpe_outdoor);
         hasAnyField = true;
     }
 
@@ -267,17 +348,17 @@ function buildPopSitePayload(): PopSiteBlock | null | undefined {
 }
 
 function getDraftPayload(): ActivationDraftFields {
-    const payload: ActivationDraftFields = {
-        ...props.modelValue,
-    };
+    // F-23-1: explicit allowlist of fields owned by this section.
+    // Never echo unowned / orphan keys from props.modelValue.
+    const payload: ActivationDraftFields = {};
 
     const direct = buildDirectSitePayload();
-    if (directSiteState.value !== 'unmodified' || direct !== undefined) {
+    if (direct !== undefined) {
         payload.direct_site = direct;
     }
 
     const pop = buildPopSitePayload();
-    if (popSiteState.value !== 'unmodified' || pop !== undefined) {
+    if (pop !== undefined) {
         payload.pop_site = pop;
     }
 
@@ -330,6 +411,14 @@ function clearPopSite() {
 function validateSubmit(): boolean {
     const errs: Record<string, string> = {};
 
+    // F-23-2: fail closed when the section is not interactive
+    if (props.readonly || props.disabled) {
+        errs['form'] = 'Form is readonly or disabled';
+        errors.value = errs;
+        emit('submit-invalid', errs);
+        return false;
+    }
+
     // Direct Site validations
     if (directSiteState.value === 'active') {
         // String fields max 255
@@ -356,7 +445,7 @@ function validateSubmit(): boolean {
         // RSSI: numeric if entered, no invented range
         if (directSiteForm.value.rssi.trim() !== '') {
             const val = Number(directSiteForm.value.rssi.trim());
-            if (isNaN(val)) {
+            if (!Number.isFinite(val)) {
                 errs['direct_site_rssi'] = 'RSSI must be a valid number';
             }
         }
@@ -364,7 +453,7 @@ function validateSubmit(): boolean {
         // Latency: >= 0 ms
         if (directSiteForm.value.latency_ms.trim() !== '') {
             const val = Number(directSiteForm.value.latency_ms.trim());
-            if (isNaN(val) || val < 0) {
+            if (!Number.isFinite(val) || val < 0) {
                 errs['direct_site_latency_ms'] = 'Latency must be greater than or equal to 0 ms';
             }
         }
@@ -372,7 +461,7 @@ function validateSubmit(): boolean {
         // Packet Loss: 0..100 %
         if (directSiteForm.value.packet_loss_percent.trim() !== '') {
             const val = Number(directSiteForm.value.packet_loss_percent.trim());
-            if (isNaN(val) || val < 0 || val > 100) {
+            if (!Number.isFinite(val) || val < 0 || val > 100) {
                 errs['direct_site_packet_loss_percent'] = 'Packet loss must be between 0% and 100%';
             }
         }
@@ -400,7 +489,7 @@ function validateSubmit(): boolean {
         // VLAN ID: integer 1..4094
         if (popSiteForm.value.vlan_id.trim() !== '') {
             const val = Number(popSiteForm.value.vlan_id.trim());
-            if (isNaN(val) || !Number.isInteger(val) || val < 1 || val > 4094) {
+            if (!Number.isFinite(val) || !Number.isInteger(val) || val < 1 || val > 4094) {
                 errs['pop_site_vlan_id'] = 'VLAN ID must be an integer between 1 and 4094';
             }
         }
@@ -454,7 +543,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. Local Loop #1"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="direct-site-local_loops"
@@ -469,7 +558,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. Fiber Optic 100m"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="direct-site-lastmile"
@@ -484,7 +573,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="Broadband Wireless Access"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="direct-site-bwa"
@@ -503,7 +592,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. Tower Monopole 30m"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="direct-site-antenna_tower"
@@ -518,7 +607,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. 270 deg Azimuth"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="direct-site-direction"
@@ -603,7 +692,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. Cisco ISR 4331"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="direct-site-routers"
@@ -618,7 +707,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. APC Smart-UPS 3000VA"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="direct-site-ups"
@@ -633,7 +722,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. Matsunaga 5000W"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="direct-site-stabilizer"
@@ -648,7 +737,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. Cat6 UTP + Drop Core"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="direct-site-cable"
@@ -691,7 +780,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. Cisco Catalyst 3850"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="pop-site-switch_distribution"
@@ -706,7 +795,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. Te1/0/24"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="pop-site-port"
@@ -735,7 +824,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. Metro-E Ring 2"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="pop-site-local_loops"
@@ -750,7 +839,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. MikroTik CCR1036"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="pop-site-routers"
@@ -765,7 +854,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. Huawei HG8245H5"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="pop-site-cpe_indoor"
@@ -780,7 +869,7 @@ defineExpose({
                         type="text"
                         class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                         placeholder="e.g. Cambium ePMP 3000"
-                        maxlength="256"
+                        maxlength="255"
                         :disabled="disabled"
                         :readonly="readonly"
                         data-testid="pop-site-cpe_outdoor"
@@ -791,6 +880,16 @@ defineExpose({
         </div>
 
         <!-- Hidden validation trigger button for test runner / form submit -->
-        <button type="button" class="hidden" data-testid="validate-submit-btn" @click="validateSubmit">Validate</button>
+        <button
+            type="button"
+            class="hidden"
+            data-testid="validate-submit-btn"
+            tabindex="-1"
+            aria-hidden="true"
+            :disabled="disabled || readonly"
+            @click="validateSubmit"
+        >
+            Validate
+        </button>
     </section>
 </template>
