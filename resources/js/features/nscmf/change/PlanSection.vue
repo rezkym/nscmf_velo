@@ -95,22 +95,34 @@ watch(
 );
 
 function notifyUpdate() {
+    const rawVal = monitoringPeriodValue.value;
+    const num =
+        rawVal !== null && rawVal !== undefined && (rawVal as unknown) !== '' && !Number.isNaN(Number(rawVal))
+            ? Number(rawVal)
+            : null;
+    const safeFiniteVal = num !== null && Number.isFinite(num) ? num : null;
+
+    const rawUnit = monitoringPeriodUnit.value;
+    const safeUnit =
+        typeof rawUnit === 'string' && (MONITORING_UNITS as readonly unknown[]).includes(rawUnit) ? rawUnit : null;
+
+    const rawTiming = announcementTiming.value;
+    const validTimings = ANNOUNCEMENT_TIMINGS.map((t) => t.value) as readonly unknown[];
+    const safeTiming = typeof rawTiming === 'string' && validTimings.includes(rawTiming) ? rawTiming : null;
+
     emit('update:modelValue', {
         improvement_items: improvementItems.value.map((item, idx) => ({
             row_no: item.row_no || idx + 1,
-            plan_text: typeof item.plan_text === 'string' && item.plan_text.trim() ? item.plan_text : null,
-            target_kpi: typeof item.target_kpi === 'string' && item.target_kpi.trim() ? item.target_kpi : null,
+            plan_text:
+                typeof item.plan_text === 'string' && item.plan_text.trim() ? item.plan_text.slice(0, 1000) : null,
+            target_kpi:
+                typeof item.target_kpi === 'string' && item.target_kpi.trim() ? item.target_kpi.slice(0, 1000) : null,
         })),
         target_execution_date: targetExecutionDate.value.trim() ? targetExecutionDate.value : null,
-        monitoring_period_value:
-            monitoringPeriodValue.value !== null &&
-            monitoringPeriodValue.value !== undefined &&
-            !Number.isNaN(monitoringPeriodValue.value)
-                ? Number(monitoringPeriodValue.value)
-                : null,
-        monitoring_period_unit: monitoringPeriodUnit.value || null,
-        rollback_scenario: rollbackScenario.value.trim() ? rollbackScenario.value : null,
-        announcement_timing: announcementTiming.value || null,
+        monitoring_period_value: safeFiniteVal,
+        monitoring_period_unit: safeUnit,
+        rollback_scenario: rollbackScenario.value.trim() ? rollbackScenario.value.slice(0, 4000) : null,
+        announcement_timing: safeTiming,
         record_version: props.modelValue?.record_version ?? 1,
     });
 }
@@ -153,6 +165,14 @@ const announcementWarning = computed<string | null>(() => {
 
 function validateSubmit(): boolean {
     const newErrors: Record<string, string> = {};
+
+    // F-25-2: Gate submit for readonly or disabled (fail closed)
+    if (props.readonly || props.disabled) {
+        newErrors.form = 'Form is readonly or disabled';
+        errors.value = newErrors;
+        emit('validate', newErrors);
+        return false;
+    }
 
     // AC1: Improvement items complete pairs validation at submit
     let completeCount = 0;
@@ -212,21 +232,35 @@ function validateSubmit(): boolean {
     }
 
     // AC3: Monitoring Period pair validation
-    const hasValue =
-        monitoringPeriodValue.value !== null &&
-        monitoringPeriodValue.value !== undefined &&
-        !Number.isNaN(monitoringPeriodValue.value);
-    const hasUnit = !!monitoringPeriodUnit.value;
+    const rawVal = monitoringPeriodValue.value;
+    const isValSet = rawVal !== null && rawVal !== undefined && (rawVal as unknown) !== '';
+    const num = isValSet ? Number(rawVal) : null;
+    const isFiniteNum = num !== null && !Number.isNaN(num) && Number.isFinite(num);
 
-    if (hasValue && !hasUnit) {
+    const rawUnit = monitoringPeriodUnit.value;
+    const isUnitSet = typeof rawUnit === 'string' && rawUnit.trim() !== '';
+    const isValidUnit = isUnitSet && (MONITORING_UNITS as readonly string[]).includes(rawUnit);
+
+    if (isUnitSet && !isValidUnit) {
+        newErrors.monitoring_period_unit = `Invalid monitoring period unit: ${rawUnit}`;
+    }
+
+    if (isValSet && !isFiniteNum) {
+        newErrors.monitoring_period = 'Monitoring period value must be a finite number greater than 0';
+    } else if (isValSet && isFiniteNum && num <= 0) {
+        newErrors.monitoring_period = 'Monitoring period value must be greater than 0';
+    } else if (isValSet && isFiniteNum && num > 999999) {
+        newErrors.monitoring_period = 'Monitoring period value must not exceed 999999';
+    }
+
+    const hasValue = isValSet && isFiniteNum && num > 0 && num <= 999999;
+    const hasUnit = isUnitSet && isValidUnit;
+
+    if (isValSet && !isUnitSet) {
         newErrors.monitoring_period = 'Monitoring period value and unit must be provided together or both empty';
-    } else if (!hasValue && hasUnit) {
+    } else if (!isValSet && isUnitSet) {
         newErrors.monitoring_period = 'Monitoring period value and unit must be provided together or both empty';
-    } else if (hasValue && hasUnit) {
-        if (Number(monitoringPeriodValue.value) <= 0) {
-            newErrors.monitoring_period = 'Monitoring period value must be greater than 0';
-        }
-    } else {
+    } else if (!isValSet && !isUnitSet) {
         // Both empty: at submit stage, 06 §41 requires monitoring period
         newErrors.monitoring_period = 'Monitoring period is required at submit';
     }
@@ -241,9 +275,13 @@ function validateSubmit(): boolean {
         newErrors.rollback_scenario = 'Rollback scenario must not exceed 4000 characters';
     }
 
-    // Announcement timing required at submit
-    if (!announcementTiming.value) {
+    // Announcement timing required at submit (F-25-4 closed-set validation)
+    const rawTiming = announcementTiming.value;
+    const validTimings = ANNOUNCEMENT_TIMINGS.map((t) => t.value) as readonly string[];
+    if (!rawTiming) {
         newErrors.announcement_timing = 'Announcement timing is required';
+    } else if (!validTimings.includes(rawTiming)) {
+        newErrors.announcement_timing = `Invalid announcement timing: ${String(rawTiming)}`;
     }
 
     errors.value = newErrors;
@@ -253,24 +291,38 @@ function validateSubmit(): boolean {
 
 // Method to get wire draft payload using buildDraftPayload helper from draftPayload.ts
 function getDraftPayload(): ChangeDraftWirePayload['change'] {
+    const rawVal = monitoringPeriodValue.value;
+    const num =
+        rawVal !== null && rawVal !== undefined && (rawVal as unknown) !== '' && !Number.isNaN(Number(rawVal))
+            ? Number(rawVal)
+            : null;
+    const safeFiniteVal = num !== null && Number.isFinite(num) ? num : null;
+
+    const rawUnit = monitoringPeriodUnit.value;
+    const safeUnit =
+        typeof rawUnit === 'string' && (MONITORING_UNITS as readonly unknown[]).includes(rawUnit) ? rawUnit : null;
+
+    const rawTiming = announcementTiming.value;
+    const validTimings = ANNOUNCEMENT_TIMINGS.map((t) => t.value) as readonly unknown[];
+    const safeTiming = typeof rawTiming === 'string' && validTimings.includes(rawTiming) ? rawTiming : null;
+
     const payload = buildDraftPayload({
         family: 'CHANGE',
         record_version: props.modelValue?.record_version ?? 1,
         change: {
             target_execution_date: targetExecutionDate.value.trim() ? targetExecutionDate.value : null,
-            monitoring_period_value:
-                monitoringPeriodValue.value !== null &&
-                monitoringPeriodValue.value !== undefined &&
-                !Number.isNaN(monitoringPeriodValue.value)
-                    ? Number(monitoringPeriodValue.value)
-                    : null,
-            monitoring_period_unit: monitoringPeriodUnit.value || null,
-            rollback_scenario: rollbackScenario.value.trim() ? rollbackScenario.value : null,
-            announcement_timing: announcementTiming.value || null,
+            monitoring_period_value: safeFiniteVal,
+            monitoring_period_unit: safeUnit,
+            rollback_scenario: rollbackScenario.value.trim() ? rollbackScenario.value.slice(0, 4000) : null,
+            announcement_timing: safeTiming,
             improvement_items: improvementItems.value.map((item, idx) => ({
                 row_no: item.row_no || idx + 1,
-                plan_text: typeof item.plan_text === 'string' && item.plan_text.trim() ? item.plan_text : null,
-                target_kpi: typeof item.target_kpi === 'string' && item.target_kpi.trim() ? item.target_kpi : null,
+                plan_text:
+                    typeof item.plan_text === 'string' && item.plan_text.trim() ? item.plan_text.slice(0, 1000) : null,
+                target_kpi:
+                    typeof item.target_kpi === 'string' && item.target_kpi.trim()
+                        ? item.target_kpi.slice(0, 1000)
+                        : null,
             })),
         },
     });
@@ -300,7 +352,15 @@ defineExpose({
                 </p>
             </div>
             <!-- Test trigger button for submit validation -->
-            <button type="button" data-testid="validate-submit-btn" class="hidden" @click="validateSubmit">
+            <button
+                type="button"
+                data-testid="validate-submit-btn"
+                class="hidden"
+                tabindex="-1"
+                aria-hidden="true"
+                :disabled="disabled || readonly"
+                @click="validateSubmit"
+            >
                 Validate Submit
             </button>
         </div>
@@ -362,6 +422,7 @@ defineExpose({
                             <textarea
                                 v-model="item.plan_text"
                                 rows="2"
+                                maxlength="1000"
                                 :disabled="disabled || readonly"
                                 class="w-full text-xs rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                                 placeholder="Describe the improvement plan..."
@@ -382,6 +443,7 @@ defineExpose({
                             <textarea
                                 v-model="item.target_kpi"
                                 rows="2"
+                                maxlength="1000"
                                 :disabled="disabled || readonly"
                                 class="w-full text-xs rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                                 placeholder="e.g. Error rate 0 selama monitoring..."
@@ -470,6 +532,7 @@ defineExpose({
             <textarea
                 v-model="rollbackScenario"
                 rows="3"
+                maxlength="4000"
                 :disabled="disabled || readonly"
                 class="w-full text-xs rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                 placeholder="Detail the rollback procedure..."
