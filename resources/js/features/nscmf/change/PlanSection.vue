@@ -104,12 +104,18 @@ function hasLoneSurrogate(val: string): boolean {
     return /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(val);
 }
 
+// Helper to sanitize lone surrogates in string while preserving valid characters
+function sanitizeSurrogates(val: string): string {
+    return val.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
+}
+
 // Helper to clamp string only when necessary or contains lone surrogate (N-25-1, N-25-3)
 function safeClamp(val: string, max: number): string {
-    if ([...val].length > max || hasLoneSurrogate(val)) {
-        return truncateCodePoints(val, max);
+    const sanitized = hasLoneSurrogate(val) ? sanitizeSurrogates(val) : val;
+    if ([...sanitized].length > max) {
+        return truncateCodePoints(sanitized, max);
     }
-    return val;
+    return sanitized;
 }
 
 function notifyUpdate() {
@@ -119,36 +125,46 @@ function notifyUpdate() {
             ? Number(rawVal)
             : null;
     const isFiniteVal = num !== null && Number.isFinite(num) && num > 0 && num <= 999999;
+    const safeFiniteVal = isFiniteVal ? num : null;
 
     const rawUnit = monitoringPeriodUnit.value;
-    const isValidUnit =
-        typeof rawUnit === 'string' && (MONITORING_UNITS as readonly unknown[]).includes(rawUnit);
-
-    // N-25-2 / 06 §41 / 11 §24 / 12 §28.2: Pairing invariant - together or both null on wire
-    const paired = isFiniteVal && isValidUnit;
-    const safeFiniteVal = paired ? num : null;
-    const safeUnit = paired ? rawUnit : null;
+    const isValidUnit = typeof rawUnit === 'string' && (MONITORING_UNITS as readonly unknown[]).includes(rawUnit);
+    const safeUnit = isValidUnit ? rawUnit : null;
 
     const rawTiming = announcementTiming.value;
     const validTimings = ANNOUNCEMENT_TIMINGS.map((t) => t.value) as readonly unknown[];
     const safeTiming = typeof rawTiming === 'string' && validTimings.includes(rawTiming) ? rawTiming : null;
 
+    // Length validation for text fields
+    improvementItems.value.forEach((item, i) => {
+        const rowNo = item.row_no || i + 1;
+        if (item.plan_text && [...item.plan_text].length > 1000) {
+            errors.value[`plan_text_${rowNo}`] = 'Plan text must not exceed 1000 characters';
+        } else {
+            delete errors.value[`plan_text_${rowNo}`];
+        }
+        if (item.target_kpi && [...item.target_kpi].length > 1000) {
+            errors.value[`target_kpi_${rowNo}`] = 'Target KPI must not exceed 1000 characters';
+        } else {
+            delete errors.value[`target_kpi_${rowNo}`];
+        }
+    });
+    if (rollbackScenario.value && [...rollbackScenario.value].length > 4000) {
+        errors.value.rollback_scenario = 'Rollback scenario must not exceed 4000 characters';
+    } else {
+        delete errors.value.rollback_scenario;
+    }
+
     emit('update:modelValue', {
         improvement_items: improvementItems.value.map((item, idx) => ({
             row_no: item.row_no || idx + 1,
-            plan_text:
-                typeof item.plan_text === 'string' && item.plan_text.trim()
-                    ? safeClamp(item.plan_text, 1000)
-                    : null,
-            target_kpi:
-                typeof item.target_kpi === 'string' && item.target_kpi.trim()
-                    ? safeClamp(item.target_kpi, 1000)
-                    : null,
+            plan_text: typeof item.plan_text === 'string' && item.plan_text.trim() ? item.plan_text : null,
+            target_kpi: typeof item.target_kpi === 'string' && item.target_kpi.trim() ? item.target_kpi : null,
         })),
         target_execution_date: targetExecutionDate.value.trim() ? targetExecutionDate.value : null,
         monitoring_period_value: safeFiniteVal,
         monitoring_period_unit: safeUnit,
-        rollback_scenario: rollbackScenario.value.trim() ? safeClamp(rollbackScenario.value, 4000) : null,
+        rollback_scenario: rollbackScenario.value.trim() ? rollbackScenario.value : null,
         announcement_timing: safeTiming,
         record_version: props.modelValue?.record_version ?? 1,
     });
@@ -326,8 +342,7 @@ function getDraftPayload(): ChangeDraftWirePayload['change'] {
     const isFiniteVal = num !== null && Number.isFinite(num) && num > 0 && num <= 999999;
 
     const rawUnit = monitoringPeriodUnit.value;
-    const isValidUnit =
-        typeof rawUnit === 'string' && (MONITORING_UNITS as readonly unknown[]).includes(rawUnit);
+    const isValidUnit = typeof rawUnit === 'string' && (MONITORING_UNITS as readonly unknown[]).includes(rawUnit);
 
     // N-25-2 / 06 §41 / 11 §24 / 12 §28.2: Pairing invariant - together or both null on wire
     const paired = isFiniteVal && isValidUnit;
