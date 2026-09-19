@@ -1239,6 +1239,173 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                 expect(wrapperCodePoints.vm.errors['target_kpi_1']).toBeUndefined();
                 expect(wrapperCodePoints.vm.errors['rollback_scenario']).toBeUndefined();
             });
+
+            it('N-25-11 & N-25-12: emission is surrogate-safe without truncation under prop-echoing parent, and notifyUpdate length mutants are pinned', async () => {
+                // Section 1: N-25-11 3-clause discriminating regression test under live prop-echoing parent
+                let parentModelValue: PlanSectionModelValue = {
+                    improvement_items: [
+                        {
+                            row_no: 1,
+                            plan_text: 'abc\uD800def',
+                            target_kpi: 'kpi\uDC00safe',
+                        },
+                    ],
+                    target_execution_date: '2026-10-01',
+                    monitoring_period_value: 2,
+                    monitoring_period_unit: 'HOUR',
+                    rollback_scenario: 'rollback\uDBFFtest',
+                    announcement_timing: 'ONE_WEEK_BEFORE',
+                    record_version: 1,
+                };
+
+                let lastEmitted: PlanSectionModelValue | null = null;
+                const wrapper = mount(PlanSection, {
+                    props: {
+                        todayJakarta: '2026-09-20',
+                        modelValue: parentModelValue,
+                        'onUpdate:modelValue': async (val: PlanSectionModelValue) => {
+                            lastEmitted = { ...val };
+                            parentModelValue = { ...val };
+                            await wrapper.setProps({ modelValue: parentModelValue });
+                        },
+                    },
+                });
+
+                // Clause 1: a prop-supplied lone surrogate ends with NO lone surrogate in emitted object,
+                // NO lone surrogate in parent state, and JSON.parse/stringify succeeds
+                const amountInput = wrapper.find('input[type="number"]');
+                await amountInput.setValue('3'); // triggers notifyUpdate -> emit update:modelValue
+
+                expect(lastEmitted).not.toBeNull();
+                const emittedNonNull = lastEmitted as unknown as PlanSectionModelValue;
+                const emittedPlan = emittedNonNull.improvement_items?.[0]?.plan_text;
+                const emittedKpi = emittedNonNull.improvement_items?.[0]?.target_kpi;
+                const emittedRollback = emittedNonNull.rollback_scenario;
+
+                expect(emittedPlan).toBe('abcdef');
+                expect(emittedKpi).toBe('kpisafe');
+                expect(emittedRollback).toBe('rollbacktest');
+
+                expect(LONE_SURROGATE_REGEX.test(emittedPlan ?? '')).toBe(false);
+                expect(LONE_SURROGATE_REGEX.test(emittedKpi ?? '')).toBe(false);
+                expect(LONE_SURROGATE_REGEX.test(emittedRollback ?? '')).toBe(false);
+
+                // Parent state must also have no lone surrogates
+                const parentPlan = parentModelValue.improvement_items?.[0]?.plan_text;
+                const parentKpi = parentModelValue.improvement_items?.[0]?.target_kpi;
+                const parentRollback = parentModelValue.rollback_scenario;
+                expect(LONE_SURROGATE_REGEX.test(parentPlan ?? '')).toBe(false);
+                expect(LONE_SURROGATE_REGEX.test(parentKpi ?? '')).toBe(false);
+                expect(LONE_SURROGATE_REGEX.test(parentRollback ?? '')).toBe(false);
+
+                // JSON.parse of parent committed draft succeeds (strict JSON safe)
+                const stringifiedDraft = JSON.stringify(parentModelValue);
+                expect(() => JSON.parse(stringifiedDraft)).not.toThrow();
+                expect(stringifiedDraft).not.toContain('\\ud800');
+                expect(stringifiedDraft).not.toContain('\\udc00');
+                expect(stringifiedDraft).not.toContain('\\udbff');
+
+                // Clause 2: a well-formed 1005-code-point value is NOT truncated in the emission,
+                // while remaining clamped to 1000 in the wire object
+                const longPlan1005 = 'p'.repeat(1005);
+                const planTextarea = wrapper.find('textarea[placeholder*="Describe the improvement plan"]');
+                await planTextarea.setValue(longPlan1005);
+
+                const emittedAfterPlan = lastEmitted as unknown as PlanSectionModelValue;
+                expect(emittedAfterPlan.improvement_items?.[0]?.plan_text).toBe(longPlan1005);
+                expect(emittedAfterPlan.improvement_items?.[0]?.plan_text?.length).toBe(1005);
+                // Wire object remains clamped to 1000
+                const wirePayload = wrapper.vm.getDraftPayload() as {
+                    improvement_items?: Array<{ plan_text?: string | null; target_kpi?: string | null }>;
+                };
+                expect(wirePayload.improvement_items?.[0]?.plan_text?.length).toBe(1000);
+                expect(wirePayload.improvement_items?.[0]?.plan_text).toBe('p'.repeat(1000));
+
+                // Clause 3: astral fixture where characters != code units ('a'.repeat(999) + '😀'.repeat(10)),
+                // asserted with explicit surrogate-well-formedness check
+                // 999 + 10 = 1009 code points, 999 + 20 = 1019 UTF-16 code units
+                const astralFixture = 'a'.repeat(999) + '😀'.repeat(10);
+                await planTextarea.setValue(astralFixture);
+                const emittedAfterAstral = lastEmitted as unknown as PlanSectionModelValue;
+                const emittedAstralPlan = emittedAfterAstral.improvement_items?.[0]?.plan_text;
+                expect(emittedAstralPlan).toBe(astralFixture);
+                expect([...(emittedAstralPlan ?? '')].length).toBe(1009);
+                expect(emittedAstralPlan?.length).toBe(1019);
+                // Explicit surrogate well-formedness: no lone surrogates
+                expect(LONE_SURROGATE_REGEX.test(emittedAstralPlan ?? '')).toBe(false);
+
+                // Wire object clamps to 1000 code points without corrupting astral pairs
+                const wireAstral = wrapper.vm.getDraftPayload() as {
+                    improvement_items?: Array<{ plan_text?: string | null; target_kpi?: string | null }>;
+                };
+                const wireAstralPlan = wireAstral.improvement_items?.[0]?.plan_text;
+                expect([...(wireAstralPlan ?? '')].length).toBe(1000);
+                expect(wireAstralPlan).toBe('a'.repeat(999) + '😀');
+                expect(LONE_SURROGATE_REGEX.test(wireAstralPlan ?? '')).toBe(false);
+
+                // Section 2: N-25-12 discriminating assertions for notifyUpdate length blocks & mutants
+                // 1) Test notifyUpdate error setting & clearing for plan_text, target_kpi, and rollback_scenario
+                // When exact 1000 code points with 1001 UTF-16 code units (astral), notifyUpdate must NOT set error
+                // (kills N7-validator-cp-NOTIFY & N7-kpi-NOTIFY)
+                const exact1000Cp = 'x'.repeat(999) + '🎉'; // 1000 code points, 1001 code units
+                const exact4000Cp = 'y'.repeat(3999) + '🔥'; // 4000 code points, 4001 code units ('🔥' is single astral code point U+1F525)
+                await planTextarea.setValue(exact1000Cp);
+                expect(wrapper.vm.errors['plan_text_1']).toBeUndefined();
+
+                const kpiInput = wrapper.find('textarea[placeholder*="Error rate 0"]');
+                await kpiInput.setValue(exact1000Cp);
+                expect(wrapper.vm.errors['target_kpi_1']).toBeUndefined();
+
+                // When 1001 code points, target_kpi notifyUpdate must set error
+                await kpiInput.setValue('k'.repeat(1001));
+                expect(wrapper.vm.errors['target_kpi_1']).toBe('Target KPI must not exceed 1000 characters');
+                // When reduced back, clear error
+                await kpiInput.setValue('Valid KPI');
+                expect(wrapper.vm.errors['target_kpi_1']).toBeUndefined();
+
+                const rollbackTextarea = wrapper.find('textarea[placeholder*="Detail the rollback procedure"]');
+                await rollbackTextarea.setValue(exact4000Cp);
+                expect(wrapper.vm.errors['rollback_scenario']).toBeUndefined();
+
+                // When 1001 code points, notifyUpdate must set the error (kills N6-lenerr-plan, N6-lenerr-rb)
+                await planTextarea.setValue('x'.repeat(1001));
+                expect(wrapper.vm.errors['plan_text_1']).toBe('Plan text must not exceed 1000 characters');
+                // When reduced back to <= 1000, notifyUpdate must delete error (exercises else branch)
+                await planTextarea.setValue('x'.repeat(100));
+                expect(wrapper.vm.errors['plan_text_1']).toBeUndefined();
+
+                // Rollback: when 4001 code points, notifyUpdate sets error
+                await rollbackTextarea.setValue('y'.repeat(4001));
+                expect(wrapper.vm.errors['rollback_scenario']).toBe(
+                    'Rollback scenario must not exceed 4000 characters',
+                );
+                // When reduced back to <= 4000, notifyUpdate deletes error (exercises line 153-156)
+                await rollbackTextarea.setValue('Valid rollback scenario');
+                expect(wrapper.vm.errors['rollback_scenario']).toBeUndefined();
+
+                // Test null/undefined/empty string branch of sanitizeEmitString
+                await wrapper.setProps({
+                    modelValue: {
+                        improvement_items: [
+                            {
+                                row_no: 1,
+                                plan_text: null,
+                                target_kpi: undefined,
+                            },
+                        ],
+                        target_execution_date: '2026-10-01',
+                        monitoring_period_value: 2,
+                        monitoring_period_unit: 'HOUR',
+                        rollback_scenario: null,
+                        announcement_timing: 'ONE_WEEK_BEFORE',
+                    },
+                });
+                await amountInput.setValue('4');
+                const emittedNulls = lastEmitted as unknown as PlanSectionModelValue;
+                expect(emittedNulls.improvement_items?.[0]?.plan_text).toBeNull();
+                expect(emittedNulls.improvement_items?.[0]?.target_kpi).toBeNull();
+                expect(emittedNulls.rollback_scenario).toBeNull();
+            });
         });
     });
 });
