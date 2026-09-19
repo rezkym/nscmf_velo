@@ -33,7 +33,9 @@ const roles = [
 ];
 
 function mountSetup(readiness: Partial<SetupReadiness> = {}): VueWrapper {
-    resetInertia({ auth: { user: { id: 1, username: 'superadmin', name: 'Admin' }, permissions: SUPERADMIN_PERMISSIONS } });
+    resetInertia({
+        auth: { user: { id: 1, username: 'superadmin', name: 'Admin' }, permissions: SUPERADMIN_PERMISSIONS },
+    });
     return mount(Setup, {
         props: {
             readiness: { ...NOTHING_CONFIGURED, ...readiness },
@@ -110,7 +112,9 @@ describe('Initial setup wizard (FE-15)', () => {
     it('reuses the team and user administration forms in their steps', () => {
         expect(mountSetup({ roles_configured: true }).find('[data-testid="create-team-btn"]').exists()).toBe(true);
         expect(
-            mountSetup({ roles_configured: true, teams_configured: true }).find('[data-testid="btn-create-user"]').exists(),
+            mountSetup({ roles_configured: true, teams_configured: true })
+                .find('[data-testid="btn-create-user"]')
+                .exists(),
         ).toBe(true);
     });
 
@@ -131,7 +135,12 @@ describe('Initial setup wizard (FE-15)', () => {
         await wrapper.get('[data-testid="btn-dismiss-credential"]').trigger('click');
 
         await wrapper.setProps({
-            readiness: { ...NOTHING_CONFIGURED, roles_configured: true, teams_configured: true, users_configured: true },
+            readiness: {
+                ...NOTHING_CONFIGURED,
+                roles_configured: true,
+                teams_configured: true,
+                users_configured: true,
+            },
         });
         await wrapper.get('[data-testid="btn-next-step"]').trigger('click');
         expect(wrapper.text()).not.toContain('test-only-secret');
