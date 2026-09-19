@@ -105,26 +105,34 @@ function syncFromProps(val: ActivationDraftFields) {
     }
 
     // Sync SLAs
-    if (val.sla_items && Array.isArray(val.sla_items) && val.sla_items.length > 0) {
+    if (val?.sla_items && Array.isArray(val.sla_items) && val.sla_items.length > 0) {
         const validRows = val.sla_items.filter((item): item is SlaItemRow => Boolean(item && typeof item === 'object'));
         const sorted = [...validRows].sort((a, b) => (a.row_no ?? 0) - (b.row_no ?? 0));
         slaItems.value = sorted.slice(0, 3).map((item) => ({
             id: nextSlaId++,
-            text: item.requirement_text ?? '',
+            text: typeof item.requirement_text === 'string'
+                ? item.requirement_text
+                : item.requirement_text != null
+                    ? String(item.requirement_text)
+                    : '',
         }));
     } else {
         slaItems.value = [];
     }
 
     // Sync Priority Destinations
-    if (val.priority_destinations && Array.isArray(val.priority_destinations) && val.priority_destinations.length > 0) {
+    if (val?.priority_destinations && Array.isArray(val.priority_destinations) && val.priority_destinations.length > 0) {
         const validRows = val.priority_destinations.filter(
             (item): item is PriorityDestinationRow => Boolean(item && typeof item === 'object'),
         );
         const sorted = [...validRows].sort((a, b) => (a.row_no ?? 0) - (b.row_no ?? 0));
         priorityDestinations.value = sorted.slice(0, 3).map((item) => ({
             id: nextDestId++,
-            text: item.destination ?? '',
+            text: typeof item.destination === 'string'
+                ? item.destination
+                : item.destination != null
+                    ? String(item.destination)
+                    : '',
         }));
     } else {
         priorityDestinations.value = [];
@@ -182,7 +190,7 @@ function buildPayload(): ActivationDraftFields {
             }
         }
     }
-    if (Object.hasOwn(props.modelValue, 'virtual_connections') || vcRows.length > 0) {
+    if (Object.hasOwn(props.modelValue ?? {}, 'virtual_connections') || vcRows.length > 0) {
         payload.virtual_connections = vcRows;
     } else {
         delete payload.virtual_connections;
@@ -192,13 +200,15 @@ function buildPayload(): ActivationDraftFields {
     const slaRows: SlaItemRow[] = [];
     let hasOverSla = false;
     slaItems.value.forEach((item) => {
-        if (item.text.trim() !== '') {
-            if (item.text.length > 1000) {
+        const str = String(item.text);
+        if (str.trim() !== '') {
+            const codePointCount = [...str].length;
+            if (codePointCount > 1000) {
                 hasOverSla = true;
             }
             slaRows.push({
                 row_no: slaRows.length + 1,
-                requirement_text: item.text.slice(0, 1000),
+                requirement_text: str,
             });
         }
     });
@@ -208,7 +218,7 @@ function buildPayload(): ActivationDraftFields {
         delete errors.value['sla_items'];
     }
 
-    if (Object.hasOwn(props.modelValue, 'sla_items') || slaRows.length > 0) {
+    if (Object.hasOwn(props.modelValue ?? {}, 'sla_items') || slaRows.length > 0) {
         payload.sla_items = slaRows;
     } else {
         delete payload.sla_items;
@@ -218,13 +228,15 @@ function buildPayload(): ActivationDraftFields {
     const destRows: PriorityDestinationRow[] = [];
     let hasOverPd = false;
     priorityDestinations.value.forEach((item) => {
-        if (item.text.trim() !== '') {
-            if (item.text.length > 255) {
+        const str = String(item.text);
+        if (str.trim() !== '') {
+            const codePointCount = [...str].length;
+            if (codePointCount > 255) {
                 hasOverPd = true;
             }
             destRows.push({
                 row_no: destRows.length + 1,
-                destination: item.text.slice(0, 255),
+                destination: str,
             });
         }
     });
@@ -234,7 +246,7 @@ function buildPayload(): ActivationDraftFields {
         delete errors.value['priority_destinations'];
     }
 
-    if (Object.hasOwn(props.modelValue, 'priority_destinations') || destRows.length > 0) {
+    if (Object.hasOwn(props.modelValue ?? {}, 'priority_destinations') || destRows.length > 0) {
         payload.priority_destinations = destRows;
     } else {
         delete payload.priority_destinations;
@@ -511,6 +523,14 @@ function validateSubmit() {
                     </button>
                 </div>
             </div>
+
+            <p
+                v-if="errors['sla_items']"
+                data-testid="error-sla-items"
+                class="text-xs text-destructive mt-2"
+            >
+                {{ errors['sla_items'] }}
+            </p>
         </div>
 
         <!-- Priority Destinations -->
@@ -568,6 +588,14 @@ function validateSubmit() {
                     </button>
                 </div>
             </div>
+
+            <p
+                v-if="errors['priority_destinations']"
+                data-testid="error-priority-destinations"
+                class="text-xs text-destructive mt-2"
+            >
+                {{ errors['priority_destinations'] }}
+            </p>
         </div>
 
         <!-- Hidden / Test submit trigger -->
