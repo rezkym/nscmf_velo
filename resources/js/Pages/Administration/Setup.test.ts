@@ -875,6 +875,84 @@ describe('FE-15: Initial Setup Wizard Composition', () => {
         expect(mockVisit).toHaveBeenCalledWith('/dashboard', undefined);
     });
 
+    // B-15-1: Wizard gates fail CLOSED without relying on client-side row counts
+    it('B-15-1 — wizard gates fail closed: readiness projection is the sole gate and does not allow advance via stale client rows', async () => {
+        // Step 1: roles_configured=false but 4 stale roles present -> Next button MUST be disabled
+        const wrapper = mount(Setup, {
+            props: {
+                ...defaultProps,
+                readiness: {
+                    roles_configured: false,
+                    teams_configured: false,
+                    users_configured: false,
+                    setup_completed: false,
+                    signing_ready: false,
+                },
+                roles: [
+                    { id: 1, name: 'Role 1', permissions: [] },
+                    { id: 2, name: 'Role 2', permissions: [] },
+                    { id: 3, name: 'Role 3', permissions: [] },
+                    { id: 4, name: 'Role 4', permissions: [] },
+                ],
+            },
+        });
+
+        expect(wrapper.find('[data-testid="step-role-setup"]').exists()).toBe(true);
+        const nextBtn = wrapper.find('[data-testid="btn-next-step"]');
+        expect(nextBtn.attributes('disabled')).toBeDefined();
+        await nextBtn.trigger('click');
+        expect(wrapper.find('[data-testid="step-role-setup"]').exists()).toBe(true);
+
+        // Step 2: advance to step 2 with roles_configured=true, but teams_configured=false with 1 inactive team
+        await wrapper.setProps({
+            readiness: {
+                roles_configured: true,
+                teams_configured: false,
+                users_configured: false,
+                setup_completed: false,
+                signing_ready: false,
+            },
+            teams: [{ id: 1, name: 'Stale Inactive Team', is_active: false }],
+        });
+        await nextTick();
+        await nextBtn.trigger('click');
+        await nextTick();
+        expect(wrapper.find('[data-testid="step-team-setup"]').exists()).toBe(true);
+        expect(nextBtn.attributes('disabled')).toBeDefined();
+        await nextBtn.trigger('click');
+        expect(wrapper.find('[data-testid="step-team-setup"]').exists()).toBe(true);
+
+        // Step 3: advance to step 3 with teams_configured=true, but users_configured=false
+        // Bootstrap flow: Protected superadmin row exists (users.length > 0)
+        await wrapper.setProps({
+            readiness: {
+                roles_configured: true,
+                teams_configured: true,
+                users_configured: false,
+                setup_completed: false,
+                signing_ready: false,
+            },
+            users: [
+                {
+                    id: 1,
+                    name: 'Protected Superadmin',
+                    username: 'superadmin',
+                    team_id: null,
+                    is_active: true,
+                    is_protected_superadmin: true,
+                    roles: [],
+                },
+            ],
+        });
+        await nextTick();
+        await nextBtn.trigger('click');
+        await nextTick();
+        expect(wrapper.find('[data-testid="step-users-setup"]').exists()).toBe(true);
+        expect(nextBtn.attributes('disabled')).toBeDefined();
+        await nextBtn.trigger('click');
+        expect(wrapper.find('[data-testid="step-users-setup"]').exists()).toBe(true);
+    });
+
     it('handles watch on props.readiness falling back when readiness resets', async () => {
         const wrapper = mount(Setup, {
             props: {
