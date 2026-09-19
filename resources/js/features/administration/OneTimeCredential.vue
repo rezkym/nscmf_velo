@@ -231,24 +231,27 @@ onBeforeUnmount(() => {
                 </div>
 
                 <!-- Warning Notice: Authority contract -->
-                <div class="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-2 text-xs text-amber-900 dark:text-amber-200">
+                <div
+                    class="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-2 text-xs text-amber-900 dark:text-amber-200"
+                >
                     <div class="flex items-center gap-2 font-semibold">
                         <AlertTriangle class="w-4 h-4 text-amber-600 shrink-0" />
                         <span>Pemberitahuan Keamanan Penting</span>
                     </div>
                     <ul class="list-disc pl-5 space-y-1 text-muted-foreground">
                         <li>
-                            Password sementara ini <strong>hanya ditampilkan tepat satu kali</strong> dan tidak dapat diambil atau ditampilkan kembali setelah dialog ini ditutup.
+                            Password sementara ini <strong>hanya ditampilkan tepat satu kali</strong> dan tidak dapat
+                            diambil atau ditampilkan kembali setelah dialog ini ditutup.
                         </li>
                         <li>
-                            Salurkan kredensial ini kepada pengguna terkait melalui <strong>kanal komunikasi internal yang aman</strong>.
+                            Salurkan kredensial ini kepada pengguna terkait melalui
+                            <strong>kanal komunikasi internal yang aman</strong>.
                         </li>
                         <li>
-                            Pengguna wajib mengganti password sementara ini saat pertama kali login sebelum dapat mengakses aplikasi normal.
+                            Pengguna wajib mengganti password sementara ini saat pertama kali login sebelum dapat
+                            mengakses aplikasi normal.
                         </li>
-                        <li>
-                            Kredensial ini tidak disimpan dalam log, audit trail, maupun detail profil pengguna.
-                        </li>
+                        <li>Kredensial ini tidak disimpan dalam log, audit trail, maupun detail profil pengguna.</li>
                     </ul>
                 </div>
             </div>
@@ -264,8 +267,9 @@ onBeforeUnmount(() => {
                     <span>Kredensial Tidak Tersedia</span>
                 </div>
                 <p class="text-xs text-muted-foreground leading-relaxed">
-                    Sesuai kebijakan keamanan, password sementara tidak disimpan dan tidak dapat ditampilkan ulang.
-                    Jika kredensial hilang atau belum tersalurkan, <strong>Lakukan reset password baru</strong> yang memerlukan re-autentikasi kata sandi administrator Anda.
+                    Sesuai kebijakan keamanan, password sementara tidak disimpan dan tidak dapat ditampilkan ulang. Jika
+                    kredensial hilang atau belum tersalurkan, <strong>Lakukan reset password baru</strong> yang
+                    memerlukan re-autentikasi kata sandi administrator Anda.
                 </p>
             </div>
 

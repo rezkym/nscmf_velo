@@ -364,7 +364,11 @@ describe('Index.vue (FE-11: Team Administration)', () => {
 
     it('covers confirmLifecycleAction and cancelLifecycleAction guards when lifecyclePending is true or pendingLifecycleTeam is null', async () => {
         let capturedOnFinish: (() => void) | undefined;
-        const routerPostSpy = vi.spyOn(router, 'post').mockImplementation(((_url: unknown, _data: unknown, options?: { onFinish?: () => void }) => {
+        const routerPostSpy = vi.spyOn(router, 'post').mockImplementation(((
+            _url: unknown,
+            _data: unknown,
+            options?: { onFinish?: () => void },
+        ) => {
             capturedOnFinish = options?.onFinish;
         }) as typeof router.post);
 
