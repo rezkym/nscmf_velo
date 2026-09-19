@@ -420,5 +420,79 @@ describe('FE-23: Activation Direct Site and POP Site (SiteSection.vue)', () => {
             expect(input.attributes('disabled')).toBeDefined();
             expect(input.attributes('readonly')).toBeDefined();
         });
+
+        it('handles direct_site / pop_site explicit undefined or empty input correctly', async () => {
+            // Test explicit undefined in props (covers branch direct_site !== undefined else path)
+            const wrapper = mount(SiteSection, {
+                props: {
+                    modelValue: {
+                        direct_site: undefined,
+                        pop_site: undefined,
+                    },
+                },
+            });
+            expect(wrapper.exists()).toBe(true);
+
+            // Test setting inputs directly (covers v-model input updates for all inputs)
+            const inputsToTest: Record<string, string> = {
+                'direct-site-local_loops': 'LL1',
+                'direct-site-lastmile': 'LM1',
+                'direct-site-bwa': 'BWA1',
+                'direct-site-antenna_tower': 'Tower1',
+                'direct-site-direction': 'Dir1',
+                'direct-site-routers': 'Router1',
+                'direct-site-ups': 'UPS1',
+                'direct-site-stabilizer': 'Stab1',
+                'direct-site-cable': 'Cable1',
+                'pop-site-switch_distribution': 'Switch1',
+                'pop-site-port': 'Port1',
+                'pop-site-local_loops': 'PopLL1',
+                'pop-site-routers': 'PopRouter1',
+                'pop-site-cpe_indoor': 'Indoor1',
+                'pop-site-cpe_outdoor': 'Outdoor1',
+            };
+
+            for (const [testId, val] of Object.entries(inputsToTest)) {
+                const el = wrapper.find(`[data-testid="${testId}"]`);
+                await el.setValue(val);
+            }
+
+            // Test invalid numeric values for latency, packet_loss, vlan to cover isNaN(n) ? null branch in payload builder
+            const latencyInput = wrapper.find('[data-testid="direct-site-latency_ms"]');
+            await latencyInput.setValue('invalid');
+            const lossInput = wrapper.find('[data-testid="direct-site-packet_loss_percent"]');
+            await lossInput.setValue('invalid');
+            const vlanInput = wrapper.find('[data-testid="pop-site-vlan_id"]');
+            await vlanInput.setValue('invalid');
+
+            const payloadWithInvalidNum = (
+                wrapper.vm as unknown as { getDraftPayload: () => ActivationDraftFields }
+            ).getDraftPayload();
+            expect(payloadWithInvalidNum.direct_site?.latency_ms).toBeNull();
+            expect(payloadWithInvalidNum.direct_site?.packet_loss_percent).toBeNull();
+            expect(payloadWithInvalidNum.pop_site?.vlan_id).toBeNull();
+
+            // Test clearing all fields to blank when active to cover !hasAnyField -> return null
+            for (const testId of Object.keys(inputsToTest)) {
+                await wrapper.find(`[data-testid="${testId}"]`).setValue('');
+            }
+            await latencyInput.setValue('');
+            await lossInput.setValue('');
+            await vlanInput.setValue('');
+
+            const clearedFieldsPayload = (
+                wrapper.vm as unknown as { getDraftPayload: () => ActivationDraftFields }
+            ).getDraftPayload();
+            expect(clearedFieldsPayload.direct_site).toBeNull();
+            expect(clearedFieldsPayload.pop_site).toBeNull();
+
+            // Test setting modelValue prop to undefined/null to cover if (val) false branch
+            // Note: withDefaults provides default {} if undefined is passed on mount or setProps,
+            // so pass null or undefined via wrapper.vm or wrapper.setProps({ modelValue: undefined as any })
+            await wrapper.setProps({
+                modelValue: null as unknown as ActivationDraftFields,
+            });
+            await wrapper.vm.$nextTick();
+        });
     });
 });
