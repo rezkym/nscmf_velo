@@ -10,7 +10,10 @@ vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inert
 
 function mountCreate(team: { id: number; name: string } | null = { id: 1, name: 'Demo Team Alpha' }): VueWrapper {
     resetInertia({
-        auth: { user: { id: 5, username: 'demo.requester.a', name: 'Demo Requester A', team }, permissions: ['nscmf.create'] },
+        auth: {
+            user: { id: 5, username: 'demo.requester.a', name: 'Demo Requester A', team },
+            permissions: ['nscmf.create'],
+        },
     });
     return mount(Create);
 }

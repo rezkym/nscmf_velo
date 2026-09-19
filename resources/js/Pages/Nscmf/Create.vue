@@ -1,233 +1,151 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
+import { useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
+import Alert from '@/components/ui/Alert.vue';
+import Button from '@/components/ui/Button.vue';
 import FormField from '@/components/ui/FormField.vue';
+import { usePermissions } from '@/composables/usePermissions';
+import {
+    FAMILY_LABELS,
+    type NscmfFamily,
+    type NscmfSubtype,
+    type NumberingMode,
+    SUBTYPE_LABELS,
+    SUBTYPES_BY_FAMILY,
+} from '@/features/nscmf/types';
+import AppLayout from '@/layouts/AppLayout.vue';
 
-withDefaults(
-    defineProps<{
-        hasActiveTeam?: boolean;
-    }>(),
-    {
-        hasActiveTeam: true,
-    },
-);
+// Manual request number rule (06 §19); the server re-validates and checks uniqueness.
+const MANUAL_REQUEST_NO = /^[A-Za-z0-9][A-Za-z0-9._/-]{2,63}$/;
 
-export type NscmfFamily = 'ACTIVATION' | 'CHANGE';
-export type ActivationSubtype = 'ACTIVATION' | 'UPGRADE_DOWNGRADE' | 'DEACTIVATION';
-export type ChangeSubtype = 'MAINTENANCE' | 'UPGRADE' | 'EMERGENCY';
-export type NscmfSubtype = ActivationSubtype | ChangeSubtype;
-export type NumberingMode = 'AUTOMATIC' | 'MANUAL';
+const INPUT_CLASS =
+    'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
 
-const ACTIVATION_SUBTYPES: { value: ActivationSubtype; label: string }[] = [
-    { value: 'ACTIVATION', label: 'Activation' },
-    { value: 'UPGRADE_DOWNGRADE', label: 'Upgrade / Downgrade' },
-    { value: 'DEACTIVATION', label: 'Deactivation' },
-];
-
-const CHANGE_SUBTYPES: { value: ChangeSubtype; label: string }[] = [
-    { value: 'MAINTENANCE', label: 'Maintenance' },
-    { value: 'UPGRADE', label: 'Upgrade' },
-    { value: 'EMERGENCY', label: 'Emergency' },
-];
+const { user } = usePermissions();
 
 const form = useForm({
     family: 'ACTIVATION' as NscmfFamily,
     subtype: 'ACTIVATION' as NscmfSubtype,
     numbering_mode: 'AUTOMATIC' as NumberingMode,
-    request_no: '',
+    request_no: null as string | null,
 });
 
-const clientError = ref<string | null>(null);
+const manualRequestNo = ref('');
+const requestNoProblem = ref<string | null>(null);
+const requestNoError = computed(() => requestNoProblem.value ?? form.errors.request_no);
 
-const availableSubtypes = computed(() => {
-    return form.family === 'ACTIVATION' ? ACTIVATION_SUBTYPES : CHANGE_SUBTYPES;
-});
-
-const requestNoError = computed(() => {
-    return clientError.value ?? (form.errors as Record<string, string | undefined>).request_no;
-});
-
-// Keep subtype synced when family changes
 watch(
     () => form.family,
-    (newFamily) => {
-        if (newFamily === 'ACTIVATION') {
-            form.subtype = 'ACTIVATION';
-        } else {
-            form.subtype = 'MAINTENANCE';
-        }
+    (family) => {
+        form.subtype = SUBTYPES_BY_FAMILY[family][0] ?? form.subtype;
     },
 );
 
-const MANUAL_REGEX = /^[A-Za-z0-9][A-Za-z0-9._/-]{2,63}$/;
-
 function submit(): void {
     if (form.processing) return;
-    clientError.value = null;
+    requestNoProblem.value = null;
 
     if (form.numbering_mode === 'MANUAL') {
-        const trimmed = form.request_no.trim();
-        if (trimmed.length < 3 || trimmed.length > 64) {
-            clientError.value = 'Request number must be between 3 and 64 characters.';
+        const requestNo = manualRequestNo.value.trim();
+        if (!MANUAL_REQUEST_NO.test(requestNo)) {
+            requestNoProblem.value =
+                'Use 3 to 64 characters: letters, numbers, dot, underscore, slash or dash, starting with a letter or number.';
             return;
         }
-        if (!MANUAL_REGEX.test(trimmed)) {
-            clientError.value =
-                'Request number must begin with alphanumeric and only contain alphanumeric, dot, underscore, dash, or slash.';
-            return;
-        }
-        form.request_no = trimmed;
+        form.request_no = requestNo;
     } else {
-        form.request_no = '';
+        form.request_no = null;
     }
 
-    form.post('/nscmf', {
-        preserveScroll: true,
-    });
+    form.post('/nscmf');
 }
 </script>
 
 <template>
-    <Head title="Create NSCMF" />
+    <AppLayout title="Create NSCMF">
+        <div class="mx-auto max-w-2xl space-y-6">
+            <div>
+                <h1 class="text-xl font-semibold text-foreground">Create NSCMF</h1>
+                <p class="text-sm text-muted-foreground">Choose the form type. The record starts as a draft.</p>
+            </div>
 
-    <div class="p-6 max-w-2xl mx-auto space-y-6">
-        <div>
-            <h1 class="text-2xl font-bold tracking-tight text-foreground">Create NSCMF</h1>
-            <p class="text-sm text-muted-foreground mt-1">
-                Initiate a new Network Service Change Management Form Draft.
-            </p>
-        </div>
+            <Alert v-if="!user?.team" variant="warning" title="Active team required">
+                You need an active team to create records. Contact an administrator.
+            </Alert>
 
-        <!-- Blocked user without active Team (AC4) -->
-        <div
-            v-if="!hasActiveTeam"
-            data-testid="no-active-team-alert"
-            class="p-4 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm"
-        >
-            <p class="font-medium">Active Team required</p>
-            <p class="mt-1">
-                You do not have an active organizational team assigned. Please contact administrator to be assigned to
-                an active team before creating records.
-            </p>
-        </div>
+            <form v-else class="space-y-5 rounded-lg border border-border bg-card p-6" @submit.prevent="submit">
+                <FormField id="family" label="Form family" required>
+                    <template #default="{ id }">
+                        <select :id="id" v-model="form.family" :disabled="form.processing" :class="INPUT_CLASS">
+                            <option v-for="(label, family) in FAMILY_LABELS" :key="family" :value="family">
+                                {{ label }}
+                            </option>
+                        </select>
+                    </template>
+                </FormField>
 
-        <!-- Create Form -->
-        <form v-else class="space-y-6 bg-card border border-border p-6 rounded-lg" @submit.prevent="submit">
-            <!-- Family Selection (AC1) -->
-            <FormField id="family-select" label="Form Family" required>
-                <template #default="{ id: fieldId }">
-                    <select
-                        :id="fieldId"
-                        v-model="form.family"
-                        data-testid="family-select"
-                        class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        :disabled="form.processing"
-                    >
-                        <option value="ACTIVATION">Activation</option>
-                        <option value="CHANGE">Change</option>
-                    </select>
-                </template>
-            </FormField>
+                <FormField id="subtype" label="Subtype" required>
+                    <template #default="{ id }">
+                        <select :id="id" v-model="form.subtype" :disabled="form.processing" :class="INPUT_CLASS">
+                            <option v-for="subtype in SUBTYPES_BY_FAMILY[form.family]" :key="subtype" :value="subtype">
+                                {{ SUBTYPE_LABELS[subtype] }}
+                            </option>
+                        </select>
+                    </template>
+                </FormField>
 
-            <!-- Subtype Selection (AC1) -->
-            <FormField id="subtype-select" label="Subtype" required>
-                <template #default="{ id: fieldId }">
-                    <select
-                        :id="fieldId"
-                        v-model="form.subtype"
-                        data-testid="subtype-select"
-                        class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        :disabled="form.processing"
-                    >
-                        <option v-for="st in availableSubtypes" :key="st.value" :value="st.value">
-                            {{ st.label }}
-                        </option>
-                    </select>
-                </template>
-            </FormField>
-
-            <!-- Numbering Mode Selection (AC2, AC3) -->
-            <div class="space-y-3">
-                <label class="block text-sm font-medium text-foreground">
-                    Numbering Mode <span class="text-destructive">*</span>
-                </label>
-                <div class="grid grid-cols-2 gap-4">
-                    <label
-                        class="flex items-start p-3 border rounded-md cursor-pointer hover:bg-muted/50"
-                        :class="form.numbering_mode === 'AUTOMATIC' ? 'border-primary bg-muted/20' : 'border-input'"
-                    >
+                <fieldset class="space-y-2">
+                    <legend class="text-sm font-medium text-foreground">Request number</legend>
+                    <label class="flex items-center gap-2 text-sm">
                         <input
                             v-model="form.numbering_mode"
                             type="radio"
                             value="AUTOMATIC"
-                            data-testid="numbering-auto-radio"
-                            class="mt-1 mr-3"
+                            data-testid="numbering-automatic"
                             :disabled="form.processing"
                         />
-                        <div>
-                            <span class="text-sm font-medium text-foreground block">Automatic</span>
-                            <span class="text-xs text-muted-foreground block">
-                                Server managed sequence (allocated upon creation).
-                            </span>
-                        </div>
+                        Automatic — assigned by the system when the draft is created
                     </label>
-
-                    <label
-                        class="flex items-start p-3 border rounded-md cursor-pointer hover:bg-muted/50"
-                        :class="form.numbering_mode === 'MANUAL' ? 'border-primary bg-muted/20' : 'border-input'"
-                    >
+                    <label class="flex items-center gap-2 text-sm">
                         <input
                             v-model="form.numbering_mode"
                             type="radio"
                             value="MANUAL"
-                            data-testid="numbering-manual-radio"
-                            class="mt-1 mr-3"
+                            data-testid="numbering-manual"
                             :disabled="form.processing"
                         />
-                        <div>
-                            <span class="text-sm font-medium text-foreground block">Manual</span>
-                            <span class="text-xs text-muted-foreground block">
-                                Specify custom reference identifier.
-                            </span>
-                        </div>
+                        Manual — enter your own number
                     </label>
-                </div>
-            </div>
+                </fieldset>
 
-            <!-- Manual Request No Input (AC2) -->
-            <div v-if="form.numbering_mode === 'MANUAL'">
-                <FormField id="manual-request-no" label="Request Number" required :error="requestNoError">
-                    <template #default="{ id: fieldId, describedBy }">
+                <FormField
+                    v-if="form.numbering_mode === 'MANUAL'"
+                    id="request-no"
+                    label="Manual request number"
+                    required
+                    :error="requestNoError"
+                >
+                    <template #default="{ id, describedBy }">
                         <input
-                            :id="fieldId"
-                            v-model="form.request_no"
+                            :id="id"
+                            v-model="manualRequestNo"
                             type="text"
-                            data-testid="manual-request-no-input"
-                            placeholder="e.g. NSCMF-MANUAL-2026-001"
                             maxlength="64"
+                            autocomplete="off"
                             :aria-describedby="describedBy"
-                            class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono"
                             :disabled="form.processing"
+                            :class="[INPUT_CLASS, 'font-mono']"
                         />
                     </template>
                 </FormField>
-                <span v-if="requestNoError" data-testid="request-no-error" class="sr-only">
-                    {{ requestNoError }}
-                </span>
-            </div>
 
-            <!-- Actions -->
-            <div class="flex items-center justify-end space-x-3 pt-4 border-t border-border">
-                <button
-                    type="submit"
-                    data-testid="create-submit-btn"
-                    class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
-                    :disabled="form.processing"
-                >
-                    {{ form.processing ? 'Creating...' : 'Create Draft' }}
-                </button>
-            </div>
-        </form>
-    </div>
+                <div class="flex justify-end border-t border-border pt-4">
+                    <Button type="submit" :disabled="form.processing">
+                        {{ form.processing ? 'Creating…' : 'Create draft' }}
+                    </Button>
+                </div>
+            </form>
+        </div>
+    </AppLayout>
 </template>
