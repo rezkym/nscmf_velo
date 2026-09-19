@@ -795,5 +795,86 @@ describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)
             });
             expect(wrapper.vm.getDraftPayload().pop).toBeNull();
         });
+
+        it('R-22b-1: when NOT dirty, a prop sync clears a stale client error and updates DOM', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        migrate_domain: true,
+                        domain_name_1: '',
+                    },
+                },
+            });
+
+            // Trigger validation error on empty domain_name_1
+            await wrapper.vm.validateSubmit();
+            expect(wrapper.find('[data-testid="error-domain_name_1"]').exists()).toBe(true);
+            expect(wrapper.vm.isDirty).toBe(false);
+
+            // Fresh prop with valid domain_name_1 arrives without user typing (dirty stays false)
+            await wrapper.setProps({
+                modelValue: {
+                    migrate_domain: true,
+                    domain_name_1: 'resolved.example.com',
+                },
+            });
+
+            const input = wrapper.find<HTMLInputElement>('[data-testid="input-domain_name_1"]');
+            expect(input.element.value).toBe('resolved.example.com');
+            expect(wrapper.find('[data-testid="error-domain_name_1"]').exists()).toBe(false);
+        });
+
+        it('R-22b-1 / M-N5: toNullableNumber normalizes empty string to null', () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        hosting_capacity_gb: '' as unknown as number,
+                    },
+                },
+            });
+
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+        });
+
+        it('N-22b-1: autosave modelValue preserves schema-bound clamp semantics while submit validates full input length', async () => {
+            const overPop = 'A'.repeat(300);
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        pop: overPop,
+                    },
+                },
+            });
+
+            // Edit an unrelated field (gateway) to trigger handleInput / update:modelValue
+            const gwInput = wrapper.find<HTMLInputElement>('[data-testid="input-gateway"]');
+            await gwInput.setValue('192.168.1.1');
+
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+            const updateEvents = wrapper.emitted('update:modelValue')!;
+            const latestDraft = updateEvents[updateEvents.length - 1]![0] as ActivationDraftFields;
+
+            // Draft payload intentionally applies schema clamp bound (255 code points)
+            expect(latestDraft.pop).toBe('A'.repeat(255));
+            expect(latestDraft.pop?.length).toBe(255);
+
+            // Validation on submit tests full length against 255 cap and surfaces visible error
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+            expect(wrapper.find('[data-testid="error-pop"]').text()).toBe('POP must be max 255 characters');
+        });
+
+        it('N-22b-2: renders visible error-form alert when form is readonly or disabled on submit', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    readonly: true,
+                },
+            });
+
+            expect(wrapper.find('[data-testid="error-form"]').exists()).toBe(false);
+            await wrapper.vm.validateSubmit();
+            expect(wrapper.find('[data-testid="error-form"]').exists()).toBe(true);
+            expect(wrapper.find('[data-testid="error-form"]').text()).toBe('Form is readonly or disabled');
+        });
     });
 });
