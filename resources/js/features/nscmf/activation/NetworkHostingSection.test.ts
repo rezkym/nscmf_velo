@@ -573,5 +573,227 @@ describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)
             expect(popInput.element.value).toBe('POP Bandung Fresh Prop');
             expect(wrapper.vm.getDraftPayload().pop).toBe('POP Bandung Fresh Prop');
         });
+
+        it('N-22-1: astral-safe clamping does not split surrogate pairs or emit lone surrogates', () => {
+            // '😀'.repeat(200) is 200 code points, but 400 UTF-16 code units.
+            // When clamped to 253 code points, all 200 code points fit intact without splitting!
+            // When '😀'.repeat(300) is clamped to 253 code points, exactly 253 emoji fit intact (506 UTF-16 units).
+            const emoji300 = '😀'.repeat(300);
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        domain_name_1: emoji300,
+                        pop: emoji300,
+                    },
+                },
+            });
+
+            const payload = wrapper.vm.getDraftPayload();
+            expect(payload.domain_name_1).toBeDefined();
+            expect([...payload.domain_name_1!].length).toBe(253);
+            expect(payload.domain_name_1!.endsWith('😀')).toBe(true);
+            // Must NOT contain lone surrogates
+            expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(payload.domain_name_1 ?? '')).toBe(false);
+
+            expect(payload.pop).toBeDefined();
+            expect([...payload.pop!].length).toBe(255);
+            expect(payload.pop!.endsWith('😀')).toBe(true);
+            expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(payload.pop ?? '')).toBe(false);
+        });
+
+        it('N-22-1: validateSubmit rejects over-length fields with visible errors and emits submit-invalid', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        pop: 'A'.repeat(256),
+                        regional: 'B'.repeat(256),
+                        preferred_upstream: 'C'.repeat(256),
+                        secondary_upstream: 'D'.repeat(256),
+                        primary_noc_link: 'E'.repeat(256),
+                        secondary_noc_link: 'F'.repeat(256),
+                        downlink_router: 'G'.repeat(256),
+                        domain_name_1: 'H'.repeat(254),
+                        domain_name_2: 'I'.repeat(254),
+                        primary_dns: 'J'.repeat(256),
+                        secondary_dns: 'K'.repeat(256),
+                        mx_primary: 'L'.repeat(256),
+                        mx_secondary: 'M'.repeat(256),
+                        hosting_platform: 'N'.repeat(256),
+                    },
+                },
+            });
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+
+            expect(wrapper.emitted('submit-valid')).toBeFalsy();
+            expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+
+            const invalidEvents = wrapper.emitted('submit-invalid')!;
+            expect(invalidEvents).toBeDefined();
+            const errors = invalidEvents[0]![0] as Record<string, string>;
+
+            expect(errors['pop']).toBe('POP must be max 255 characters');
+            expect(errors['regional']).toBe('Regional must be max 255 characters');
+            expect(errors['preferred_upstream']).toBe('Preferred upstream must be max 255 characters');
+            expect(errors['secondary_upstream']).toBe('Secondary upstream must be max 255 characters');
+            expect(errors['primary_noc_link']).toBe('Primary NOC link must be max 255 characters');
+            expect(errors['secondary_noc_link']).toBe('Secondary NOC link must be max 255 characters');
+            expect(errors['downlink_router']).toBe('Downlink router must be max 255 characters');
+            expect(errors['domain_name_1']).toBe('Domain name 1 must be max 253 characters');
+            expect(errors['domain_name_2']).toBe('Domain name 2 must be max 253 characters');
+            expect(errors['primary_dns']).toBe('Primary DNS must be max 255 characters');
+            expect(errors['secondary_dns']).toBe('Secondary DNS must be max 255 characters');
+            expect(errors['mx_primary']).toBe('MX primary must be max 255 characters');
+            expect(errors['mx_secondary']).toBe('MX secondary must be max 255 characters');
+            expect(errors['hosting_platform']).toBe('Hosting platform must be max 255 characters');
+
+            // Verify visible error DOM nodes
+            expect(wrapper.find('[data-testid="error-pop"]').text()).toBe('POP must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-domain_name_1"]').text()).toBe('Domain name 1 must be max 253 characters');
+            expect(wrapper.find('[data-testid="error-regional"]').text()).toBe('Regional must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-preferred_upstream"]').text()).toBe('Preferred upstream must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-secondary_upstream"]').text()).toBe('Secondary upstream must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-primary_noc_link"]').text()).toBe('Primary NOC link must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-secondary_noc_link"]').text()).toBe('Secondary NOC link must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-downlink_router"]').text()).toBe('Downlink router must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-domain_name_2"]').text()).toBe('Domain name 2 must be max 253 characters');
+            expect(wrapper.find('[data-testid="error-primary_dns"]').text()).toBe('Primary DNS must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-secondary_dns"]').text()).toBe('Secondary DNS must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-mx_primary"]').text()).toBe('MX primary must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-mx_secondary"]').text()).toBe('MX secondary must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-hosting_platform"]').text()).toBe('Hosting platform must be max 255 characters');
+        });
+
+        it('N-22-1: legal astral input below code point cap passes validation without error', async () => {
+            const emoji200 = '😀'.repeat(200); // 200 code points, 400 UTF-16 units
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        domain_name_1: emoji200,
+                        pop: emoji200,
+                    },
+                },
+            });
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+
+            expect(wrapper.emitted('submit-invalid')).toBeFalsy();
+            expect(wrapper.emitted('submit-valid')).toBeTruthy();
+            expect(wrapper.find('[data-testid="error-domain_name_1"]').exists()).toBe(false);
+            expect(wrapper.find('[data-testid="error-pop"]').exists()).toBe(false);
+
+            const payload = wrapper.vm.getDraftPayload();
+            expect(payload.domain_name_1).toBe(emoji200);
+            expect(payload.pop).toBe(emoji200);
+        });
+
+        it('exercises all field input events and sync props edge cases to reach 100% coverage', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        hosting_capacity_gb: null as unknown as number,
+                    },
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+
+            const inputTestIds = [
+                'input-lan_ip_allocation',
+                'input-wan_ip',
+                'input-gateway',
+                'input-pop',
+                'input-regional',
+                'input-preferred_upstream',
+                'input-secondary_upstream',
+                'input-primary_noc_link',
+                'input-secondary_noc_link',
+                'input-downlink_router',
+                'input-domain_name_1',
+                'input-domain_name_2',
+                'input-primary_dns',
+                'input-secondary_dns',
+                'input-mx_primary',
+                'input-mx_secondary',
+                'input-hosting_platform',
+                'input-hosting_capacity_gb',
+            ];
+
+            for (const testId of inputTestIds) {
+                const el = wrapper.find(`[data-testid="${testId}"]`);
+                expect(el.exists()).toBe(true);
+                await el.setValue(testId.includes('capacity') ? '10' : 'test-value');
+            }
+
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            // Also test invalid string capacity to exercise toNullableNumber parsed branch
+            const capInput = wrapper.find('[data-testid="input-hosting_capacity_gb"]');
+            await capInput.setValue('invalid-number');
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+            await capInput.setValue('');
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+
+            // Test finite number and non-finite number paths
+            expect(wrapper.vm.getDraftPayload()).toBeDefined();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: NaN,
+                },
+            });
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: ' 42.5 ' as unknown as number,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBe(42.5);
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: 50,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBe(50);
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: null,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: undefined,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: '   ' as unknown as number,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: Infinity,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: 'Infinity' as unknown as number,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: null as unknown as ActivationDraftFields,
+            });
+            expect(wrapper.vm.getDraftPayload().pop).toBeNull();
+        });
     });
 });
