@@ -1,74 +1,52 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
+import Alert from '@/components/ui/Alert.vue';
+import Badge from '@/components/ui/Badge.vue';
+import Button from '@/components/ui/Button.vue';
 import FormField from '@/components/ui/FormField.vue';
+import Modal from '@/components/ui/Modal.vue';
+import { usePermissions } from '@/composables/usePermissions';
+import AppLayout from '@/layouts/AppLayout.vue';
 
 export interface Team {
     id: number;
     name: string;
     is_active: boolean;
-    created_at?: string;
-    updated_at?: string;
 }
 
-export interface HistoricalSnapshotRecord {
-    id: number;
-    request_no: string;
-    team_id: number;
-    team_snapshot_name: string;
-}
+type LifecycleAction = 'deactivate' | 'reactivate';
 
-const props = withDefaults(
-    defineProps<{
-        teams?: Team[];
-        historicalSnapshots?: HistoricalSnapshotRecord[];
-        permissions?: string[];
-    }>(),
-    {
-        teams: () => [],
-        historicalSnapshots: () => [],
-        permissions: () => [],
+withDefaults(defineProps<{ teams?: Team[] }>(), { teams: () => [] });
+
+const { can } = usePermissions();
+
+const LIFECYCLE_COPY: Record<LifecycleAction, { title: string; description: string }> = {
+    deactivate: {
+        title: 'Deactivate team',
+        description:
+            'Members of a deactivated team cannot create new records until they move to an active team. Existing records keep their team, and this does not change who can review or approve.',
     },
-);
+    reactivate: {
+        title: 'Reactivate team',
+        description: 'Members of this team will be able to create new records again.',
+    },
+};
 
-const permissionsList = computed(() => props.permissions ?? []);
-
-const canCreate = computed(() => permissionsList.value.includes('teams.create'));
-const canUpdate = computed(() => permissionsList.value.includes('teams.update'));
-const canArchive = computed(() => permissionsList.value.includes('teams.archive'));
-
-// Form state
-const isFormModalOpen = ref(false);
+const form = useForm({ name: '' });
+const isFormOpen = ref(false);
 const editingTeam = ref<Team | null>(null);
 
-const form = useForm({
-    name: '',
-});
-
-const nameError = computed(() => {
-    const errors = form.errors as Record<string, string | undefined>;
-    return errors.name;
-});
-
-function openCreateModal(): void {
-    editingTeam.value = null;
-    form.reset();
-    form.clearErrors();
-    form.name = '';
-    isFormModalOpen.value = true;
-}
-
-function openEditModal(team: Team): void {
+function openForm(team: Team | null): void {
     editingTeam.value = team;
-    form.reset();
     form.clearErrors();
-    form.name = team.name;
-    isFormModalOpen.value = true;
+    form.name = team?.name ?? '';
+    isFormOpen.value = true;
 }
 
-function closeFormModal(): void {
-    isFormModalOpen.value = false;
+function closeForm(): void {
+    isFormOpen.value = false;
     editingTeam.value = null;
     form.reset();
     form.clearErrors();
@@ -77,285 +55,160 @@ function closeFormModal(): void {
 function submitForm(): void {
     if (form.processing) return;
 
+    const options = { onSuccess: closeForm };
     if (editingTeam.value) {
-        form.patch(`/administration/teams/${editingTeam.value.id}`, {
-            onSuccess: () => closeFormModal(),
-        });
+        form.patch(`/administration/teams/${editingTeam.value.id}`, options);
     } else {
-        form.post('/administration/teams', {
-            onSuccess: () => closeFormModal(),
-        });
+        form.post('/administration/teams', options);
     }
 }
 
-// Lifecycle action state (Deactivate / Reactivate)
-const isLifecycleDialogOpen = ref(false);
-const pendingLifecycleTeam = ref<Team | null>(null);
-const pendingLifecycleAction = ref<'deactivate' | 'reactivate'>('deactivate');
+const lifecycle = ref<{ team: Team; action: LifecycleAction } | null>(null);
 const lifecyclePending = ref(false);
+const lifecycleError = ref<string | null>(null);
+const lifecycleCopy = computed(() => (lifecycle.value ? LIFECYCLE_COPY[lifecycle.value.action] : null));
 
-function openDeactivateDialog(team: Team): void {
-    pendingLifecycleTeam.value = team;
-    pendingLifecycleAction.value = 'deactivate';
-    isLifecycleDialogOpen.value = true;
+function openLifecycle(team: Team): void {
+    lifecycle.value = { team, action: team.is_active ? 'deactivate' : 'reactivate' };
+    lifecycleError.value = null;
 }
 
-function openReactivateDialog(team: Team): void {
-    pendingLifecycleTeam.value = team;
-    pendingLifecycleAction.value = 'reactivate';
-    isLifecycleDialogOpen.value = true;
+function closeLifecycle(): void {
+    if (!lifecyclePending.value) lifecycle.value = null;
 }
 
-function confirmLifecycleAction(): void {
-    if (lifecyclePending.value || !pendingLifecycleTeam.value) return;
+function confirmLifecycle(): void {
+    if (!lifecycle.value || lifecyclePending.value) return;
 
+    const { team, action } = lifecycle.value;
     lifecyclePending.value = true;
-    const teamId = pendingLifecycleTeam.value.id;
-    const action = pendingLifecycleAction.value;
+    lifecycleError.value = null;
 
     router.post(
-        `/administration/teams/${teamId}/${action}`,
+        `/administration/teams/${team.id}/${action}`,
         {},
         {
+            onSuccess: () => {
+                lifecycle.value = null;
+            },
+            onError: (errors) => {
+                lifecycleError.value = Object.values(errors)[0] ?? 'The team could not be updated.';
+            },
             onFinish: () => {
                 lifecyclePending.value = false;
-                isLifecycleDialogOpen.value = false;
-                pendingLifecycleTeam.value = null;
             },
         },
     );
 }
-
-function cancelLifecycleAction(): void {
-    if (lifecyclePending.value) return;
-    isLifecycleDialogOpen.value = false;
-    pendingLifecycleTeam.value = null;
-}
 </script>
 
 <template>
-    <Head title="Team Administration - NSCMF" />
-
-    <div class="p-6 max-w-7xl mx-auto space-y-6">
-        <!-- Header -->
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-bold tracking-tight text-foreground">Team Administration</h1>
-                <p class="text-sm text-muted-foreground">
-                    Manage organizational teams. Team membership is organizational metadata only and does not filter or
-                    grant workflow authority.
-                </p>
-            </div>
-            <button
-                v-if="canCreate"
-                type="button"
-                data-testid="create-team-btn"
-                class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-primary rounded-md shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                @click="openCreateModal"
-            >
-                Create Team
-            </button>
-        </div>
-
-        <!-- Teams Table -->
-        <div class="bg-card border border-border rounded-lg overflow-hidden">
-            <table class="min-w-full divide-y divide-border">
-                <thead class="bg-muted/50">
-                    <tr>
-                        <th
-                            scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
-                        >
-                            Team Name
-                        </th>
-                        <th
-                            scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
-                        >
-                            Status
-                        </th>
-                        <th
-                            scope="col"
-                            class="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider"
-                        >
-                            Actions
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-border bg-card">
-                    <tr v-for="team in teams" :key="team.id">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                            {{ team.name }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm">
-                            <span
-                                :class="[
-                                    'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                                    team.is_active
-                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                        : 'bg-muted text-muted-foreground',
-                                ]"
-                            >
-                                {{ team.is_active ? 'Active' : 'Inactive' }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                            <button
-                                v-if="canUpdate"
-                                type="button"
-                                :data-testid="`edit-team-${team.id}`"
-                                class="text-primary hover:text-primary/80 focus:outline-none underline"
-                                @click="openEditModal(team)"
-                            >
-                                Edit
-                            </button>
-                            <button
-                                v-if="canArchive && team.is_active"
-                                type="button"
-                                :data-testid="`deactivate-team-${team.id}`"
-                                class="text-amber-600 hover:text-amber-500 focus:outline-none underline"
-                                @click="openDeactivateDialog(team)"
-                            >
-                                Deactivate
-                            </button>
-                            <button
-                                v-if="canArchive && !team.is_active"
-                                type="button"
-                                :data-testid="`reactivate-team-${team.id}`"
-                                class="text-emerald-600 hover:text-emerald-500 focus:outline-none underline"
-                                @click="openReactivateDialog(team)"
-                            >
-                                Reactivate
-                            </button>
-                        </td>
-                    </tr>
-                    <tr v-if="teams.length === 0">
-                        <td colspan="3" class="px-6 py-8 text-center text-sm text-muted-foreground">
-                            No teams configured.
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Historical Snapshot Section (AC4) -->
-        <div v-if="historicalSnapshots.length > 0" class="mt-8 space-y-3">
-            <h2 class="text-lg font-semibold text-foreground">Historical Snapshot Verification</h2>
-            <p class="text-xs text-muted-foreground">
-                Verified that historical record snapshots preserve original team metadata regardless of master data
-                lifecycle changes.
-            </p>
-            <div class="bg-card border border-border rounded-lg p-4">
-                <ul class="divide-y divide-border">
-                    <li v-for="rec in historicalSnapshots" :key="rec.id" class="py-2 text-sm flex justify-between">
-                        <span class="font-mono text-xs">{{ rec.request_no }}</span>
-                        <span class="text-foreground">{{ rec.team_snapshot_name }}</span>
-                    </li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- Create / Edit Modal (AC1 & AC3: Only name field max 150, no code/desc, no scope selector) -->
-        <div
-            v-if="isFormModalOpen"
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-        >
-            <div class="bg-card border border-border rounded-xl shadow-lg w-full max-w-md p-6 space-y-6">
+    <AppLayout title="Teams">
+        <div class="mx-auto max-w-5xl space-y-6">
+            <div class="flex items-start justify-between gap-4">
                 <div>
-                    <h3 class="text-lg font-semibold text-foreground">
-                        {{ editingTeam ? 'Edit Team' : 'Create Team' }}
-                    </h3>
-                    <p class="text-xs text-muted-foreground mt-1">
-                        Team represents organizational categorization only.
+                    <h1 class="text-xl font-semibold text-foreground">Teams</h1>
+                    <p class="text-sm text-muted-foreground">
+                        Teams describe where people belong. They do not grant or limit any permission.
                     </p>
                 </div>
+                <Button v-if="can('teams.create')" data-testid="create-team-btn" @click="openForm(null)">
+                    Create team
+                </Button>
+            </div>
 
-                <form @submit.prevent="submitForm" class="space-y-4">
-                    <FormField id="team-name" label="Team Name" required :error="nameError">
+            <div class="overflow-hidden rounded-lg border border-border bg-card">
+                <table class="min-w-full divide-y divide-border text-left text-sm">
+                    <thead class="bg-muted text-xs uppercase text-muted-foreground">
+                        <tr>
+                            <th scope="col" class="px-4 py-3">Name</th>
+                            <th scope="col" class="px-4 py-3">Status</th>
+                            <th scope="col" class="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        <tr v-for="team in teams" :key="team.id" :data-testid="`team-row-${team.id}`">
+                            <td class="px-4 py-3 font-medium text-foreground">{{ team.name }}</td>
+                            <td class="px-4 py-3">
+                                <Badge :variant="team.is_active ? 'success' : 'neutral'">
+                                    {{ team.is_active ? 'Active' : 'Inactive' }}
+                                </Badge>
+                            </td>
+                            <td class="space-x-1 px-4 py-3 text-right">
+                                <Button
+                                    v-if="can('teams.update')"
+                                    variant="ghost"
+                                    size="sm"
+                                    :data-testid="`edit-team-${team.id}`"
+                                    @click="openForm(team)"
+                                >
+                                    Edit
+                                </Button>
+                                <Button
+                                    v-if="can('teams.archive')"
+                                    variant="ghost"
+                                    size="sm"
+                                    :data-testid="`${team.is_active ? 'deactivate' : 'reactivate'}-team-${team.id}`"
+                                    @click="openLifecycle(team)"
+                                >
+                                    {{ team.is_active ? 'Deactivate' : 'Reactivate' }}
+                                </Button>
+                            </td>
+                        </tr>
+                        <tr v-if="teams.length === 0">
+                            <td colspan="3" class="px-4 py-8 text-center text-muted-foreground">No teams yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <Modal
+            :open="isFormOpen"
+            :title="editingTeam ? 'Edit team' : 'Create team'"
+            :busy="form.processing"
+            @close="closeForm"
+        >
+            <form class="space-y-4" @submit.prevent="submitForm">
+                <FormField id="team-name" label="Name" required :error="form.errors.name">
+                    <template #default="{ id, describedBy }">
                         <input
-                            id="team-name"
+                            :id="id"
                             v-model="form.name"
                             type="text"
-                            name="name"
                             maxlength="150"
                             required
-                            placeholder="e.g. Team NOC"
-                            class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                            :aria-describedby="describedBy"
                             :disabled="form.processing"
+                            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                         />
-                    </FormField>
-                    <p v-if="nameError" data-testid="team-name-error" class="text-xs text-destructive mt-1">
-                        {{ nameError }}
-                    </p>
+                    </template>
+                </FormField>
 
-                    <div class="flex items-center justify-end space-x-3 pt-4 border-t border-border">
-                        <button
-                            type="button"
-                            class="px-4 py-2 text-sm font-medium text-foreground bg-muted rounded-md hover:bg-muted/80 focus:outline-none"
-                            :disabled="form.processing"
-                            @click="closeFormModal"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            data-testid="save-team-btn"
-                            class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md shadow hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                            :disabled="form.processing || !form.name.trim()"
-                        >
-                            {{ form.processing ? 'Saving...' : 'Save' }}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Lifecycle Confirm Dialog (AC2) -->
-        <div
-            v-if="isLifecycleDialogOpen"
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-        >
-            <div class="bg-card border border-border rounded-xl shadow-lg w-full max-w-md p-6 space-y-4">
-                <h3 class="text-lg font-semibold text-foreground">
-                    {{ pendingLifecycleAction === 'deactivate' ? 'Deactivate Team' : 'Reactivate Team' }}
-                </h3>
-                <p class="text-sm text-muted-foreground">
-                    {{
-                        pendingLifecycleAction === 'deactivate'
-                            ? 'Deactivating this team affects active Team eligibility during new record creation. Deactivated teams cannot be selected for new requests, but historical records remain unchanged. This does not alter review or approval authority.'
-                            : 'Reactivating this team restores active Team eligibility for new record creation.'
-                    }}
-                </p>
-
-                <div class="flex items-center justify-end space-x-3 pt-4 border-t border-border">
-                    <button
-                        type="button"
-                        class="px-4 py-2 text-sm font-medium text-foreground bg-muted rounded-md hover:bg-muted/80 focus:outline-none"
-                        :disabled="lifecyclePending"
-                        @click="cancelLifecycleAction"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        data-testid="confirm-lifecycle-action"
-                        class="px-4 py-2 text-sm font-medium text-white rounded-md shadow focus:outline-none focus:ring-2 focus:ring-offset-2"
-                        :class="
-                            pendingLifecycleAction === 'deactivate'
-                                ? 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500'
-                                : 'bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500'
-                        "
-                        :disabled="lifecyclePending"
-                        @click="confirmLifecycleAction"
-                    >
-                        {{ lifecyclePending ? 'Processing...' : 'Confirm' }}
-                    </button>
+                <div class="flex justify-end gap-2 pt-2">
+                    <Button variant="secondary" :disabled="form.processing" @click="closeForm">Cancel</Button>
+                    <Button type="submit" data-testid="save-team-btn" :disabled="form.processing || !form.name.trim()">
+                        {{ form.processing ? 'Saving…' : 'Save' }}
+                    </Button>
                 </div>
-            </div>
-        </div>
-    </div>
+            </form>
+        </Modal>
+
+        <Modal
+            :open="lifecycle !== null"
+            :title="lifecycleCopy?.title ?? ''"
+            :description="lifecycleCopy?.description"
+            :busy="lifecyclePending"
+            @close="closeLifecycle"
+        >
+            <Alert v-if="lifecycleError" variant="error">{{ lifecycleError }}</Alert>
+
+            <template #footer>
+                <Button variant="secondary" :disabled="lifecyclePending" @click="closeLifecycle">Cancel</Button>
+                <Button data-testid="confirm-lifecycle-action" :disabled="lifecyclePending" @click="confirmLifecycle">
+                    {{ lifecyclePending ? 'Saving…' : 'Confirm' }}
+                </Button>
+            </template>
+        </Modal>
+    </AppLayout>
 </template>

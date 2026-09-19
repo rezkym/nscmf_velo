@@ -64,7 +64,10 @@ describe('Team administration (FE-11)', () => {
         await dialog.get('input').setValue('Demo Team Gamma');
         await dialog.get('form').trigger('submit');
 
-        expect(lastRequest('/administration/teams')).toMatchObject({ method: 'post', data: { name: 'Demo Team Gamma' } });
+        expect(lastRequest('/administration/teams')).toMatchObject({
+            method: 'post',
+            data: { name: 'Demo Team Gamma' },
+        });
     });
 
     it('edits a team name with PATCH and closes the modal on success', async () => {
