@@ -11,9 +11,15 @@ const TEAM_ALPHA = { id: 1, name: 'Demo Team Alpha' };
 
 function mountDashboard(
     permissions: string[],
-    { counts = {}, items = {}, team = TEAM_ALPHA }: { counts?: DashboardCounts; items?: DashboardItems; team?: typeof TEAM_ALPHA | null } = {},
+    {
+        counts = {},
+        items = {},
+        team = TEAM_ALPHA,
+    }: { counts?: DashboardCounts; items?: DashboardItems; team?: typeof TEAM_ALPHA | null } = {},
 ): VueWrapper {
-    resetInertia({ auth: { user: { id: 5, username: 'demo.requester.a', name: 'Demo Requester A', team }, permissions } });
+    resetInertia({
+        auth: { user: { id: 5, username: 'demo.requester.a', name: 'Demo Requester A', team }, permissions },
+    });
     return mount(Index, { props: { counts, items } });
 }
 
@@ -69,7 +75,13 @@ describe('Dashboard (FE-16)', () => {
             counts: { reviews: { count: 3 } },
             items: {
                 reviews: [
-                    { id: 12, request_no: 'DEMO-ACT-002', family: 'ACTIVATION', subtype: 'ACTIVATION', team: TEAM_ALPHA },
+                    {
+                        id: 12,
+                        request_no: 'DEMO-ACT-002',
+                        family: 'ACTIVATION',
+                        subtype: 'ACTIVATION',
+                        team: TEAM_ALPHA,
+                    },
                 ],
             },
         });
@@ -85,15 +97,17 @@ describe('Dashboard (FE-16)', () => {
             items: { drafts: [{ id: 7, request_no: 'DEMO-ACT-001', family: 'ACTIVATION', subtype: 'ACTIVATION' }] },
         });
 
-        const hrefs = wrapper.findAll('a').map((link) => link.attributes('href'));
-        expect(hrefs).toEqual(expect.arrayContaining(['/nscmf/create', '/history', '/review', '/approval', '/nscmf/7']));
+        const hrefs = wrapper.findAll('#main-content a').map((link) => link.attributes('href'));
+        expect(hrefs).toEqual(
+            expect.arrayContaining(['/nscmf/create', '/history', '/review', '/approval', '/nscmf/7']),
+        );
         expect(requests).toHaveLength(0);
     });
 
     it('asks users without an active team to contact an administrator instead of offering Create', () => {
         const wrapper = mountDashboard(['nscmf.create'], { team: null });
 
-        expect(wrapper.find('a[href="/nscmf/create"]').exists()).toBe(false);
+        expect(wrapper.find('#main-content a[href="/nscmf/create"]').exists()).toBe(false);
         expect(wrapper.text()).toContain('active team');
     });
 });
