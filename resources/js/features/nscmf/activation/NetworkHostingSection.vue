@@ -51,6 +51,15 @@ const migrateHosting = ref<boolean>(props.modelValue.migrate_hosting ?? false);
 
 const clientErrors = ref<Record<string, string>>({});
 
+// Dirty tracking for in-flight local edits (F-22-6)
+const isDirty = ref<boolean>(false);
+function markDirty() {
+    isDirty.value = true;
+}
+function resetDirty() {
+    isDirty.value = false;
+}
+
 // Merged display errors: client errors take priority on user action, otherwise serverErrors
 const displayErrors = computed<Record<string, string>>(() => {
     return {
@@ -60,6 +69,9 @@ const displayErrors = computed<Record<string, string>>(() => {
 });
 
 function syncFromProps(val: ActivationDraftFields) {
+    // Clear client errors when syncing from props (F-22-6)
+    clientErrors.value = {};
+
     lanIpAllocation.value = val.lan_ip_allocation ?? '';
     wanIp.value = val.wan_ip ?? '';
     gateway.value = val.gateway ?? '';
@@ -79,9 +91,7 @@ function syncFromProps(val: ActivationDraftFields) {
     mxSecondary.value = val.mx_secondary ?? '';
     hostingPlatform.value = val.hosting_platform ?? '';
     hostingCapacityGb.value =
-        val.hosting_capacity_gb !== null && val.hosting_capacity_gb !== undefined
-            ? val.hosting_capacity_gb
-            : '';
+        val.hosting_capacity_gb !== null && val.hosting_capacity_gb !== undefined ? val.hosting_capacity_gb : '';
     migrateDomain.value = val.migrate_domain ?? false;
     migrateHosting.value = val.migrate_hosting ?? false;
 }
@@ -90,15 +100,19 @@ watch(
     () => props.modelValue,
     (newVal) => {
         if (newVal) {
-            syncFromProps(newVal);
+            // Guard against clobbering in-flight user typing (F-22-6)
+            if (!isDirty.value) {
+                syncFromProps(newVal);
+            }
         }
     },
     { immediate: true, deep: true },
 );
 
-function toNullableString(val: string): string | null {
+function toNullableString(val: string, max?: number): string | null {
     const trimmed = val.trim();
-    return trimmed === '' ? null : trimmed;
+    if (trimmed === '') return null;
+    return max !== undefined ? trimmed.slice(0, max) : trimmed;
 }
 
 function toNullableNumber(val: string | number | null | undefined): number | null {
@@ -111,26 +125,27 @@ function toNullableNumber(val: string | number | null | undefined): number | nul
 }
 
 function getDraftPayload(): ActivationDraftFields {
+    // Explicit allowlist of fields owned by this section (F-22-1, F-22-4, F-22-5)
+    // Never emit unmodelled keys from props.modelValue
     return {
-        ...props.modelValue,
-        lan_ip_allocation: toNullableString(lanIpAllocation.value),
-        wan_ip: toNullableString(wanIp.value),
-        gateway: toNullableString(gateway.value),
-        pop: toNullableString(pop.value),
-        regional: toNullableString(regional.value),
-        preferred_upstream: toNullableString(preferredUpstream.value),
-        secondary_upstream: toNullableString(secondaryUpstream.value),
-        primary_noc_link: toNullableString(primaryNocLink.value),
-        secondary_noc_link: toNullableString(secondaryNocLink.value),
-        downlink_router: toNullableString(downlinkRouter.value),
+        lan_ip_allocation: toNullableString(lanIpAllocation.value, 65535),
+        wan_ip: toNullableString(wanIp.value, 255),
+        gateway: toNullableString(gateway.value, 255),
+        pop: toNullableString(pop.value, 255),
+        regional: toNullableString(regional.value, 255),
+        preferred_upstream: toNullableString(preferredUpstream.value, 255),
+        secondary_upstream: toNullableString(secondaryUpstream.value, 255),
+        primary_noc_link: toNullableString(primaryNocLink.value, 255),
+        secondary_noc_link: toNullableString(secondaryNocLink.value, 255),
+        downlink_router: toNullableString(downlinkRouter.value, 255),
 
-        domain_name_1: toNullableString(domainName1.value),
-        domain_name_2: toNullableString(domainName2.value),
-        primary_dns: toNullableString(primaryDns.value),
-        secondary_dns: toNullableString(secondaryDns.value),
-        mx_primary: toNullableString(mxPrimary.value),
-        mx_secondary: toNullableString(mxSecondary.value),
-        hosting_platform: toNullableString(hostingPlatform.value),
+        domain_name_1: toNullableString(domainName1.value, 253),
+        domain_name_2: toNullableString(domainName2.value, 253),
+        primary_dns: toNullableString(primaryDns.value, 255),
+        secondary_dns: toNullableString(secondaryDns.value, 255),
+        mx_primary: toNullableString(mxPrimary.value, 255),
+        mx_secondary: toNullableString(mxSecondary.value, 255),
+        hosting_platform: toNullableString(hostingPlatform.value, 255),
         hosting_capacity_gb: toNullableNumber(hostingCapacityGb.value),
         migrate_domain: migrateDomain.value,
         migrate_hosting: migrateHosting.value,
@@ -138,11 +153,21 @@ function getDraftPayload(): ActivationDraftFields {
 }
 
 function handleInput() {
+    markDirty();
+    clientErrors.value = {};
     emit('update:modelValue', getDraftPayload());
 }
 
 function validateSubmit(): boolean {
     const errs: Record<string, string> = {};
+
+    // Gate submit for readonly or disabled (F-22-2 fail closed)
+    if (props.readonly || props.disabled) {
+        errs['form'] = 'Form is readonly or disabled';
+        clientErrors.value = errs;
+        emit('submit-invalid', errs);
+        return false;
+    }
 
     // AC2: migrate_domain dependency
     if (migrateDomain.value) {
@@ -182,6 +207,8 @@ function validateSubmit(): boolean {
 defineExpose({
     getDraftPayload,
     validateSubmit,
+    isDirty,
+    resetDirty,
 });
 </script>
 
@@ -190,7 +217,7 @@ defineExpose({
         <!-- NOC & IP Routing Configuration -->
         <div class="space-y-4 p-4 rounded-lg border bg-card text-card-foreground shadow-sm">
             <h3 class="text-base font-semibold tracking-tight border-b pb-2">NOC & IP Routing Configuration</h3>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- LAN IP Allocation -->
                 <div class="space-y-1 md:col-span-2">
@@ -206,7 +233,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     ></textarea>
-                    <p v-if="displayErrors.lan_ip_allocation" data-testid="error-lan_ip_allocation" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.lan_ip_allocation"
+                        data-testid="error-lan_ip_allocation"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.lan_ip_allocation }}
                     </p>
                 </div>
@@ -226,7 +257,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.wan_ip" data-testid="error-wan_ip" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.wan_ip"
+                        data-testid="error-wan_ip"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.wan_ip }}
                     </p>
                 </div>
@@ -246,7 +281,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.gateway" data-testid="error-gateway" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.gateway"
+                        data-testid="error-gateway"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.gateway }}
                     </p>
                 </div>
@@ -265,7 +304,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.pop" data-testid="error-pop" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.pop"
+                        data-testid="error-pop"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.pop }}
                     </p>
                 </div>
@@ -284,7 +327,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.regional" data-testid="error-regional" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.regional"
+                        data-testid="error-regional"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.regional }}
                     </p>
                 </div>
@@ -303,7 +350,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.preferred_upstream" data-testid="error-preferred_upstream" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.preferred_upstream"
+                        data-testid="error-preferred_upstream"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.preferred_upstream }}
                     </p>
                 </div>
@@ -322,7 +373,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.secondary_upstream" data-testid="error-secondary_upstream" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.secondary_upstream"
+                        data-testid="error-secondary_upstream"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.secondary_upstream }}
                     </p>
                 </div>
@@ -341,7 +396,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.primary_noc_link" data-testid="error-primary_noc_link" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.primary_noc_link"
+                        data-testid="error-primary_noc_link"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.primary_noc_link }}
                     </p>
                 </div>
@@ -360,7 +419,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.secondary_noc_link" data-testid="error-secondary_noc_link" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.secondary_noc_link"
+                        data-testid="error-secondary_noc_link"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.secondary_noc_link }}
                     </p>
                 </div>
@@ -379,7 +442,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.downlink_router" data-testid="error-downlink_router" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.downlink_router"
+                        data-testid="error-downlink_router"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.downlink_router }}
                     </p>
                 </div>
@@ -409,7 +476,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.domain_name_1" data-testid="error-domain_name_1" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.domain_name_1"
+                        data-testid="error-domain_name_1"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.domain_name_1 }}
                     </p>
                 </div>
@@ -429,7 +500,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.domain_name_2" data-testid="error-domain_name_2" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.domain_name_2"
+                        data-testid="error-domain_name_2"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.domain_name_2 }}
                     </p>
                 </div>
@@ -449,7 +524,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.primary_dns" data-testid="error-primary_dns" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.primary_dns"
+                        data-testid="error-primary_dns"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.primary_dns }}
                     </p>
                 </div>
@@ -469,7 +548,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.secondary_dns" data-testid="error-secondary_dns" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.secondary_dns"
+                        data-testid="error-secondary_dns"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.secondary_dns }}
                     </p>
                 </div>
@@ -489,7 +572,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.mx_primary" data-testid="error-mx_primary" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.mx_primary"
+                        data-testid="error-mx_primary"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.mx_primary }}
                     </p>
                 </div>
@@ -509,7 +596,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.mx_secondary" data-testid="error-mx_secondary" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.mx_secondary"
+                        data-testid="error-mx_secondary"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.mx_secondary }}
                     </p>
                 </div>
@@ -529,14 +620,18 @@ defineExpose({
                         type="checkbox"
                         data-testid="checkbox-migrate_domain"
                         class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-1"
-                        :disabled="disabled"
+                        :disabled="disabled || readonly"
                         @change="handleInput"
                     />
                     <div>
                         <label for="migrate_domain" class="text-sm font-medium cursor-pointer">
                             Request Domain Migration
                         </label>
-                        <p v-if="migrateDomain" data-testid="indicator-migrate_domain-dependency" class="text-xs text-muted-foreground mt-0.5">
+                        <p
+                            v-if="migrateDomain"
+                            data-testid="indicator-migrate_domain-dependency"
+                            class="text-xs text-muted-foreground mt-0.5"
+                        >
                             Requires Domain Name 1 upon form submit.
                         </p>
                     </div>
@@ -549,14 +644,18 @@ defineExpose({
                         type="checkbox"
                         data-testid="checkbox-migrate_hosting"
                         class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-1"
-                        :disabled="disabled"
+                        :disabled="disabled || readonly"
                         @change="handleInput"
                     />
                     <div>
                         <label for="migrate_hosting" class="text-sm font-medium cursor-pointer">
                             Request Hosting Migration
                         </label>
-                        <p v-if="migrateHosting" data-testid="indicator-migrate_hosting-dependency" class="text-xs text-muted-foreground mt-0.5">
+                        <p
+                            v-if="migrateHosting"
+                            data-testid="indicator-migrate_hosting-dependency"
+                            class="text-xs text-muted-foreground mt-0.5"
+                        >
                             Requires Hosting Platform and positive Capacity (&gt; 0 GB) upon form submit.
                         </p>
                     </div>
@@ -582,7 +681,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.hosting_platform" data-testid="error-hosting_platform" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.hosting_platform"
+                        data-testid="error-hosting_platform"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.hosting_platform }}
                     </p>
                 </div>
@@ -605,7 +708,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleInput"
                     />
-                    <p v-if="displayErrors.hosting_capacity_gb" data-testid="error-hosting_capacity_gb" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="displayErrors.hosting_capacity_gb"
+                        data-testid="error-hosting_capacity_gb"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ displayErrors.hosting_capacity_gb }}
                     </p>
                 </div>
@@ -617,6 +724,9 @@ defineExpose({
             type="button"
             data-testid="validate-submit-btn"
             class="hidden"
+            tabindex="-1"
+            aria-hidden="true"
+            :disabled="disabled || readonly"
             @click="validateSubmit"
         >
             Validate Submit
