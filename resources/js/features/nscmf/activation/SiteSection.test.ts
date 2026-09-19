@@ -421,6 +421,184 @@ describe('FE-23: Activation Direct Site and POP Site (SiteSection.vue)', () => {
             expect(input.attributes('readonly')).toBeDefined();
         });
 
+        describe('SEC-FE-23 remediation verification', () => {
+            function vmOf(wrapper: ReturnType<typeof mount>) {
+                return wrapper.vm as unknown as {
+                    getDraftPayload: () => ActivationDraftFields;
+                    validateSubmit: () => boolean;
+                };
+            }
+
+            const NULL_DIRECT = {
+                local_loops: null,
+                lastmile: null,
+                bwa: null,
+                antenna_tower: null,
+                direction: null,
+                rssi: null,
+                latency_ms: null,
+                packet_loss_percent: null,
+                routers: null,
+                ups: null,
+                stabilizer: null,
+                cable: null,
+            };
+            const NULL_POP = {
+                switch_distribution: null,
+                port: null,
+                vlan_id: null,
+                local_loops: null,
+                routers: null,
+                cpe_indoor: null,
+                cpe_outdoor: null,
+            };
+
+            // A1 — F-23-1
+            it('A1 getDraftPayload returns only owned keys (no props echo)', async () => {
+                const wrapper = mount(SiteSection, {
+                    props: {
+                        modelValue: {
+                            customer_name: 'PT Contoh',
+                            lan_ip_allocation: '10.0.0.0/24',
+                            service_blocks: [{ service_context: 'NEW', service_id: 'SVC-1' }],
+                            sla_items: [{ row_no: 1, requirement_text: 'uptime' }],
+                            priority_destinations: [{ row_no: 1, destination: 'GGC' }],
+                            virtual_connections: [{ row_no: 1, bandwidth_mbps: 50 }],
+                            references: [{ reference_type: 'IWO', specification: null }],
+                            host_name: 'ORPHAN',
+                            unknown_key: 'ORPHAN2',
+                        } as never,
+                    },
+                });
+                await wrapper.find('[data-testid="direct-site-local_loops"]').setValue('Loop A');
+                const payload = vmOf(wrapper).getDraftPayload() as Record<string, unknown>;
+                const ALLOWED = ['direct_site', 'pop_site'];
+                const foreign = Object.keys(payload).filter((k) => !ALLOWED.includes(k));
+                expect(foreign).toEqual([]);
+            });
+
+            // A2 — F-23-1b (12 §7.4.1 clobber)
+            it('A2 stale foreign collections are not echoed to the wire', async () => {
+                const wrapper = mount(SiteSection, {
+                    props: {
+                        modelValue: {
+                            service_blocks: [
+                                { service_context: 'NEW', service_id: 'SVC-STALE-1' },
+                                { service_context: 'EXISTING', service_id: 'SVC-STALE-2' },
+                            ],
+                            sla_items: [{ row_no: 1, requirement_text: 'stale' }],
+                        } as never,
+                    },
+                });
+                await wrapper.find('[data-testid="pop-site-port"]').setValue('Te1/0/7');
+                const payload = vmOf(wrapper).getDraftPayload();
+                const wire = buildDraftPayload({ family: 'ACTIVATION', record_version: 1, activation: payload });
+                expect(Object.keys(wire.activation).sort()).toEqual(['pop_site']);
+            });
+
+            // A3/A4 — F-23-2
+            it('A3 validateSubmit refuses in readonly mode', () => {
+                const wrapper = mount(SiteSection, {
+                    props: { readonly: true, modelValue: { direct_site: { local_loops: 'Loop 1' } } },
+                });
+                expect(vmOf(wrapper).validateSubmit()).toBe(false);
+                expect(wrapper.emitted('submit-valid')).toBeFalsy();
+                expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+            });
+
+            it('A4 validateSubmit refuses in disabled mode', () => {
+                const wrapper = mount(SiteSection, {
+                    props: { disabled: true, modelValue: { pop_site: { port: 'Te1/0/1' } } },
+                });
+                expect(vmOf(wrapper).validateSubmit()).toBe(false);
+                expect(wrapper.emitted('submit-valid')).toBeFalsy();
+                expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+            });
+
+            it('A5 hidden validate button is non-interactive in readonly/disabled', () => {
+                for (const flags of [{ readonly: true }, { disabled: true }]) {
+                    const wrapper = mount(SiteSection, {
+                        props: { ...flags, modelValue: { direct_site: { local_loops: 'L' } } },
+                    });
+                    const btn = wrapper.find('[data-testid="validate-submit-btn"]');
+                    expect(btn.attributes('disabled')).toBeDefined();
+                    expect(btn.attributes('aria-hidden')).toBe('true');
+                }
+            });
+
+            // A6 — F-23-4
+            it('A6 serialisation clamps string fields to 255 and inputs have maxlength 255', async () => {
+                const wrapper = mount(SiteSection, { props: { modelValue: {} } });
+                const input = wrapper.find('[data-testid="direct-site-local_loops"]');
+                expect(input.attributes('maxlength')).toBe('255');
+                (input.element as HTMLInputElement).value = 'A'.repeat(5000);
+                await input.trigger('input');
+                const payload = vmOf(wrapper).getDraftPayload();
+                expect(
+                    ((payload.direct_site as { local_loops?: string })?.local_loops ?? '').length,
+                ).toBeLessThanOrEqual(255);
+                const wire = buildDraftPayload({ family: 'ACTIVATION', record_version: 1, activation: payload });
+                expect(
+                    ((wire.activation.direct_site as { local_loops?: string })?.local_loops ?? '').length,
+                ).toBeLessThanOrEqual(255);
+            });
+
+            // A7 — F-23-5
+            it('A7 non-finite numeric input fails closed', async () => {
+                for (const [testid, field, blockKey] of [
+                    ['direct-site-rssi', 'rssi', 'direct_site'],
+                    ['direct-site-latency_ms', 'latency_ms', 'direct_site'],
+                ] as const) {
+                    const wrapper = mount(SiteSection, { props: { modelValue: {} } });
+                    await wrapper.find(`[data-testid="${testid}"]`).setValue('1e999');
+                    const ok = vmOf(wrapper).validateSubmit();
+                    const payload = vmOf(wrapper).getDraftPayload();
+                    const raw = (payload[blockKey] as Record<string, unknown> | null | undefined)?.[field];
+                    expect(ok).toBe(false);
+                    expect(raw === null || raw === undefined).toBe(true);
+                }
+            });
+
+            // A8/A9 — F-23-3
+            it('A8 editing one block does not clear the other null-filled block', async () => {
+                const wrapper = mount(SiteSection, {
+                    props: { modelValue: { direct_site: NULL_DIRECT, pop_site: { port: 'Te1/0/1' } } as never },
+                });
+                await wrapper.find('[data-testid="pop-site-port"]').setValue('Te1/0/2');
+                const payload = vmOf(wrapper).getDraftPayload() as Record<string, unknown>;
+                expect(payload.direct_site).not.toBeNull();
+                const wire = buildDraftPayload({ family: 'ACTIVATION', record_version: 1, activation: payload });
+                expect(wire.activation.direct_site).not.toBeNull();
+            });
+
+            it('A9 empty-string-only incoming block does not become an explicit clear', async () => {
+                const wrapper = mount(SiteSection, {
+                    props: {
+                        modelValue: {
+                            direct_site: { local_loops: '', lastmile: null, rssi: Infinity },
+                            pop_site: NULL_POP,
+                        } as never,
+                    },
+                });
+                await wrapper.find('[data-testid="pop-site-port"]').setValue('Te1/0/1');
+                const payload = vmOf(wrapper).getDraftPayload() as Record<string, unknown>;
+                expect(payload.direct_site).not.toBeNull();
+            });
+
+            // A10 — F-23-9
+            it('A10 own __proto__ key never reaches the payload', async () => {
+                const hostile = JSON.parse('{"__proto__":{"isAdmin":true},"direct_site":{"local_loops":"L"}}') as never;
+                const wrapper = mount(SiteSection, { props: { modelValue: hostile } });
+                await wrapper.find('[data-testid="pop-site-port"]').setValue('Te1/0/1');
+                const payload = vmOf(wrapper).getDraftPayload() as Record<string, unknown>;
+                expect(Object.hasOwn(payload, '__proto__')).toBe(false);
+                expect(Object.hasOwn(payload, 'constructor')).toBe(false);
+                const merged: Record<string, unknown> = {};
+                Object.assign(merged, payload);
+                expect(Object.getPrototypeOf(merged)).toBe(Object.prototype);
+            });
+        });
+
         it('handles direct_site / pop_site explicit undefined or empty input correctly', async () => {
             // Test explicit undefined in props (covers branch direct_site !== undefined else path)
             const wrapper = mount(SiteSection, {
