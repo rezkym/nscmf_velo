@@ -254,6 +254,26 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
             expect(wrapper.find('[data-testid="remove-priority-dest-1"]').attributes('disabled')).toBeDefined();
         });
 
+        it('honors readonly prop on inputs and action buttons', () => {
+            const wrapper = mount(BandwidthSection, {
+                props: {
+                    readonly: true,
+                    modelValue: sampleData,
+                },
+            });
+
+            expect(wrapper.find('[data-testid="input-bandwidth-international"]').attributes('readonly')).toBeDefined();
+            expect(wrapper.find('[data-testid="input-bandwidth-domestic-iix"]').attributes('readonly')).toBeDefined();
+            expect(wrapper.find('[data-testid="input-bandwidth-mixed"]').attributes('readonly')).toBeDefined();
+            expect(wrapper.find('[data-testid="input-vc-1"]').attributes('readonly')).toBeDefined();
+            expect(wrapper.find('[data-testid="input-sla-1"]').attributes('readonly')).toBeDefined();
+            expect(wrapper.find('[data-testid="input-priority-dest-1"]').attributes('readonly')).toBeDefined();
+            expect(wrapper.find('[data-testid="add-sla-row-btn"]').attributes('disabled')).toBeDefined();
+            expect(wrapper.find('[data-testid="remove-sla-row-1"]').attributes('disabled')).toBeDefined();
+            expect(wrapper.find('[data-testid="add-priority-dest-btn"]').attributes('disabled')).toBeDefined();
+            expect(wrapper.find('[data-testid="remove-priority-dest-1"]').attributes('disabled')).toBeDefined();
+        });
+
         it('displays empty state placeholders when sla and priority destinations are empty and reacts to external prop updates', async () => {
             const wrapper = mount(BandwidthSection, {
                 props: {
@@ -276,6 +296,148 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
             expect(wrapper.text()).not.toContain('No priority destinations added yet.');
             expect(wrapper.find<HTMLTextAreaElement>('[data-testid="input-sla-1"]').element.value).toBe('Updated SLA');
             expect(wrapper.find<HTMLInputElement>('[data-testid="input-priority-dest-1"]').element.value).toBe('Updated Dest');
+        });
+    });
+
+    describe('Security Remediation (SEC-FE-21)', () => {
+        it('F-21-1: rejects non-finite bandwidth values (Infinity, 1e999, NaN) across scalars and VC, showing inline errors and invalid submit', async () => {
+            const wrapper = mount(BandwidthSection, {
+                props: {
+                    modelValue: {},
+                },
+            });
+
+            const intlInput = wrapper.find<HTMLInputElement>('[data-testid="input-bandwidth-international"]');
+            await intlInput.setValue('Infinity');
+
+            // Must show inline error
+            expect(wrapper.find('[data-testid="error-bandwidth-international"]').text()).toContain('greater than 0');
+
+            // Emitted draft value must NOT be Infinity or non-finite
+            const emitted = wrapper.emitted('update:modelValue');
+            const latest = emitted![emitted!.length - 1]![0] as ActivationDraftFields;
+            expect(Number.isFinite(latest.bandwidth_international_mbps)).toBe(false);
+            expect(latest.bandwidth_international_mbps).toBeNull();
+            expect(Object.is(latest.bandwidth_international_mbps, Infinity)).toBe(false);
+
+            // validateSubmit must emit submit-invalid, NOT submit-valid
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+            expect(wrapper.emitted('submit-valid')).toBeFalsy();
+
+            // 1e999 on domestic-iix
+            const iixInput = wrapper.find<HTMLInputElement>('[data-testid="input-bandwidth-domestic-iix"]');
+            await iixInput.setValue('1e999');
+            expect(wrapper.find('[data-testid="error-bandwidth-domestic-iix"]').text()).toContain('greater than 0');
+            const latestIix = wrapper.emitted('update:modelValue')!.slice(-1)[0]![0] as ActivationDraftFields;
+            expect(latestIix.bandwidth_domestic_iix_mbps).toBeNull();
+
+            // Infinity on VC#1
+            const vc1Input = wrapper.find<HTMLInputElement>('[data-testid="input-vc-1"]');
+            await vc1Input.setValue('Infinity');
+            expect(wrapper.find('[data-testid="error-vc-1"]').text()).toContain('greater than 0');
+            const latestVc = wrapper.emitted('update:modelValue')!.slice(-1)[0]![0] as ActivationDraftFields;
+            const vc1 = latestVc.virtual_connections?.find((vc) => vc.row_no === 1);
+            expect(vc1).toBeUndefined();
+        });
+
+        it('F-21-2: enforces length limits (SLA 1000, PD 255) in value path and surfaces errors on validateSubmit', async () => {
+            const overSla = 'A'.repeat(1001);
+            const overPd = 'B'.repeat(256);
+
+            const wrapper = mount(BandwidthSection, {
+                props: {
+                    modelValue: {
+                        sla_items: [{ row_no: 1, requirement_text: overSla }],
+                        priority_destinations: [{ row_no: 1, destination: overPd }],
+                    },
+                },
+            });
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+            expect(wrapper.emitted('submit-valid')).toBeFalsy();
+
+            const emittedErr = wrapper.emitted('submit-invalid');
+            const errs = emittedErr![0]![0] as Record<string, string>;
+            expect(errs.sla_items).toBeDefined();
+            expect(errs.priority_destinations).toBeDefined();
+
+            const emittedDraft = wrapper.emitted('update:modelValue');
+            const latestDraft = emittedDraft![emittedDraft!.length - 1]![0] as ActivationDraftFields;
+            expect(latestDraft.sla_items?.[0]?.requirement_text?.length).toBeLessThanOrEqual(1000);
+            expect(latestDraft.priority_destinations?.[0]?.destination?.length).toBeLessThanOrEqual(255);
+        });
+
+        it('F-21-3: preserves omitted collections in draftPayload without destroying signal to []', async () => {
+            // If sla_items, virtual_connections, priority_destinations are omitted from modelValue,
+            // typing into bandwidth fields must NOT inject empty arrays [] into the emitted payload.
+            const wrapper = mount(BandwidthSection, {
+                props: {
+                    modelValue: {
+                        customer_name: 'PT Acme Indonesia',
+                    },
+                },
+            });
+
+            const intlInput = wrapper.find<HTMLInputElement>('[data-testid="input-bandwidth-international"]');
+            await intlInput.setValue('500');
+
+            const emitted = wrapper.emitted('update:modelValue');
+            expect(emitted).toBeDefined();
+            const latest = emitted![emitted!.length - 1]![0] as ActivationDraftFields;
+
+            expect(latest.bandwidth_international_mbps).toBe(500);
+            expect(Object.hasOwn(latest, 'virtual_connections')).toBe(false);
+            expect(Object.hasOwn(latest, 'sla_items')).toBe(false);
+            expect(Object.hasOwn(latest, 'priority_destinations')).toBe(false);
+
+            // But if modelValue explicitly has empty array, it should be preserved
+            const wrapperExplicit = mount(BandwidthSection, {
+                props: {
+                    modelValue: {
+                        sla_items: [],
+                    },
+                },
+            });
+            const intlInput2 = wrapperExplicit.find<HTMLInputElement>('[data-testid="input-bandwidth-international"]');
+            await intlInput2.setValue('250');
+            const emitted2 = wrapperExplicit.emitted('update:modelValue');
+            const latest2 = emitted2![emitted2!.length - 1]![0] as ActivationDraftFields;
+            expect(Object.hasOwn(latest2, 'sla_items')).toBe(true);
+            expect(latest2.sla_items).toEqual([]);
+        });
+
+        it('R-21-1: blank / not-started rows do not occupy a row_no in emitted draft', async () => {
+            const wrapper = mount(BandwidthSection, {
+                props: {
+                    modelValue: {
+                        sla_items: [{ row_no: 1, requirement_text: 'Active SLA' }],
+                    },
+                },
+            });
+
+            // Add second row but leave it blank
+            await wrapper.find('[data-testid="add-sla-row-btn"]').trigger('click');
+            const emitted = wrapper.emitted('update:modelValue');
+            const latest = emitted![emitted!.length - 1]![0] as ActivationDraftFields;
+            expect(latest.sla_items).toEqual([
+                { row_no: 1, requirement_text: 'Active SLA' },
+            ]);
+        });
+
+        it('R-21-2: gracefully handles malformed props without throwing TypeError', () => {
+            expect(() => {
+                mount(BandwidthSection, {
+                    props: {
+                        modelValue: {
+                            virtual_connections: null as unknown as any[],
+                            sla_items: [null as unknown as any],
+                            priority_destinations: 'invalid' as unknown as any[],
+                        },
+                    },
+                });
+            }).not.toThrow();
         });
     });
 });
