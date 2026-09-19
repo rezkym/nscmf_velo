@@ -1070,7 +1070,7 @@ describe('FE-15: Initial Setup Wizard Composition', () => {
     });
 
     // R-15-4: submitUser reads flash only, ignores bare props.temporary_password to prevent browser history leakage
-    it('R-15-4 — submitUser onSuccess reads credential strictly from flash props, ignoring bare props to avoid history state retention', () => {
+    it('R-15-4 — submitUser onSuccess reads credential strictly from flash props, ignoring bare props to avoid history state retention', async () => {
         const wrapper = mount(Setup, {
             props: defaultProps,
         });
@@ -1109,6 +1109,7 @@ describe('FE-15: Initial Setup Wizard Composition', () => {
                 },
             });
         }
+        await nextTick();
 
         expect(wrapper.find('[data-testid="one-time-credential-container"]').exists()).toBe(true);
         expect(wrapper.find('[data-testid="temporary-password-display"]').text()).toBe('flash-prop-secret');

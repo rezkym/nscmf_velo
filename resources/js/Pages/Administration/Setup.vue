@@ -9,7 +9,7 @@ import {
     ShieldAlert,
     ShieldCheck,
 } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 
 import FormField from '@/components/ui/FormField.vue';
 import OneTimeCredential from '@/features/administration/OneTimeCredential.vue';
@@ -266,16 +266,18 @@ function submitUser(): void {
     if (userForm.processing) return;
     userForm.post('/administration/users', {
         onSuccess: (page: unknown) => {
-            // Check if server response returned flash in page props
-            const pageProps = (page as { props?: { flash?: { temporary_password?: string; username?: string }; temporary_password?: string } })?.props;
-            const tempPass =
-                pageProps?.flash?.temporary_password || pageProps?.temporary_password;
+            // Check if server response returned flash in page props (R-15-4: flash only, no bare prop)
+            const pageProps = (page as { props?: { flash?: { temporary_password?: string; username?: string } } })?.props;
+            const tempPass = pageProps?.flash?.temporary_password;
             const uName = pageProps?.flash?.username || userForm.username;
 
             if (tempPass) {
-                activeTemporaryPassword.value = tempPass;
-                activeCredentialUsername.value = uName;
-                showCredentialModal.value = true;
+                // Check if already dismissed previously (B-15-2)
+                if (tempPass !== dismissedSecret.value) {
+                    activeTemporaryPassword.value = tempPass;
+                    activeCredentialUsername.value = uName;
+                    showCredentialModal.value = true;
+                }
             }
 
             userForm.reset();
@@ -291,6 +293,14 @@ function handleDismissCredential(): void {
     activeCredentialUsername.value = null;
     showCredentialModal.value = false;
 }
+
+// Ensure credential state is purged on unmount (R-15-2)
+onUnmounted(() => {
+    activeTemporaryPassword.value = null;
+    activeCredentialUsername.value = null;
+    dismissedSecret.value = null;
+    showCredentialModal.value = false;
+});
 
 // -------------------------------------------------------------
 // STEP 4: COMPLETE & SUMMARY
