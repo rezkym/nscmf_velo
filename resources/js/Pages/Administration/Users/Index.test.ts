@@ -4,7 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { forms, lastRequest, pageProps, requests, resetInertia } from '@/testing/inertia';
 
-import Index, { type RoleOption, type TeamOption, type UserRow } from './Index.vue';
+import { type RoleOption, type TeamOption, type UserRow } from '@/features/administration/UserManager.vue';
+
+import Index from './Index.vue';
 
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
 

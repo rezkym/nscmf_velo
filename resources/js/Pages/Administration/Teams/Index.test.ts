@@ -4,7 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { forms, lastRequest, requests, resetInertia } from '@/testing/inertia';
 
-import Index, { type Team } from './Index.vue';
+import { type Team } from '@/features/administration/TeamManager.vue';
+
+import Index from './Index.vue';
 
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
 
