@@ -346,7 +346,7 @@ function processVirtualConnections(rows: VirtualConnectionRow[]): VirtualConnect
             } else if (typeof bandwidthRaw === 'string' && bandwidthRaw.trim().length > 0) {
                 num = Number(bandwidthRaw);
             }
-            if (num !== null && Number.isFinite(num) && num > 0) {
+            if (num !== null && Number.isFinite(num)) {
                 result.push({
                     row_no: rowNo,
                     bandwidth_mbps: num,
@@ -555,22 +555,16 @@ function processSiteBlock<T extends DirectSiteBlock | PopSiteBlock>(
     }
 
     const built: Record<string, unknown> = {};
-    let hasContent = false;
 
     for (const key of allowedKeys) {
         const strKey = key as string;
         if (Object.hasOwn(site, strKey)) {
             const val = site[strKey];
-            if (isPresent(val)) {
-                hasContent = true;
-                built[strKey] = val;
-            } else if (val === null || (typeof val === 'string' && val.trim().length === 0)) {
-                built[strKey] = null;
-            }
+            built[strKey] = isPresent(val) ? val : null;
         }
     }
 
-    if (!hasContent) {
+    if (Object.keys(built).length === 0) {
         throw new Error(`Empty object {} is invalid for ${name}; use null to clear the block.`);
     }
 
