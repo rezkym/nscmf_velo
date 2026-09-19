@@ -262,6 +262,16 @@ defineExpose({
 
 <template>
     <section class="network-hosting-section space-y-6" data-testid="network-hosting-section">
+        <!-- Form level error alert (F-22-2 / N-22b-2) -->
+        <div
+            v-if="displayErrors.form"
+            data-testid="error-form"
+            class="p-3 text-sm rounded-md bg-destructive/15 text-destructive border border-destructive/20 font-medium"
+            role="alert"
+        >
+            {{ displayErrors.form }}
+        </div>
+
         <!-- NOC & IP Routing Configuration -->
         <div class="space-y-4 p-4 rounded-lg border bg-card text-card-foreground shadow-sm">
             <h3 class="text-base font-semibold tracking-tight border-b pb-2">NOC & IP Routing Configuration</h3>
