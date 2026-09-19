@@ -1,0 +1,799 @@
+import { describe, it, expect } from 'vitest';
+import { mount } from '@vue/test-utils';
+import NetworkHostingSection from './NetworkHostingSection.vue';
+import type { ActivationDraftFields } from '../draftPayload';
+
+describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)', () => {
+    const defaultData: ActivationDraftFields = {
+        lan_ip_allocation: '10.10.0.0/24\n10.10.1.10-10.10.1.20',
+        wan_ip: '203.0.113.8/30',
+        gateway: '203.0.113.9',
+        pop: 'POP Jakarta',
+        regional: 'Jakarta Barat',
+        preferred_upstream: 'Telkom',
+        secondary_upstream: 'Indosat',
+        primary_noc_link: 'Link-A',
+        secondary_noc_link: 'Link-B',
+        downlink_router: 'Router-01',
+        domain_name_1: 'example.com',
+        domain_name_2: 'sub.example.com',
+        primary_dns: '8.8.8.8',
+        secondary_dns: '2001:4860:4860::8888',
+        mx_primary: '10 mail.example.com',
+        mx_secondary: 'mail2.example.com',
+        hosting_platform: 'cPanel Cloud',
+        hosting_capacity_gb: 50,
+        migrate_domain: false,
+        migrate_hosting: false,
+    };
+
+    describe('AC1 — network_keeps_valid_examples', () => {
+        it('preserves IPv4, IPv6, CIDR, and ranges in roundtrip without semantic alterations', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        lan_ip_allocation: '192.0.2.0/24, 2001:db8::1, 10.0.0.1 - 10.0.0.50\nfe80::1/64',
+                        wan_ip: '2001:db8::1',
+                        gateway: '2001:db8::ffff',
+                    },
+                },
+            });
+
+            // Initial modelValue reflected in inputs
+            const lanInput = wrapper.find<HTMLTextAreaElement>('[data-testid="input-lan_ip_allocation"]');
+            const wanInput = wrapper.find<HTMLInputElement>('[data-testid="input-wan_ip"]');
+            const gwInput = wrapper.find<HTMLInputElement>('[data-testid="input-gateway"]');
+
+            expect(lanInput.element.value).toBe('192.0.2.0/24, 2001:db8::1, 10.0.0.1 - 10.0.0.50\nfe80::1/64');
+            expect(wanInput.element.value).toBe('2001:db8::1');
+            expect(gwInput.element.value).toBe('2001:db8::ffff');
+
+            // Inputting new IPv6 and CIDR representations
+            await wanInput.setValue('2001:db8:85a3::8a2e:370:7334/64');
+            await gwInput.setValue('2001:db8:85a3::1');
+
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+            const updateEvents = wrapper.emitted('update:modelValue')!;
+            const lastRow = updateEvents[updateEvents.length - 1];
+            expect(lastRow).toBeDefined();
+            const lastEmitted = lastRow![0] as ActivationDraftFields;
+            expect(lastEmitted.wan_ip).toBe('2001:db8:85a3::8a2e:370:7334/64');
+            expect(lastEmitted.gateway).toBe('2001:db8:85a3::1');
+            expect(lastEmitted.lan_ip_allocation).toBe('192.0.2.0/24, 2001:db8::1, 10.0.0.1 - 10.0.0.50\nfe80::1/64');
+
+            // Exposed getDraftPayload() keeps them exact
+            const payload = wrapper.vm.getDraftPayload();
+            expect(payload.wan_ip).toBe('2001:db8:85a3::8a2e:370:7334/64');
+            expect(payload.gateway).toBe('2001:db8:85a3::1');
+            expect(payload.lan_ip_allocation).toBe('192.0.2.0/24, 2001:db8::1, 10.0.0.1 - 10.0.0.50\nfe80::1/64');
+        });
+
+        it('does not reject legal IPv6 address formats such as 2001:db8::1', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        wan_ip: '2001:db8::1',
+                        gateway: '2001:db8::2',
+                        primary_dns: '2001:4860:4860::8888',
+                        secondary_dns: '2606:4700:4700::1111',
+                    },
+                },
+            });
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.emitted('submit-valid')).toBeTruthy();
+            expect(wrapper.find('[data-testid="error-wan_ip"]').exists()).toBe(false);
+            expect(wrapper.find('[data-testid="error-gateway"]').exists()).toBe(false);
+            expect(wrapper.find('[data-testid="error-primary_dns"]').exists()).toBe(false);
+            expect(wrapper.find('[data-testid="error-secondary_dns"]').exists()).toBe(false);
+        });
+    });
+
+    describe('AC2 — hosting_dependencies_are_action_specific', () => {
+        it('requires domain_name_1 when migrate_domain is true upon submit validation', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        migrate_domain: true,
+                        domain_name_1: '',
+                    },
+                },
+            });
+
+            // Dependency helper indicator / UI prompt
+            expect(wrapper.find('[data-testid="indicator-migrate_domain-dependency"]').exists()).toBe(true);
+
+            // In draft mode, incomplete values remain editable and exportable
+            const draft = wrapper.vm.getDraftPayload();
+            expect(draft.migrate_domain).toBe(true);
+            expect(draft.domain_name_1).toBeNull();
+
+            // Submit validation enforces requirement
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+            expect(wrapper.find('[data-testid="error-domain_name_1"]').text()).toContain(
+                'Domain Name 1 is required when domain migration is requested',
+            );
+
+            // Provide domain_name_1 resolves the error
+            const domainInput = wrapper.find<HTMLInputElement>('[data-testid="input-domain_name_1"]');
+            await domainInput.setValue('company.co.id');
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.find('[data-testid="error-domain_name_1"]').exists()).toBe(false);
+        });
+
+        it('requires hosting_platform and positive hosting_capacity_gb when migrate_hosting is true upon submit', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        migrate_hosting: true,
+                        hosting_platform: '',
+                        hosting_capacity_gb: null,
+                    },
+                },
+            });
+
+            expect(wrapper.find('[data-testid="indicator-migrate_hosting-dependency"]').exists()).toBe(true);
+
+            // Submit validation triggers required errors for both
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+            expect(wrapper.find('[data-testid="error-hosting_platform"]').text()).toContain(
+                'Hosting platform is required when hosting migration is requested',
+            );
+            expect(wrapper.find('[data-testid="error-hosting_capacity_gb"]').text()).toContain(
+                'Hosting capacity (> 0 GB) is required when hosting migration is requested',
+            );
+
+            // Capacity <= 0 is invalid
+            const capInput = wrapper.find<HTMLInputElement>('[data-testid="input-hosting_capacity_gb"]');
+            const platformInput = wrapper.find<HTMLInputElement>('[data-testid="input-hosting_platform"]');
+
+            await platformInput.setValue('cPanel');
+            await capInput.setValue('0');
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.find('[data-testid="error-hosting_capacity_gb"]').text()).toContain(
+                'Hosting capacity must be greater than 0',
+            );
+
+            // Setting valid capacity > 0 clears error
+            await capInput.setValue('25.5');
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.find('[data-testid="error-hosting_platform"]').exists()).toBe(false);
+            expect(wrapper.find('[data-testid="error-hosting_capacity_gb"]').exists()).toBe(false);
+        });
+
+        it('does not invent/pre-populate domain or platform automatically when migration checkboxes are toggled', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        domain_name_1: '',
+                        hosting_platform: '',
+                        migrate_domain: false,
+                        migrate_hosting: false,
+                    },
+                },
+            });
+
+            const migDomainCheckbox = wrapper.find<HTMLInputElement>('[data-testid="checkbox-migrate_domain"]');
+            const migHostingCheckbox = wrapper.find<HTMLInputElement>('[data-testid="checkbox-migrate_hosting"]');
+
+            await migDomainCheckbox.setValue(true);
+            await migHostingCheckbox.setValue(true);
+
+            const draft = wrapper.vm.getDraftPayload();
+
+            expect(draft.migrate_domain).toBe(true);
+            expect(draft.migrate_hosting).toBe(true);
+            // Must NOT invent or fabricate default domains/platforms
+            expect(draft.domain_name_1).toBeNull();
+            expect(draft.hosting_platform).toBeNull();
+            expect(wrapper.find<HTMLInputElement>('[data-testid="input-domain_name_1"]').element.value).toBe('');
+            expect(wrapper.find<HTMLInputElement>('[data-testid="input-hosting_platform"]').element.value).toBe('');
+        });
+    });
+
+    describe('AC3 — network_does_not_invent_masters', () => {
+        it('renders POP, regional, upstream, and downlink_router as free text inputs with maxlength 255', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: defaultData,
+                },
+            });
+
+            const popInput = wrapper.find('[data-testid="input-pop"]');
+            const regionalInput = wrapper.find('[data-testid="input-regional"]');
+            const prefUpstream = wrapper.find('[data-testid="input-preferred_upstream"]');
+            const secUpstream = wrapper.find('[data-testid="input-secondary_upstream"]');
+            const primaryNocLink = wrapper.find('[data-testid="input-primary_noc_link"]');
+            const secNocLink = wrapper.find('[data-testid="input-secondary_noc_link"]');
+            const downlinkRouter = wrapper.find('[data-testid="input-downlink_router"]');
+
+            // All must be standard text inputs, NOT select dropdowns (no invented master authorization selector)
+            expect(popInput.element.tagName).toBe('INPUT');
+            expect(popInput.attributes('type')).toBe('text');
+            expect(popInput.attributes('maxlength')).toBe('255');
+
+            expect(regionalInput.element.tagName).toBe('INPUT');
+            expect(regionalInput.attributes('type')).toBe('text');
+            expect(regionalInput.attributes('maxlength')).toBe('255');
+
+            expect(prefUpstream.element.tagName).toBe('INPUT');
+            expect(prefUpstream.attributes('maxlength')).toBe('255');
+
+            expect(secUpstream.element.tagName).toBe('INPUT');
+            expect(secUpstream.attributes('maxlength')).toBe('255');
+
+            expect(primaryNocLink.element.tagName).toBe('INPUT');
+            expect(primaryNocLink.attributes('maxlength')).toBe('255');
+
+            expect(secNocLink.element.tagName).toBe('INPUT');
+            expect(secNocLink.attributes('maxlength')).toBe('255');
+
+            expect(downlinkRouter.element.tagName).toBe('INPUT');
+            expect(downlinkRouter.attributes('maxlength')).toBe('255');
+
+            // Allows custom free-text arbitrary network designations
+            await popInput.setValue('Custom Edge PoP-99');
+            await regionalInput.setValue('Region IX - Remote');
+            await downlinkRouter.setValue('Cisco-ASR9000-Core-01');
+
+            const draft = wrapper.vm.getDraftPayload();
+            expect(draft.pop).toBe('Custom Edge PoP-99');
+            expect(draft.regional).toBe('Region IX - Remote');
+            expect(draft.downlink_router).toBe('Cisco-ASR9000-Core-01');
+        });
+    });
+
+    describe('AC4 — domain_limits_and_nulls', () => {
+        it('enforces boundary limits: domain max 253, hosting max 255', () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {},
+                },
+            });
+
+            const d1 = wrapper.find('[data-testid="input-domain_name_1"]');
+            const d2 = wrapper.find('[data-testid="input-domain_name_2"]');
+            const hp = wrapper.find('[data-testid="input-hosting_platform"]');
+
+            expect(d1.attributes('maxlength')).toBe('253');
+            expect(d2.attributes('maxlength')).toBe('253');
+            expect(hp.attributes('maxlength')).toBe('255');
+        });
+
+        it('explicitly normalizes blank/whitespace strings to null in draft export', () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        lan_ip_allocation: '   ',
+                        wan_ip: '  ',
+                        gateway: '',
+                        pop: '   ',
+                        regional: '',
+                        preferred_upstream: ' ',
+                        secondary_upstream: '',
+                        primary_noc_link: '   ',
+                        secondary_noc_link: '',
+                        downlink_router: '',
+                        domain_name_1: '   ',
+                        domain_name_2: '',
+                        primary_dns: '',
+                        secondary_dns: '  ',
+                        mx_primary: '  ',
+                        mx_secondary: '',
+                        hosting_platform: '  ',
+                        hosting_capacity_gb: null,
+                    },
+                },
+            });
+
+            const draft = wrapper.vm.getDraftPayload();
+
+            expect(draft.lan_ip_allocation).toBeNull();
+            expect(draft.wan_ip).toBeNull();
+            expect(draft.gateway).toBeNull();
+            expect(draft.pop).toBeNull();
+            expect(draft.regional).toBeNull();
+            expect(draft.preferred_upstream).toBeNull();
+            expect(draft.secondary_upstream).toBeNull();
+            expect(draft.primary_noc_link).toBeNull();
+            expect(draft.secondary_noc_link).toBeNull();
+            expect(draft.downlink_router).toBeNull();
+            expect(draft.domain_name_1).toBeNull();
+            expect(draft.domain_name_2).toBeNull();
+            expect(draft.primary_dns).toBeNull();
+            expect(draft.secondary_dns).toBeNull();
+            expect(draft.mx_primary).toBeNull();
+            expect(draft.mx_secondary).toBeNull();
+            expect(draft.hosting_platform).toBeNull();
+        });
+
+        it('displays server validation errors accurately mapped to corresponding fields via serverErrors prop', () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: defaultData,
+                    serverErrors: {
+                        lan_ip_allocation: 'Invalid CIDR format',
+                        wan_ip: 'The wan ip field is invalid',
+                        gateway: 'Gateway must be a valid IP address',
+                        primary_dns: 'Primary DNS must be a valid IPv4 or IPv6 address',
+                        secondary_dns: 'Secondary DNS must be a valid IPv4 or IPv6 address',
+                        mx_primary: 'MX Primary must be a valid FQDN or priority + FQDN',
+                        mx_secondary: 'MX Secondary must be a valid FQDN or priority + FQDN',
+                        domain_name_1: 'Domain name 1 is not a valid FQDN',
+                        hosting_platform: 'Hosting platform exceeds allowed length',
+                    },
+                },
+            });
+
+            expect(wrapper.find('[data-testid="error-lan_ip_allocation"]').text()).toBe('Invalid CIDR format');
+            expect(wrapper.find('[data-testid="error-wan_ip"]').text()).toBe('The wan ip field is invalid');
+            expect(wrapper.find('[data-testid="error-gateway"]').text()).toBe('Gateway must be a valid IP address');
+            expect(wrapper.find('[data-testid="error-primary_dns"]').text()).toBe(
+                'Primary DNS must be a valid IPv4 or IPv6 address',
+            );
+            expect(wrapper.find('[data-testid="error-secondary_dns"]').text()).toBe(
+                'Secondary DNS must be a valid IPv4 or IPv6 address',
+            );
+            expect(wrapper.find('[data-testid="error-mx_primary"]').text()).toBe(
+                'MX Primary must be a valid FQDN or priority + FQDN',
+            );
+            expect(wrapper.find('[data-testid="error-mx_secondary"]').text()).toBe(
+                'MX Secondary must be a valid FQDN or priority + FQDN',
+            );
+            expect(wrapper.find('[data-testid="error-domain_name_1"]').text()).toBe(
+                'Domain name 1 is not a valid FQDN',
+            );
+            expect(wrapper.find('[data-testid="error-hosting_platform"]').text()).toBe(
+                'Hosting platform exceeds allowed length',
+            );
+        });
+    });
+
+    describe('Disabled and Readonly States', () => {
+        it('disables all inputs when disabled prop is true', () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: defaultData,
+                    disabled: true,
+                },
+            });
+
+            const inputs = wrapper.findAll('input, textarea');
+            expect(inputs.length).toBeGreaterThan(10);
+            for (const input of inputs) {
+                expect((input.element as HTMLInputElement).disabled).toBe(true);
+            }
+        });
+
+        it('marks text inputs as readonly when readonly prop is true', () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: defaultData,
+                    readonly: true,
+                },
+            });
+
+            const textInputs = wrapper.findAll('input[type="text"], input[type="number"], textarea');
+            for (const input of textInputs) {
+                expect((input.element as HTMLInputElement).readOnly).toBe(true);
+            }
+        });
+    });
+
+    describe('Remediation Security Tests (SEC-FE-22 / F-22-1..F-22-6)', () => {
+        it('F-22-1 & F-22-5: strictly excludes foreign/unmodelled keys, envelope keys, collections, and __proto__ from getDraftPayload()', () => {
+            const foreignPayload = {
+                ...defaultData,
+                customer_name: 'PT Lain',
+                service_blocks: [{ service_context: 'NEW', service_id: 'STALE-1' }],
+                sla_items: [{ row_no: 1, requirement_text: 'stale' }],
+                priority_destinations: [{ row_no: 1, destination: 'stale' }],
+                direct_site: { local_loops: 'x' },
+                host_name: 'ATK-ORPHAN',
+                family: 'ACTIVATION',
+                record_version: 99,
+                unknown_key: 'ATK-UNKNOWN',
+                __proto__: { polluted: 'yes' },
+            } as unknown as ActivationDraftFields;
+
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: foreignPayload,
+                },
+            });
+
+            const payload = wrapper.vm.getDraftPayload();
+            const keys = Object.keys(payload);
+
+            // Exactly 20 owned keys
+            expect(keys.length).toBe(20);
+            expect(keys).toEqual([
+                'lan_ip_allocation',
+                'wan_ip',
+                'gateway',
+                'pop',
+                'regional',
+                'preferred_upstream',
+                'secondary_upstream',
+                'primary_noc_link',
+                'secondary_noc_link',
+                'downlink_router',
+                'domain_name_1',
+                'domain_name_2',
+                'primary_dns',
+                'secondary_dns',
+                'mx_primary',
+                'mx_secondary',
+                'hosting_platform',
+                'hosting_capacity_gb',
+                'migrate_domain',
+                'migrate_hosting',
+            ]);
+
+            // No unowned/foreign keys or collections echoed
+            expect('customer_name' in payload).toBe(false);
+            expect('service_blocks' in payload).toBe(false);
+            expect('sla_items' in payload).toBe(false);
+            expect('priority_destinations' in payload).toBe(false);
+            expect('direct_site' in payload).toBe(false);
+            expect('host_name' in payload).toBe(false);
+            expect('family' in payload).toBe(false);
+            expect('record_version' in payload).toBe(false);
+            expect('unknown_key' in payload).toBe(false);
+            expect(Object.prototype.hasOwnProperty.call(payload, '__proto__')).toBe(false);
+            expect(Object.prototype.hasOwnProperty.call(payload, 'polluted')).toBe(false);
+        });
+
+        it('F-22-2: gates validateSubmit() on readonly or disabled, returning false and emitting submit-invalid', () => {
+            // Readonly mode
+            const readonlyWrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: defaultData,
+                    readonly: true,
+                },
+            });
+
+            const readonlyBtn = readonlyWrapper.find<HTMLButtonElement>('[data-testid="validate-submit-btn"]');
+            expect(readonlyBtn.attributes('tabindex')).toBe('-1');
+            expect(readonlyBtn.attributes('aria-hidden')).toBe('true');
+            expect(readonlyBtn.element.disabled).toBe(true);
+
+            const readonlyResult = readonlyWrapper.vm.validateSubmit();
+            expect(readonlyResult).toBe(false);
+            expect(readonlyWrapper.emitted('submit-valid')).toBeFalsy();
+            expect(readonlyWrapper.emitted('submit-invalid')).toBeTruthy();
+            const readonlyInvalidEvents = readonlyWrapper.emitted('submit-invalid');
+            expect(readonlyInvalidEvents?.[0]?.[0]).toEqual({
+                form: 'Form is readonly or disabled',
+            });
+
+            // Disabled mode
+            const disabledWrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: defaultData,
+                    disabled: true,
+                },
+            });
+
+            const disabledBtn = disabledWrapper.find<HTMLButtonElement>('[data-testid="validate-submit-btn"]');
+            expect(disabledBtn.attributes('tabindex')).toBe('-1');
+            expect(disabledBtn.attributes('aria-hidden')).toBe('true');
+            expect(disabledBtn.element.disabled).toBe(true);
+
+            const disabledResult = disabledWrapper.vm.validateSubmit();
+            expect(disabledResult).toBe(false);
+            expect(disabledWrapper.emitted('submit-valid')).toBeFalsy();
+            expect(disabledWrapper.emitted('submit-invalid')).toBeTruthy();
+            const disabledInvalidEvents = disabledWrapper.emitted('submit-invalid');
+            expect(disabledInvalidEvents?.[0]?.[0]).toEqual({
+                form: 'Form is readonly or disabled',
+            });
+        });
+
+        it('F-22-3: disables migration checkboxes when readonly prop is true', () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: defaultData,
+                    readonly: true,
+                },
+            });
+
+            const domainCheckbox = wrapper.find<HTMLInputElement>('[data-testid="checkbox-migrate_domain"]');
+            const hostingCheckbox = wrapper.find<HTMLInputElement>('[data-testid="checkbox-migrate_hosting"]');
+
+            expect(domainCheckbox.element.disabled).toBe(true);
+            expect(hostingCheckbox.element.disabled).toBe(true);
+        });
+
+        it('F-22-4: clamps oversize inputs to column widths at payload generation', () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        pop: 'A'.repeat(300), // VARCHAR(255)
+                        domain_name_1: 'B'.repeat(400), // VARCHAR(253)
+                        domain_name_2: 'C'.repeat(300), // VARCHAR(253)
+                        gateway: 'D'.repeat(300), // VARCHAR(255)
+                        hosting_platform: 'E'.repeat(300), // VARCHAR(255)
+                    },
+                },
+            });
+
+            const payload = wrapper.vm.getDraftPayload();
+            expect(payload.pop?.length).toBe(255);
+            expect(payload.domain_name_1?.length).toBe(253);
+            expect(payload.domain_name_2?.length).toBe(253);
+            expect(payload.gateway?.length).toBe(255);
+            expect(payload.hosting_platform?.length).toBe(255);
+        });
+
+        it('F-22-6: dirty tracking prevents watcher from clobbering in-flight user typing and clears clientErrors', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        pop: 'POP Jakarta',
+                        migrate_domain: true,
+                        domain_name_1: '',
+                    },
+                },
+            });
+
+            // Trigger client error via submit
+            await wrapper.vm.validateSubmit();
+            expect(wrapper.find('[data-testid="error-domain_name_1"]').exists()).toBe(true);
+
+            // User types into pop input (marks dirty and clears clientErrors)
+            const popInput = wrapper.find<HTMLInputElement>('[data-testid="input-pop"]');
+            await popInput.setValue('POP Jakarta Typing More');
+            expect(wrapper.vm.isDirty).toBe(true);
+            expect(wrapper.find('[data-testid="error-domain_name_1"]').exists()).toBe(false);
+
+            // Parent pushes stale prop mid-typing
+            await wrapper.setProps({
+                modelValue: {
+                    pop: 'POP Jakarta Stale Prop',
+                    migrate_domain: true,
+                    domain_name_1: '',
+                },
+            });
+
+            // In-flight user input is preserved!
+            expect(popInput.element.value).toBe('POP Jakarta Typing More');
+            expect(wrapper.vm.getDraftPayload().pop).toBe('POP Jakarta Typing More');
+
+            // Resetting dirty allows prop sync again
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    pop: 'POP Bandung Fresh Prop',
+                    migrate_domain: false,
+                },
+            });
+            expect(popInput.element.value).toBe('POP Bandung Fresh Prop');
+            expect(wrapper.vm.getDraftPayload().pop).toBe('POP Bandung Fresh Prop');
+        });
+
+        it('N-22-1: astral-safe clamping does not split surrogate pairs or emit lone surrogates', () => {
+            // '😀'.repeat(200) is 200 code points, but 400 UTF-16 code units.
+            // When clamped to 253 code points, all 200 code points fit intact without splitting!
+            // When '😀'.repeat(300) is clamped to 253 code points, exactly 253 emoji fit intact (506 UTF-16 units).
+            const emoji300 = '😀'.repeat(300);
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        domain_name_1: emoji300,
+                        pop: emoji300,
+                    },
+                },
+            });
+
+            const payload = wrapper.vm.getDraftPayload();
+            expect(payload.domain_name_1).toBeDefined();
+            expect([...payload.domain_name_1!].length).toBe(253);
+            expect(payload.domain_name_1!.endsWith('😀')).toBe(true);
+            // Must NOT contain lone surrogates
+            expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(payload.domain_name_1 ?? '')).toBe(false);
+
+            expect(payload.pop).toBeDefined();
+            expect([...payload.pop!].length).toBe(255);
+            expect(payload.pop!.endsWith('😀')).toBe(true);
+            expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(payload.pop ?? '')).toBe(false);
+        });
+
+        it('N-22-1: validateSubmit rejects over-length fields with visible errors and emits submit-invalid', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        pop: 'A'.repeat(256),
+                        regional: 'B'.repeat(256),
+                        preferred_upstream: 'C'.repeat(256),
+                        secondary_upstream: 'D'.repeat(256),
+                        primary_noc_link: 'E'.repeat(256),
+                        secondary_noc_link: 'F'.repeat(256),
+                        downlink_router: 'G'.repeat(256),
+                        domain_name_1: 'H'.repeat(254),
+                        domain_name_2: 'I'.repeat(254),
+                        primary_dns: 'J'.repeat(256),
+                        secondary_dns: 'K'.repeat(256),
+                        mx_primary: 'L'.repeat(256),
+                        mx_secondary: 'M'.repeat(256),
+                        hosting_platform: 'N'.repeat(256),
+                    },
+                },
+            });
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+
+            expect(wrapper.emitted('submit-valid')).toBeFalsy();
+            expect(wrapper.emitted('submit-invalid')).toBeTruthy();
+
+            const invalidEvents = wrapper.emitted('submit-invalid')!;
+            expect(invalidEvents).toBeDefined();
+            const errors = invalidEvents[0]![0] as Record<string, string>;
+
+            expect(errors['pop']).toBe('POP must be max 255 characters');
+            expect(errors['regional']).toBe('Regional must be max 255 characters');
+            expect(errors['preferred_upstream']).toBe('Preferred upstream must be max 255 characters');
+            expect(errors['secondary_upstream']).toBe('Secondary upstream must be max 255 characters');
+            expect(errors['primary_noc_link']).toBe('Primary NOC link must be max 255 characters');
+            expect(errors['secondary_noc_link']).toBe('Secondary NOC link must be max 255 characters');
+            expect(errors['downlink_router']).toBe('Downlink router must be max 255 characters');
+            expect(errors['domain_name_1']).toBe('Domain name 1 must be max 253 characters');
+            expect(errors['domain_name_2']).toBe('Domain name 2 must be max 253 characters');
+            expect(errors['primary_dns']).toBe('Primary DNS must be max 255 characters');
+            expect(errors['secondary_dns']).toBe('Secondary DNS must be max 255 characters');
+            expect(errors['mx_primary']).toBe('MX primary must be max 255 characters');
+            expect(errors['mx_secondary']).toBe('MX secondary must be max 255 characters');
+            expect(errors['hosting_platform']).toBe('Hosting platform must be max 255 characters');
+
+            // Verify visible error DOM nodes
+            expect(wrapper.find('[data-testid="error-pop"]').text()).toBe('POP must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-domain_name_1"]').text()).toBe('Domain name 1 must be max 253 characters');
+            expect(wrapper.find('[data-testid="error-regional"]').text()).toBe('Regional must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-preferred_upstream"]').text()).toBe('Preferred upstream must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-secondary_upstream"]').text()).toBe('Secondary upstream must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-primary_noc_link"]').text()).toBe('Primary NOC link must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-secondary_noc_link"]').text()).toBe('Secondary NOC link must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-downlink_router"]').text()).toBe('Downlink router must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-domain_name_2"]').text()).toBe('Domain name 2 must be max 253 characters');
+            expect(wrapper.find('[data-testid="error-primary_dns"]').text()).toBe('Primary DNS must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-secondary_dns"]').text()).toBe('Secondary DNS must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-mx_primary"]').text()).toBe('MX primary must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-mx_secondary"]').text()).toBe('MX secondary must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-hosting_platform"]').text()).toBe('Hosting platform must be max 255 characters');
+        });
+
+        it('N-22-1: legal astral input below code point cap passes validation without error', async () => {
+            const emoji200 = '😀'.repeat(200); // 200 code points, 400 UTF-16 units
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        domain_name_1: emoji200,
+                        pop: emoji200,
+                    },
+                },
+            });
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+
+            expect(wrapper.emitted('submit-invalid')).toBeFalsy();
+            expect(wrapper.emitted('submit-valid')).toBeTruthy();
+            expect(wrapper.find('[data-testid="error-domain_name_1"]').exists()).toBe(false);
+            expect(wrapper.find('[data-testid="error-pop"]').exists()).toBe(false);
+
+            const payload = wrapper.vm.getDraftPayload();
+            expect(payload.domain_name_1).toBe(emoji200);
+            expect(payload.pop).toBe(emoji200);
+        });
+
+        it('exercises all field input events and sync props edge cases to reach 100% coverage', async () => {
+            const wrapper = mount(NetworkHostingSection, {
+                props: {
+                    modelValue: {
+                        hosting_capacity_gb: null as unknown as number,
+                    },
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+
+            const inputTestIds = [
+                'input-lan_ip_allocation',
+                'input-wan_ip',
+                'input-gateway',
+                'input-pop',
+                'input-regional',
+                'input-preferred_upstream',
+                'input-secondary_upstream',
+                'input-primary_noc_link',
+                'input-secondary_noc_link',
+                'input-downlink_router',
+                'input-domain_name_1',
+                'input-domain_name_2',
+                'input-primary_dns',
+                'input-secondary_dns',
+                'input-mx_primary',
+                'input-mx_secondary',
+                'input-hosting_platform',
+                'input-hosting_capacity_gb',
+            ];
+
+            for (const testId of inputTestIds) {
+                const el = wrapper.find(`[data-testid="${testId}"]`);
+                expect(el.exists()).toBe(true);
+                await el.setValue(testId.includes('capacity') ? '10' : 'test-value');
+            }
+
+            expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+
+            // Also test invalid string capacity to exercise toNullableNumber parsed branch
+            const capInput = wrapper.find('[data-testid="input-hosting_capacity_gb"]');
+            await capInput.setValue('invalid-number');
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+            await capInput.setValue('');
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+
+            // Test finite number and non-finite number paths
+            expect(wrapper.vm.getDraftPayload()).toBeDefined();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: NaN,
+                },
+            });
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: ' 42.5 ' as unknown as number,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBe(42.5);
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: 50,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBe(50);
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: null,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: undefined,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: '   ' as unknown as number,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: Infinity,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: {
+                    hosting_capacity_gb: 'Infinity' as unknown as number,
+                },
+            });
+            expect(wrapper.vm.getDraftPayload().hosting_capacity_gb).toBeNull();
+            wrapper.vm.resetDirty();
+            await wrapper.setProps({
+                modelValue: null as unknown as ActivationDraftFields,
+            });
+            expect(wrapper.vm.getDraftPayload().pop).toBeNull();
+        });
+    });
+});
