@@ -882,5 +882,200 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
             expect(wrapperInvalidTiming.vm.errors.announcement_timing).toContain('Invalid announcement timing');
             expect(wrapperInvalidTiming.vm.getDraftPayload().announcement_timing).toBeNull();
         });
+
+        describe('Remediation — RE-SEC-FE-25 Findings N-25-1, N-25-2, R-25-1', () => {
+            const LONE_SURROGATE_REGEX =
+                /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+            it('N-25-1: clamps astral characters by code point without creating lone surrogates', async () => {
+                // 999 ASCII + 10 emoji -> 1009 characters, 1019 UTF-16 code units
+                // If clamped by UTF-16 slice(0, 1000), character 1000 is split into a lone high surrogate.
+                const astralPlanText = 'a'.repeat(999) + '😀'.repeat(10);
+                const astralTargetKpi = 'k'.repeat(999) + '🚀'.repeat(10);
+                const astralRollback = 'r'.repeat(3999) + '🛡️'.repeat(10);
+
+                const wrapper = mount(PlanSection, {
+                    props: {
+                        todayJakarta: '2026-09-20',
+                        modelValue: {
+                            improvement_items: [
+                                {
+                                    row_no: 1,
+                                    plan_text: astralPlanText,
+                                    target_kpi: astralTargetKpi,
+                                },
+                            ],
+                            target_execution_date: '2026-09-21',
+                            monitoring_period_value: 2,
+                            monitoring_period_unit: 'HOUR',
+                            rollback_scenario: astralRollback,
+                            announcement_timing: 'ONE_WEEK_BEFORE',
+                        },
+                    },
+                });
+
+                // 1. Emitted payload from getDraftPayload()
+                const draft = wrapper.vm.getDraftPayload() as {
+                    improvement_items?: Array<{ plan_text?: string | null; target_kpi?: string | null }>;
+                    rollback_scenario?: string | null;
+                };
+
+                const emittedPlan = draft.improvement_items?.[0]?.plan_text;
+                const emittedKpi = draft.improvement_items?.[0]?.target_kpi;
+                const emittedRollback = draft.rollback_scenario;
+
+                expect(emittedPlan).toBeDefined();
+                expect(emittedKpi).toBeDefined();
+                expect(emittedRollback).toBeDefined();
+
+                // Characters count (code points), not UTF-16 code units
+                expect([...emittedPlan!].length).toBe(1000);
+                expect([...emittedKpi!].length).toBe(1000);
+                expect([...emittedRollback!].length).toBe(4000);
+
+                // Emitted strings must contain no lone surrogates and must be strictly valid JSON
+                expect(LONE_SURROGATE_REGEX.test(emittedPlan!)).toBe(false);
+                expect(LONE_SURROGATE_REGEX.test(emittedKpi!)).toBe(false);
+                expect(LONE_SURROGATE_REGEX.test(emittedRollback!)).toBe(false);
+
+                expect(() => JSON.parse(JSON.stringify(draft))).not.toThrow();
+
+                // 2. notifyUpdate emission via modelValue update upon textarea input
+                const textareas = wrapper.findAll('textarea');
+                await textareas[0]!.setValue(astralPlanText);
+                const emittedEvents = wrapper.emitted('update:modelValue');
+                expect(emittedEvents).toBeDefined();
+                const lastModelValue = emittedEvents![emittedEvents!.length - 1]![0] as typeof draft;
+                expect(LONE_SURROGATE_REGEX.test(lastModelValue.improvement_items?.[0]?.plan_text!)).toBe(false);
+                expect([...lastModelValue.improvement_items?.[0]?.plan_text!].length).toBe(1000);
+
+                // 3. Discriminating fixture: 501 characters ('a' + 500 emoji) is 1001 UTF-16 code units.
+                // Under server 1000 character limit, it should NOT be clamped to 1000 code units (which splits a surrogate).
+                const legalAstralPlan = 'a' + '😀'.repeat(500); // 501 chars, 1001 UTF-16 code units
+                const wrapperLegalAstral = mount(PlanSection, {
+                    props: {
+                        todayJakarta: '2026-09-20',
+                        modelValue: {
+                            improvement_items: [
+                                {
+                                    row_no: 1,
+                                    plan_text: legalAstralPlan,
+                                    target_kpi: 'Valid KPI',
+                                },
+                            ],
+                            target_execution_date: '2026-09-21',
+                            monitoring_period_value: 2,
+                            monitoring_period_unit: 'HOUR',
+                            rollback_scenario: 'Valid rollback scenario',
+                            announcement_timing: 'ONE_WEEK_BEFORE',
+                        },
+                    },
+                });
+
+                const legalDraft = wrapperLegalAstral.vm.getDraftPayload();
+                const legalEmittedPlan = legalDraft.improvement_items?.[0]?.plan_text;
+                expect([...legalEmittedPlan!].length).toBe(501);
+                expect(LONE_SURROGATE_REGEX.test(legalEmittedPlan!)).toBe(false);
+            });
+
+            it('N-25-2: preserves pairing invariant on the wire (value and unit together or both null)', async () => {
+                // When amount is cleared / nulled by user, emitted payload must NOT send {value: null, unit: 'HOUR'}
+                const wrapper = mount(PlanSection, {
+                    props: {
+                        todayJakarta: '2026-09-20',
+                        modelValue: {
+                            improvement_items: [{ row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }],
+                            target_execution_date: '2026-09-21',
+                            monitoring_period_value: 2,
+                            monitoring_period_unit: 'HOUR',
+                            rollback_scenario: 'Rollback scenario text',
+                            announcement_timing: 'ONE_WEEK_BEFORE',
+                        },
+                    },
+                });
+
+                // Initially paired
+                let draft = wrapper.vm.getDraftPayload();
+                expect(draft.monitoring_period_value).toBe(2);
+                expect(draft.monitoring_period_unit).toBe('HOUR');
+
+                // Case 1: User clears the amount input field
+                const amountInput = wrapper.find('input[type="number"]');
+                await amountInput.setValue('');
+                draft = wrapper.vm.getDraftPayload();
+
+                // Wire invariant: if value is null/empty, unit must also be null on the wire
+                expect(draft.monitoring_period_value).toBeNull();
+                expect(draft.monitoring_period_unit).toBeNull();
+
+                // update:modelValue emission must also maintain the pair invariant
+                const lastEmitted = wrapper.emitted('update:modelValue')!.slice(-1)[0]![0] as any;
+                expect(lastEmitted.monitoring_period_value).toBeNull();
+                expect(lastEmitted.monitoring_period_unit).toBeNull();
+
+                // Case 2: User sets value but leaves unit empty
+                await amountInput.setValue('5');
+                const unitSelect = wrapper.find('select');
+                await unitSelect.setValue('');
+                draft = wrapper.vm.getDraftPayload();
+
+                expect(draft.monitoring_period_value).toBeNull();
+                expect(draft.monitoring_period_unit).toBeNull();
+
+                // Case 3: Both set and valid
+                await unitSelect.setValue('DAY');
+                draft = wrapper.vm.getDraftPayload();
+                expect(draft.monitoring_period_value).toBe(5);
+                expect(draft.monitoring_period_unit).toBe('DAY');
+            });
+
+            it('R-25-1: renders monitoring_period_unit error and form error in the DOM', async () => {
+                const wrapper = mount(PlanSection, {
+                    props: {
+                        todayJakarta: '2026-09-20',
+                        modelValue: {
+                            improvement_items: [{ row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }],
+                            target_execution_date: '2026-09-21',
+                            monitoring_period_value: 2,
+                            monitoring_period_unit: 'FORTNIGHT' as any,
+                            rollback_scenario: 'Rollback scenario text',
+                            announcement_timing: 'ONE_WEEK_BEFORE',
+                        },
+                    },
+                });
+
+                const valid = wrapper.vm.validateSubmit();
+                expect(valid).toBe(false);
+                await wrapper.vm.$nextTick();
+
+                // Check error message in DOM
+                const unitErr = wrapper.find('[data-testid="error-monitoring-period-unit"]');
+                expect(unitErr.exists()).toBe(true);
+                expect(unitErr.text()).toContain('Invalid monitoring period unit: FORTNIGHT');
+
+                // Readonly/disabled form error rendered in DOM
+                const wrapperReadonly = mount(PlanSection, {
+                    props: {
+                        readonly: true,
+                        todayJakarta: '2026-09-20',
+                        modelValue: {
+                            improvement_items: [{ row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }],
+                            target_execution_date: '2026-09-21',
+                            monitoring_period_value: 2,
+                            monitoring_period_unit: 'HOUR',
+                            rollback_scenario: 'Rollback scenario text',
+                            announcement_timing: 'ONE_WEEK_BEFORE',
+                        },
+                    },
+                });
+
+                expect(wrapperReadonly.vm.validateSubmit()).toBe(false);
+                await wrapperReadonly.vm.$nextTick();
+
+                const formErr = wrapperReadonly.find('[data-testid="error-form"]');
+                expect(formErr.exists()).toBe(true);
+                expect(formErr.text()).toContain('Form is readonly or disabled');
+            });
+        });
     });
 });
