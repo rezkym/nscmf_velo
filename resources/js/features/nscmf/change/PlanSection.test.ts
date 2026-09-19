@@ -884,8 +884,7 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
         });
 
         describe('Remediation — RE-SEC-FE-25 Findings N-25-1, N-25-2, R-25-1', () => {
-            const LONE_SURROGATE_REGEX =
-                /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+            const LONE_SURROGATE_REGEX = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 
             it('N-25-1: clamps astral characters by code point without creating lone surrogates', async () => {
                 // 999 ASCII + 10 emoji -> 1009 characters, 1019 UTF-16 code units
@@ -948,8 +947,16 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                 const lastModelValue = emittedEvents![emittedEvents!.length - 1]![0] as typeof draft;
                 const emittedPlanFromModelValue = lastModelValue.improvement_items?.[0]?.plan_text;
                 expect(emittedPlanFromModelValue).toBeDefined();
-                expect(LONE_SURROGATE_REGEX.test(emittedPlanFromModelValue!)).toBe(false);
-                expect([...emittedPlanFromModelValue!].length).toBe(1000);
+                expect(emittedPlanFromModelValue).toBe(astralPlanText);
+
+                // Wire payload from getDraftPayload() clamps code points safely
+                const wireFromInput = wrapper.vm.getDraftPayload() as {
+                    improvement_items?: Array<{ plan_text?: string | null; target_kpi?: string | null }>;
+                };
+                const wirePlanFromInput = wireFromInput.improvement_items?.[0]?.plan_text;
+                expect(wirePlanFromInput).toBeDefined();
+                expect(LONE_SURROGATE_REGEX.test(wirePlanFromInput ?? '')).toBe(false);
+                expect([...(wirePlanFromInput ?? '')].length).toBe(1000);
 
                 // 3. Discriminating fixture: 501 characters ('a' + 500 emoji) is 1001 UTF-16 code units.
                 // Under server 1000 character limit, it should NOT be clamped to 1000 code units (which splits a surrogate).
@@ -983,7 +990,7 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
             });
 
             it('N-25-2: preserves pairing invariant on the wire (value and unit together or both null)', async () => {
-                // When amount is cleared / nulled by user, emitted payload must NOT send {value: null, unit: 'HOUR'}
+                // When amount is cleared / nulled by user, wire draft payload must NOT send {value: null, unit: 'HOUR'}
                 const wrapper = mount(PlanSection, {
                     props: {
                         todayJakarta: '2026-09-20',
@@ -1012,10 +1019,10 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                 expect(draft.monitoring_period_value).toBeNull();
                 expect(draft.monitoring_period_unit).toBeNull();
 
-                // update:modelValue emission must also maintain the pair invariant
+                // update:modelValue emission preserves the operator's live local state (amount null, unit still 'HOUR')
                 const lastEmitted = wrapper.emitted('update:modelValue')!.slice(-1)[0]![0] as PlanSectionModelValue;
                 expect(lastEmitted.monitoring_period_value).toBeNull();
-                expect(lastEmitted.monitoring_period_unit).toBeNull();
+                expect(lastEmitted.monitoring_period_unit).toBe('HOUR');
 
                 // Case 2: User sets value but leaves unit empty
                 await amountInput.setValue('5');
@@ -1079,6 +1086,158 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                 const formErr = wrapperReadonly.find('[data-testid="error-form"]');
                 expect(formErr.exists()).toBe(true);
                 expect(formErr.text()).toContain('Form is readonly or disabled');
+            });
+
+            it('N-25-4 & N-25-5: prop-echoing parent preserves live local state, enables typing monitoring period, and reaches validateSubmit === true', async () => {
+                // Controlled prop-echoing parent simulating v-model / 12 §7.4 draft-autosave pattern
+                let parentModelValue: PlanSectionModelValue = {
+                    improvement_items: [{ row_no: 1, plan_text: 'Valid Plan', target_kpi: 'Valid KPI' }],
+                    target_execution_date: '2026-10-01',
+                    monitoring_period_value: null,
+                    monitoring_period_unit: null,
+                    rollback_scenario: 'Revert changes immediately',
+                    announcement_timing: 'ONE_WEEK_BEFORE',
+                    record_version: 1,
+                };
+
+                const wrapper = mount(PlanSection, {
+                    props: {
+                        todayJakarta: '2026-09-20',
+                        modelValue: parentModelValue,
+                        'onUpdate:modelValue': async (val: PlanSectionModelValue) => {
+                            parentModelValue = { ...val };
+                            await wrapper.setProps({ modelValue: parentModelValue });
+                        },
+                    },
+                });
+
+                const amountInput = wrapper.find('input[type="number"]');
+                const unitSelect = wrapper.find('select');
+
+                // 1. Operator types 24 into Amount
+                await amountInput.setValue('24');
+                // Value should NOT be wiped back to empty string by prop echo!
+                expect((amountInput.element as HTMLInputElement).value).toBe('24');
+                expect(wrapper.vm.monitoringPeriodValue).toBe(24);
+
+                // 2. Operator selects HOUR for Unit
+                await unitSelect.setValue('HOUR');
+                // Value and Unit must both be visible and preserved
+                expect((amountInput.element as HTMLInputElement).value).toBe('24');
+                expect((unitSelect.element as HTMLSelectElement).value).toBe('HOUR');
+                expect(wrapper.vm.monitoringPeriodValue).toBe(24);
+                expect(wrapper.vm.monitoringPeriodUnit).toBe('HOUR');
+
+                // 3. Validation succeeds under echoing parent
+                const isValid = wrapper.vm.validateSubmit();
+                expect(isValid).toBe(true);
+                expect(wrapper.vm.errors.monitoring_period).toBeUndefined();
+
+                // 4. Wire draft payload contains the live values (no silent draft loss N-25-5)
+                const wire = wrapper.vm.getDraftPayload();
+                expect(wire.monitoring_period_value).toBe(24);
+                expect(wire.monitoring_period_unit).toBe('HOUR');
+            });
+
+            it('N-25-6: over-limit text with prop-echoing parent reports visible errors and blocks submit', async () => {
+                let parentModelValue: PlanSectionModelValue = {
+                    improvement_items: [{ row_no: 1, plan_text: 'Initial plan', target_kpi: 'Initial KPI' }],
+                    target_execution_date: '2026-10-01',
+                    monitoring_period_value: 2,
+                    monitoring_period_unit: 'HOUR',
+                    rollback_scenario: 'Initial rollback procedure',
+                    announcement_timing: 'ONE_WEEK_BEFORE',
+                    record_version: 1,
+                };
+
+                const wrapper = mount(PlanSection, {
+                    props: {
+                        todayJakarta: '2026-09-20',
+                        modelValue: parentModelValue,
+                        'onUpdate:modelValue': async (val: PlanSectionModelValue) => {
+                            parentModelValue = { ...val };
+                            await wrapper.setProps({ modelValue: parentModelValue });
+                        },
+                    },
+                });
+
+                // Input over 1000 characters into plan_text (1005 chars)
+                const longPlan = 'A'.repeat(1005);
+                const planTextarea = wrapper.find('textarea[placeholder*="Describe the improvement plan"]');
+                await planTextarea.setValue(longPlan);
+
+                // Input over 4000 characters into rollback_scenario (4005 chars)
+                const longRollback = 'R'.repeat(4005);
+                const rollbackTextarea = wrapper.find('textarea[placeholder*="Detail the rollback procedure"]');
+                await rollbackTextarea.setValue(longRollback);
+
+                // Validation must report errors and block submit
+                const isValid = wrapper.vm.validateSubmit();
+                expect(isValid).toBe(false);
+                expect(wrapper.vm.errors['plan_text_1']).toBe('Plan text must not exceed 1000 characters');
+                expect(wrapper.vm.errors['rollback_scenario']).toBe(
+                    'Rollback scenario must not exceed 4000 characters',
+                );
+                await wrapper.vm.$nextTick();
+                expect(wrapper.text()).toContain('Plan text must not exceed 1000 characters');
+                expect(wrapper.text()).toContain('Rollback scenario must not exceed 4000 characters');
+            });
+
+            it('N-25-7: pins surviving mutants (hasLoneSurrogate branch and code-point length validators)', () => {
+                // 1. Mutant N1-lonesurr: test hasLoneSurrogate when string is within max length but has a lone surrogate
+                // A lone high surrogate (\uD800) followed by 'a' (length 2 code points)
+                const loneSurrogateStr = '\uD800abc';
+                const wrapperSurr = mount(PlanSection, {
+                    props: {
+                        todayJakarta: '2026-09-20',
+                        modelValue: {
+                            improvement_items: [{ row_no: 1, plan_text: loneSurrogateStr, target_kpi: 'KPI' }],
+                            target_execution_date: '2026-10-01',
+                            monitoring_period_value: 2,
+                            monitoring_period_unit: 'HOUR',
+                            rollback_scenario: 'Rollback scenario',
+                            announcement_timing: 'ONE_WEEK_BEFORE',
+                        },
+                    },
+                });
+
+                // The emission / draft payload must sanitize lone surrogate
+                const wire = wrapperSurr.vm.getDraftPayload() as {
+                    improvement_items?: Array<{ plan_text?: string | null; target_kpi?: string | null }>;
+                };
+                const planWire = wire.improvement_items?.[0]?.plan_text;
+                expect(planWire).toBeDefined();
+                expect(LONE_SURROGATE_REGEX.test(planWire ?? '')).toBe(false);
+
+                // 2. Mutant N1-validator-cp & N1-validator-rb:
+                // String with 999 characters + 1 astral emoji = 1000 characters (code points), but 1001 UTF-16 code units.
+                // Under code-point counting [...str].length is 1000 -> VALID!
+                // If mutated back to str.length > 1000, 1001 > 1000 would falsely flag an error!
+                const exact1000CodePoints = 'a'.repeat(999) + '😀'; // 1000 code points, 1001 code units
+                const exact1000Kpi = 'k'.repeat(999) + '🚀';
+                const exact4000Rollback = 'r'.repeat(3999) + '🔥'; // 4000 code points, 4001 code units ('🔥' is single astral code point U+1F525)
+
+                const wrapperCodePoints = mount(PlanSection, {
+                    props: {
+                        todayJakarta: '2026-09-20',
+                        modelValue: {
+                            improvement_items: [
+                                { row_no: 1, plan_text: exact1000CodePoints, target_kpi: exact1000Kpi },
+                            ],
+                            target_execution_date: '2026-10-01',
+                            monitoring_period_value: 2,
+                            monitoring_period_unit: 'HOUR',
+                            rollback_scenario: exact4000Rollback,
+                            announcement_timing: 'ONE_WEEK_BEFORE',
+                        },
+                    },
+                });
+
+                const isValid = wrapperCodePoints.vm.validateSubmit();
+                expect(isValid).toBe(true);
+                expect(wrapperCodePoints.vm.errors['plan_text_1']).toBeUndefined();
+                expect(wrapperCodePoints.vm.errors['target_kpi_1']).toBeUndefined();
+                expect(wrapperCodePoints.vm.errors['rollback_scenario']).toBeUndefined();
             });
         });
     });
