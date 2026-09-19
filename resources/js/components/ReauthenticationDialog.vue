@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import { AlertCircle, KeyRound, Lock, ShieldAlert } from '@lucide/vue';
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 import FormField from '@/components/ui/FormField.vue';
+import { useFocusTrap } from '@/composables/useFocusTrap';
 
 export interface ReauthenticationDialogProps {
     open: boolean;
@@ -33,34 +34,6 @@ const panelRef = ref<HTMLElement | null>(null);
 const form = useForm({
     current_password: '',
 });
-
-const FOCUSABLE_SELECTOR =
-    'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-function getFocusableElements(): HTMLElement[] {
-    if (!panelRef.value) return [];
-    return Array.from(panelRef.value.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-}
-
-function trapFocus(event: KeyboardEvent): void {
-    const focusable = getFocusableElements();
-    if (focusable.length === 0) return;
-
-    const first = focusable[0]!;
-    const last = focusable[focusable.length - 1]!;
-
-    if (event.shiftKey) {
-        if (document.activeElement === first || !panelRef.value?.contains(document.activeElement)) {
-            event.preventDefault();
-            last.focus();
-        }
-    } else {
-        if (document.activeElement === last || !panelRef.value?.contains(document.activeElement)) {
-            event.preventDefault();
-            first.focus();
-        }
-    }
-}
 
 const displayError = computed(() => {
     // Form validation errors or server-driven error message
@@ -107,40 +80,20 @@ function handleCancel(): void {
     emit('cancel');
 }
 
-function handleKeydown(event: KeyboardEvent): void {
-    if (!props.open) return;
-    if (event.key === 'Escape') {
-        handleCancel();
-        return;
-    }
-    if (event.key === 'Tab') {
-        trapFocus(event);
-    }
-}
+useFocusTrap(panelRef, () => props.open, {
+    onEscape: handleCancel,
+    initialFocus: passwordInputRef,
+    returnFocusTo: () => props.triggerElement,
+});
 
 watch(
     () => props.open,
     (isOpen) => {
-        if (isOpen) {
-            window.addEventListener('keydown', handleKeydown);
-            void nextTick(() => {
-                passwordInputRef.value?.focus();
-            });
-        } else {
-            window.removeEventListener('keydown', handleKeydown);
-            form.reset('current_password');
-            if (props.triggerElement) {
-                props.triggerElement.focus();
-            }
-        }
+        if (!isOpen) form.reset('current_password');
     },
-    { immediate: true },
 );
 
-onBeforeUnmount(() => {
-    window.removeEventListener('keydown', handleKeydown);
-    form.reset('current_password');
-});
+onBeforeUnmount(() => form.reset('current_password'));
 </script>
 
 <template>

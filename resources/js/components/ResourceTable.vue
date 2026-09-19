@@ -46,7 +46,7 @@ const props = withDefaults(defineProps<ResourceTableProps>(), {
     query: () => ({ page: 1, per_page: 25 }),
     meta: null,
     sortWhitelist: () => [],
-    emptyText: 'Tidak ada data',
+    emptyText: 'No data',
     caption: 'Data Table',
     requestId: undefined,
 });
@@ -173,19 +173,19 @@ defineExpose({
         <!-- Controls: Search & Per Page -->
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-2">
-                <label for="table-search" class="sr-only">Cari</label>
+                <label for="table-search" class="sr-only">Search</label>
                 <input
                     id="table-search"
                     v-model="searchInput"
                     type="search"
                     data-testid="table-search-input"
-                    placeholder="Cari..."
+                    placeholder="Search…"
                     class="rounded border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                 />
             </div>
 
             <div class="flex items-center gap-2">
-                <label for="table-per-page" class="text-sm text-muted-foreground">Per halaman:</label>
+                <label for="table-per-page" class="text-sm text-muted-foreground">Per page</label>
                 <select
                     id="table-per-page"
                     data-testid="table-per-page-select"
@@ -208,7 +208,7 @@ defineExpose({
             aria-busy="true"
             class="rounded bg-accent p-3 text-sm text-accent-foreground"
         >
-            Memuat data...
+            Loading…
         </div>
 
         <!-- Error state -->
@@ -252,7 +252,7 @@ defineExpose({
                             </button>
                             <span v-else>{{ col.label }}</span>
                         </th>
-                        <th v-if="$slots.actions" class="px-4 py-3 text-right">Aksi</th>
+                        <th v-if="$slots.actions" class="px-4 py-3 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody v-if="!error && currentItems.length > 0" class="divide-y divide-border bg-card">
@@ -286,8 +286,8 @@ defineExpose({
         <!-- Pagination Bar -->
         <div class="flex items-center justify-between border-t border-border pt-3">
             <div class="text-sm text-muted-foreground">
-                Halaman {{ meta?.current_page ?? query?.page ?? 1 }} dari {{ meta?.last_page ?? 1 }} (Total:
-                {{ meta?.total ?? 0 }})
+                Page {{ meta?.current_page ?? query?.page ?? 1 }} of {{ meta?.last_page ?? 1 }} ({{ meta?.total ?? 0 }}
+                total)
             </div>
             <div class="flex items-center gap-2">
                 <button
@@ -297,7 +297,7 @@ defineExpose({
                     class="rounded border border-input px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                     @click="onPageChange((meta?.current_page ?? query?.page ?? 1) - 1)"
                 >
-                    Sebelumnya
+                    Previous
                 </button>
                 <button
                     type="button"
@@ -306,7 +306,7 @@ defineExpose({
                     class="rounded border border-input px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                     @click="onPageChange((meta?.current_page ?? query?.page ?? 1) + 1)"
                 >
-                    Berikutnya
+                    Next
                 </button>
             </div>
         </div>

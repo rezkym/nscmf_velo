@@ -1,24 +1,8 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
-interface UserInfo {
-    id: number;
-    username: string;
-    name: string;
-    team_id?: number | null;
-    team?: { id: number; name: string } | null;
-    must_change_password?: boolean;
-}
-
-interface SharedAuthProps {
-    auth?: {
-        user?: UserInfo | null;
-        permissions?: string[];
-        roles?: string[];
-    };
-    [key: string]: unknown;
-}
+import { usePermissions } from '@/composables/usePermissions';
 
 const props = withDefaults(
     defineProps<{
@@ -35,55 +19,22 @@ function toggleSidebar() {
     isSidebarOpen.value = !isSidebarOpen.value;
 }
 
-const page = usePage<SharedAuthProps>();
+const { user, can, canAny } = usePermissions();
 
-const user = computed(() => page.props.auth?.user);
 const mustChangePassword = computed(() => Boolean(user.value?.must_change_password));
 
-const permissions = computed<string[]>(() => {
-    return page.props.auth?.permissions ?? [];
-});
-
-function hasPermission(perm: string): boolean {
-    return permissions.value.includes(perm);
-}
-
-function hasAnyPermission(perms: string[]): boolean {
-    return perms.some((p) => permissions.value.includes(p));
-}
-
-// Nav items configuration based strictly on permissions, NEVER role names or Team
-const navItems = computed(() => {
-    const items = [
-        {
-            label: 'Dashboard',
-            href: '/dashboard',
-            visible: true, // Dashboard accessible to all authenticated active users
-        },
-        {
-            label: 'Create NSCMF',
-            href: '/nscmf/create',
-            visible: hasPermission('nscmf.create'),
-        },
-        {
-            label: 'Review',
-            href: '/review',
-            visible: hasPermission('nscmf.review'),
-        },
-        {
-            label: 'Approval',
-            href: '/approval',
-            visible: hasPermission('nscmf.approve'),
-        },
-        {
-            label: 'History',
-            href: '/history',
-            visible: hasPermission('nscmf.view.history'),
-        },
+// Navigation follows effective permissions only, never role names or Team.
+const navItems = computed(() =>
+    [
+        { label: 'Dashboard', href: '/dashboard', visible: true },
+        { label: 'Create NSCMF', href: '/nscmf/create', visible: can('nscmf.create') },
+        { label: 'Review', href: '/review', visible: can('nscmf.review') },
+        { label: 'Approval', href: '/approval', visible: can('nscmf.approve') },
+        { label: 'History', href: '/history', visible: can('nscmf.view.history') },
         {
             label: 'Administration',
             href: '/administration',
-            visible: hasAnyPermission([
+            visible: canAny([
                 'users.view',
                 'roles.view',
                 'teams.view',
@@ -92,10 +43,8 @@ const navItems = computed(() => {
                 'audit.security.view',
             ]),
         },
-    ];
-
-    return items.filter((item) => item.visible);
-});
+    ].filter((item) => item.visible),
+);
 </script>
 
 <template>
