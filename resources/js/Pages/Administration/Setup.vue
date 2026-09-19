@@ -119,14 +119,15 @@ watch(
 );
 
 // Gate moving forward: Forward HANYA setelah response yang diperlukan berhasil (AC2)
+// Readiness server projection is the sole gate (B-15-1)
 const isStepReadyToAdvance = computed(() => {
     switch (currentStep.value) {
         case 1:
-            return props.readiness.roles_configured || (props.roles && props.roles.length >= 4);
+            return props.readiness.roles_configured;
         case 2:
-            return props.readiness.teams_configured || (props.teams && props.teams.length > 0);
+            return props.readiness.teams_configured;
         case 3:
-            return props.readiness.users_configured || (props.users && props.users.length > 0);
+            return props.readiness.users_configured;
         case 4:
             return true;
         default:
