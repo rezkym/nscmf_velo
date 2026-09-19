@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button.vue';
 import FormField from '@/components/ui/FormField.vue';
 import Modal from '@/components/ui/Modal.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { firstError } from '@/lib/apiErrors';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 export interface Team {
@@ -92,7 +93,7 @@ function confirmLifecycle(): void {
                 lifecycle.value = null;
             },
             onError: (errors) => {
-                lifecycleError.value = Object.values(errors)[0] ?? 'The team could not be updated.';
+                lifecycleError.value = firstError(errors, 'The team could not be updated.');
             },
             onFinish: () => {
                 lifecyclePending.value = false;
