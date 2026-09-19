@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { AlertCircle, KeyRound, Lock, ShieldAlert } from '@lucide/vue';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
+import Alert from '@/components/ui/Alert.vue';
+import Button from '@/components/ui/Button.vue';
 import FormField from '@/components/ui/FormField.vue';
-import { useFocusTrap } from '@/composables/useFocusTrap';
+import Modal from '@/components/ui/Modal.vue';
 
 export interface ReauthenticationDialogProps {
     open: boolean;
@@ -29,14 +30,12 @@ const emit = defineEmits<{
 }>();
 
 const passwordInputRef = ref<HTMLInputElement | null>(null);
-const panelRef = ref<HTMLElement | null>(null);
 
 const form = useForm({
     current_password: '',
 });
 
 const displayError = computed(() => {
-    // Form validation errors or server-driven error message
     const errors = form.errors as Record<string, string | undefined>;
     if (errors.current_password) {
         return errors.current_password;
@@ -80,16 +79,14 @@ function handleCancel(): void {
     emit('cancel');
 }
 
-useFocusTrap(panelRef, () => props.open, {
-    onEscape: handleCancel,
-    initialFocus: passwordInputRef,
-    returnFocusTo: () => props.triggerElement,
-});
-
 watch(
     () => props.open,
     (isOpen) => {
-        if (!isOpen) form.reset('current_password');
+        if (isOpen) {
+            void nextTick(() => passwordInputRef.value?.focus());
+        } else {
+            form.reset('current_password');
+        }
     },
 );
 
@@ -97,109 +94,48 @@ onBeforeUnmount(() => form.reset('current_password'));
 </script>
 
 <template>
-    <div
-        v-if="open"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="reauth-dialog-title"
-        aria-describedby="reauth-dialog-desc"
+    <Modal
+        :open="open"
+        :title="targetActionTitle"
+        :description="targetActionDescription"
+        :busy="form.processing"
+        :return-focus-to="triggerElement"
+        @close="handleCancel"
     >
-        <div
-            ref="panelRef"
-            class="relative w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-lg space-y-6 text-foreground animate-in fade-in zoom-in-95 duration-150"
-        >
-            <!-- Header & Context -->
-            <div class="space-y-2">
-                <div class="inline-flex items-center justify-center p-2.5 bg-primary/10 rounded-lg text-primary mb-1">
-                    <KeyRound class="w-6 h-6" aria-hidden="true" />
-                </div>
-                <h2 id="reauth-dialog-title" class="text-xl font-bold tracking-tight text-foreground">
-                    {{ targetActionTitle }}
-                </h2>
-                <p id="reauth-dialog-desc" class="text-sm text-muted-foreground leading-relaxed">
-                    {{ targetActionDescription }}
-                </p>
-            </div>
+        <form class="space-y-4" @submit.prevent="submit">
+            <Alert v-if="displayError" variant="error" data-testid="reauth-error">{{ displayError }}</Alert>
 
-            <!-- Intent re-confirmation card -->
-            <div class="rounded-lg bg-muted/50 border border-border p-3.5 flex items-start gap-3 text-xs">
-                <ShieldAlert class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
-                <div class="space-y-1">
-                    <p class="font-semibold text-foreground">Security Confirmation</p>
-                    <p class="text-muted-foreground">
-                        This protected administrative action requires verifying your current password. No target
-                        passwords or unauthorized changes will be applied automatically.
-                    </p>
-                </div>
-            </div>
-
-            <!-- Safe Alert Message -->
-            <div
-                v-if="displayError"
-                role="alert"
-                data-testid="reauth-error"
-                class="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-3 text-sm font-medium leading-relaxed"
+            <FormField
+                id="current_password"
+                label="Current Password"
+                required
+                :disabled="form.processing"
+                help="Enter your existing account password to confirm"
             >
-                <AlertCircle class="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
-                <span>{{ displayError }}</span>
+                <template #default="{ id: fieldId, describedBy, disabled }">
+                    <input
+                        :id="fieldId"
+                        ref="passwordInputRef"
+                        v-model="form.current_password"
+                        type="password"
+                        name="current_password"
+                        autocomplete="current-password"
+                        required
+                        :disabled="disabled"
+                        :aria-describedby="describedBy"
+                        class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                    />
+                </template>
+            </FormField>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <Button variant="secondary" data-test="cancel-button" :disabled="form.processing" @click="handleCancel">
+                    Cancel
+                </Button>
+                <Button type="submit" data-test="confirm-button" :disabled="form.processing || !form.current_password">
+                    {{ form.processing ? 'Verifying…' : 'Confirm' }}
+                </Button>
             </div>
-
-            <!-- Form -->
-            <form class="space-y-4" @submit.prevent="submit">
-                <FormField
-                    id="current_password"
-                    label="Current Password"
-                    required
-                    :disabled="form.processing"
-                    help="Enter your existing account password to confirm"
-                >
-                    <template #default="{ id: fieldId, describedBy, disabled }">
-                        <div class="relative">
-                            <div
-                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground"
-                            >
-                                <Lock class="h-4 w-4" aria-hidden="true" />
-                            </div>
-                            <input
-                                :id="fieldId"
-                                ref="passwordInputRef"
-                                v-model="form.current_password"
-                                type="password"
-                                name="current_password"
-                                autocomplete="current-password"
-                                required
-                                :disabled="disabled"
-                                :aria-describedby="describedBy"
-                                class="w-full pl-9 pr-3 py-2 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                placeholder="Enter current password"
-                            />
-                        </div>
-                    </template>
-                </FormField>
-
-                <!-- Actions -->
-                <div class="flex items-center justify-end gap-3 pt-2">
-                    <button
-                        type="button"
-                        data-test="cancel-button"
-                        :disabled="form.processing"
-                        class="px-4 py-2 text-sm font-medium border border-input bg-background hover:bg-muted text-foreground rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                        @click="handleCancel"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        data-test="confirm-button"
-                        :disabled="form.processing || !form.current_password"
-                        class="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2"
-                    >
-                        <Lock v-if="!form.processing" class="w-4 h-4" aria-hidden="true" />
-                        <span>{{ form.processing ? 'Verifying...' : 'Verify Password' }}</span>
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+        </form>
+    </Modal>
 </template>

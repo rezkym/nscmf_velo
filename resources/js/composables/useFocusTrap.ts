@@ -5,7 +5,9 @@ const FOCUSABLE_SELECTOR =
 
 export interface FocusTrapOptions {
     onEscape: () => void;
+    /** Element to focus on open. Defaults to the first focusable element in the panel. */
     initialFocus?: Ref<HTMLElement | null>;
+    /** Element to focus on close. Defaults to whatever had focus when the dialog opened. */
     returnFocusTo?: () => HTMLElement | null | undefined;
 }
 
@@ -14,8 +16,14 @@ export interface FocusTrapOptions {
  * and returns focus to the triggering element when the dialog closes.
  */
 export function useFocusTrap(panel: Ref<HTMLElement | null>, isOpen: () => boolean, options: FocusTrapOptions): void {
+    let opener: HTMLElement | null = null;
+
+    function focusableElements(): HTMLElement[] {
+        return Array.from(panel.value?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? []);
+    }
+
     function wrapFocus(event: KeyboardEvent): void {
-        const focusable = Array.from(panel.value?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? []);
+        const focusable = focusableElements();
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
         if (!first || !last) return;
@@ -44,11 +52,13 @@ export function useFocusTrap(panel: Ref<HTMLElement | null>, isOpen: () => boole
         isOpen,
         (open) => {
             if (open) {
+                opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
                 window.addEventListener('keydown', onKeydown);
-                void nextTick(() => options.initialFocus?.value?.focus());
+                void nextTick(() => (options.initialFocus?.value ?? focusableElements()[0])?.focus());
             } else {
                 window.removeEventListener('keydown', onKeydown);
-                options.returnFocusTo?.()?.focus();
+                (options.returnFocusTo ? options.returnFocusTo() : opener)?.focus();
+                opener = null;
             }
         },
         { immediate: true },

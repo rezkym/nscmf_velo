@@ -37,4 +37,12 @@ export default defineConfigWithVueTs(
             'vue/multi-word-component-names': 'off',
         },
     },
+    {
+        // shadcn-style UI primitives use single-word names, e.g. Button or Badge.
+        name: 'nscmf/ui-primitives',
+        files: ['resources/js/components/ui/**/*.vue'],
+        rules: {
+            'vue/multi-word-component-names': 'off',
+        },
+    },
 );
