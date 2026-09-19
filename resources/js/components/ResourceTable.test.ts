@@ -34,7 +34,7 @@ describe('ResourceTable.vue', () => {
                     items: [],
                     loading: false,
                     error: 'Gagal menghubungi server (500)',
-                    emptyText: 'Tidak ada data',
+                    emptyText: 'No data',
                 },
             });
 
@@ -43,7 +43,7 @@ describe('ResourceTable.vue', () => {
                 'Gagal menghubungi server (500)',
             );
             expect(wrapper.find('[data-testid="table-empty-state"]').exists()).toBe(false);
-            expect(wrapper.text()).not.toContain('Tidak ada data');
+            expect(wrapper.text()).not.toContain('No data');
         });
     });
 
@@ -247,7 +247,7 @@ describe('Additional edge cases for ResourceTable coverage', () => {
         });
 
         expect(wrapper.find('.custom-status').text()).toBe('Custom Status Badge');
-        expect(wrapper.text()).toContain('Halaman 2 dari 3 (Total: 75)');
+        expect(wrapper.text()).toContain('Page 2 of 3 (75 total)');
 
         const prevBtn = wrapper.find('[data-testid="pagination-prev"]');
         await prevBtn.trigger('click');
@@ -273,7 +273,7 @@ describe('Additional edge cases for ResourceTable coverage', () => {
         });
 
         expect(wrapper.find('[data-testid="table-loading-state"]').exists()).toBe(true);
-        expect(wrapper.find('[data-testid="table-loading-state"]').text()).toContain('Memuat data...');
+        expect(wrapper.find('[data-testid="table-loading-state"]').text()).toContain('Loading…');
     });
 
     it('toggles sort direction when clicking the same sortable column', async () => {
@@ -294,5 +294,19 @@ describe('Additional edge cases for ResourceTable coverage', () => {
         const latestQuery = (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
         expect(latestQuery.sort).toBe('request_no');
         expect(latestQuery.direction).toBe('desc');
+    });
+});
+
+describe('ResourceTable copy', () => {
+    it('renders English labels for search, paging and the default empty state', () => {
+        const wrapper = mount(ResourceTable, {
+            props: { columns: [{ key: 'name', label: 'Name' }], items: [] },
+        });
+
+        expect(wrapper.find('[data-testid="table-empty-state"]').text()).toBe('No data');
+        expect(wrapper.find('[data-testid="table-search-input"]').attributes('placeholder')).toBe('Search…');
+        expect(wrapper.find('[data-testid="pagination-prev"]').text()).toBe('Previous');
+        expect(wrapper.find('[data-testid="pagination-next"]').text()).toBe('Next');
+        expect(wrapper.text()).toContain('Per page');
     });
 });
