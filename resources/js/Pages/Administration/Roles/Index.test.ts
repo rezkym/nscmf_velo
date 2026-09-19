@@ -389,20 +389,30 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         const openAssignBtn = wrapper.find('[data-testid="assign-permissions-2"]');
         await openAssignBtn.trigger('click');
 
-        // Set server error on form
-        if (activePermissionsForm) {
-            activePermissionsForm.errors = {
-                permissions: 'Role permissions are protected by server-side invariant.',
-            };
-        }
         const vm = wrapper.vm as unknown as {
             serverErrorCode: string | null;
             serverErrorMessage: string | null;
             isReauthDialogOpen: boolean;
+            handleReauthSuccess: () => void;
         };
-        vm.serverErrorCode = 'PROTECTED_RESOURCE';
-        vm.serverErrorMessage = 'This role or permission bundle is protected from modification.';
+
+        // 1. Simulate server error response with code PROTECTED_RESOURCE via onError callback
+        vi.spyOn(activePermissionsForm!, 'put').mockImplementation((_url: string, opts?: unknown) => {
+            const castOpts = opts as { onError?: (errs: unknown) => void } | undefined;
+            if (castOpts?.onError) {
+                castOpts.onError({
+                    error_code: 'PROTECTED_RESOURCE',
+                    message: 'This role or permission bundle is protected from modification.',
+                });
+            }
+        });
+
+        vm.handleReauthSuccess();
         await wrapper.vm.$nextTick();
+
+        // Verify onError callback populated serverErrorCode and serverErrorMessage
+        expect(vm.serverErrorCode).toBe('PROTECTED_RESOURCE');
+        expect(vm.serverErrorMessage).toBe('This role or permission bundle is protected from modification.');
 
         // Check error display near modal
         expect(wrapper.text()).toContain('This role or permission bundle is protected from modification.');
@@ -410,19 +420,54 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         expect(wrapper.find('[data-testid="permissions-modal"]').exists()).toBe(true);
 
         // Fail-safe handling for server error codes:
-        // 1. REAUTH_REQUIRED opens reauth dialog and passes error
-        vm.serverErrorCode = 'REAUTH_REQUIRED';
-        vm.serverErrorMessage = null;
+        // 2. REAUTH_REQUIRED via onError callback opens reauth dialog and passes error
+        vi.spyOn(activePermissionsForm!, 'put').mockImplementation((_url: string, opts?: unknown) => {
+            const castOpts = opts as { onError?: (errs: unknown) => void } | undefined;
+            if (castOpts?.onError) {
+                castOpts.onError({
+                    error_code: 'REAUTH_REQUIRED',
+                    message: 'Re-authentication is required to perform this action.',
+                });
+            }
+        });
+
+        vm.handleReauthSuccess();
         await wrapper.vm.$nextTick();
+        expect(vm.serverErrorCode).toBe('REAUTH_REQUIRED');
         expect(vm.isReauthDialogOpen).toBe(true);
         expect(wrapper.text()).toContain('Re-authentication is required to perform this action.');
 
-        // 2. REAUTH_FAILED opens reauth dialog and passes error
-        vm.serverErrorCode = 'REAUTH_FAILED';
-        vm.serverErrorMessage = 'Re-authentication failed. Please check your password.';
+        // 3. REAUTH_FAILED via onError callback opens reauth dialog and passes error
+        vi.spyOn(activePermissionsForm!, 'put').mockImplementation((_url: string, opts?: unknown) => {
+            const castOpts = opts as { onError?: (errs: unknown) => void } | undefined;
+            if (castOpts?.onError) {
+                castOpts.onError({
+                    error_code: 'REAUTH_FAILED',
+                    message: 'Re-authentication failed. Please check your password.',
+                });
+            }
+        });
+
+        vm.handleReauthSuccess();
         await wrapper.vm.$nextTick();
+        expect(vm.serverErrorCode).toBe('REAUTH_FAILED');
         expect(vm.isReauthDialogOpen).toBe(true);
         expect(wrapper.text()).toContain('Re-authentication failed. Please check your password.');
+
+        // 4. Default message fallback when message is omitted
+        vi.spyOn(activePermissionsForm!, 'put').mockImplementation((_url: string, opts?: unknown) => {
+            const castOpts = opts as { onError?: (errs: unknown) => void } | undefined;
+            if (castOpts?.onError) {
+                castOpts.onError({
+                    code: 'FORBIDDEN',
+                });
+            }
+        });
+
+        vm.handleReauthSuccess();
+        await wrapper.vm.$nextTick();
+        expect(vm.serverErrorCode).toBe('FORBIDDEN');
+        expect(vm.serverErrorMessage).toBe('Server rejected permission update.');
     });
 
     it('covers role creation, modal closures, and toggling logic', async () => {

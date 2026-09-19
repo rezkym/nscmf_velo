@@ -228,13 +228,20 @@ describe('ReauthenticationDialog.vue (FE-10)', () => {
         expect(wrapper.text()).toContain('Enter your existing account password to confirm');
     });
 
-    it('submit guard rejects while processing', async () => {
+    it('submit guard rejects while processing or when current_password is empty', async () => {
         const wrapper = mount(ReauthenticationDialog, {
             props: {
                 open: true,
             },
         });
 
+        // 1. Guard rejects when current_password is empty
+        currentForm.current_password = '';
+        await wrapper.find('form').trigger('submit.prevent');
+        expect(currentForm.post).not.toHaveBeenCalled();
+
+        // 2. Guard rejects when processing
+        currentForm.current_password = 'ValidPassword123';
         currentForm.processing = true;
         await wrapper.find('form').trigger('submit.prevent');
 
