@@ -953,6 +953,46 @@ describe('FE-15: Initial Setup Wizard Composition', () => {
         expect(wrapper.find('[data-testid="step-users-setup"]').exists()).toBe(true);
     });
 
+    // B-15-2: Dismissed one-time credential is NOT re-revealed on re-supply of identical secret
+    it('B-15-2 — dismissed credential is idempotent and not re-revealed on re-supply of identical secret', async () => {
+        const secret = 'SYNTH-ONE-TIME-SECRET';
+        const wrapper = mount(Setup, {
+            props: {
+                ...defaultProps,
+                flash: {
+                    temporary_password: secret,
+                    username: 'john.doe',
+                },
+            },
+        });
+
+        // Initially modal is open and shows plaintext secret
+        expect(wrapper.find('[data-testid="one-time-credential-container"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="temporary-password-display"]').text()).toBe(secret);
+
+        // Operator dismisses modal
+        await wrapper.find('[data-testid="btn-dismiss-credential"]').trigger('click');
+        await nextTick();
+
+        // Modal closed, plaintext purged
+        expect(wrapper.find('[data-testid="one-time-credential-container"]').exists()).toBe(false);
+
+        // Later re-render or navigation re-supplies the SAME flash credential (e.g. reflash on redirect)
+        await wrapper.setProps({
+            flash: {
+                temporary_password: secret,
+                username: 'john.doe',
+                success: 'Redirect reflash occurred',
+            },
+        });
+        await nextTick();
+
+        // Must NOT re-reveal the plaintext password!
+        // Either modal stays closed, or if opened it displays lost-credential advisory, but plaintext display MUST NOT exist
+        expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
+    });
+
     it('handles watch on props.readiness falling back when readiness resets', async () => {
         const wrapper = mount(Setup, {
             props: {
