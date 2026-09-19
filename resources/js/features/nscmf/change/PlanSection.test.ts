@@ -479,5 +479,223 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
             expect(wrapper.text()).toContain('Rollback scenario must not exceed 4000 characters');
         });
+        it('flags missing plan text when only target KPI is provided in a pair (line 172)', async () => {
+            const wrapper = mount(PlanSection, {
+                props: {
+                    subtype: 'Maintenance',
+                    modelValue: {
+                        improvement_items: [{ row_no: 1, plan_text: '', target_kpi: 'Zero packet loss' }],
+                        target_execution_date: '2026-10-01',
+                        monitoring_period_value: 2,
+                        monitoring_period_unit: 'HOUR',
+                        rollback_scenario: 'Revert to previous OS image and restore startup configuration',
+                        announcement_timing: 'ONE_WEEK_BEFORE',
+                    },
+                },
+            });
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.text()).toContain('Both plan text and target KPI are required for row 1');
+            expect(wrapper.vm.errors.improvement_pair_1).toBe('Both plan text and target KPI are required for row 1');
+        });
+
+        it('flags required target execution date when empty or whitespace-only on submit (line 192)', async () => {
+            const wrapper = mount(PlanSection, {
+                props: {
+                    subtype: 'Maintenance',
+                    modelValue: {
+                        improvement_items: [
+                            { row_no: 1, plan_text: 'Upgrade router OS', target_kpi: 'Zero packet loss' },
+                        ],
+                        target_execution_date: '',
+                        monitoring_period_value: 2,
+                        monitoring_period_unit: 'HOUR',
+                        rollback_scenario: 'Revert to previous OS image',
+                        announcement_timing: 'ONE_WEEK_BEFORE',
+                    },
+                },
+            });
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.text()).toContain('Target execution date is required');
+            expect(wrapper.vm.errors.target_execution_date).toBe('Target execution date is required');
+        });
+
+        it('flags required announcement timing when not selected on submit (line 246)', async () => {
+            const wrapper = mount(PlanSection, {
+                props: {
+                    subtype: 'Maintenance',
+                    modelValue: {
+                        improvement_items: [
+                            { row_no: 1, plan_text: 'Upgrade router OS', target_kpi: 'Zero packet loss' },
+                        ],
+                        target_execution_date: '2026-10-01',
+                        monitoring_period_value: 2,
+                        monitoring_period_unit: 'HOUR',
+                        rollback_scenario: 'Revert to previous OS image',
+                        announcement_timing: null,
+                    },
+                },
+            });
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.text()).toContain('Announcement timing is required');
+            expect(wrapper.vm.errors.announcement_timing).toBe('Announcement timing is required');
+        });
+
+        it('covers edge cases for default props, disabled/readonly add/remove guards, and draft payload fallbacks', async () => {
+            // 1. Mount with empty modelValue (improvement_items undefined) to exercise line 68 fallback to []
+            const wrapperEmptyModelValue = mount(PlanSection, {
+                props: {
+                    modelValue: {
+                        record_version: 1,
+                    },
+                },
+            });
+            expect(wrapperEmptyModelValue.vm.targetExecutionDate).toBe('');
+
+            // Mount with minimal/empty props to exercise default prop fallbacks
+            const wrapperDefault = mount(PlanSection);
+            expect(wrapperDefault.vm.targetExecutionDate).toBe('');
+            expect(wrapperDefault.vm.monitoringPeriodValue).toBeNull();
+            expect(wrapperDefault.vm.monitoringPeriodUnit).toBeNull();
+
+            // 2. Disabled / readonly cannot add or remove, item without row_no (row_no falsy / 0) to hit fallback idx+1
+            const wrapperDisabled = mount(PlanSection, {
+                props: {
+                    disabled: true,
+                    modelValue: {
+                        improvement_items: [
+                            {
+                                row_no: 0,
+                                plan_text: null as unknown as string,
+                                target_kpi: 'KPI only',
+                            },
+                        ],
+                        target_execution_date: null,
+                        monitoring_period_value: null,
+                        monitoring_period_unit: null,
+                        rollback_scenario: null,
+                        announcement_timing: null,
+                    },
+                },
+            });
+            const vmDisabled = wrapperDisabled.vm as unknown as {
+                addImprovementItem: () => void;
+                removeImprovementItem: (i: number) => void;
+            };
+            vmDisabled.addImprovementItem();
+            expect(wrapperDisabled.findAll('[data-testid^="improvement-row-"]')).toHaveLength(1);
+            vmDisabled.removeImprovementItem(0);
+            expect(wrapperDisabled.findAll('[data-testid^="improvement-row-"]')).toHaveLength(1);
+
+            const wrapperReadonly = mount(PlanSection, {
+                props: {
+                    readonly: true,
+                    modelValue: {
+                        improvement_items: [{ row_no: 1, plan_text: 'Plan', target_kpi: 'KPI' }],
+                    },
+                },
+            });
+            const vmReadonly = wrapperReadonly.vm as unknown as {
+                addImprovementItem: () => void;
+                removeImprovementItem: (i: number) => void;
+            };
+            vmReadonly.addImprovementItem();
+            expect(wrapperReadonly.findAll('[data-testid^="improvement-row-"]')).toHaveLength(1);
+            vmReadonly.removeImprovementItem(0);
+            expect(wrapperReadonly.findAll('[data-testid^="improvement-row-"]')).toHaveLength(1);
+
+            // 3. Draft payload with null/empty values to exercise all ternary and fallback branches
+            const draftPayload = wrapperDisabled.vm.getDraftPayload();
+            expect(draftPayload.target_execution_date).toBeNull();
+            expect(draftPayload.monitoring_period_value).toBeNull();
+            expect(draftPayload.monitoring_period_unit).toBeNull();
+            expect(draftPayload.rollback_scenario).toBeNull();
+            expect(draftPayload.announcement_timing).toBeNull();
+            expect(draftPayload.improvement_items).toEqual([{ row_no: 1, plan_text: null, target_kpi: 'KPI only' }]);
+
+            // 4. Exercise watch with empty/falsy/null fields and Upgrade subtype warning
+            await wrapperDefault.setProps({
+                subtype: 'Upgrade',
+                modelValue: {
+                    improvement_items: undefined,
+                    target_execution_date: null,
+                    monitoring_period_value: undefined,
+                    monitoring_period_unit: null,
+                    rollback_scenario: null,
+                    announcement_timing: 'TWO_DAYS_BEFORE_EMERGENCY',
+                },
+            });
+            expect(wrapperDefault.text()).toContain(
+                '2 days before timing is typically reserved for emergency changes.',
+            );
+
+            // Watcher with announcement_timing: null to cover branch 12 (announcement_timing || null fallback)
+            await wrapperDefault.setProps({
+                modelValue: {
+                    improvement_items: [],
+                    target_execution_date: '',
+                    monitoring_period_value: null,
+                    monitoring_period_unit: null,
+                    rollback_scenario: '',
+                    announcement_timing: null,
+                },
+            });
+
+            // Falsy newVal in watcher (line 85: if (!newVal) return;)
+            // Passing null bypasses withDefaults (which only triggers on undefined)
+            await wrapperDefault.setProps({
+                modelValue: null as unknown as PlanSectionModelValue,
+            });
+
+            // 5. Items with row_no: 0 / falsy to cover rowNo = item.row_no || i + 1 (line 162) and notifyUpdate line 100
+            // Also item with both empty plan and kpi (neither hasPlan nor hasKpi) to cover else branch of line 173
+            // Also trigger errors with row_no = 0 to cover template binary-expr fallback `item.row_no || index + 1` (lines 354, 374, 394)
+            // Also notice that for line 354 error `improvement_pair_${item.row_no || index + 1}`, row 1 has incomplete pair
+            const wrapperFalsyRowNo = mount(PlanSection, {
+                props: {
+                    modelValue: {
+                        improvement_items: [
+                            { row_no: 0, plan_text: '', target_kpi: '' }, // line 173: neither hasPlan nor hasKpi
+                            { row_no: 0, plan_text: 'Incomplete plan only', target_kpi: '' }, // triggers improvement_pair_2 error
+                            { row_no: 0, plan_text: 'p'.repeat(1001), target_kpi: 'k'.repeat(1001) }, // errors on plan_text, target_kpi, and incomplete pair
+                        ],
+                    },
+                },
+            });
+            // Trigger notifyUpdate while improvementItems have row_no = 0 to hit line 100 fallback (item.row_no || idx + 1)
+            const textareas = wrapperFalsyRowNo.findAll('textarea');
+            await textareas[0]!.trigger('input');
+
+            // Trigger submit validation
+            await wrapperFalsyRowNo.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapperFalsyRowNo.text()).toContain('Plan text must not exceed 1000 characters');
+            expect(wrapperFalsyRowNo.text()).toContain('Target KPI must not exceed 1000 characters');
+            expect(wrapperFalsyRowNo.text()).toContain('Both plan text and target KPI are required for row 2');
+
+            // 6. Cover line 161 (if (!item) continue;)
+            const wrapperHole = mount(PlanSection, {
+                props: {
+                    modelValue: {
+                        improvement_items: [{ row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }],
+                        target_execution_date: '2026-10-01',
+                        monitoring_period_value: 2,
+                        monitoring_period_unit: 'HOUR',
+                        rollback_scenario: 'Revert procedure',
+                        announcement_timing: 'ONE_WEEK_BEFORE',
+                    },
+                },
+            });
+            wrapperHole.unmount();
+            // With component unmounted, render effect is stopped so null item won't trigger template render error
+            const vmWithInternal = wrapperHole.vm as unknown as {
+                improvementItems: Array<Record<string, unknown> | null>;
+                validateSubmit: () => boolean;
+            };
+            vmWithInternal.improvementItems = [null, { row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }];
+            const resultWithHole = vmWithInternal.validateSubmit();
+            expect(resultWithHole).toBe(true);
+        });
     });
 });
