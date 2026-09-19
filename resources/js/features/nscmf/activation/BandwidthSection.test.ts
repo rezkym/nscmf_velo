@@ -370,8 +370,153 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
 
             const emittedDraft = wrapper.emitted('update:modelValue');
             const latestDraft = emittedDraft![emittedDraft!.length - 1]![0] as ActivationDraftFields;
-            expect(latestDraft.sla_items?.[0]?.requirement_text?.length).toBeLessThanOrEqual(1000);
-            expect(latestDraft.priority_destinations?.[0]?.destination?.length).toBeLessThanOrEqual(255);
+            // N-21-2a: Values should NOT be silently truncated in the draft; instead, over-length content is preserved in draft and rejected via submit-invalid
+            expect(latestDraft.sla_items?.[0]?.requirement_text).toBe(overSla);
+            expect(latestDraft.priority_destinations?.[0]?.destination).toBe(overPd);
+
+            // N-21-2c: Inline error nodes must be rendered in the DOM for accessibility and user visibility
+            expect(wrapper.find('[data-testid="error-sla-items"]').exists()).toBe(true);
+            expect(wrapper.find('[data-testid="error-sla-items"]').text()).toContain('1,000');
+            expect(wrapper.find('[data-testid="error-priority-destinations"]').exists()).toBe(true);
+            expect(wrapper.find('[data-testid="error-priority-destinations"]').text()).toContain('255');
+        });
+
+        it('N-21-1: handles non-string content fields without throwing TypeError in input handler', async () => {
+            const wrapper = mount(BandwidthSection, {
+                props: {
+                    modelValue: {
+                        sla_items: [{ row_no: 1, requirement_text: 42 as unknown as string }],
+                        priority_destinations: [{ row_no: 1, destination: 42 as unknown as string }],
+                    },
+                },
+            });
+
+            const intlInput = wrapper.find<HTMLInputElement>('[data-testid="input-bandwidth-international"]');
+            await expect(intlInput.setValue('100')).resolves.not.toThrow();
+
+            const emitted = wrapper.emitted('update:modelValue');
+            expect(emitted).toBeDefined();
+            const latest = emitted![emitted!.length - 1]![0] as ActivationDraftFields;
+            expect(latest.sla_items?.[0]?.requirement_text).toBe('42');
+            expect(latest.priority_destinations?.[0]?.destination).toBe('42');
+        });
+
+        it('N-21-2b: counts code points (astral characters/emoji) instead of UTF-16 code units', async () => {
+            // 200 emoji is 200 code points, but 400 UTF-16 units (which is <= 255 code points, so legal for priority_destinations)
+            const emoji200 = '😀'.repeat(200);
+            const emoji120 = '😀'.repeat(120); // 120 code points, well under 1,000 for SLA
+
+            const wrapper = mount(BandwidthSection, {
+                props: {
+                    modelValue: {
+                        sla_items: [{ row_no: 1, requirement_text: emoji120 }],
+                        priority_destinations: [{ row_no: 1, destination: emoji200 }],
+                    },
+                },
+            });
+
+            await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(wrapper.emitted('submit-valid')).toBeTruthy();
+            expect(wrapper.emitted('submit-invalid')).toBeFalsy();
+
+            const emitted = wrapper.emitted('update:modelValue');
+            const latest = emitted![emitted!.length - 1]![0] as ActivationDraftFields;
+            expect(latest.sla_items?.[0]?.requirement_text).toBe(emoji120);
+            expect(latest.priority_destinations?.[0]?.destination).toBe(emoji200);
+        });
+
+        it('pins exact cap boundaries: 1000 and 255 valid, 1001 and 256 invalid', async () => {
+            const validWrapper = mount(BandwidthSection, {
+                props: {
+                    modelValue: {
+                        sla_items: [{ row_no: 1, requirement_text: 'A'.repeat(1000) }],
+                        priority_destinations: [{ row_no: 1, destination: 'B'.repeat(255) }],
+                    },
+                },
+            });
+            await validWrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(validWrapper.emitted('submit-valid')).toBeTruthy();
+            expect(validWrapper.emitted('submit-invalid')).toBeFalsy();
+
+            const invalidWrapper = mount(BandwidthSection, {
+                props: {
+                    modelValue: {
+                        sla_items: [{ row_no: 1, requirement_text: 'A'.repeat(1001) }],
+                        priority_destinations: [{ row_no: 1, destination: 'B'.repeat(256) }],
+                    },
+                },
+            });
+            await invalidWrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
+            expect(invalidWrapper.emitted('submit-invalid')).toBeTruthy();
+            expect(invalidWrapper.emitted('submit-valid')).toBeFalsy();
+        });
+
+        it('X7: blank / not-started priority destinations rows do not occupy a row_no in emitted draft', async () => {
+            const wrapper = mount(BandwidthSection, {
+                props: {
+                    modelValue: {
+                        priority_destinations: [{ row_no: 1, destination: 'Tokyo Equinix' }],
+                    },
+                },
+            });
+
+            // Add second row but leave it blank
+            await wrapper.find('[data-testid="add-priority-dest-btn"]').trigger('click');
+            const emitted = wrapper.emitted('update:modelValue');
+            const latest = emitted![emitted!.length - 1]![0] as ActivationDraftFields;
+            expect(latest.priority_destinations).toEqual([
+                { row_no: 1, destination: 'Tokyo Equinix' },
+            ]);
+        });
+
+        it('X3, X4, X5: handler guards respect disabled, readonly, and bounds', async () => {
+            // Disabled wrapper
+            const disabledWrapper = mount(BandwidthSection, {
+                props: {
+                    disabled: true,
+                    modelValue: {
+                        sla_items: [{ row_no: 1, requirement_text: 'SLA 1' }],
+                        priority_destinations: [{ row_no: 1, destination: 'Dest 1' }],
+                    },
+                },
+            });
+            await disabledWrapper.find('[data-testid="add-sla-row-btn"]').trigger('click');
+            expect(disabledWrapper.findAll('[data-testid^="sla-row-"]').length).toBe(1);
+            await disabledWrapper.find('[data-testid="add-priority-dest-btn"]').trigger('click');
+            expect(disabledWrapper.findAll('[data-testid^="priority-dest-row-"]').length).toBe(1);
+            await disabledWrapper.find('[data-testid="remove-sla-row-1"]').trigger('click');
+            expect(disabledWrapper.findAll('[data-testid^="sla-row-"]').length).toBe(1);
+            await disabledWrapper.find('[data-testid="remove-priority-dest-1"]').trigger('click');
+            expect(disabledWrapper.findAll('[data-testid^="priority-dest-row-"]').length).toBe(1);
+
+            // Readonly wrapper
+            const readonlyWrapper = mount(BandwidthSection, {
+                props: {
+                    readonly: true,
+                    modelValue: {
+                        sla_items: [{ row_no: 1, requirement_text: 'SLA 1' }],
+                        priority_destinations: [{ row_no: 1, destination: 'Dest 1' }],
+                    },
+                },
+            });
+            await readonlyWrapper.find('[data-testid="add-sla-row-btn"]').trigger('click');
+            expect(readonlyWrapper.findAll('[data-testid^="sla-row-"]').length).toBe(1);
+            await readonlyWrapper.find('[data-testid="add-priority-dest-btn"]').trigger('click');
+            expect(readonlyWrapper.findAll('[data-testid^="priority-dest-row-"]').length).toBe(1);
+            await readonlyWrapper.find('[data-testid="remove-sla-row-1"]').trigger('click');
+            expect(readonlyWrapper.findAll('[data-testid^="sla-row-"]').length).toBe(1);
+            await readonlyWrapper.find('[data-testid="remove-priority-dest-1"]').trigger('click');
+            expect(readonlyWrapper.findAll('[data-testid^="priority-dest-row-"]').length).toBe(1);
+        });
+
+        it('R-21-2b: handles modelValue: null gracefully on typing', async () => {
+            const wrapper = mount(BandwidthSection, {
+                props: {
+                    modelValue: null as unknown as ActivationDraftFields,
+                },
+            });
+            const intlInput = wrapper.find<HTMLInputElement>('[data-testid="input-bandwidth-international"]');
+            await expect(intlInput.setValue('100')).resolves.not.toThrow();
         });
 
         it('F-21-3: preserves omitted collections in draftPayload without destroying signal to []', async () => {
