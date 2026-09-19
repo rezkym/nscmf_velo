@@ -109,14 +109,14 @@ watch(
     { immediate: true, deep: true },
 );
 
-function toNullableString(val: string, max?: number): string | null {
+function toNullableString(val: string, max: number): string | null {
     const trimmed = val.trim();
     if (trimmed === '') return null;
-    return max !== undefined ? trimmed.slice(0, max) : trimmed;
+    return [...trimmed].slice(0, max).join('');
 }
 
 function toNullableNumber(val: string | number | null | undefined): number | null {
-    if (val === null || val === undefined) return null;
+    if (val === '' || val === null || val === undefined) return null;
     if (typeof val === 'number') return Number.isFinite(val) ? val : null;
     const trimmed = String(val).trim();
     if (trimmed === '') return null;
@@ -158,6 +158,10 @@ function handleInput() {
     emit('update:modelValue', getDraftPayload());
 }
 
+function getCharLength(val: string): number {
+    return [...val].length;
+}
+
 function validateSubmit(): boolean {
     const errs: Record<string, string> = {};
 
@@ -167,6 +171,50 @@ function validateSubmit(): boolean {
         clientErrors.value = errs;
         emit('submit-invalid', errs);
         return false;
+    }
+
+    // Length checks (N-22-1: reject over-length fields with visible errors)
+    if (getCharLength(pop.value) > 255) {
+        errs['pop'] = 'POP must be max 255 characters';
+    }
+    if (getCharLength(regional.value) > 255) {
+        errs['regional'] = 'Regional must be max 255 characters';
+    }
+    if (getCharLength(preferredUpstream.value) > 255) {
+        errs['preferred_upstream'] = 'Preferred upstream must be max 255 characters';
+    }
+    if (getCharLength(secondaryUpstream.value) > 255) {
+        errs['secondary_upstream'] = 'Secondary upstream must be max 255 characters';
+    }
+    if (getCharLength(primaryNocLink.value) > 255) {
+        errs['primary_noc_link'] = 'Primary NOC link must be max 255 characters';
+    }
+    if (getCharLength(secondaryNocLink.value) > 255) {
+        errs['secondary_noc_link'] = 'Secondary NOC link must be max 255 characters';
+    }
+    if (getCharLength(downlinkRouter.value) > 255) {
+        errs['downlink_router'] = 'Downlink router must be max 255 characters';
+    }
+    if (getCharLength(domainName1.value) > 253) {
+        errs['domain_name_1'] = 'Domain name 1 must be max 253 characters';
+    }
+    if (getCharLength(domainName2.value) > 253) {
+        errs['domain_name_2'] = 'Domain name 2 must be max 253 characters';
+    }
+    if (getCharLength(primaryDns.value) > 255) {
+        errs['primary_dns'] = 'Primary DNS must be max 255 characters';
+    }
+    if (getCharLength(secondaryDns.value) > 255) {
+        errs['secondary_dns'] = 'Secondary DNS must be max 255 characters';
+    }
+    if (getCharLength(mxPrimary.value) > 255) {
+        errs['mx_primary'] = 'MX primary must be max 255 characters';
+    }
+    if (getCharLength(mxSecondary.value) > 255) {
+        errs['mx_secondary'] = 'MX secondary must be max 255 characters';
+    }
+    if (getCharLength(hostingPlatform.value) > 255) {
+        errs['hosting_platform'] = 'Hosting platform must be max 255 characters';
     }
 
     // AC2: migrate_domain dependency
