@@ -993,6 +993,68 @@ describe('FE-15: Initial Setup Wizard Composition', () => {
         expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
     });
 
+    // B-15-3: Inverted readiness default, setup_completed in calculateInitialStep, and gated terminal screen
+    it('B-15-3 — readiness defaults fail-closed for signing, calculateInitialStep respects setup_completed, and terminal screen is gated', async () => {
+        // Sub-test 1: Default props has signing_ready: false (fail-closed)
+        const wrapperDefault = mount(Setup, {});
+        expect(wrapperDefault.props().readiness.signing_ready).toBe(false);
+
+        // Sub-test 2: calculateInitialStep: when setup_completed is false, even if roles/teams/users configured, step is not 4 or if it is 4, setup_completed lands on step 4
+        // If setup_completed is false but roles, teams, users configured -> step 4 (review/finalize)
+        // If setup_completed is true -> directly step 4
+        const wrapperCompleted = mount(Setup, {
+            props: {
+                readiness: {
+                    roles_configured: false,
+                    teams_configured: false,
+                    users_configured: false,
+                    setup_completed: true,
+                    signing_ready: false,
+                },
+            },
+        });
+        expect(wrapperCompleted.find('[data-testid="step-complete"]').exists()).toBe(true);
+
+        // Sub-test 3: Terminal screen with setup_completed=false and readiness flags false should NOT claim "Setup Completed & Verified" or render unconditional green checks
+        const wrapperUnverified = mount(Setup, {
+            props: {
+                readiness: {
+                    roles_configured: false,
+                    teams_configured: false,
+                    users_configured: false,
+                    setup_completed: false,
+                    signing_ready: false,
+                },
+            },
+        });
+        // Manually navigate vm to step 4 to test terminal screen rendering
+        const vm = wrapperUnverified.vm as unknown as { currentStep: number };
+        vm.currentStep = 4;
+        await nextTick();
+
+        expect(wrapperUnverified.find('[data-testid="step-complete"]').exists()).toBe(true);
+        expect(wrapperUnverified.text()).not.toContain('Setup Completed & Verified');
+        expect(wrapperUnverified.find('[data-testid="readiness-roles-check"]').exists()).toBe(false);
+        expect(wrapperUnverified.find('[data-testid="readiness-teams-check"]').exists()).toBe(false);
+        expect(wrapperUnverified.find('[data-testid="readiness-users-check"]').exists()).toBe(false);
+
+        // With all configured and setup_completed=true, checks and heading appear
+        await wrapperUnverified.setProps({
+            readiness: {
+                roles_configured: true,
+                teams_configured: true,
+                users_configured: true,
+                setup_completed: true,
+                signing_ready: true,
+            },
+        });
+        await nextTick();
+        expect(wrapperUnverified.text()).toContain('Setup Completed & Verified');
+        expect(wrapperUnverified.find('[data-testid="readiness-roles-check"]').exists()).toBe(true);
+        expect(wrapperUnverified.find('[data-testid="readiness-teams-check"]').exists()).toBe(true);
+        expect(wrapperUnverified.find('[data-testid="readiness-users-check"]').exists()).toBe(true);
+    });
+
     it('handles watch on props.readiness falling back when readiness resets', async () => {
         const wrapper = mount(Setup, {
             props: {
