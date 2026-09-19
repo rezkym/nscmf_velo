@@ -176,9 +176,14 @@ function handleReauthSuccess(): void {
         onSuccess: () => {
             closePermissionsModal();
         },
-        onError: () => {
-            // Check for PROTECTED_RESOURCE or other server errors (AC4)
-            // Stays open, preserves selection
+        onError: (errs) => {
+            const errMap = (errs ?? {}) as Record<string, string | string[] | undefined>;
+            const msg = Array.isArray(errMap.message) ? errMap.message.join(', ') : errMap.message;
+            const permErr = Array.isArray(errMap.permissions) ? errMap.permissions.join(', ') : errMap.permissions;
+            serverErrorMessage.value = msg || permErr || 'Server rejected permission update.';
+
+            const rawCode = errMap.error_code ?? errMap.code;
+            serverErrorCode.value = typeof rawCode === 'string' ? rawCode : 'DENIED';
         },
     });
 }

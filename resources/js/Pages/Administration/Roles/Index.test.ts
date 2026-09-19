@@ -716,11 +716,21 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
             expect.objectContaining({ onError: expect.any(Function) }),
         );
 
-        // Trigger onError callback to cover L155-158
+        // Trigger onError callback with array message and array permissions to cover lines 181-182 branches
         const putCalls = activePermissionsForm?.put.mock.calls;
         const lastPutCall = putCalls?.[putCalls.length - 1];
-        const putOptions = lastPutCall?.[1] as { onError?: () => void };
+        const putOptions = lastPutCall?.[1] as { onError?: (errs?: unknown) => void };
+        putOptions.onError?.({ message: ['Error msg 1', 'Error msg 2'], permissions: ['perm 1', 'perm 2'] });
+        expect(vm.serverErrorMessage).toBe('Error msg 1, Error msg 2');
+
+        // Trigger onError callback with array permissions and no message
+        putOptions.onError?.({ permissions: ['perm A', 'perm B'] });
+        expect(vm.serverErrorMessage).toBe('perm A, perm B');
+
+        // Trigger onError callback with null errs
         putOptions.onError?.();
+        expect(vm.serverErrorMessage).toBe('Server rejected permission update.');
+        expect(vm.serverErrorCode).toBe('DENIED');
 
         // 5. Test L380 fallback branch: permissionsForm.errors.permissions when serverErrorMessage is null
         vm.serverErrorMessage = null;
