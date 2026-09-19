@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type {
-    ActivationDraftFields,
-    SlaItemRow,
-    VirtualConnectionRow,
-    PriorityDestinationRow,
-} from '../draftPayload';
+import type { ActivationDraftFields, SlaItemRow, VirtualConnectionRow, PriorityDestinationRow } from '../draftPayload';
 
 export interface BandwidthSectionProps {
     modelValue?: ActivationDraftFields;
@@ -110,29 +105,35 @@ function syncFromProps(val: ActivationDraftFields) {
         const sorted = [...validRows].sort((a, b) => (a.row_no ?? 0) - (b.row_no ?? 0));
         slaItems.value = sorted.slice(0, 3).map((item) => ({
             id: nextSlaId++,
-            text: typeof item.requirement_text === 'string'
-                ? item.requirement_text
-                : item.requirement_text != null
-                    ? String(item.requirement_text)
-                    : '',
+            text:
+                typeof item.requirement_text === 'string'
+                    ? item.requirement_text
+                    : item.requirement_text != null
+                      ? String(item.requirement_text)
+                      : '',
         }));
     } else {
         slaItems.value = [];
     }
 
     // Sync Priority Destinations
-    if (val?.priority_destinations && Array.isArray(val.priority_destinations) && val.priority_destinations.length > 0) {
-        const validRows = val.priority_destinations.filter(
-            (item): item is PriorityDestinationRow => Boolean(item && typeof item === 'object'),
+    if (
+        val?.priority_destinations &&
+        Array.isArray(val.priority_destinations) &&
+        val.priority_destinations.length > 0
+    ) {
+        const validRows = val.priority_destinations.filter((item): item is PriorityDestinationRow =>
+            Boolean(item && typeof item === 'object'),
         );
         const sorted = [...validRows].sort((a, b) => (a.row_no ?? 0) - (b.row_no ?? 0));
         priorityDestinations.value = sorted.slice(0, 3).map((item) => ({
             id: nextDestId++,
-            text: typeof item.destination === 'string'
-                ? item.destination
-                : item.destination != null
-                    ? String(item.destination)
-                    : '',
+            text:
+                typeof item.destination === 'string'
+                    ? item.destination
+                    : item.destination != null
+                      ? String(item.destination)
+                      : '',
         }));
     } else {
         priorityDestinations.value = [];
@@ -321,9 +322,12 @@ function validateSubmit() {
     <section class="space-y-6" data-testid="bandwidth-section">
         <!-- Section Header -->
         <div class="border-b pb-4">
-            <h3 class="text-lg font-semibold text-foreground">Bandwidth, Specific Requirements (SLA) & Priority Destinations</h3>
+            <h3 class="text-lg font-semibold text-foreground">
+                Bandwidth, Specific Requirements (SLA) & Priority Destinations
+            </h3>
             <p class="text-sm text-muted-foreground">
-                Configure international, domestic, mixed bandwidth, virtual connections, business SLA specifications, and priority routing destinations.
+                Configure international, domestic, mixed bandwidth, virtual connections, business SLA specifications,
+                and priority routing destinations.
             </p>
         </div>
 
@@ -349,7 +353,10 @@ function validateSubmit() {
                             placeholder="e.g. 100.125"
                             @input="handleInput"
                         />
-                        <span data-testid="unit-bandwidth-international" class="text-sm text-muted-foreground font-medium">
+                        <span
+                            data-testid="unit-bandwidth-international"
+                            class="text-sm text-muted-foreground font-medium"
+                        >
                             Mbps
                         </span>
                     </div>
@@ -380,7 +387,10 @@ function validateSubmit() {
                             placeholder="e.g. 200.5"
                             @input="handleInput"
                         />
-                        <span data-testid="unit-bandwidth-domestic-iix" class="text-sm text-muted-foreground font-medium">
+                        <span
+                            data-testid="unit-bandwidth-domestic-iix"
+                            class="text-sm text-muted-foreground font-medium"
+                        >
                             Mbps
                         </span>
                     </div>
@@ -395,9 +405,7 @@ function validateSubmit() {
 
                 <!-- Mixed -->
                 <div class="space-y-1">
-                    <label for="input-bandwidth-mixed" class="text-sm font-medium">
-                        International & IIX Mixed
-                    </label>
+                    <label for="input-bandwidth-mixed" class="text-sm font-medium"> International & IIX Mixed </label>
                     <div class="flex items-center space-x-2">
                         <input
                             id="input-bandwidth-mixed"
@@ -430,11 +438,7 @@ function validateSubmit() {
         <div class="space-y-4 rounded-lg border bg-card p-4">
             <h4 class="font-medium text-foreground">Virtual Connections (Custom Bandwidth)</h4>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div
-                    v-for="vc in virtualConnections"
-                    :key="vc.row_no"
-                    class="space-y-1"
-                >
+                <div v-for="vc in virtualConnections" :key="vc.row_no" class="space-y-1">
                     <label :for="'input-vc-' + vc.row_no" class="text-sm font-medium">
                         VC #{{ vc.row_no }} Bandwidth
                     </label>
@@ -451,9 +455,7 @@ function validateSubmit() {
                             placeholder="e.g. 10.5"
                             @input="handleInput"
                         />
-                        <span class="text-sm text-muted-foreground font-medium">
-                            Mbps
-                        </span>
+                        <span class="text-sm text-muted-foreground font-medium"> Mbps </span>
                     </div>
                     <p
                         v-if="errors['vc_' + vc.row_no]"
@@ -471,7 +473,9 @@ function validateSubmit() {
             <div class="flex items-center justify-between">
                 <div>
                     <h4 class="font-medium text-foreground">Specific Requirements (SLA)</h4>
-                    <p class="text-xs text-muted-foreground">Optional, maximum 3 ordered requirements (up to 1,000 characters each).</p>
+                    <p class="text-xs text-muted-foreground">
+                        Optional, maximum 3 ordered requirements (up to 1,000 characters each).
+                    </p>
                 </div>
                 <button
                     type="button"
@@ -495,9 +499,7 @@ function validateSubmit() {
                     :data-testid="'sla-row-' + (index + 1)"
                     class="flex items-start space-x-2"
                 >
-                    <span class="mt-2 text-xs font-semibold text-muted-foreground w-6">
-                        #{{ index + 1 }}
-                    </span>
+                    <span class="mt-2 text-xs font-semibold text-muted-foreground w-6"> #{{ index + 1 }} </span>
                     <div class="flex-1 space-y-1">
                         <textarea
                             v-model="item.text"
@@ -524,11 +526,7 @@ function validateSubmit() {
                 </div>
             </div>
 
-            <p
-                v-if="errors['sla_items']"
-                data-testid="error-sla-items"
-                class="text-xs text-destructive mt-2"
-            >
+            <p v-if="errors['sla_items']" data-testid="error-sla-items" class="text-xs text-destructive mt-2">
                 {{ errors['sla_items'] }}
             </p>
         </div>
@@ -538,7 +536,9 @@ function validateSubmit() {
             <div class="flex items-center justify-between">
                 <div>
                     <h4 class="font-medium text-foreground">Priority Destinations</h4>
-                    <p class="text-xs text-muted-foreground">Optional, maximum 3 free-text destination entries (up to 255 characters each).</p>
+                    <p class="text-xs text-muted-foreground">
+                        Optional, maximum 3 free-text destination entries (up to 255 characters each).
+                    </p>
                 </div>
                 <button
                     type="button"
@@ -562,9 +562,7 @@ function validateSubmit() {
                     :data-testid="'priority-dest-row-' + (index + 1)"
                     class="flex items-center space-x-2"
                 >
-                    <span class="text-xs font-semibold text-muted-foreground w-6">
-                        #{{ index + 1 }}
-                    </span>
+                    <span class="text-xs font-semibold text-muted-foreground w-6"> #{{ index + 1 }} </span>
                     <input
                         v-model="item.text"
                         type="text"
@@ -599,12 +597,7 @@ function validateSubmit() {
         </div>
 
         <!-- Hidden / Test submit trigger -->
-        <button
-            type="button"
-            data-testid="validate-submit-btn"
-            class="hidden"
-            @click="validateSubmit"
-        >
+        <button type="button" data-testid="validate-submit-btn" class="hidden" @click="validateSubmit">
             Validate Submit
         </button>
     </section>

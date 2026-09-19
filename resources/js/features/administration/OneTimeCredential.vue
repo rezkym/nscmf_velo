@@ -20,7 +20,9 @@ const emit = defineEmits<{
 
 // Module-scope consumed registry: survives component unmount and remount (HARD GATE 2 / N-13-2).
 // Keyed by non-reversible hash tokens so raw plaintext credentials are never retained in memory (N-13-4).
-const moduleConsumedTokens: Set<string> = (globalThis as unknown as Record<string, Set<string>>).__alyaOneTimeConsumedTokens ??= new Set<string>();
+const moduleConsumedTokens: Set<string> = ((
+    globalThis as unknown as Record<string, Set<string>>
+).__alyaOneTimeConsumedTokens ??= new Set<string>());
 
 // Transient state: strictly kept in memory during active reveal, cleared on close/dismiss/unmount.
 const internalCredential = ref<string | null>(null);
@@ -87,10 +89,7 @@ watch(
 
             // If this credential identity (or raw password) has already been consumed, fail closed:
             // do not re-render plaintext (F-13-1, AC1 verbatim, N-13-1, N-13-2).
-            if (
-                moduleConsumedTokens.has(currentKey) ||
-                moduleConsumedTokens.has(passwordOnlyKey)
-            ) {
+            if (moduleConsumedTokens.has(currentKey) || moduleConsumedTokens.has(passwordOnlyKey)) {
                 internalCredential.value = null;
                 return;
             }

@@ -298,19 +298,21 @@ describe('FE-12: User list, profile, roles, Team dan active status', () => {
         const vm = wrapper.vm as unknown as ExposedIndexVm;
         const routerPostSpy = vi.spyOn(router, 'post');
         const rolesPutSpy = vi.spyOn(vm.editRolesForm, 'put');
+        const protectedUser = users[0];
+        if (!protectedUser) throw new Error('fixture must contain the protected superadmin');
 
-        vm.enableUser(users[0]);
+        vm.enableUser(protectedUser);
         expect(routerPostSpy).not.toHaveBeenCalled();
 
-        vm.initiateDisableUser(users[0]);
+        vm.initiateDisableUser(protectedUser);
         expect(vm.isReauthDialogOpen).toBe(false);
         expect(routerPostSpy).not.toHaveBeenCalled();
 
-        vm.initiateResetPassword(users[0]);
+        vm.initiateResetPassword(protectedUser);
         expect(vm.isReauthDialogOpen).toBe(false);
         expect(routerPostSpy).not.toHaveBeenCalled();
 
-        vm.openEditRolesModal(users[0]);
+        vm.openEditRolesModal(protectedUser);
         expect(vm.isEditRolesModalOpen).toBe(false);
         expect(rolesPutSpy).not.toHaveBeenCalled();
 

@@ -90,26 +90,22 @@ function sanitizePurpose(val: unknown): string {
 
 function sanitizeChallenges(val: unknown): FacingChallengeRow[] {
     if (!Array.isArray(val)) return [];
-    return val
-        .slice(0, 3)
-        .map((c, i) => {
-            if (!c || typeof c !== 'object') return { row_no: i + 1, challenge_text: '' };
-            const rowNo = typeof c.row_no === 'number' && c.row_no >= 1 && c.row_no <= 3 ? c.row_no : i + 1;
-            const text = typeof c.challenge_text === 'string' ? c.challenge_text : '';
-            return { row_no: rowNo, challenge_text: text };
-        });
+    return val.slice(0, 3).map((c, i) => {
+        if (!c || typeof c !== 'object') return { row_no: i + 1, challenge_text: '' };
+        const rowNo = typeof c.row_no === 'number' && c.row_no >= 1 && c.row_no <= 3 ? c.row_no : i + 1;
+        const text = typeof c.challenge_text === 'string' ? c.challenge_text : '';
+        return { row_no: rowNo, challenge_text: text };
+    });
 }
 
 function sanitizeProblems(val: unknown): IdentifiedProblemRow[] {
     if (!Array.isArray(val)) return [];
-    return val
-        .slice(0, 3)
-        .map((p, i) => {
-            if (!p || typeof p !== 'object') return { row_no: i + 1, problem_text: '' };
-            const rowNo = typeof p.row_no === 'number' && p.row_no >= 1 && p.row_no <= 3 ? p.row_no : i + 1;
-            const text = typeof p.problem_text === 'string' ? p.problem_text : '';
-            return { row_no: rowNo, problem_text: text };
-        });
+    return val.slice(0, 3).map((p, i) => {
+        if (!p || typeof p !== 'object') return { row_no: i + 1, problem_text: '' };
+        const rowNo = typeof p.row_no === 'number' && p.row_no >= 1 && p.row_no <= 3 ? p.row_no : i + 1;
+        const text = typeof p.problem_text === 'string' ? p.problem_text : '';
+        return { row_no: rowNo, problem_text: text };
+    });
 }
 
 function sanitizeImpacts(val: unknown): ServiceImpactSelection[] {
@@ -474,11 +470,7 @@ function getDraftPayload(): ChangeDraftWirePayload['change'] {
         changeData.service_impacts = serviceImpacts.value.map((item) => ({
             impact_code: item.impact_code,
             other_description:
-                item.impact_code === 'OTHER'
-                    ? item.other_description?.trim()
-                        ? item.other_description
-                        : null
-                    : null,
+                item.impact_code === 'OTHER' ? (item.other_description?.trim() ? item.other_description : null) : null,
         }));
     }
 
@@ -755,4 +747,3 @@ defineExpose({
         </div>
     </div>
 </template>
-

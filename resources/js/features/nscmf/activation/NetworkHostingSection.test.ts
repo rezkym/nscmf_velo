@@ -593,12 +593,18 @@ describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)
             expect([...payload.domain_name_1!].length).toBe(253);
             expect(payload.domain_name_1!.endsWith('😀')).toBe(true);
             // Must NOT contain lone surrogates
-            expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(payload.domain_name_1 ?? '')).toBe(false);
+            expect(
+                /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(
+                    payload.domain_name_1 ?? '',
+                ),
+            ).toBe(false);
 
             expect(payload.pop).toBeDefined();
             expect([...payload.pop!].length).toBe(255);
             expect(payload.pop!.endsWith('😀')).toBe(true);
-            expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(payload.pop ?? '')).toBe(false);
+            expect(
+                /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(payload.pop ?? ''),
+            ).toBe(false);
         });
 
         it('N-22-1: validateSubmit rejects over-length fields with visible errors and emits submit-invalid', async () => {
@@ -649,19 +655,43 @@ describe('FE-22: Activation NOC, DNS, domain dan hosting (NetworkHostingSection)
 
             // Verify visible error DOM nodes
             expect(wrapper.find('[data-testid="error-pop"]').text()).toBe('POP must be max 255 characters');
-            expect(wrapper.find('[data-testid="error-domain_name_1"]').text()).toBe('Domain name 1 must be max 253 characters');
+            expect(wrapper.find('[data-testid="error-domain_name_1"]').text()).toBe(
+                'Domain name 1 must be max 253 characters',
+            );
             expect(wrapper.find('[data-testid="error-regional"]').text()).toBe('Regional must be max 255 characters');
-            expect(wrapper.find('[data-testid="error-preferred_upstream"]').text()).toBe('Preferred upstream must be max 255 characters');
-            expect(wrapper.find('[data-testid="error-secondary_upstream"]').text()).toBe('Secondary upstream must be max 255 characters');
-            expect(wrapper.find('[data-testid="error-primary_noc_link"]').text()).toBe('Primary NOC link must be max 255 characters');
-            expect(wrapper.find('[data-testid="error-secondary_noc_link"]').text()).toBe('Secondary NOC link must be max 255 characters');
-            expect(wrapper.find('[data-testid="error-downlink_router"]').text()).toBe('Downlink router must be max 255 characters');
-            expect(wrapper.find('[data-testid="error-domain_name_2"]').text()).toBe('Domain name 2 must be max 253 characters');
-            expect(wrapper.find('[data-testid="error-primary_dns"]').text()).toBe('Primary DNS must be max 255 characters');
-            expect(wrapper.find('[data-testid="error-secondary_dns"]').text()).toBe('Secondary DNS must be max 255 characters');
-            expect(wrapper.find('[data-testid="error-mx_primary"]').text()).toBe('MX primary must be max 255 characters');
-            expect(wrapper.find('[data-testid="error-mx_secondary"]').text()).toBe('MX secondary must be max 255 characters');
-            expect(wrapper.find('[data-testid="error-hosting_platform"]').text()).toBe('Hosting platform must be max 255 characters');
+            expect(wrapper.find('[data-testid="error-preferred_upstream"]').text()).toBe(
+                'Preferred upstream must be max 255 characters',
+            );
+            expect(wrapper.find('[data-testid="error-secondary_upstream"]').text()).toBe(
+                'Secondary upstream must be max 255 characters',
+            );
+            expect(wrapper.find('[data-testid="error-primary_noc_link"]').text()).toBe(
+                'Primary NOC link must be max 255 characters',
+            );
+            expect(wrapper.find('[data-testid="error-secondary_noc_link"]').text()).toBe(
+                'Secondary NOC link must be max 255 characters',
+            );
+            expect(wrapper.find('[data-testid="error-downlink_router"]').text()).toBe(
+                'Downlink router must be max 255 characters',
+            );
+            expect(wrapper.find('[data-testid="error-domain_name_2"]').text()).toBe(
+                'Domain name 2 must be max 253 characters',
+            );
+            expect(wrapper.find('[data-testid="error-primary_dns"]').text()).toBe(
+                'Primary DNS must be max 255 characters',
+            );
+            expect(wrapper.find('[data-testid="error-secondary_dns"]').text()).toBe(
+                'Secondary DNS must be max 255 characters',
+            );
+            expect(wrapper.find('[data-testid="error-mx_primary"]').text()).toBe(
+                'MX primary must be max 255 characters',
+            );
+            expect(wrapper.find('[data-testid="error-mx_secondary"]').text()).toBe(
+                'MX secondary must be max 255 characters',
+            );
+            expect(wrapper.find('[data-testid="error-hosting_platform"]').text()).toBe(
+                'Hosting platform must be max 255 characters',
+            );
         });
 
         it('N-22-1: legal astral input below code point cap passes validation without error', async () => {

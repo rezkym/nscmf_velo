@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import type {
-    ActivationDraftFields,
-    ReferenceSelection,
-    ServiceBlockRow,
-} from '../draftPayload';
+import type { ActivationDraftFields, ReferenceSelection, ServiceBlockRow } from '../draftPayload';
 
 export type ActivationSubtype = 'Activation' | 'Upgrade/Downgrade' | 'Deactivation';
 
@@ -227,7 +223,8 @@ function getDraftPayload(): ActivationDraftFields {
         if (refSelected.value[t]) {
             references.push({
                 reference_type: t,
-                specification: refSpecifications.value[t].trim() !== '' ? refSpecifications.value[t].slice(0, 255) : null,
+                specification:
+                    refSpecifications.value[t].trim() !== '' ? refSpecifications.value[t].slice(0, 255) : null,
             });
         }
     }
@@ -239,10 +236,17 @@ function getDraftPayload(): ActivationDraftFields {
     if (existingHasContent || isExistingRequired.value) {
         service_blocks.push({
             service_context: 'EXISTING',
-            service_id: existingBlock.value.service_id.trim() !== '' ? existingBlock.value.service_id.slice(0, 100) : null,
+            service_id:
+                existingBlock.value.service_id.trim() !== '' ? existingBlock.value.service_id.slice(0, 100) : null,
             service_status: existingBlock.value.service_status !== '' ? existingBlock.value.service_status : null,
-            service_description: existingBlock.value.service_description.trim() !== '' ? existingBlock.value.service_description.slice(0, 2000) : null,
-            service_location: existingBlock.value.service_location.trim() !== '' ? existingBlock.value.service_location.slice(0, 500) : null,
+            service_description:
+                existingBlock.value.service_description.trim() !== ''
+                    ? existingBlock.value.service_description.slice(0, 2000)
+                    : null,
+            service_location:
+                existingBlock.value.service_location.trim() !== ''
+                    ? existingBlock.value.service_location.slice(0, 500)
+                    : null,
         });
     }
 
@@ -253,8 +257,12 @@ function getDraftPayload(): ActivationDraftFields {
             service_context: 'NEW',
             service_id: newBlock.value.service_id.trim() !== '' ? newBlock.value.service_id.slice(0, 100) : null,
             service_status: newBlock.value.service_status !== '' ? newBlock.value.service_status : null,
-            service_description: newBlock.value.service_description.trim() !== '' ? newBlock.value.service_description.slice(0, 2000) : null,
-            service_location: newBlock.value.service_location.trim() !== '' ? newBlock.value.service_location.slice(0, 500) : null,
+            service_description:
+                newBlock.value.service_description.trim() !== ''
+                    ? newBlock.value.service_description.slice(0, 2000)
+                    : null,
+            service_location:
+                newBlock.value.service_location.trim() !== '' ? newBlock.value.service_location.slice(0, 500) : null,
         });
     }
 
@@ -430,7 +438,11 @@ defineExpose({
 <template>
     <section class="general-service-section space-y-6" data-testid="general-service-section">
         <!-- Request Date Header (G03 readonly/display) -->
-        <div v-if="requestDate" class="bg-muted/30 p-3 rounded border text-sm flex justify-between items-center" data-testid="request-date-header">
+        <div
+            v-if="requestDate"
+            class="bg-muted/30 p-3 rounded border text-sm flex justify-between items-center"
+            data-testid="request-date-header"
+        >
             <span class="font-medium text-muted-foreground">Request Date:</span>
             <span class="font-semibold">{{ requestDate }}</span>
         </div>
@@ -454,7 +466,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleFieldInput"
                     />
-                    <p v-if="errors.customer_name" data-testid="error-customer-name" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="errors.customer_name"
+                        data-testid="error-customer-name"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ errors.customer_name }}
                     </p>
                 </div>
@@ -474,7 +490,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleFieldInput"
                     />
-                    <p v-if="errors.contact_name" data-testid="error-contact-name" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="errors.contact_name"
+                        data-testid="error-contact-name"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ errors.contact_name }}
                     </p>
                 </div>
@@ -487,7 +507,10 @@ defineExpose({
                         Installation Date (RFS)
                         <span v-if="isRfsRequired" class="text-destructive">*</span>
                     </label>
-                    <span data-testid="indicator-rfs-date" class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                    <span
+                        data-testid="indicator-rfs-date"
+                        class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground"
+                    >
                         {{ isRfsRequired ? 'Required' : 'Optional' }}
                     </span>
                 </div>
@@ -501,7 +524,11 @@ defineExpose({
                     :readonly="readonly"
                     @input="handleFieldInput"
                 />
-                <p v-if="errors.installation_rfs_date" data-testid="error-installation-rfs-date" class="text-xs text-destructive mt-1 font-medium">
+                <p
+                    v-if="errors.installation_rfs_date"
+                    data-testid="error-installation-rfs-date"
+                    class="text-xs text-destructive mt-1 font-medium"
+                >
                     {{ errors.installation_rfs_date }}
                 </p>
             </div>
@@ -537,13 +564,19 @@ defineExpose({
                             type="text"
                             maxlength="255"
                             :data-testid="`ref-spec-input-${t}`"
-                            :placeholder="t === 'OTHER' ? 'Specify reference details (required)' : 'Optional specification'"
+                            :placeholder="
+                                t === 'OTHER' ? 'Specify reference details (required)' : 'Optional specification'
+                            "
                             class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             :disabled="disabled"
                             :readonly="readonly"
                             @input="handleFieldInput"
                         />
-                        <p v-if="errors[`ref_${t}`]" :data-testid="`error-ref-${t}`" class="text-xs text-destructive mt-1 font-medium">
+                        <p
+                            v-if="errors[`ref_${t}`]"
+                            :data-testid="`error-ref-${t}`"
+                            class="text-xs text-destructive mt-1 font-medium"
+                        >
                             {{ errors[`ref_${t}`] }}
                         </p>
                     </div>
@@ -552,22 +585,35 @@ defineExpose({
         </div>
 
         <!-- EXISTING Service Block -->
-        <div class="space-y-4 p-4 rounded-lg border bg-card text-card-foreground shadow-sm" data-testid="existing-service-block">
+        <div
+            class="space-y-4 p-4 rounded-lg border bg-card text-card-foreground shadow-sm"
+            data-testid="existing-service-block"
+        >
             <div class="flex items-center justify-between border-b pb-2">
                 <h3 class="text-base font-semibold tracking-tight">EXISTING Service</h3>
-                <span data-testid="indicator-existing-service" class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                <span
+                    data-testid="indicator-existing-service"
+                    class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground"
+                >
                     {{ isExistingRequired ? 'Required' : 'Optional' }}
                 </span>
             </div>
 
-            <p v-if="errors.service_EXISTING" data-testid="error-service-EXISTING" class="text-xs text-destructive font-medium">
+            <p
+                v-if="errors.service_EXISTING"
+                data-testid="error-service-EXISTING"
+                class="text-xs text-destructive font-medium"
+            >
                 {{ errors.service_EXISTING }}
             </p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-1">
                     <label for="existing-service-id" class="text-sm font-medium">
-                        Service ID <span v-if="isExistingRequired || isBlockStarted(existingBlock)" class="text-destructive">*</span>
+                        Service ID
+                        <span v-if="isExistingRequired || isBlockStarted(existingBlock)" class="text-destructive"
+                            >*</span
+                        >
                     </label>
                     <input
                         id="existing-service-id"
@@ -580,14 +626,21 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleFieldInput"
                     />
-                    <p v-if="errors.service_EXISTING_service_id" data-testid="error-service-EXISTING-service_id" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="errors.service_EXISTING_service_id"
+                        data-testid="error-service-EXISTING-service_id"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ errors.service_EXISTING_service_id }}
                     </p>
                 </div>
 
                 <div class="space-y-1">
                     <label for="existing-service-status" class="text-sm font-medium">
-                        Service Status <span v-if="isExistingRequired || isBlockStarted(existingBlock)" class="text-destructive">*</span>
+                        Service Status
+                        <span v-if="isExistingRequired || isBlockStarted(existingBlock)" class="text-destructive"
+                            >*</span
+                        >
                     </label>
                     <select
                         id="existing-service-status"
@@ -601,14 +654,21 @@ defineExpose({
                         <option value="ACTIVATED">ACTIVATED</option>
                         <option value="DEACTIVATED">DEACTIVATED</option>
                     </select>
-                    <p v-if="errors.service_EXISTING_service_status" data-testid="error-service-EXISTING-service_status" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="errors.service_EXISTING_service_status"
+                        data-testid="error-service-EXISTING-service_status"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ errors.service_EXISTING_service_status }}
                     </p>
                 </div>
 
                 <div class="space-y-1 md:col-span-2">
                     <label for="existing-service-description" class="text-sm font-medium">
-                        Service Description <span v-if="isExistingRequired || isBlockStarted(existingBlock)" class="text-destructive">*</span>
+                        Service Description
+                        <span v-if="isExistingRequired || isBlockStarted(existingBlock)" class="text-destructive"
+                            >*</span
+                        >
                     </label>
                     <textarea
                         id="existing-service-description"
@@ -621,14 +681,21 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleFieldInput"
                     ></textarea>
-                    <p v-if="errors.service_EXISTING_service_description" data-testid="error-service-EXISTING-service_description" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="errors.service_EXISTING_service_description"
+                        data-testid="error-service-EXISTING-service_description"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ errors.service_EXISTING_service_description }}
                     </p>
                 </div>
 
                 <div class="space-y-1 md:col-span-2">
                     <label for="existing-service-location" class="text-sm font-medium">
-                        Service Location <span v-if="isExistingRequired || isBlockStarted(existingBlock)" class="text-destructive">*</span>
+                        Service Location
+                        <span v-if="isExistingRequired || isBlockStarted(existingBlock)" class="text-destructive"
+                            >*</span
+                        >
                     </label>
                     <input
                         id="existing-service-location"
@@ -641,7 +708,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleFieldInput"
                     />
-                    <p v-if="errors.service_EXISTING_service_location" data-testid="error-service-EXISTING-service_location" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="errors.service_EXISTING_service_location"
+                        data-testid="error-service-EXISTING-service_location"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ errors.service_EXISTING_service_location }}
                     </p>
                 </div>
@@ -649,10 +720,16 @@ defineExpose({
         </div>
 
         <!-- NEW Service Block -->
-        <div class="space-y-4 p-4 rounded-lg border bg-card text-card-foreground shadow-sm" data-testid="new-service-block">
+        <div
+            class="space-y-4 p-4 rounded-lg border bg-card text-card-foreground shadow-sm"
+            data-testid="new-service-block"
+        >
             <div class="flex items-center justify-between border-b pb-2">
                 <h3 class="text-base font-semibold tracking-tight">NEW Service</h3>
-                <span data-testid="indicator-new-service" class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                <span
+                    data-testid="indicator-new-service"
+                    class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-muted text-muted-foreground"
+                >
                     {{ isNewRequired ? 'Required' : 'Optional' }}
                 </span>
             </div>
@@ -664,7 +741,8 @@ defineExpose({
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-1">
                     <label for="new-service-id" class="text-sm font-medium">
-                        Service ID <span v-if="isNewRequired || isBlockStarted(newBlock)" class="text-destructive">*</span>
+                        Service ID
+                        <span v-if="isNewRequired || isBlockStarted(newBlock)" class="text-destructive">*</span>
                     </label>
                     <input
                         id="new-service-id"
@@ -677,14 +755,19 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleFieldInput"
                     />
-                    <p v-if="errors.service_NEW_service_id" data-testid="error-service-NEW-service_id" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="errors.service_NEW_service_id"
+                        data-testid="error-service-NEW-service_id"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ errors.service_NEW_service_id }}
                     </p>
                 </div>
 
                 <div class="space-y-1">
                     <label for="new-service-status" class="text-sm font-medium">
-                        Service Status <span v-if="isNewRequired || isBlockStarted(newBlock)" class="text-destructive">*</span>
+                        Service Status
+                        <span v-if="isNewRequired || isBlockStarted(newBlock)" class="text-destructive">*</span>
                     </label>
                     <select
                         id="new-service-status"
@@ -698,14 +781,19 @@ defineExpose({
                         <option value="ACTIVATED">ACTIVATED</option>
                         <option value="DEACTIVATED">DEACTIVATED</option>
                     </select>
-                    <p v-if="errors.service_NEW_service_status" data-testid="error-service-NEW-service_status" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="errors.service_NEW_service_status"
+                        data-testid="error-service-NEW-service_status"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ errors.service_NEW_service_status }}
                     </p>
                 </div>
 
                 <div class="space-y-1 md:col-span-2">
                     <label for="new-service-description" class="text-sm font-medium">
-                        Service Description <span v-if="isNewRequired || isBlockStarted(newBlock)" class="text-destructive">*</span>
+                        Service Description
+                        <span v-if="isNewRequired || isBlockStarted(newBlock)" class="text-destructive">*</span>
                     </label>
                     <textarea
                         id="new-service-description"
@@ -718,14 +806,19 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleFieldInput"
                     ></textarea>
-                    <p v-if="errors.service_NEW_service_description" data-testid="error-service-NEW-service_description" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="errors.service_NEW_service_description"
+                        data-testid="error-service-NEW-service_description"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ errors.service_NEW_service_description }}
                     </p>
                 </div>
 
                 <div class="space-y-1 md:col-span-2">
                     <label for="new-service-location" class="text-sm font-medium">
-                        Service Location <span v-if="isNewRequired || isBlockStarted(newBlock)" class="text-destructive">*</span>
+                        Service Location
+                        <span v-if="isNewRequired || isBlockStarted(newBlock)" class="text-destructive">*</span>
                     </label>
                     <input
                         id="new-service-location"
@@ -738,7 +831,11 @@ defineExpose({
                         :readonly="readonly"
                         @input="handleFieldInput"
                     />
-                    <p v-if="errors.service_NEW_service_location" data-testid="error-service-NEW-service_location" class="text-xs text-destructive mt-1 font-medium">
+                    <p
+                        v-if="errors.service_NEW_service_location"
+                        data-testid="error-service-NEW-service_location"
+                        class="text-xs text-destructive mt-1 font-medium"
+                    >
                         {{ errors.service_NEW_service_location }}
                     </p>
                 </div>

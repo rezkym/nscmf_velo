@@ -355,8 +355,12 @@ describe('FE-24: Change purpose, problems and service impacts (PurposeImpactSect
             expect(wrapper.find('[data-testid="remove-problem-btn-0"]').exists()).toBe(false);
 
             // Cover updateOtherDescription early return
-            (wrapper.vm as unknown as { updateOtherDescription: (s: string) => void }).updateOtherDescription?.('blocked');
-            const draftAfterDesc = wrapper.vm.getDraftPayload() as { service_impacts?: Array<{ other_description: string | null }> };
+            (wrapper.vm as unknown as { updateOtherDescription: (s: string) => void }).updateOtherDescription?.(
+                'blocked',
+            );
+            const draftAfterDesc = wrapper.vm.getDraftPayload() as {
+                service_impacts?: Array<{ other_description: string | null }>;
+            };
             expect(draftAfterDesc.service_impacts?.[0]?.other_description).toBe('Detail');
         });
     });
@@ -392,7 +396,9 @@ describe('FE-24: Change purpose, problems and service impacts (PurposeImpactSect
                 },
             });
             expect(wrapperUpgrade.vm.validateSubmit()).toBe(false);
-            expect(wrapperUpgrade.vm.errors.facing_challenges).toBe('At least one challenge is required for Upgrade/Emergency');
+            expect(wrapperUpgrade.vm.errors.facing_challenges).toBe(
+                'At least one challenge is required for Upgrade/Emergency',
+            );
 
             const wrapperEmergency = mount(PurposeImpactSection, {
                 props: {
@@ -406,7 +412,9 @@ describe('FE-24: Change purpose, problems and service impacts (PurposeImpactSect
                 },
             });
             expect(wrapperEmergency.vm.validateSubmit()).toBe(false);
-            expect(wrapperEmergency.vm.errors.facing_challenges).toBe('At least one challenge is required for Upgrade/Emergency');
+            expect(wrapperEmergency.vm.errors.facing_challenges).toBe(
+                'At least one challenge is required for Upgrade/Emergency',
+            );
 
             // Unknown / bogus / invalid subtypes fail closed
             for (const bogus of ['Bogus', '', 'Other', 'ACTIVATION', 'UPGRADE_DOWNGRADE', 'DEACTIVATION']) {
@@ -568,7 +576,10 @@ describe('FE-24: Change purpose, problems and service impacts (PurposeImpactSect
 
             expect(wrapper.findAll('[data-testid^="challenge-input-"]').length).toBe(3);
             expect(wrapper.findAll('[data-testid^="problem-input-"]').length).toBe(3);
-            const draft = wrapper.vm.getDraftPayload() as { facing_challenges?: Array<{ row_no: number }>; identified_problems?: unknown[] };
+            const draft = wrapper.vm.getDraftPayload() as {
+                facing_challenges?: Array<{ row_no: number }>;
+                identified_problems?: unknown[];
+            };
             expect(draft.facing_challenges?.length).toBe(3);
             expect(draft.identified_problems?.length).toBe(3);
             expect(draft.facing_challenges?.map((c: { row_no: number }) => c.row_no)).toEqual([1, 2, 3]);
@@ -596,14 +607,22 @@ describe('FE-24: Change purpose, problems and service impacts (PurposeImpactSect
             // Calling addChallenge and addProblem directly when at 3 rows
             (wrapperInteractive.vm as unknown as { addChallenge: () => void }).addChallenge?.();
             expect(wrapperInteractive.findAll('[data-testid^="challenge-input-"]').length).toBe(3);
-            expect((wrapperInteractive.vm as unknown as { facingChallenges: unknown[] }).facingChallenges.length).toBe(3);
-            const draftAfterOverChallenge = wrapperInteractive.vm.getDraftPayload() as { facing_challenges?: unknown[] };
+            expect((wrapperInteractive.vm as unknown as { facingChallenges: unknown[] }).facingChallenges.length).toBe(
+                3,
+            );
+            const draftAfterOverChallenge = wrapperInteractive.vm.getDraftPayload() as {
+                facing_challenges?: unknown[];
+            };
             expect(draftAfterOverChallenge.facing_challenges?.length).toBe(3);
 
             (wrapperInteractive.vm as unknown as { addProblem: () => void }).addProblem?.();
             expect(wrapperInteractive.findAll('[data-testid^="problem-input-"]').length).toBe(3);
-            expect((wrapperInteractive.vm as unknown as { identifiedProblems: unknown[] }).identifiedProblems.length).toBe(3);
-            const draftAfterOverProblem = wrapperInteractive.vm.getDraftPayload() as { identified_problems?: unknown[] };
+            expect(
+                (wrapperInteractive.vm as unknown as { identifiedProblems: unknown[] }).identifiedProblems.length,
+            ).toBe(3);
+            const draftAfterOverProblem = wrapperInteractive.vm.getDraftPayload() as {
+                identified_problems?: unknown[];
+            };
             expect(draftAfterOverProblem.identified_problems?.length).toBe(3);
         });
 
@@ -628,20 +647,28 @@ describe('FE-24: Change purpose, problems and service impacts (PurposeImpactSect
             const lastPayload = emitted![emitted!.length - 1]![0] as {
                 service_impacts?: Array<{ impact_code: string; other_description: string | null }>;
             };
-            const draft = wrapper.vm.getDraftPayload() as { service_impacts?: Array<{ impact_code: string; other_description: string | null }> };
+            const draft = wrapper.vm.getDraftPayload() as {
+                service_impacts?: Array<{ impact_code: string; other_description: string | null }>;
+            };
             // Both emitter and draft must have null for blank/empty other_description
             expect(lastPayload.service_impacts?.[0]?.other_description).toBeNull();
             expect(draft.service_impacts?.[0]?.other_description).toBeNull();
 
             // M21: non-OTHER selections force other_description to null
             await wrapper.find('[data-testid="impact-POP"]').trigger('click');
-            const draftAfterPop = wrapper.vm.getDraftPayload() as { service_impacts?: Array<{ impact_code: string; other_description: string | null }> };
-            const popImpact = draftAfterPop.service_impacts?.find((i: { impact_code: string }) => i.impact_code === 'POP');
+            const draftAfterPop = wrapper.vm.getDraftPayload() as {
+                service_impacts?: Array<{ impact_code: string; other_description: string | null }>;
+            };
+            const popImpact = draftAfterPop.service_impacts?.find(
+                (i: { impact_code: string }) => i.impact_code === 'POP',
+            );
             expect(popImpact?.other_description).toBeNull();
             const lastPayloadAfterPop = wrapper.emitted('update:modelValue')!.slice(-1)[0]![0] as {
                 service_impacts?: Array<{ impact_code: string; other_description: string | null }>;
             };
-            const popEmitted = lastPayloadAfterPop.service_impacts?.find((i: { impact_code: string }) => i.impact_code === 'POP');
+            const popEmitted = lastPayloadAfterPop.service_impacts?.find(
+                (i: { impact_code: string }) => i.impact_code === 'POP',
+            );
             expect(popEmitted?.other_description).toBeNull();
         });
 
@@ -818,7 +845,9 @@ describe('FE-24: Change purpose, problems and service impacts (PurposeImpactSect
                     },
                 },
             });
-            const draftNatural = wrapperNatural.vm.getDraftPayload() as { facing_challenges?: Array<{ row_no: number }> };
+            const draftNatural = wrapperNatural.vm.getDraftPayload() as {
+                facing_challenges?: Array<{ row_no: number }>;
+            };
             expect(draftNatural.facing_challenges?.[0]?.row_no).toBe(2);
 
             // M28: service_impacts deep-clone isolates incoming props from mutation

@@ -1,12 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
 import BandwidthSection from './BandwidthSection.vue';
-import type {
-    ActivationDraftFields,
-    VirtualConnectionRow,
-    SlaItemRow,
-    PriorityDestinationRow,
-} from '../draftPayload';
+import type { ActivationDraftFields, VirtualConnectionRow, SlaItemRow, PriorityDestinationRow } from '../draftPayload';
 
 describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthSection)', () => {
     const sampleData: ActivationDraftFields = {
@@ -155,9 +150,7 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
             const wrapper = mount(BandwidthSection, {
                 props: {
                     modelValue: {
-                        priority_destinations: [
-                            { row_no: 1, destination: 'Singapore Singtel IX' },
-                        ],
+                        priority_destinations: [{ row_no: 1, destination: 'Singapore Singtel IX' }],
                     },
                 },
             });
@@ -197,12 +190,8 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
             const wrapper = mount(BandwidthSection, {
                 props: {
                     modelValue: {
-                        sla_items: [
-                            { row_no: 1, requirement_text: 'Single SLA item only' },
-                        ],
-                        virtual_connections: [
-                            { row_no: 2, bandwidth_mbps: 15.5 },
-                        ],
+                        sla_items: [{ row_no: 1, requirement_text: 'Single SLA item only' }],
+                        virtual_connections: [{ row_no: 2, bandwidth_mbps: 15.5 }],
                     },
                 },
             });
@@ -300,7 +289,9 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
             expect(wrapper.text()).not.toContain('No specific SLA requirements added yet.');
             expect(wrapper.text()).not.toContain('No priority destinations added yet.');
             expect(wrapper.find<HTMLTextAreaElement>('[data-testid="input-sla-1"]').element.value).toBe('Updated SLA');
-            expect(wrapper.find<HTMLInputElement>('[data-testid="input-priority-dest-1"]').element.value).toBe('Updated Dest');
+            expect(wrapper.find<HTMLInputElement>('[data-testid="input-priority-dest-1"]').element.value).toBe(
+                'Updated Dest',
+            );
         });
     });
 
@@ -464,9 +455,7 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
             await wrapper.find('[data-testid="add-priority-dest-btn"]').trigger('click');
             const emitted = wrapper.emitted('update:modelValue');
             const latest = emitted![emitted!.length - 1]![0] as ActivationDraftFields;
-            expect(latest.priority_destinations).toEqual([
-                { row_no: 1, destination: 'Tokyo Equinix' },
-            ]);
+            expect(latest.priority_destinations).toEqual([{ row_no: 1, destination: 'Tokyo Equinix' }]);
         });
 
         it('X3, X4, X5: handler guards respect disabled, readonly, and bounds', async () => {
@@ -571,9 +560,7 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
             await wrapper.find('[data-testid="add-sla-row-btn"]').trigger('click');
             const emitted = wrapper.emitted('update:modelValue');
             const latest = emitted![emitted!.length - 1]![0] as ActivationDraftFields;
-            expect(latest.sla_items).toEqual([
-                { row_no: 1, requirement_text: 'Active SLA' },
-            ]);
+            expect(latest.sla_items).toEqual([{ row_no: 1, requirement_text: 'Active SLA' }]);
         });
 
         it('R-21-2: gracefully handles malformed props without throwing TypeError', () => {

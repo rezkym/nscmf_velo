@@ -8,9 +8,7 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
         customer_name: 'PT Telco Nusantara',
         contact_name: 'Budi Santoso',
         installation_rfs_date: '2026-10-01',
-        references: [
-            { reference_type: 'IWO', specification: 'IWO-9912' },
-        ],
+        references: [{ reference_type: 'IWO', specification: 'IWO-9912' }],
         service_blocks: [
             {
                 service_context: 'NEW',
@@ -174,7 +172,9 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             expect(wrapperCanonicalAct.find('[data-testid="indicator-new-service"]').text()).toContain('Required');
             await wrapperCanonicalAct.find('[data-testid="validate-submit-btn"]').trigger('click');
             expect(wrapperCanonicalAct.emitted('submit-valid')).toBeFalsy();
-            expect(wrapperCanonicalAct.find('[data-testid="error-service-NEW"]').text()).toContain('NEW service block is required');
+            expect(wrapperCanonicalAct.find('[data-testid="error-service-NEW"]').text()).toContain(
+                'NEW service block is required',
+            );
 
             // Canonical machine value 'UPGRADE_DOWNGRADE' maps to Upgrade/Downgrade requirement
             const wrapperCanonicalUD = mount(GeneralServiceSection, {
@@ -223,9 +223,7 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
                         customer_name: '',
                         contact_name: '',
                         installation_rfs_date: null,
-                        references: [
-                            { reference_type: 'OTHER', specification: null },
-                        ],
+                        references: [{ reference_type: 'OTHER', specification: null }],
                         service_blocks: [
                             {
                                 service_context: 'NEW',
@@ -273,9 +271,7 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
                         customer_name: 'PT Telco',
                         contact_name: 'Budi',
                         installation_rfs_date: '2026-10-01',
-                        references: [
-                            { reference_type: 'OTHER', specification: 'Custom Spec 123' },
-                        ],
+                        references: [{ reference_type: 'OTHER', specification: 'Custom Spec 123' }],
                     },
                 },
             });
@@ -369,11 +365,7 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             expect(draft.password).toBeUndefined();
             expect(draft.token).toBeUndefined();
             expect(draft.internal_notes).toBeUndefined();
-            expect(Object.keys(draft).sort()).toEqual([
-                'contact_name',
-                'customer_name',
-                'installation_rfs_date',
-            ]);
+            expect(Object.keys(draft).sort()).toEqual(['contact_name', 'customer_name', 'installation_rfs_date']);
         });
 
         it('F-20-11: mounts safely when modelValue is null', () => {
@@ -421,10 +413,16 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             // M1/M2/M3 defense: assert maxlength attributes on DOM inputs
             expect(wrapper.find('[data-testid="input-customer-name"]').attributes('maxlength')).toBe('150');
             expect(wrapper.find('[data-testid="input-contact-name"]').attributes('maxlength')).toBe('150');
-            expect(wrapper.find('[data-testid="input-service-EXISTING-service_id"]').attributes('maxlength')).toBe('100');
+            expect(wrapper.find('[data-testid="input-service-EXISTING-service_id"]').attributes('maxlength')).toBe(
+                '100',
+            );
             expect(wrapper.find('[data-testid="input-service-NEW-service_id"]').attributes('maxlength')).toBe('100');
-            expect(wrapper.find('[data-testid="input-service-NEW-service_description"]').attributes('maxlength')).toBe('2000');
-            expect(wrapper.find('[data-testid="input-service-NEW-service_location"]').attributes('maxlength')).toBe('500');
+            expect(wrapper.find('[data-testid="input-service-NEW-service_description"]').attributes('maxlength')).toBe(
+                '2000',
+            );
+            expect(wrapper.find('[data-testid="input-service-NEW-service_location"]').attributes('maxlength')).toBe(
+                '500',
+            );
 
             // 150 chars is valid
             await wrapper.setProps({
@@ -455,23 +453,21 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
                     subtype: 'Activation',
                     modelValue: {
                         ...validActivationData,
-                        references: [
-                            { reference_type: 'OTHER', specification: '' },
-                        ],
+                        references: [{ reference_type: 'OTHER', specification: '' }],
                     },
                 },
             });
 
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
-            expect(wrapper.find('[data-testid="error-ref-OTHER"]').text()).toContain('Specification is required for OTHER');
+            expect(wrapper.find('[data-testid="error-ref-OTHER"]').text()).toContain(
+                'Specification is required for OTHER',
+            );
 
             // > 255 chars on OTHER
             await wrapper.setProps({
                 modelValue: {
                     ...validActivationData,
-                    references: [
-                        { reference_type: 'OTHER', specification: 'x'.repeat(256) },
-                    ],
+                    references: [{ reference_type: 'OTHER', specification: 'x'.repeat(256) }],
                 },
             });
             expect(wrapper.find('[data-testid="ref-spec-input-OTHER"]').attributes('maxlength')).toBe('255');
@@ -482,9 +478,7 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             await wrapper.setProps({
                 modelValue: {
                     ...validActivationData,
-                    references: [
-                        { reference_type: 'OTHER', specification: 'x'.repeat(255) },
-                    ],
+                    references: [{ reference_type: 'OTHER', specification: 'x'.repeat(255) }],
                 },
             });
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
@@ -494,9 +488,7 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             await wrapper.setProps({
                 modelValue: {
                     ...validActivationData,
-                    references: [
-                        { reference_type: 'IWO', specification: 'y'.repeat(256) },
-                    ],
+                    references: [{ reference_type: 'IWO', specification: 'y'.repeat(256) }],
                 },
             });
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
@@ -622,9 +614,15 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             });
 
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
-            expect(wrapper.find('[data-testid="error-service-EXISTING-service_status"]').text()).toContain('Service status is required');
-            expect(wrapper.find('[data-testid="error-service-EXISTING-service_description"]').text()).toContain('Service description is required');
-            expect(wrapper.find('[data-testid="error-service-EXISTING-service_location"]').text()).toContain('Service location is required');
+            expect(wrapper.find('[data-testid="error-service-EXISTING-service_status"]').text()).toContain(
+                'Service status is required',
+            );
+            expect(wrapper.find('[data-testid="error-service-EXISTING-service_description"]').text()).toContain(
+                'Service description is required',
+            );
+            expect(wrapper.find('[data-testid="error-service-EXISTING-service_location"]').text()).toContain(
+                'Service location is required',
+            );
         });
 
         it('validates service field limits: service_id 100, description 2000, location 500', async () => {
@@ -648,8 +646,12 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
 
             await wrapper.find('[data-testid="validate-submit-btn"]').trigger('click');
             expect(wrapper.find('[data-testid="error-service-NEW-service_id"]').text()).toContain('max 100 characters');
-            expect(wrapper.find('[data-testid="error-service-NEW-service_description"]').text()).toContain('max 2000 characters');
-            expect(wrapper.find('[data-testid="error-service-NEW-service_location"]').text()).toContain('max 500 characters');
+            expect(wrapper.find('[data-testid="error-service-NEW-service_description"]').text()).toContain(
+                'max 2000 characters',
+            );
+            expect(wrapper.find('[data-testid="error-service-NEW-service_location"]').text()).toContain(
+                'max 500 characters',
+            );
         });
 
         it('emits submit-invalid with errors dictionary when submit validation fails', async () => {
@@ -762,7 +764,9 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             });
 
             await wrapperActivation.find('[data-testid="validate-submit-btn"]').trigger('click');
-            expect(wrapperActivation.find('[data-testid="error-installation-rfs-date"]').text()).toContain('Installation date (RFS) is required');
+            expect(wrapperActivation.find('[data-testid="error-installation-rfs-date"]').text()).toContain(
+                'Installation date (RFS) is required',
+            );
 
             // RFS date in past (e.g. 2020-01-01) is valid and MUST NOT be rejected
             await wrapperActivation.setProps({
@@ -812,7 +816,9 @@ describe('FE-20: Activation general, references dan service blocks (GeneralServi
             });
             expect(wrapperUpgrade.find('[data-testid="indicator-rfs-date"]').text()).toContain('Required');
             await wrapperUpgrade.find('[data-testid="validate-submit-btn"]').trigger('click');
-            expect(wrapperUpgrade.find('[data-testid="error-installation-rfs-date"]').text()).toContain('Installation date (RFS) is required');
+            expect(wrapperUpgrade.find('[data-testid="error-installation-rfs-date"]').text()).toContain(
+                'Installation date (RFS) is required',
+            );
         });
 
         it('M5/M6 defense: verifies disabled/readonly attributes on inputs and reference checkboxes', () => {
