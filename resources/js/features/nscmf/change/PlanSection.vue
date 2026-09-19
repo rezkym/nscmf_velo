@@ -155,16 +155,23 @@ function notifyUpdate() {
         delete errors.value.rollback_scenario;
     }
 
+    // Sanitize string fields on emission without truncation (N-25-11 surrogate-safe emission)
+    const sanitizeEmitString = (val: string | null | undefined): string | null => {
+        if (typeof val !== 'string') return null;
+        const sanitized = hasLoneSurrogate(val) ? sanitizeSurrogates(val) : val;
+        return sanitized.trim() ? sanitized : null;
+    };
+
     emit('update:modelValue', {
         improvement_items: improvementItems.value.map((item, idx) => ({
             row_no: item.row_no || idx + 1,
-            plan_text: typeof item.plan_text === 'string' && item.plan_text.trim() ? item.plan_text : null,
-            target_kpi: typeof item.target_kpi === 'string' && item.target_kpi.trim() ? item.target_kpi : null,
+            plan_text: sanitizeEmitString(item.plan_text),
+            target_kpi: sanitizeEmitString(item.target_kpi),
         })),
         target_execution_date: targetExecutionDate.value.trim() ? targetExecutionDate.value : null,
         monitoring_period_value: safeFiniteVal,
         monitoring_period_unit: safeUnit,
-        rollback_scenario: rollbackScenario.value.trim() ? rollbackScenario.value : null,
+        rollback_scenario: sanitizeEmitString(rollbackScenario.value),
         announcement_timing: safeTiming,
         record_version: props.modelValue?.record_version ?? 1,
     });

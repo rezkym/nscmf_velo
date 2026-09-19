@@ -1258,7 +1258,7 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                     record_version: 1,
                 };
 
-                let lastEmitted: PlanSectionModelValue | null = null;
+                let lastEmitted: unknown = null;
                 const wrapper = mount(PlanSection, {
                     props: {
                         todayJakarta: '2026-09-20',
@@ -1277,7 +1277,7 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                 await amountInput.setValue('3'); // triggers notifyUpdate -> emit update:modelValue
 
                 expect(lastEmitted).not.toBeNull();
-                const emittedNonNull = lastEmitted as unknown as PlanSectionModelValue;
+                const emittedNonNull = lastEmitted as PlanSectionModelValue;
                 const emittedPlan = emittedNonNull.improvement_items?.[0]?.plan_text;
                 const emittedKpi = emittedNonNull.improvement_items?.[0]?.target_kpi;
                 const emittedRollback = emittedNonNull.rollback_scenario;
@@ -1311,7 +1311,7 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                 const planTextarea = wrapper.find('textarea[placeholder*="Describe the improvement plan"]');
                 await planTextarea.setValue(longPlan1005);
 
-                const emittedAfterPlan = lastEmitted as unknown as PlanSectionModelValue;
+                const emittedAfterPlan = lastEmitted as PlanSectionModelValue;
                 expect(emittedAfterPlan.improvement_items?.[0]?.plan_text).toBe(longPlan1005);
                 expect(emittedAfterPlan.improvement_items?.[0]?.plan_text?.length).toBe(1005);
                 // Wire object remains clamped to 1000
@@ -1326,7 +1326,7 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                 // 999 + 10 = 1009 code points, 999 + 20 = 1019 UTF-16 code units
                 const astralFixture = 'a'.repeat(999) + '😀'.repeat(10);
                 await planTextarea.setValue(astralFixture);
-                const emittedAfterAstral = lastEmitted as unknown as PlanSectionModelValue;
+                const emittedAfterAstral = lastEmitted as PlanSectionModelValue;
                 const emittedAstralPlan = emittedAfterAstral.improvement_items?.[0]?.plan_text;
                 expect(emittedAstralPlan).toBe(astralFixture);
                 expect([...(emittedAstralPlan ?? '')].length).toBe(1009);
@@ -1401,7 +1401,7 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                     },
                 });
                 await amountInput.setValue('4');
-                const emittedNulls = lastEmitted as unknown as PlanSectionModelValue;
+                const emittedNulls = lastEmitted as PlanSectionModelValue;
                 expect(emittedNulls.improvement_items?.[0]?.plan_text).toBeNull();
                 expect(emittedNulls.improvement_items?.[0]?.target_kpi).toBeNull();
                 expect(emittedNulls.rollback_scenario).toBeNull();
