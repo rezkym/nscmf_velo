@@ -74,7 +74,7 @@ function parseOptionalPositiveNumber(str: string, fieldName: string, errorKey: s
         return null;
     }
     const num = Number(trimmed);
-    if (Number.isNaN(num) || num <= 0) {
+    if (Number.isNaN(num) || !Number.isFinite(num) || num <= 0) {
         errors.value[errorKey] = `${fieldName} must be greater than 0 Mbps.`;
         return null;
     }
@@ -83,22 +83,31 @@ function parseOptionalPositiveNumber(str: string, fieldName: string, errorKey: s
 }
 
 function syncFromProps(val: ActivationDraftFields) {
+    if (!val || typeof val !== 'object') {
+        return;
+    }
+
     bandwidthInternational.value = formatDecimal(val.bandwidth_international_mbps);
     bandwidthDomesticIix.value = formatDecimal(val.bandwidth_domestic_iix_mbps);
     bandwidthMixed.value = formatDecimal(val.bandwidth_mixed_mbps);
 
     // Sync VCs
-    virtualConnections.value = [1, 2, 3].map((rNo) => {
-        const found = val.virtual_connections?.find((vc) => vc.row_no === rNo);
-        return {
-            row_no: rNo,
-            value: formatDecimal(found?.bandwidth_mbps),
-        };
-    });
+    if (Array.isArray(val.virtual_connections)) {
+        virtualConnections.value = [1, 2, 3].map((rNo) => {
+            const found = val.virtual_connections?.find((vc) => vc && typeof vc === 'object' && vc.row_no === rNo);
+            return {
+                row_no: rNo,
+                value: formatDecimal(found?.bandwidth_mbps),
+            };
+        });
+    } else {
+        virtualConnections.value = [1, 2, 3].map((rNo) => ({ row_no: rNo, value: '' }));
+    }
 
     // Sync SLAs
     if (val.sla_items && Array.isArray(val.sla_items) && val.sla_items.length > 0) {
-        const sorted = [...val.sla_items].sort((a, b) => a.row_no - b.row_no);
+        const validRows = val.sla_items.filter((item): item is SlaItemRow => Boolean(item && typeof item === 'object'));
+        const sorted = [...validRows].sort((a, b) => (a.row_no ?? 0) - (b.row_no ?? 0));
         slaItems.value = sorted.slice(0, 3).map((item) => ({
             id: nextSlaId++,
             text: item.requirement_text ?? '',
@@ -109,7 +118,10 @@ function syncFromProps(val: ActivationDraftFields) {
 
     // Sync Priority Destinations
     if (val.priority_destinations && Array.isArray(val.priority_destinations) && val.priority_destinations.length > 0) {
-        const sorted = [...val.priority_destinations].sort((a, b) => a.row_no - b.row_no);
+        const validRows = val.priority_destinations.filter(
+            (item): item is PriorityDestinationRow => Boolean(item && typeof item === 'object'),
+        );
+        const sorted = [...validRows].sort((a, b) => (a.row_no ?? 0) - (b.row_no ?? 0));
         priorityDestinations.value = sorted.slice(0, 3).map((item) => ({
             id: nextDestId++,
             text: item.destination ?? '',
@@ -138,7 +150,7 @@ function buildPayload(): ActivationDraftFields {
         payload.bandwidth_international_mbps = null;
     } else {
         const num = Number(bandwidthInternational.value.trim());
-        payload.bandwidth_international_mbps = Number.isNaN(num) ? null : num;
+        payload.bandwidth_international_mbps = Number.isFinite(num) ? num : null;
     }
 
     // Domestic IIX bandwidth
@@ -146,7 +158,7 @@ function buildPayload(): ActivationDraftFields {
         payload.bandwidth_domestic_iix_mbps = null;
     } else {
         const num = Number(bandwidthDomesticIix.value.trim());
-        payload.bandwidth_domestic_iix_mbps = Number.isNaN(num) ? null : num;
+        payload.bandwidth_domestic_iix_mbps = Number.isFinite(num) ? num : null;
     }
 
     // Mixed bandwidth
@@ -154,7 +166,7 @@ function buildPayload(): ActivationDraftFields {
         payload.bandwidth_mixed_mbps = null;
     } else {
         const num = Number(bandwidthMixed.value.trim());
-        payload.bandwidth_mixed_mbps = Number.isNaN(num) ? null : num;
+        payload.bandwidth_mixed_mbps = Number.isFinite(num) ? num : null;
     }
 
     // Virtual Connections
@@ -162,7 +174,7 @@ function buildPayload(): ActivationDraftFields {
     for (const vc of virtualConnections.value) {
         if (vc.value.trim() !== '') {
             const num = Number(vc.value.trim());
-            if (!Number.isNaN(num)) {
+            if (Number.isFinite(num)) {
                 vcRows.push({
                     row_no: vc.row_no,
                     bandwidth_mbps: num,
@@ -170,27 +182,63 @@ function buildPayload(): ActivationDraftFields {
             }
         }
     }
-    payload.virtual_connections = vcRows;
+    if (Object.hasOwn(props.modelValue, 'virtual_connections') || vcRows.length > 0) {
+        payload.virtual_connections = vcRows;
+    } else {
+        delete payload.virtual_connections;
+    }
 
-    // SLA Items: contiguous 1..N row_no
+    // SLA Items: contiguous 1..N row_no, filter blank / not-started rows (R-21-1) & enforce 1000 cap (F-21-2)
     const slaRows: SlaItemRow[] = [];
-    slaItems.value.forEach((item, index) => {
-        slaRows.push({
-            row_no: index + 1,
-            requirement_text: item.text,
-        });
+    let hasOverSla = false;
+    slaItems.value.forEach((item) => {
+        if (item.text.trim() !== '') {
+            if (item.text.length > 1000) {
+                hasOverSla = true;
+            }
+            slaRows.push({
+                row_no: slaRows.length + 1,
+                requirement_text: item.text.slice(0, 1000),
+            });
+        }
     });
-    payload.sla_items = slaRows;
+    if (hasOverSla) {
+        errors.value['sla_items'] = 'Each SLA requirement must not exceed 1,000 characters.';
+    } else {
+        delete errors.value['sla_items'];
+    }
 
-    // Priority Destinations: contiguous 1..N row_no
+    if (Object.hasOwn(props.modelValue, 'sla_items') || slaRows.length > 0) {
+        payload.sla_items = slaRows;
+    } else {
+        delete payload.sla_items;
+    }
+
+    // Priority Destinations: contiguous 1..N row_no, filter blank / not-started rows (R-21-1) & enforce 255 cap (F-21-2)
     const destRows: PriorityDestinationRow[] = [];
-    priorityDestinations.value.forEach((item, index) => {
-        destRows.push({
-            row_no: index + 1,
-            destination: item.text,
-        });
+    let hasOverPd = false;
+    priorityDestinations.value.forEach((item) => {
+        if (item.text.trim() !== '') {
+            if (item.text.length > 255) {
+                hasOverPd = true;
+            }
+            destRows.push({
+                row_no: destRows.length + 1,
+                destination: item.text.slice(0, 255),
+            });
+        }
     });
-    payload.priority_destinations = destRows;
+    if (hasOverPd) {
+        errors.value['priority_destinations'] = 'Each priority destination must not exceed 255 characters.';
+    } else {
+        delete errors.value['priority_destinations'];
+    }
+
+    if (Object.hasOwn(props.modelValue, 'priority_destinations') || destRows.length > 0) {
+        payload.priority_destinations = destRows;
+    } else {
+        delete payload.priority_destinations;
+    }
 
     return payload;
 }

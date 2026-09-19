@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
 import BandwidthSection from './BandwidthSection.vue';
-import type { ActivationDraftFields } from '../draftPayload';
+import type {
+    ActivationDraftFields,
+    VirtualConnectionRow,
+    SlaItemRow,
+    PriorityDestinationRow,
+} from '../draftPayload';
 
 describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthSection)', () => {
     const sampleData: ActivationDraftFields = {
@@ -431,9 +436,9 @@ describe('FE-21: Activation SLA, bandwidth dan priority destinations (BandwidthS
                 mount(BandwidthSection, {
                     props: {
                         modelValue: {
-                            virtual_connections: null as unknown as any[],
-                            sla_items: [null as unknown as any],
-                            priority_destinations: 'invalid' as unknown as any[],
+                            virtual_connections: null as unknown as VirtualConnectionRow[],
+                            sla_items: [null as unknown as SlaItemRow],
+                            priority_destinations: 'invalid' as unknown as PriorityDestinationRow[],
                         },
                     },
                 });
