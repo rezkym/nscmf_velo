@@ -81,7 +81,7 @@ const displayError = computed(() => {
 });
 
 function submit(): void {
-    if (form.processing) {
+    if (form.processing || !form.current_password.trim()) {
         return;
     }
 

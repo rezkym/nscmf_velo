@@ -216,6 +216,39 @@ describe('ReauthenticationDialog.vue (FE-10)', () => {
         postOptions.onFinish?.();
 
         expect(currentForm.reset).toHaveBeenCalledWith('current_password');
+        expect(wrapper.emitted('success')).toBeFalsy();
+    });
+
+    it('withholds success emission when reauth fails with server validation or auth error', async () => {
+        const wrapper = mount(ReauthenticationDialog, {
+            props: {
+                open: true,
+                targetActionTitle: 'Sensitive Action',
+                targetActionDescription: 'Requires password',
+            },
+        });
+
+        const passwordInput = wrapper.find<HTMLInputElement>('input[type="password"]');
+        await passwordInput.setValue('WrongPassword123');
+        await wrapper.find('form').trigger('submit.prevent');
+
+        expect(currentForm.post).toHaveBeenCalledWith('/account/re-authenticate', expect.any(Object));
+
+        const postOptions = (
+            currentForm.post.mock.calls[0] as [
+                string,
+                { onError?: (errors?: unknown) => void; onFinish?: () => void; onSuccess?: () => void },
+            ]
+        )[1];
+
+        // Trigger onError
+        postOptions.onError?.({ current_password: 'The provided password was incorrect.' });
+        postOptions.onFinish?.();
+        await wrapper.vm.$nextTick();
+
+        // Crucial security invariant: re-auth FAILURE must NOT emit success
+        expect(wrapper.emitted('success')).toBeFalsy();
+        expect(currentForm.reset).toHaveBeenCalledWith('current_password');
     });
 
     it('renders the password field helper text', () => {
@@ -228,13 +261,20 @@ describe('ReauthenticationDialog.vue (FE-10)', () => {
         expect(wrapper.text()).toContain('Enter your existing account password to confirm');
     });
 
-    it('submit guard rejects while processing', async () => {
+    it('submit guard rejects while processing or when current_password is empty', async () => {
         const wrapper = mount(ReauthenticationDialog, {
             props: {
                 open: true,
             },
         });
 
+        // 1. Guard rejects when current_password is empty
+        currentForm.current_password = '';
+        await wrapper.find('form').trigger('submit.prevent');
+        expect(currentForm.post).not.toHaveBeenCalled();
+
+        // 2. Guard rejects when processing
+        currentForm.current_password = 'ValidPassword123';
         currentForm.processing = true;
         await wrapper.find('form').trigger('submit.prevent');
 
