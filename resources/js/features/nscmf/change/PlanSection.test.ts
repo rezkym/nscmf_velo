@@ -698,4 +698,192 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
             expect(resultWithHole).toBe(true);
         });
     });
+
+    describe('Remediation — SEC-FE-25 Security Findings F-25-1..F-25-4', () => {
+        it('F-25-1: rejects non-finite monitoring_period_value (Infinity, NaN, 1e21 ceiling, <=0) and does not clear field into null', async () => {
+            // 1. Infinity supplied via prop/modelValue -> rejected at submit validation, does NOT fail open
+            const wrapperInfinity = mount(PlanSection, {
+                props: {
+                    todayJakarta: '2026-09-20',
+                    modelValue: {
+                        improvement_items: [{ row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }],
+                        target_execution_date: '2026-09-21',
+                        monitoring_period_value: Infinity,
+                        monitoring_period_unit: 'HOUR',
+                        rollback_scenario: 'Rollback scenario text',
+                        announcement_timing: 'ONE_WEEK_BEFORE',
+                    },
+                },
+            });
+
+            expect(wrapperInfinity.vm.validateSubmit()).toBe(false);
+            expect(wrapperInfinity.vm.errors.monitoring_period).toBe(
+                'Monitoring period value must be a finite number greater than 0',
+            );
+            const draftInf = wrapperInfinity.vm.getDraftPayload();
+            // Draft must NOT carry Infinity which serializes to null in JSON.stringify
+            expect(draftInf.monitoring_period_value).toBeNull();
+
+            // 2. Plausibility ceiling: 1e21 or unreasonably large duration rejected (e.g. max 999999 or Number.MAX_SAFE_INTEGER)
+            const wrapperLarge = mount(PlanSection, {
+                props: {
+                    todayJakarta: '2026-09-20',
+                    modelValue: {
+                        improvement_items: [{ row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }],
+                        target_execution_date: '2026-09-21',
+                        monitoring_period_value: 1e21,
+                        monitoring_period_unit: 'HOUR',
+                        rollback_scenario: 'Rollback scenario text',
+                        announcement_timing: 'ONE_WEEK_BEFORE',
+                    },
+                },
+            });
+            expect(wrapperLarge.vm.validateSubmit()).toBe(false);
+            expect(wrapperLarge.vm.errors.monitoring_period).toBe(
+                'Monitoring period value must not exceed 999999',
+            );
+
+            // 3. Negative / 0 rejected
+            const wrapperZero = mount(PlanSection, {
+                props: {
+                    todayJakarta: '2026-09-20',
+                    modelValue: {
+                        improvement_items: [{ row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }],
+                        target_execution_date: '2026-09-21',
+                        monitoring_period_value: 0,
+                        monitoring_period_unit: 'HOUR',
+                        rollback_scenario: 'Rollback scenario text',
+                        announcement_timing: 'ONE_WEEK_BEFORE',
+                    },
+                },
+            });
+            expect(wrapperZero.vm.validateSubmit()).toBe(false);
+            expect(wrapperZero.vm.errors.monitoring_period).toBe(
+                'Monitoring period value must be greater than 0',
+            );
+
+            // 4. Valid finite value passes
+            const wrapperValid = mount(PlanSection, {
+                props: {
+                    todayJakarta: '2026-09-20',
+                    modelValue: {
+                        improvement_items: [{ row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }],
+                        target_execution_date: '2026-09-21',
+                        monitoring_period_value: 24,
+                        monitoring_period_unit: 'HOUR',
+                        rollback_scenario: 'Rollback scenario text',
+                        announcement_timing: 'ONE_WEEK_BEFORE',
+                    },
+                },
+            });
+            expect(wrapperValid.vm.validateSubmit()).toBe(true);
+            expect(wrapperValid.vm.getDraftPayload().monitoring_period_value).toBe(24);
+        });
+
+        it('F-25-2: gates validateSubmit when disabled or readonly and enforces trigger button disabled/aria-hidden/tabindex', async () => {
+            for (const flag of ['disabled', 'readonly'] as const) {
+                const wrapper = mount(PlanSection, {
+                    props: {
+                        [flag]: true,
+                        todayJakarta: '2026-09-20',
+                        modelValue: {
+                            improvement_items: [{ row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }],
+                            target_execution_date: '2026-09-21',
+                            monitoring_period_value: 2,
+                            monitoring_period_unit: 'HOUR',
+                            rollback_scenario: 'Rollback scenario text',
+                            announcement_timing: 'ONE_WEEK_BEFORE',
+                        },
+                    },
+                });
+
+                // validateSubmit must return false and record form error
+                expect(wrapper.vm.validateSubmit()).toBe(false);
+                expect(wrapper.vm.errors.form).toBe('Form is readonly or disabled');
+
+                // Emits validate with form error
+                expect(wrapper.emitted('validate')).toBeTruthy();
+                const emits = wrapper.emitted('validate')!;
+                expect(emits[emits.length - 1]![0]).toEqual({ form: 'Form is readonly or disabled' });
+
+                // Hidden trigger button has disabled, aria-hidden="true", tabindex="-1"
+                const btn = wrapper.find('[data-testid="validate-submit-btn"]');
+                expect(btn.attributes('disabled')).toBeDefined();
+                expect(btn.attributes('aria-hidden')).toBe('true');
+                expect(btn.attributes('tabindex')).toBe('-1');
+            }
+        });
+
+        it('F-25-3: adds maxlength attributes to textareas and clamps at serialization in getDraftPayload', async () => {
+            const wrapper = mount(PlanSection, {
+                props: {
+                    todayJakarta: '2026-09-20',
+                    modelValue: {
+                        improvement_items: [
+                            { row_no: 1, plan_text: 'x'.repeat(1005), target_kpi: 'y'.repeat(1005) },
+                        ],
+                        target_execution_date: '2026-09-21',
+                        monitoring_period_value: 2,
+                        monitoring_period_unit: 'HOUR',
+                        rollback_scenario: 'z'.repeat(4005),
+                        announcement_timing: 'ONE_WEEK_BEFORE',
+                    },
+                },
+            });
+
+            // 1. Textareas have correct DOM maxlength attributes
+            const textareas = wrapper.findAll('textarea');
+            // Improvement row 1 plan_text and target_kpi
+            expect(textareas[0]!.attributes('maxlength')).toBe('1000');
+            expect(textareas[1]!.attributes('maxlength')).toBe('1000');
+            // Rollback scenario textarea
+            expect(textareas[2]!.attributes('maxlength')).toBe('4000');
+
+            // 2. Clamped at serialization in getDraftPayload
+            const draft = wrapper.vm.getDraftPayload();
+            expect(draft.improvement_items?.[0]?.plan_text?.length).toBe(1000);
+            expect(draft.improvement_items?.[0]?.target_kpi?.length).toBe(1000);
+            expect(draft.rollback_scenario?.length).toBe(4000);
+        });
+
+        it('F-25-4: enforces closed-set validation for monitoring_period_unit and announcement_timing', async () => {
+            // 1. Bogus/unrecognized monitoring_period_unit fails validation and is not transported
+            const wrapperInvalidUnit = mount(PlanSection, {
+                props: {
+                    todayJakarta: '2026-09-20',
+                    modelValue: {
+                        improvement_items: [{ row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }],
+                        target_execution_date: '2026-09-21',
+                        monitoring_period_value: 2,
+                        monitoring_period_unit: 'FORTNIGHT' as unknown as 'HOUR',
+                        rollback_scenario: 'Rollback scenario text',
+                        announcement_timing: 'ONE_WEEK_BEFORE',
+                    },
+                },
+            });
+
+            expect(wrapperInvalidUnit.vm.validateSubmit()).toBe(false);
+            expect(wrapperInvalidUnit.vm.errors.monitoring_period_unit).toContain('Invalid monitoring period unit');
+            expect(wrapperInvalidUnit.vm.getDraftPayload().monitoring_period_unit).toBeNull();
+
+            // 2. Bogus/unrecognized announcement_timing fails validation and is not transported
+            const wrapperInvalidTiming = mount(PlanSection, {
+                props: {
+                    todayJakarta: '2026-09-20',
+                    modelValue: {
+                        improvement_items: [{ row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }],
+                        target_execution_date: '2026-09-21',
+                        monitoring_period_value: 2,
+                        monitoring_period_unit: 'HOUR',
+                        rollback_scenario: 'Rollback scenario text',
+                        announcement_timing: 'BOGUS_TIMING' as unknown as 'ONE_WEEK_BEFORE',
+                    },
+                },
+            });
+
+            expect(wrapperInvalidTiming.vm.validateSubmit()).toBe(false);
+            expect(wrapperInvalidTiming.vm.errors.announcement_timing).toContain('Invalid announcement timing');
+            expect(wrapperInvalidTiming.vm.getDraftPayload().announcement_timing).toBeNull();
+        });
+    });
 });
