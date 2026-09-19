@@ -1113,6 +1113,28 @@ describe('FE-15: Initial Setup Wizard Composition', () => {
 
         expect(wrapper.find('[data-testid="one-time-credential-container"]').exists()).toBe(true);
         expect(wrapper.find('[data-testid="temporary-password-display"]').text()).toBe('flash-prop-secret');
+
+        // Dismiss the modal
+        await wrapper.find('[data-testid="btn-dismiss-credential"]').trigger('click');
+        await nextTick();
+        expect(wrapper.find('[data-testid="one-time-credential-container"]').exists()).toBe(false);
+
+        // Call submitUser again with same already-dismissed secret -> branch tempPass !== dismissedSecret is false
+        if (userFormObj?.lastAction?.options?.onSuccess) {
+            userFormObj.lastAction.options.onSuccess({
+                props: {
+                    flash: {
+                        temporary_password: 'flash-prop-secret',
+                        username: 'flash.user',
+                    },
+                },
+            });
+        }
+        await nextTick();
+        expect(wrapper.find('[data-testid="one-time-credential-container"]').exists()).toBe(false);
+
+        // Unmount component to cover onUnmounted cleanup
+        wrapper.unmount();
     });
 
     it('handles watch on props.readiness falling back when readiness resets', async () => {

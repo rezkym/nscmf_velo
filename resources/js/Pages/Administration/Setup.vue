@@ -1,14 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import {
-    ArrowLeft,
-    ArrowRight,
-    Check,
-    CheckCircle2,
-    Shield,
-    ShieldAlert,
-    ShieldCheck,
-} from '@lucide/vue';
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Shield, ShieldAlert, ShieldCheck } from '@lucide/vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
 
 import FormField from '@/components/ui/FormField.vue';
@@ -267,7 +259,8 @@ function submitUser(): void {
     userForm.post('/administration/users', {
         onSuccess: (page: unknown) => {
             // Check if server response returned flash in page props (R-15-4: flash only, no bare prop)
-            const pageProps = (page as { props?: { flash?: { temporary_password?: string; username?: string } } })?.props;
+            const pageProps = (page as { props?: { flash?: { temporary_password?: string; username?: string } } })
+                ?.props;
             const tempPass = pageProps?.flash?.temporary_password;
             const uName = pageProps?.flash?.username || userForm.username;
 
@@ -395,7 +388,8 @@ function finalizeSetup(): void {
                 <div>
                     <h2 class="text-lg font-bold text-foreground">Step 1: Role & Permission Setup</h2>
                     <p class="text-sm text-muted-foreground mt-1">
-                        Select whether to apply the standard production role template (Superadmin, Requester, Reviewer, Approver) or configure roles manually.
+                        Select whether to apply the standard production role template (Superadmin, Requester, Reviewer,
+                        Approver) or configure roles manually.
                     </p>
                 </div>
 
@@ -406,16 +400,11 @@ function finalizeSetup(): void {
                         class="relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all"
                         :class="roleMode === 'template' ? 'border-primary bg-primary/5' : 'border-border bg-card'"
                     >
-                        <input
-                            v-model="roleMode"
-                            type="radio"
-                            name="role_mode"
-                            value="template"
-                            class="sr-only"
-                        />
+                        <input v-model="roleMode" type="radio" name="role_mode" value="template" class="sr-only" />
                         <span class="font-semibold text-sm">Use Role Template (Recommended)</span>
                         <span class="text-xs text-muted-foreground mt-1">
-                            Applies standard default roles with canonical permissions: Superadmin, Requester, Reviewer, Approver.
+                            Applies standard default roles with canonical permissions: Superadmin, Requester, Reviewer,
+                            Approver.
                         </span>
                     </label>
 
@@ -424,13 +413,7 @@ function finalizeSetup(): void {
                         class="relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all"
                         :class="roleMode === 'manual' ? 'border-primary bg-primary/5' : 'border-border bg-card'"
                     >
-                        <input
-                            v-model="roleMode"
-                            type="radio"
-                            name="role_mode"
-                            value="manual"
-                            class="sr-only"
-                        />
+                        <input v-model="roleMode" type="radio" name="role_mode" value="manual" class="sr-only" />
                         <span class="font-semibold text-sm">Manual Role Configuration</span>
                         <span class="text-xs text-muted-foreground mt-1">
                             Define custom roles and select specific permission grants from the canonical catalog.
@@ -443,10 +426,22 @@ function finalizeSetup(): void {
                     <div class="rounded-lg bg-muted/40 border border-border p-4 text-xs space-y-2">
                         <p class="font-medium text-foreground">Standard Template Baseline:</p>
                         <ul class="list-disc list-inside text-muted-foreground space-y-1">
-                            <li><strong class="text-foreground">Superadmin</strong>: Full operational and administration management</li>
-                            <li><strong class="text-foreground">Requester</strong>: Create, edit, save draft, submit, and request revision</li>
-                            <li><strong class="text-foreground">Reviewer</strong>: Review, recommend revision, or approve draft review</li>
-                            <li><strong class="text-foreground">Approver</strong>: Formal approval authorization and issuance</li>
+                            <li>
+                                <strong class="text-foreground">Superadmin</strong>: Full operational and administration
+                                management
+                            </li>
+                            <li>
+                                <strong class="text-foreground">Requester</strong>: Create, edit, save draft, submit,
+                                and request revision
+                            </li>
+                            <li>
+                                <strong class="text-foreground">Reviewer</strong>: Review, recommend revision, or
+                                approve draft review
+                            </li>
+                            <li>
+                                <strong class="text-foreground">Approver</strong>: Formal approval authorization and
+                                issuance
+                            </li>
                         </ul>
                     </div>
 
@@ -481,7 +476,9 @@ function finalizeSetup(): void {
                             <label class="text-sm font-medium text-foreground">Permissions</label>
                             <div class="space-y-4 border border-border rounded-lg p-4 max-h-64 overflow-y-auto">
                                 <div v-for="(perms, group) in groupedPermissions" :key="group" class="space-y-2">
-                                    <h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{{ group }}</h4>
+                                    <h4 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                        {{ group }}
+                                    </h4>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                                         <label
                                             v-for="perm in perms"
@@ -496,7 +493,9 @@ function finalizeSetup(): void {
                                             />
                                             <div>
                                                 <span class="font-medium text-foreground">{{ perm.name }}</span>
-                                                <p v-if="perm.description" class="text-muted-foreground text-[11px]">{{ perm.description }}</p>
+                                                <p v-if="perm.description" class="text-muted-foreground text-[11px]">
+                                                    {{ perm.description }}
+                                                </p>
                                             </div>
                                         </label>
                                     </div>
@@ -518,7 +517,9 @@ function finalizeSetup(): void {
 
                 <!-- Configured Roles List -->
                 <div v-if="roles && roles.length > 0" class="pt-4 border-t border-border">
-                    <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Configured Roles ({{ roles.length }})</h3>
+                    <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Configured Roles ({{ roles.length }})
+                    </h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
                         <div
                             v-for="role in roles"
@@ -527,7 +528,9 @@ function finalizeSetup(): void {
                             class="flex items-center justify-between p-2.5 rounded-lg border border-border bg-muted/20 text-xs"
                         >
                             <span class="font-medium text-foreground">{{ role.name }}</span>
-                            <span class="text-[11px] text-muted-foreground">{{ role.permissions?.length || 0 }} perms</span>
+                            <span class="text-[11px] text-muted-foreground"
+                                >{{ role.permissions?.length || 0 }} perms</span
+                            >
                         </div>
                     </div>
                 </div>
@@ -542,7 +545,8 @@ function finalizeSetup(): void {
                 <div>
                     <h2 class="text-lg font-bold text-foreground">Step 2: Organizational Team Setup</h2>
                     <p class="text-sm text-muted-foreground mt-1">
-                        Teams are organizational groups for operational grouping. They do not define permission or approval scopes.
+                        Teams are organizational groups for operational grouping. They do not define permission or
+                        approval scopes.
                     </p>
                 </div>
 
@@ -574,7 +578,9 @@ function finalizeSetup(): void {
 
                 <!-- Teams List -->
                 <div v-if="teams && teams.length > 0" class="pt-4 border-t border-border">
-                    <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Configured Teams ({{ teams.length }})</h3>
+                    <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Configured Teams ({{ teams.length }})
+                    </h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                         <div
                             v-for="team in teams"
@@ -670,7 +676,13 @@ function finalizeSetup(): void {
                         type="submit"
                         data-testid="btn-create-user"
                         class="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-                        :disabled="userForm.processing || !userForm.name || !userForm.username || !userForm.team_id || userForm.role_ids.length === 0"
+                        :disabled="
+                            userForm.processing ||
+                            !userForm.name ||
+                            !userForm.username ||
+                            !userForm.team_id ||
+                            userForm.role_ids.length === 0
+                        "
                         @click="submitUser"
                     >
                         {{ userForm.processing ? 'Creating User...' : 'Create User & Assign Roles' }}
@@ -679,7 +691,9 @@ function finalizeSetup(): void {
 
                 <!-- Configured Users List -->
                 <div v-if="users && users.length > 0" class="pt-4 border-t border-border">
-                    <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Configured Users ({{ users.length }})</h3>
+                    <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Configured Users ({{ users.length }})
+                    </h3>
                     <div class="space-y-2">
                         <div
                             v-for="user in users"
@@ -690,10 +704,16 @@ function finalizeSetup(): void {
                             <div>
                                 <span class="font-medium text-foreground">{{ user.name }}</span>
                                 <span class="text-muted-foreground ml-2">(@{{ user.username }})</span>
-                                <span v-if="user.team_name" class="ml-2 px-2 py-0.5 rounded-full bg-muted text-[11px] text-muted-foreground">
+                                <span
+                                    v-if="user.team_name"
+                                    class="ml-2 px-2 py-0.5 rounded-full bg-muted text-[11px] text-muted-foreground"
+                                >
                                     {{ user.team_name }}
                                 </span>
-                                <span v-else-if="user.is_protected_superadmin" class="ml-2 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 text-[11px] font-medium">
+                                <span
+                                    v-else-if="user.is_protected_superadmin"
+                                    class="ml-2 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 text-[11px] font-medium"
+                                >
                                     Protected Superadmin (No Team)
                                 </span>
                             </div>
@@ -718,7 +738,9 @@ function finalizeSetup(): void {
                 class="space-y-6 bg-card border border-border rounded-xl p-6 shadow-xs"
             >
                 <div class="flex items-start gap-4">
-                    <div class="p-3 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shrink-0">
+                    <div
+                        class="p-3 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 shrink-0"
+                    >
                         <CheckCircle2 class="w-8 h-8" />
                     </div>
                     <div>
@@ -737,10 +759,16 @@ function finalizeSetup(): void {
 
                 <!-- System Readiness Card -->
                 <div class="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-                    <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">System Readiness</h3>
+                    <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        System Readiness
+                    </h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                         <div class="flex items-center gap-2 p-2.5 rounded-lg bg-card border border-border text-xs">
-                            <Check v-if="readiness.roles_configured" data-testid="readiness-roles-check" class="w-4 h-4 text-emerald-500" />
+                            <Check
+                                v-if="readiness.roles_configured"
+                                data-testid="readiness-roles-check"
+                                class="w-4 h-4 text-emerald-500"
+                            />
                             <ShieldAlert v-else class="w-4 h-4 text-amber-500" />
                             <div>
                                 <p class="font-medium text-foreground">Roles & Permissions</p>
@@ -748,7 +776,11 @@ function finalizeSetup(): void {
                             </div>
                         </div>
                         <div class="flex items-center gap-2 p-2.5 rounded-lg bg-card border border-border text-xs">
-                            <Check v-if="readiness.teams_configured" data-testid="readiness-teams-check" class="w-4 h-4 text-emerald-500" />
+                            <Check
+                                v-if="readiness.teams_configured"
+                                data-testid="readiness-teams-check"
+                                class="w-4 h-4 text-emerald-500"
+                            />
                             <ShieldAlert v-else class="w-4 h-4 text-amber-500" />
                             <div>
                                 <p class="font-medium text-foreground">Teams</p>
@@ -756,7 +788,11 @@ function finalizeSetup(): void {
                             </div>
                         </div>
                         <div class="flex items-center gap-2 p-2.5 rounded-lg bg-card border border-border text-xs">
-                            <Check v-if="readiness.users_configured" data-testid="readiness-users-check" class="w-4 h-4 text-emerald-500" />
+                            <Check
+                                v-if="readiness.users_configured"
+                                data-testid="readiness-users-check"
+                                class="w-4 h-4 text-emerald-500"
+                            />
                             <ShieldAlert v-else class="w-4 h-4 text-amber-500" />
                             <div>
                                 <p class="font-medium text-foreground">Operational Users</p>
@@ -782,7 +818,7 @@ function finalizeSetup(): void {
                 <!-- Setup Summary (AC3: Safe summary with NO credentials) -->
                 <div class="rounded-xl border border-border bg-card p-4 space-y-4">
                     <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Setup Summary</h3>
-                    
+
                     <div class="space-y-2">
                         <p class="text-xs font-medium text-muted-foreground">Configured Users:</p>
                         <div class="divide-y divide-border border border-border rounded-lg overflow-hidden">
@@ -797,7 +833,10 @@ function finalizeSetup(): void {
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <span class="text-muted-foreground">
-                                        {{ user.team_name || (user.is_protected_superadmin ? 'Superadmin (No Team)' : 'Unassigned') }}
+                                        {{
+                                            user.team_name ||
+                                            (user.is_protected_superadmin ? 'Superadmin (No Team)' : 'Unassigned')
+                                        }}
                                     </span>
                                 </div>
                             </div>
