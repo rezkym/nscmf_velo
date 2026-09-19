@@ -1055,6 +1055,65 @@ describe('FE-15: Initial Setup Wizard Composition', () => {
         expect(wrapperUnverified.find('[data-testid="readiness-users-check"]').exists()).toBe(true);
     });
 
+    // R-15-1: userPermissions is declared and defaulted (negative test pinning)
+    it('R-15-1 — userPermissions prop is accepted and defaults to empty array', () => {
+        const wrapper = mount(Setup, {
+            props: {
+                ...defaultProps,
+                userPermissions: ['users.create', 'teams.create'],
+            },
+        });
+        expect(wrapper.props().userPermissions).toEqual(['users.create', 'teams.create']);
+
+        const wrapperDefault = mount(Setup, {});
+        expect(wrapperDefault.props().userPermissions).toEqual([]);
+    });
+
+    // R-15-4: submitUser reads flash only, ignores bare props.temporary_password to prevent browser history leakage
+    it('R-15-4 — submitUser onSuccess reads credential strictly from flash props, ignoring bare props to avoid history state retention', () => {
+        const wrapper = mount(Setup, {
+            props: defaultProps,
+        });
+
+        // Set step to 3
+        const vm = wrapper.vm as unknown as { currentStep: number; submitUser: () => void };
+        vm.currentStep = 3;
+
+        // Trigger submitUser
+        vm.submitUser();
+
+        const userFormObj = createdForms.find((f) => f.lastAction?.url === '/administration/users');
+        expect(userFormObj?.lastAction?.options?.onSuccess).toBeDefined();
+
+        // Simulate response with bare temporary_password (not in flash)
+        if (userFormObj?.lastAction?.options?.onSuccess) {
+            userFormObj.lastAction.options.onSuccess({
+                props: {
+                    temporary_password: 'bare-prop-secret',
+                    username: 'bare.user',
+                },
+            });
+        }
+
+        // Must NOT open modal or store bare secret
+        expect(wrapper.find('[data-testid="one-time-credential-container"]').exists()).toBe(false);
+
+        // Simulate response with flash temporary_password
+        if (userFormObj?.lastAction?.options?.onSuccess) {
+            userFormObj.lastAction.options.onSuccess({
+                props: {
+                    flash: {
+                        temporary_password: 'flash-prop-secret',
+                        username: 'flash.user',
+                    },
+                },
+            });
+        }
+
+        expect(wrapper.find('[data-testid="one-time-credential-container"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="temporary-password-display"]').text()).toBe('flash-prop-secret');
+    });
+
     it('handles watch on props.readiness falling back when readiness resets', async () => {
         const wrapper = mount(Setup, {
             props: {
