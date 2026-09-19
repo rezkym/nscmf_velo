@@ -230,16 +230,21 @@ const userForm = useForm({
     role_ids: [] as number[],
 });
 
-// One-time credential transient state (AC3)
+// One-time credential transient state (AC3, B-15-2)
 const showCredentialModal = ref(false);
 const activeTemporaryPassword = ref<string | null>(null);
 const activeCredentialUsername = ref<string | null>(null);
+const dismissedSecret = ref<string | null>(null);
 
 // Watch flash props for temporary credential
 watch(
     () => props.flash,
     (flashData) => {
         if (flashData?.temporary_password) {
+            // Idempotent: do not re-reveal if this secret was already dismissed (B-15-2)
+            if (flashData.temporary_password === dismissedSecret.value) {
+                return;
+            }
             activeTemporaryPassword.value = flashData.temporary_password;
             activeCredentialUsername.value = flashData.username || userForm.username || null;
             showCredentialModal.value = true;
@@ -279,7 +284,8 @@ function submitUser(): void {
 }
 
 function handleDismissCredential(): void {
-    // Purge memory immediately on dismiss (AC3)
+    // Purge memory immediately on dismiss (AC3, B-15-2)
+    dismissedSecret.value = activeTemporaryPassword.value;
     activeTemporaryPassword.value = null;
     activeCredentialUsername.value = null;
     showCredentialModal.value = false;
