@@ -354,10 +354,17 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         // PUT request must STILL be withheld until reauth POST succeeds
         expect(activePermissionsForm?.put).not.toHaveBeenCalled();
 
-        // Simulate reauth POST success callback
+        // Simulate reauth POST failure callback (re-auth GAGAL) -> PUT request must STILL be withheld
         const postCalls = activeReauthForm?.post.mock.calls;
         const lastPostCall = postCalls?.[postCalls.length - 1];
-        const postOptions = lastPostCall?.[1] as { onSuccess?: () => void };
+        const postOptions = lastPostCall?.[1] as { onSuccess?: () => void; onError?: (errs?: unknown) => void };
+        postOptions.onError?.({ current_password: 'Password incorrect' });
+        await wrapper.vm.$nextTick();
+
+        // Invariant: PUT /administration/roles/2/permissions must NOT be called on failure
+        expect(activePermissionsForm?.put).not.toHaveBeenCalled();
+
+        // Now simulate reauth POST success callback
         postOptions.onSuccess?.();
         await wrapper.vm.$nextTick();
 
@@ -468,6 +475,48 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
         await wrapper.vm.$nextTick();
         expect(vm.serverErrorCode).toBe('FORBIDDEN');
         expect(vm.serverErrorMessage).toBe('Server rejected permission update.');
+
+        // 5. Test array message and array permissions handling
+        vi.spyOn(activePermissionsForm!, 'put').mockImplementation((_url: string, opts?: unknown) => {
+            const castOpts = opts as { onError?: (errs: unknown) => void } | undefined;
+            if (castOpts?.onError) {
+                castOpts.onError({
+                    message: ['Error msg 1', 'Error msg 2'],
+                    permissions: ['perm 1', 'perm 2'],
+                });
+            }
+        });
+
+        vm.handleReauthSuccess();
+        await wrapper.vm.$nextTick();
+        expect(vm.serverErrorMessage).toBe('Error msg 1, Error msg 2');
+
+        // 6. Test array permissions and no message
+        vi.spyOn(activePermissionsForm!, 'put').mockImplementation((_url: string, opts?: unknown) => {
+            const castOpts = opts as { onError?: (errs: unknown) => void } | undefined;
+            if (castOpts?.onError) {
+                castOpts.onError({
+                    permissions: ['perm A', 'perm B'],
+                });
+            }
+        });
+
+        vm.handleReauthSuccess();
+        await wrapper.vm.$nextTick();
+        expect(vm.serverErrorMessage).toBe('perm A, perm B');
+
+        // 7. Test null/undefined error envelope fallback
+        vi.spyOn(activePermissionsForm!, 'put').mockImplementation((_url: string, opts?: unknown) => {
+            const castOpts = opts as { onError?: (errs?: unknown) => void } | undefined;
+            if (castOpts?.onError) {
+                castOpts.onError();
+            }
+        });
+
+        vm.handleReauthSuccess();
+        await wrapper.vm.$nextTick();
+        expect(vm.serverErrorMessage).toBe('Server rejected permission update.');
+        expect(vm.serverErrorCode).toBe('DENIED');
     });
 
     it('covers role creation, modal closures, and toggling logic', async () => {
@@ -716,24 +765,9 @@ describe('Index.vue (FE-14: Role and Permission Administration)', () => {
             expect.objectContaining({ onError: expect.any(Function) }),
         );
 
-        // Trigger onError callback with array message and array permissions to cover lines 181-182 branches
-        const putCalls = activePermissionsForm?.put.mock.calls;
-        const lastPutCall = putCalls?.[putCalls.length - 1];
-        const putOptions = lastPutCall?.[1] as { onError?: (errs?: unknown) => void };
-        putOptions.onError?.({ message: ['Error msg 1', 'Error msg 2'], permissions: ['perm 1', 'perm 2'] });
-        expect(vm.serverErrorMessage).toBe('Error msg 1, Error msg 2');
-
-        // Trigger onError callback with array permissions and no message
-        putOptions.onError?.({ permissions: ['perm A', 'perm B'] });
-        expect(vm.serverErrorMessage).toBe('perm A, perm B');
-
-        // Trigger onError callback with null errs
-        putOptions.onError?.();
-        expect(vm.serverErrorMessage).toBe('Server rejected permission update.');
-        expect(vm.serverErrorCode).toBe('DENIED');
-
         // 5. Test L380 fallback branch: permissionsForm.errors.permissions when serverErrorMessage is null
-        vm.serverErrorMessage = null;
+        // Re-open permissions modal which legitimately resets serverErrorMessage and serverErrorCode
+        vm.openAssignPermissionsModal(defaultRoles[1]!);
         if (activePermissionsForm) {
             activePermissionsForm.errors = {
                 permissions: 'Validation error: permissions cannot be empty',
