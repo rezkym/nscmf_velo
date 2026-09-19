@@ -604,20 +604,19 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                     activation: { pop_site: [1, 2, 3] as unknown as DirectSiteBlock },
                 }),
             ).toThrow(/must be a plain object or null/i);
-            // All declared fields undefined or whitespace -> empty content -> throws
-            expect(() =>
+            // Blank fields are cleared individually; the block itself stays (12 §27.1)
+            expect(
                 buildDraftPayload({
                     family: 'ACTIVATION',
                     record_version: 1,
                     activation: {
                         direct_site: {
-                            local_loops: undefined,
                             routers: '   ',
                             cable: '',
                         } as unknown as DirectSiteBlock,
                     },
-                }),
-            ).toThrow(/Empty object {} is invalid for direct_site/i);
+                }).activation.direct_site,
+            ).toEqual({ routers: null, cable: null });
             // Only unknown keys present -> dropped by allowlist -> empty content -> throws
             expect(() =>
                 buildDraftPayload({
@@ -939,8 +938,8 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                     ],
                 },
             });
-            // Blank, whitespace, and zero must be discarded (not-started row, no fabricated 0)
-            expect(payload.activation.virtual_connections).toEqual([]);
+            // Blank rows are not-started and discarded; 0 is a value the server must judge (12 §7.4.1.1)
+            expect(payload.activation.virtual_connections).toEqual([{ row_no: 3, bandwidth_mbps: 0 }]);
 
             const nonNumericPayload = buildDraftPayload({
                 family: 'ACTIVATION',
@@ -953,7 +952,7 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                     ],
                 },
             });
-            expect(nonNumericPayload.activation.virtual_connections).toEqual([]);
+            expect(nonNumericPayload.activation.virtual_connections).toEqual([{ row_no: 3, bandwidth_mbps: -5 }]);
 
             // Valid numeric > 0 entries are preserved
             const validPayload = buildDraftPayload({
@@ -1095,19 +1094,18 @@ describe('FE-19: Repeatable rows and Draft payload semantics', () => {
                 vlan_id: null,
             });
 
-            // If ALL allowlisted fields in a site block are blank or null, hasContent is false -> throws F-5 empty error
-            expect(() =>
-                buildDraftPayload({
-                    family: 'ACTIVATION',
-                    record_version: 1,
-                    activation: {
-                        direct_site: {
-                            routers: '',
-                            ups: '   ',
-                        } as unknown as DirectSiteBlock,
-                    },
-                }),
-            ).toThrow(/Empty object {} is invalid for direct_site/i);
+            // A block whose fields are all blank is still a valid object (12 §27.1 sends all-null blocks)
+            const allBlank = buildDraftPayload({
+                family: 'ACTIVATION',
+                record_version: 1,
+                activation: {
+                    direct_site: {
+                        routers: '',
+                        ups: '   ',
+                    } as unknown as DirectSiteBlock,
+                },
+            });
+            expect(allBlank.activation.direct_site).toEqual({ routers: null, ups: null });
         });
 
         it('resists prototype pollution in repeatable row value reads and natural keys (BF-1 regression)', () => {
