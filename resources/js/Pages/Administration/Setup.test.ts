@@ -997,7 +997,7 @@ describe('FE-15: Initial Setup Wizard Composition', () => {
     it('B-15-3 — readiness defaults fail-closed for signing, calculateInitialStep respects setup_completed, and terminal screen is gated', async () => {
         // Sub-test 1: Default props has signing_ready: false (fail-closed)
         const wrapperDefault = mount(Setup, {});
-        expect(wrapperDefault.props().readiness.signing_ready).toBe(false);
+        expect(wrapperDefault.props().readiness?.signing_ready).toBe(false);
 
         // Sub-test 2: calculateInitialStep: when setup_completed is false, even if roles/teams/users configured, step is not 4 or if it is 4, setup_completed lands on step 4
         // If setup_completed is false but roles, teams, users configured -> step 4 (review/finalize)
