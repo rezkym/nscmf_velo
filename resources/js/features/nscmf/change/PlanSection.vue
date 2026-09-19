@@ -94,17 +94,40 @@ watch(
     { deep: true },
 );
 
+// Helper for code-point-aware truncation to prevent lone surrogates (N-25-1, R-25-5)
+function truncateCodePoints(val: string, max: number): string {
+    return [...val].slice(0, max).join('');
+}
+
+// Helper to check for lone surrogate in string
+function hasLoneSurrogate(val: string): boolean {
+    return /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(val);
+}
+
+// Helper to clamp string only when necessary or contains lone surrogate (N-25-1, N-25-3)
+function safeClamp(val: string, max: number): string {
+    if ([...val].length > max || hasLoneSurrogate(val)) {
+        return truncateCodePoints(val, max);
+    }
+    return val;
+}
+
 function notifyUpdate() {
     const rawVal = monitoringPeriodValue.value;
     const num =
         rawVal !== null && rawVal !== undefined && (rawVal as unknown) !== '' && !Number.isNaN(Number(rawVal))
             ? Number(rawVal)
             : null;
-    const safeFiniteVal = num !== null && Number.isFinite(num) ? num : null;
+    const isFiniteVal = num !== null && Number.isFinite(num) && num > 0 && num <= 999999;
 
     const rawUnit = monitoringPeriodUnit.value;
-    const safeUnit =
-        typeof rawUnit === 'string' && (MONITORING_UNITS as readonly unknown[]).includes(rawUnit) ? rawUnit : null;
+    const isValidUnit =
+        typeof rawUnit === 'string' && (MONITORING_UNITS as readonly unknown[]).includes(rawUnit);
+
+    // N-25-2 / 06 §41 / 11 §24 / 12 §28.2: Pairing invariant - together or both null on wire
+    const paired = isFiniteVal && isValidUnit;
+    const safeFiniteVal = paired ? num : null;
+    const safeUnit = paired ? rawUnit : null;
 
     const rawTiming = announcementTiming.value;
     const validTimings = ANNOUNCEMENT_TIMINGS.map((t) => t.value) as readonly unknown[];
@@ -114,14 +137,18 @@ function notifyUpdate() {
         improvement_items: improvementItems.value.map((item, idx) => ({
             row_no: item.row_no || idx + 1,
             plan_text:
-                typeof item.plan_text === 'string' && item.plan_text.trim() ? item.plan_text.slice(0, 1000) : null,
+                typeof item.plan_text === 'string' && item.plan_text.trim()
+                    ? safeClamp(item.plan_text, 1000)
+                    : null,
             target_kpi:
-                typeof item.target_kpi === 'string' && item.target_kpi.trim() ? item.target_kpi.slice(0, 1000) : null,
+                typeof item.target_kpi === 'string' && item.target_kpi.trim()
+                    ? safeClamp(item.target_kpi, 1000)
+                    : null,
         })),
         target_execution_date: targetExecutionDate.value.trim() ? targetExecutionDate.value : null,
         monitoring_period_value: safeFiniteVal,
         monitoring_period_unit: safeUnit,
-        rollback_scenario: rollbackScenario.value.trim() ? rollbackScenario.value.slice(0, 4000) : null,
+        rollback_scenario: rollbackScenario.value.trim() ? safeClamp(rollbackScenario.value, 4000) : null,
         announcement_timing: safeTiming,
         record_version: props.modelValue?.record_version ?? 1,
     });
@@ -194,10 +221,10 @@ function validateSubmit(): boolean {
             completeCount++;
         }
 
-        if (item.plan_text && item.plan_text.length > 1000) {
+        if (item.plan_text && [...item.plan_text].length > 1000) {
             newErrors[`plan_text_${rowNo}`] = 'Plan text must not exceed 1000 characters';
         }
-        if (item.target_kpi && item.target_kpi.length > 1000) {
+        if (item.target_kpi && [...item.target_kpi].length > 1000) {
             newErrors[`target_kpi_${rowNo}`] = 'Target KPI must not exceed 1000 characters';
         }
     }
@@ -271,7 +298,7 @@ function validateSubmit(): boolean {
         newErrors.rollback_scenario = 'Rollback scenario is required';
     } else if (/^N\/?A$/i.test(rollback)) {
         newErrors.rollback_scenario = 'Rollback scenario cannot be a plain N/A placeholder';
-    } else if (rollback.length > 4000) {
+    } else if ([...rollback].length > 4000) {
         newErrors.rollback_scenario = 'Rollback scenario must not exceed 4000 characters';
     }
 
@@ -296,11 +323,16 @@ function getDraftPayload(): ChangeDraftWirePayload['change'] {
         rawVal !== null && rawVal !== undefined && (rawVal as unknown) !== '' && !Number.isNaN(Number(rawVal))
             ? Number(rawVal)
             : null;
-    const safeFiniteVal = num !== null && Number.isFinite(num) ? num : null;
+    const isFiniteVal = num !== null && Number.isFinite(num) && num > 0 && num <= 999999;
 
     const rawUnit = monitoringPeriodUnit.value;
-    const safeUnit =
-        typeof rawUnit === 'string' && (MONITORING_UNITS as readonly unknown[]).includes(rawUnit) ? rawUnit : null;
+    const isValidUnit =
+        typeof rawUnit === 'string' && (MONITORING_UNITS as readonly unknown[]).includes(rawUnit);
+
+    // N-25-2 / 06 §41 / 11 §24 / 12 §28.2: Pairing invariant - together or both null on wire
+    const paired = isFiniteVal && isValidUnit;
+    const safeFiniteVal = paired ? num : null;
+    const safeUnit = paired ? rawUnit : null;
 
     const rawTiming = announcementTiming.value;
     const validTimings = ANNOUNCEMENT_TIMINGS.map((t) => t.value) as readonly unknown[];
@@ -313,15 +345,17 @@ function getDraftPayload(): ChangeDraftWirePayload['change'] {
             target_execution_date: targetExecutionDate.value.trim() ? targetExecutionDate.value : null,
             monitoring_period_value: safeFiniteVal,
             monitoring_period_unit: safeUnit,
-            rollback_scenario: rollbackScenario.value.trim() ? rollbackScenario.value.slice(0, 4000) : null,
+            rollback_scenario: rollbackScenario.value.trim() ? safeClamp(rollbackScenario.value, 4000) : null,
             announcement_timing: safeTiming,
             improvement_items: improvementItems.value.map((item, idx) => ({
                 row_no: item.row_no || idx + 1,
                 plan_text:
-                    typeof item.plan_text === 'string' && item.plan_text.trim() ? item.plan_text.slice(0, 1000) : null,
+                    typeof item.plan_text === 'string' && item.plan_text.trim()
+                        ? safeClamp(item.plan_text, 1000)
+                        : null,
                 target_kpi:
                     typeof item.target_kpi === 'string' && item.target_kpi.trim()
-                        ? item.target_kpi.slice(0, 1000)
+                        ? safeClamp(item.target_kpi, 1000)
                         : null,
             })),
         },
@@ -343,6 +377,15 @@ defineExpose({
 
 <template>
     <div class="plan-section space-y-6">
+        <!-- Form-level error (e.g. readonly or disabled submit attempt) -->
+        <div
+            v-if="errors.form"
+            data-testid="error-form"
+            class="p-3 text-xs bg-destructive/10 text-destructive border border-destructive/20 rounded-md"
+        >
+            {{ errors.form }}
+        </div>
+
         <!-- Section Header -->
         <div class="section-header flex items-center justify-between pb-2 border-b">
             <div>
@@ -518,8 +561,19 @@ defineExpose({
                     </select>
                 </div>
             </div>
-            <div v-if="errors.monitoring_period" class="text-xs text-destructive mt-1">
+            <div
+                v-if="errors.monitoring_period"
+                data-testid="error-monitoring-period"
+                class="text-xs text-destructive mt-1"
+            >
                 {{ errors.monitoring_period }}
+            </div>
+            <div
+                v-if="errors.monitoring_period_unit"
+                data-testid="error-monitoring-period-unit"
+                class="text-xs text-destructive mt-1"
+            >
+                {{ errors.monitoring_period_unit }}
             </div>
         </div>
 

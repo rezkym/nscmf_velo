@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
-import PlanSection, { type PlanSectionModelValue } from './PlanSection.vue';
+import PlanSection, { type PlanSectionModelValue, type MonitoringPeriodUnit } from './PlanSection.vue';
 
 describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', () => {
     describe('AC1 — plan_requires_complete_pairs_only_at_submit', () => {
@@ -946,8 +946,10 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                 const emittedEvents = wrapper.emitted('update:modelValue');
                 expect(emittedEvents).toBeDefined();
                 const lastModelValue = emittedEvents![emittedEvents!.length - 1]![0] as typeof draft;
-                expect(LONE_SURROGATE_REGEX.test(lastModelValue.improvement_items?.[0]?.plan_text!)).toBe(false);
-                expect([...lastModelValue.improvement_items?.[0]?.plan_text!].length).toBe(1000);
+                const emittedPlanFromModelValue = lastModelValue.improvement_items?.[0]?.plan_text;
+                expect(emittedPlanFromModelValue).toBeDefined();
+                expect(LONE_SURROGATE_REGEX.test(emittedPlanFromModelValue!)).toBe(false);
+                expect([...emittedPlanFromModelValue!].length).toBe(1000);
 
                 // 3. Discriminating fixture: 501 characters ('a' + 500 emoji) is 1001 UTF-16 code units.
                 // Under server 1000 character limit, it should NOT be clamped to 1000 code units (which splits a surrogate).
@@ -972,7 +974,9 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                     },
                 });
 
-                const legalDraft = wrapperLegalAstral.vm.getDraftPayload();
+                const legalDraft = wrapperLegalAstral.vm.getDraftPayload() as {
+                    improvement_items?: Array<{ plan_text?: string | null; target_kpi?: string | null }>;
+                };
                 const legalEmittedPlan = legalDraft.improvement_items?.[0]?.plan_text;
                 expect([...legalEmittedPlan!].length).toBe(501);
                 expect(LONE_SURROGATE_REGEX.test(legalEmittedPlan!)).toBe(false);
@@ -1009,7 +1013,7 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                 expect(draft.monitoring_period_unit).toBeNull();
 
                 // update:modelValue emission must also maintain the pair invariant
-                const lastEmitted = wrapper.emitted('update:modelValue')!.slice(-1)[0]![0] as any;
+                const lastEmitted = wrapper.emitted('update:modelValue')!.slice(-1)[0]![0] as PlanSectionModelValue;
                 expect(lastEmitted.monitoring_period_value).toBeNull();
                 expect(lastEmitted.monitoring_period_unit).toBeNull();
 
@@ -1037,7 +1041,7 @@ describe('FE-25: Change improvement, KPI, schedule dan rollback (PlanSection)', 
                             improvement_items: [{ row_no: 1, plan_text: 'Plan A', target_kpi: 'KPI A' }],
                             target_execution_date: '2026-09-21',
                             monitoring_period_value: 2,
-                            monitoring_period_unit: 'FORTNIGHT' as any,
+                            monitoring_period_unit: 'FORTNIGHT' as unknown as MonitoringPeriodUnit,
                             rollback_scenario: 'Rollback scenario text',
                             announcement_timing: 'ONE_WEEK_BEFORE',
                         },
