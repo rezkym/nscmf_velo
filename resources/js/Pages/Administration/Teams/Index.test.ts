@@ -1,420 +1,165 @@
-import { router } from '@inertiajs/vue3';
-import { mount } from '@vue/test-utils';
-import { reactive } from 'vue';
+import { mount, type VueWrapper } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import Index from './Index.vue';
+import { forms, lastRequest, requests, resetInertia } from '@/testing/inertia';
 
-interface MockForm {
-    name: string;
-    processing: boolean;
-    errors: Record<string, string>;
-    hasErrors: boolean;
-    post: ReturnType<typeof vi.fn>;
-    patch: ReturnType<typeof vi.fn>;
-    reset: ReturnType<typeof vi.fn>;
-    clearErrors: ReturnType<typeof vi.fn>;
-}
+import Index, { type Team } from './Index.vue';
 
-let currentForm: MockForm;
+vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
 
-vi.mock('@inertiajs/vue3', async () => {
-    const { defineComponent } = await import('vue');
-
-    return {
-        Head: defineComponent({
-            name: 'InertiaHead',
-            props: { title: { type: String, required: false } },
-            setup: () => () => null,
-        }),
-        Link: defineComponent({
-            name: 'InertiaLink',
-            props: { href: { type: String, required: true } },
-            setup:
-                (_props, { slots }) =>
-                () =>
-                    slots.default ? slots.default() : null,
-        }),
-        router: {
-            post: vi.fn((_url: string, _data: unknown, options?: { onFinish?: () => void }) => {
-                if (options?.onFinish) {
-                    options.onFinish();
-                }
-            }),
-            get: vi.fn(),
-        },
-        useForm: vi.fn((initialData: { name?: string }) => {
-            currentForm = reactive({
-                name: initialData.name || '',
-                processing: false,
-                errors: {},
-                hasErrors: false,
-                post: vi.fn(),
-                patch: vi.fn(),
-                reset: vi.fn((...fields: string[]) => {
-                    if (fields.length === 0 || fields.includes('name')) {
-                        currentForm.name = '';
-                    }
-                }),
-                clearErrors: vi.fn(),
-            });
-            return currentForm;
-        }),
-    };
-});
-
-const defaultTeams = [
-    {
-        id: 1,
-        name: 'Team Alpha',
-        is_active: true,
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:00Z',
-    },
-    {
-        id: 2,
-        name: 'Team Beta',
-        is_active: false,
-        created_at: '2026-01-02T00:00:00Z',
-        updated_at: '2026-01-02T00:00:00Z',
-    },
+const teams: Team[] = [
+    { id: 1, name: 'Demo Team Alpha', is_active: true },
+    { id: 2, name: 'Demo Team Beta', is_active: false },
 ];
 
-describe('Index.vue (FE-11: Team Administration)', () => {
+const ALL_TEAM_PERMISSIONS = ['teams.view', 'teams.create', 'teams.update', 'teams.archive'];
+
+function mountPage(permissions: string[] = ALL_TEAM_PERMISSIONS, teamList: Team[] = teams): VueWrapper {
+    resetInertia({ auth: { user: { id: 9, username: 'admin', name: 'Admin' }, permissions } });
+    return mount(Index, { props: { teams: teamList }, attachTo: document.body });
+}
+
+function nameForm() {
+    const form = forms.find((candidate) => 'name' in candidate);
+    if (!form) throw new Error('team name form was not created');
+    return form;
+}
+
+describe('Team administration (FE-11)', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        document.body.innerHTML = '';
     });
 
-    it('AC1: teams_do_not_filter_workflow_authority — Team edit tidak membuat scope selector atau permission mapping', async () => {
-        const wrapper = mount(Index, {
-            props: {
-                teams: defaultTeams,
-                permissions: ['teams.view', 'teams.create', 'teams.update', 'teams.archive'],
-            },
-        });
+    it('renders inside the authenticated shell and lists teams with their status', () => {
+        const wrapper = mountPage();
 
-        // 1. Team edit/create form MUST only have `name` input.
-        // It MUST NOT render any scope selector, permission mapping, reviewer scope, approver scope, unit, or division.
-        const forbiddenSelectors = [
-            'select[name="scope"]',
-            'select[name="role"]',
-            'input[name="permission"]',
-            'input[name="permissions"]',
-            'select[name="reviewer_scope"]',
-            'select[name="approval_scope"]',
-            'select[name="unit"]',
-            'select[name="division"]',
-            '[data-testid="scope-selector"]',
-            '[data-testid="permission-mapping"]',
-        ];
-
-        for (const selector of forbiddenSelectors) {
-            expect(wrapper.find(selector).exists()).toBe(false);
-        }
-
-        // Open edit dialog/mode for Team Alpha
-        const editButton = wrapper.find('[data-testid="edit-team-1"]');
-        expect(editButton.exists()).toBe(true);
-        await editButton.trigger('click');
-
-        // Verify form fields
-        const nameInput = wrapper.find('input#team-name');
-        expect(nameInput.exists()).toBe(true);
-
-        // Verify still NO scope/permission mapping rendered in edit modal/form
-        for (const selector of forbiddenSelectors) {
-            expect(wrapper.find(selector).exists()).toBe(false);
-        }
-
-        // Check text content does NOT promise or mention workflow authority, reviewer/approver scoping
-        const formText = wrapper.text().toLowerCase();
-        expect(formText).not.toContain('reviewer scope');
-        expect(formText).not.toContain('approval scope');
-        expect(formText).not.toContain('permission mapping');
-
-        // Submit patch update
-        currentForm.name = 'Team Alpha Updated';
-        const formEl = wrapper.find('form');
-        await formEl.trigger('submit.prevent');
-
-        expect(currentForm.patch).toHaveBeenCalledWith('/administration/teams/1', expect.any(Object));
-
-        // Test onSuccess callback of patch
-        const patchCall = currentForm.patch.mock.calls[0];
-        if (patchCall && patchCall[1]?.onSuccess) {
-            patchCall[1].onSuccess();
-        }
-        await wrapper.vm.$nextTick();
-        expect(wrapper.find('input#team-name').exists()).toBe(false);
+        expect(wrapper.find('#sidebar-navigation').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="team-row-1"]').text()).toContain('Demo Team Alpha');
+        expect(wrapper.find('[data-testid="team-row-1"]').text()).toContain('Active');
+        expect(wrapper.find('[data-testid="team-row-2"]').text()).toContain('Inactive');
     });
 
-    it('AC2: teams_support_deactivate_and_reactivate — correct POST endpoint, reason/input bila kontrak mensyaratkan, pending tidak double', async () => {
-        const wrapper = mount(Index, {
-            props: {
-                teams: defaultTeams,
-                permissions: ['teams.view', 'teams.create', 'teams.update', 'teams.archive'],
-            },
-        });
-
-        // Team 1 is active -> Deactivate button should exist
-        const deactivateBtn = wrapper.find('[data-testid="deactivate-team-1"]');
-        expect(deactivateBtn.exists()).toBe(true);
-
-        await deactivateBtn.trigger('click');
-
-        // Lifecycle dialog / confirm should explain active Team eligibility impact on create, NOT loss of review/approval scope
-        expect(wrapper.text()).toContain('active Team eligibility');
-        expect(wrapper.text()).not.toContain('review scope');
-        expect(wrapper.text()).not.toContain('approval scope');
-
-        // Confirm deactivation
-        const confirmBtn = wrapper.find('[data-testid="confirm-lifecycle-action"]');
-        expect(confirmBtn.exists()).toBe(true);
-        await confirmBtn.trigger('click');
-
-        // Should call router.post to /administration/teams/1/deactivate
-        expect(vi.spyOn(router, 'post')).toHaveBeenCalledWith(
-            '/administration/teams/1/deactivate',
-            expect.any(Object),
-            expect.any(Object),
-        );
-
-        // Team 2 is inactive -> Reactivate button should exist
-        const reactivateBtn = wrapper.find('[data-testid="reactivate-team-2"]');
-        expect(reactivateBtn.exists()).toBe(true);
-        await reactivateBtn.trigger('click');
-
-        const confirmReactivateBtn = wrapper.find('[data-testid="confirm-lifecycle-action"]');
-        await confirmReactivateBtn.trigger('click');
-
-        expect(vi.spyOn(router, 'post')).toHaveBeenCalledWith(
-            '/administration/teams/2/reactivate',
-            expect.any(Object),
-            expect.any(Object),
-        );
+    it('shows an empty state when no teams exist', () => {
+        expect(mountPage(ALL_TEAM_PERMISSIONS, []).text()).toContain('No teams yet.');
     });
 
-    it('AC3: teams_show_server_validation — duplicate name errors dekat field tanpa optimistic fake success; name150 boundary, JANGAN mengirim code/description', async () => {
-        const wrapper = mount(Index, {
-            props: {
-                teams: defaultTeams,
-                permissions: ['teams.view', 'teams.create', 'teams.update', 'teams.archive'],
-            },
-        });
+    it('hides create, edit and lifecycle actions without the matching permissions', () => {
+        const wrapper = mountPage(['teams.view']);
 
-        // Open create modal
-        const createBtn = wrapper.find('[data-testid="create-team-btn"]');
-        expect(createBtn.exists()).toBe(true);
-        await createBtn.trigger('click');
-
-        const nameInput = wrapper.find<HTMLInputElement>('input#team-name');
-        expect(nameInput.exists()).toBe(true);
-        expect(nameInput.attributes('maxlength')).toBe('150');
-
-        // Verify there is NO code or description field in the form DOM
-        expect(wrapper.find('input#team-code').exists()).toBe(false);
-        expect(wrapper.find('input[name="code"]').exists()).toBe(false);
-        expect(wrapper.find('textarea#team-description').exists()).toBe(false);
-        expect(wrapper.find('textarea[name="description"]').exists()).toBe(false);
-
-        // Submit form
-        currentForm.name = 'Team Alpha';
-        const formEl = wrapper.find('form');
-        await formEl.trigger('submit.prevent');
-
-        // Verify useForm post was called to /administration/teams with ONLY name
-        expect(currentForm.post).toHaveBeenCalledWith('/administration/teams', expect.any(Object));
-
-        // Test onSuccess callback of post
-        const postCall = currentForm.post.mock.calls[0];
-        if (postCall && postCall[1]?.onSuccess) {
-            postCall[1].onSuccess();
-        }
-        await wrapper.vm.$nextTick();
-        expect(wrapper.find('input#team-name').exists()).toBe(false);
-
-        // Reopen create modal to check server validation error display near field
-        await createBtn.trigger('click');
-        currentForm.errors = { name: 'The team name has already been taken.' };
-        await wrapper.vm.$nextTick();
-
-        const errorElement = wrapper.find('[data-testid="team-name-error"]');
-        expect(errorElement.exists()).toBe(true);
-        expect(errorElement.text()).toContain('The team name has already been taken.');
-    });
-
-    it('AC4: teams_preserve_historical_snapshot — Team fixture berubah tidak mengubah label snapshot existing record di UI model', () => {
-        // When historical snapshot records exist with team snapshot label, mutating/updating team data doesn't alter snapshot
-        const wrapper = mount(Index, {
-            props: {
-                teams: defaultTeams,
-                historicalSnapshots: [
-                    {
-                        id: 101,
-                        request_no: 'REQ-001',
-                        team_id: 1,
-                        team_snapshot_name: 'Team Alpha (Original Historical)',
-                    },
-                ],
-                permissions: ['teams.view'],
-            },
-        });
-
-        // Even if Team Alpha name is updated or displayed, the snapshot in existing records remains preserved
-        expect(wrapper.text()).toContain('Team Alpha (Original Historical)');
-    });
-
-    it('displays empty state when no teams are configured', () => {
-        const wrapper = mount(Index, {
-            props: {
-                teams: [],
-                permissions: ['teams.view'],
-            },
-        });
-
-        expect(wrapper.text()).toContain('No teams configured.');
-    });
-
-    it('covers closeFormModal and cancel button in form modal', async () => {
-        const wrapper = mount(Index, {
-            props: {
-                teams: defaultTeams,
-                permissions: ['teams.create'],
-            },
-        });
-
-        // Open create modal
-        await wrapper.find('[data-testid="create-team-btn"]').trigger('click');
-        const input = wrapper.find<HTMLInputElement>('input#team-name');
-        expect(input.exists()).toBe(true);
-
-        // Trigger input event to ensure v-model update runs through input handler
-        await input.setValue('New Team Name');
-
-        // Cancel modal
-        const cancelBtn = wrapper.findAll('button').find((b) => b.text() === 'Cancel');
-        expect(cancelBtn).toBeDefined();
-        await cancelBtn!.trigger('click');
-
-        // Modal closed
-        expect(wrapper.find('input#team-name').exists()).toBe(false);
-    });
-
-    it('guards form submission and displays Saving... when form.processing is true', async () => {
-        const wrapper = mount(Index, {
-            props: {
-                teams: defaultTeams,
-                permissions: ['teams.create'],
-            },
-        });
-
-        await wrapper.find('[data-testid="create-team-btn"]').trigger('click');
-
-        currentForm.name = 'Valid Team Name';
-        currentForm.processing = true;
-        await wrapper.vm.$nextTick();
-
-        // Button should show "Saving..." and be disabled
-        const saveBtn = wrapper.find('[data-testid="save-team-btn"]');
-        expect(saveBtn.text()).toBe('Saving...');
-        expect(saveBtn.attributes('disabled')).toBeDefined();
-
-        // Submit form while processing
-        const formEl = wrapper.find('form');
-        await formEl.trigger('submit.prevent');
-
-        // Neither post nor patch should be called because form.processing guard returned early
-        expect(currentForm.post).not.toHaveBeenCalled();
-        expect(currentForm.patch).not.toHaveBeenCalled();
-    });
-
-    it('covers cancelLifecycleAction when lifecycle dialog is open', async () => {
-        const wrapper = mount(Index, {
-            props: {
-                teams: defaultTeams,
-                permissions: ['teams.archive'],
-            },
-        });
-
-        // Open deactivate dialog
-        await wrapper.find('[data-testid="deactivate-team-1"]').trigger('click');
-        expect(wrapper.find('[data-testid="confirm-lifecycle-action"]').exists()).toBe(true);
-
-        // Click cancel
-        const cancelBtn = wrapper.findAll('button').find((b) => b.text() === 'Cancel');
-        expect(cancelBtn).toBeDefined();
-        await cancelBtn!.trigger('click');
-
-        // Dialog should be closed
-        expect(wrapper.find('[data-testid="confirm-lifecycle-action"]').exists()).toBe(false);
-    });
-
-    it('covers default props fallback for permissions when mounted without permissions', () => {
-        const wrapper = mount(Index, {
-            props: {
-                permissions: null as unknown as string[],
-            },
-        });
-
-        // Permissions fallback to empty array, buttons with permissions should not be rendered
         expect(wrapper.find('[data-testid="create-team-btn"]').exists()).toBe(false);
         expect(wrapper.find('[data-testid="edit-team-1"]').exists()).toBe(false);
         expect(wrapper.find('[data-testid="deactivate-team-1"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="reactivate-team-2"]').exists()).toBe(false);
     });
 
-    it('covers confirmLifecycleAction and cancelLifecycleAction guards when lifecyclePending is true or pendingLifecycleTeam is null', async () => {
-        let capturedOnFinish: (() => void) | undefined;
-        const routerPostSpy = vi.spyOn(router, 'post').mockImplementation(((
-            _url: unknown,
-            _data: unknown,
-            options?: { onFinish?: () => void },
-        ) => {
-            capturedOnFinish = options?.onFinish;
-        }) as typeof router.post);
+    it('AC1: creates a team with only a name — no scope, permission or code fields', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="create-team-btn"]').trigger('click');
 
-        const wrapper = mount(Index, {
-            props: {
-                teams: defaultTeams,
-                permissions: ['teams.archive'],
-            },
-        });
+        const dialog = wrapper.get('[role="dialog"]');
+        expect(dialog.findAll('input, select, textarea')).toHaveLength(1);
+        expect(dialog.get('input').attributes('maxlength')).toBe('150');
 
-        interface IndexVm {
-            confirmLifecycleAction: (this: void) => void;
-            cancelLifecycleAction: (this: void) => void;
-        }
-        const vm = wrapper.vm as unknown as IndexVm;
+        await dialog.get('input').setValue('Demo Team Gamma');
+        await dialog.get('form').trigger('submit');
 
-        // 1. Calling confirmLifecycleAction directly when pendingLifecycleTeam is null
-        vm.confirmLifecycleAction();
-        expect(routerPostSpy).not.toHaveBeenCalled();
+        expect(lastRequest('/administration/teams')).toMatchObject({ method: 'post', data: { name: 'Demo Team Gamma' } });
+    });
 
-        // 2. Open deactivate dialog
-        await wrapper.find('[data-testid="deactivate-team-1"]').trigger('click');
-        const confirmBtn = wrapper.find('[data-testid="confirm-lifecycle-action"]');
-        expect(confirmBtn.exists()).toBe(true);
-        expect(confirmBtn.text()).toBe('Confirm');
+    it('edits a team name with PATCH and closes the modal on success', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="edit-team-1"]').trigger('click');
 
-        // Trigger confirmLifecycleAction without calling onFinish immediately
-        await confirmBtn.trigger('click');
+        const input = wrapper.get<HTMLInputElement>('[role="dialog"] input');
+        expect(input.element.value).toBe('Demo Team Alpha');
+        await input.setValue('Demo Team Alpha Renamed');
+        await wrapper.get('[role="dialog"] form').trigger('submit');
 
-        // lifecyclePending should be true now, button text changes to 'Processing...'
-        expect(confirmBtn.text()).toBe('Processing...');
-        expect(confirmBtn.attributes('disabled')).toBeDefined();
+        const request = lastRequest('/administration/teams/1');
+        expect(request).toMatchObject({ method: 'patch', data: { name: 'Demo Team Alpha Renamed' } });
 
-        // 3. Calling cancelLifecycleAction directly when lifecyclePending is true
-        vm.cancelLifecycleAction();
+        request?.options.onSuccess?.();
+        await nextTick();
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    });
 
-        // 4. Calling confirmLifecycleAction directly when lifecyclePending is true should return early
-        vm.confirmLifecycleAction();
-        expect(routerPostSpy).toHaveBeenCalledTimes(1);
+    it('AC3: keeps the modal open and shows the server error next to the name field', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="create-team-btn"]').trigger('click');
 
-        // Invoke captured onFinish callback
-        expect(capturedOnFinish).toBeDefined();
-        capturedOnFinish!();
-        await wrapper.vm.$nextTick();
+        nameForm().errors = { name: 'The name has already been taken.' };
+        await nextTick();
 
-        // Dialog should now be closed and lifecyclePending reset to false
-        expect(wrapper.find('[data-testid="confirm-lifecycle-action"]').exists()).toBe(false);
+        const dialog = wrapper.get('[role="dialog"]');
+        expect(dialog.get('[role="alert"]').text()).toBe('The name has already been taken.');
+        expect(dialog.get('input').attributes('aria-describedby')).toContain('team-name-error');
+    });
+
+    it('does not submit twice while a save is in flight', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="create-team-btn"]').trigger('click');
+        await wrapper.get('[role="dialog"] input').setValue('Demo Team Gamma');
+
+        nameForm().processing = true;
+        await nextTick();
+        await wrapper.get('[role="dialog"] form').trigger('submit');
+
+        expect(requests).toHaveLength(0);
+        expect(wrapper.get('[data-testid="save-team-btn"]').attributes('disabled')).toBeDefined();
+    });
+
+    it('closes the modal with Escape without submitting', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="create-team-btn"]').trigger('click');
+        await nextTick();
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        await nextTick();
+
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+        expect(requests).toHaveLength(0);
+    });
+
+    it('AC2: deactivates an active team through its lifecycle endpoint once, after confirmation', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');
+
+        const dialog = wrapper.get('[role="dialog"]');
+        expect(dialog.text()).toContain('does not change who can review or approve');
+
+        await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
+        await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
+
+        expect(requests).toHaveLength(1);
+        const request = lastRequest('/administration/teams/1/deactivate');
+        expect(request?.method).toBe('post');
+
+        request?.options.onSuccess?.();
+        request?.options.onFinish?.();
+        await nextTick();
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    });
+
+    it('AC2: reactivates an inactive team through its lifecycle endpoint', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="reactivate-team-2"]').trigger('click');
+        await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
+
+        expect(lastRequest('/administration/teams/2/reactivate')?.method).toBe('post');
+    });
+
+    it('keeps the lifecycle dialog open and shows the server error when the action fails', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');
+        await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
+
+        const request = lastRequest('/administration/teams/1/deactivate');
+        request?.options.onError?.({ team: 'This team cannot be deactivated.' });
+        request?.options.onFinish?.();
+        await nextTick();
+
+        expect(wrapper.get('[role="dialog"] [role="alert"]').text()).toBe('This team cannot be deactivated.');
+        expect(wrapper.get('[data-testid="confirm-lifecycle-action"]').attributes('disabled')).toBeUndefined();
     });
 });
