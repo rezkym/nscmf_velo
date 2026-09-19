@@ -1,363 +1,219 @@
-import { mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { mount, type VueWrapper } from '@vue/test-utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { resetInertia } from '@/testing/inertia';
+
 import Show, { type NscmfDetailRecord } from './Show.vue';
 
-// Mock Inertia
-vi.mock('@inertiajs/vue3', () => ({
-    Head: {
-        props: ['title'],
-        template: '<head><title>{{ title }}</title></head>',
-    },
-    Link: {
-        props: ['href'],
-        template: '<a :href="href"><slot /></a>',
-    },
-    usePage: () => ({
-        props: {
-            auth: {
-                user: { id: 1, username: 'tester', name: 'Tester' },
-                permissions: ['nscmf.view'],
-            },
-        },
-    }),
-}));
+vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
 
-describe('Pages/Nscmf/Show.vue (FE-18)', () => {
-    it('AC1 — detail_separates_archived_and_business_status: APPROVED+is_archived tetap APPROVED bukan ARCHIVED enum', () => {
-        const record: NscmfDetailRecord = {
-            id: 101,
-            request_no: 'NSCMF-202609-00101',
-            family: 'ACTIVATION',
-            subtype: 'ACTIVATION',
-            request_date: '2026-09-17',
-            business_status: 'APPROVED',
-            record_version: 3,
-            is_archived: true,
-            owner: { id: 1, name: 'Budi Santoso' },
-            team: { id: 10, name: 'Core Network' },
-            created_at: '2026-09-17T09:00:00+07:00',
-            updated_at: '2026-09-17T10:00:00+07:00',
-            requested_by: { id: 1, name: 'Budi Santoso' },
-            first_submitted_at: '2026-09-17T09:10:00+07:00',
-            reviewed_by: { id: 2, name: 'Dewi Reviewer' },
-            reviewed_at: '2026-09-17T09:30:00+07:00',
-            approved_by: { id: 3, name: 'Agus Approver' },
-            approved_at: '2026-09-17T09:55:00+07:00',
-            activation: {
-                customer_name: 'PT Telco Sejahtera',
-                contact_name: 'Bapak Ahmad',
-            },
-        };
+const BASE: Omit<NscmfDetailRecord, 'family' | 'subtype'> = {
+    id: 101,
+    request_no: 'DEMO-ACT-005',
+    request_date: '2026-09-01',
+    business_status: 'APPROVED',
+    record_version: 3,
+    is_archived: false,
+    owner: { id: 1, name: 'Demo Requester A' },
+    team: { id: 1, name: 'Demo Team Alpha' },
+    requested_by: { id: 1, name: 'Demo Requester A' },
+    first_submitted_at: '2026-09-02T09:00:00+07:00',
+    reviewed_by: { id: 3, name: 'Demo Reviewer' },
+    reviewed_at: '2026-09-03T10:00:00+07:00',
+    approved_by: { id: 4, name: 'Demo Approver' },
+    approved_at: '2026-09-04T11:00:00+07:00',
+};
 
-        const wrapper = mount(Show, {
-            props: { record },
-        });
+function mountShow(record: NscmfDetailRecord): VueWrapper {
+    return mount(Show, { props: { record } });
+}
 
-        // Business status badge MUST display "Approved" or "APPROVED"
-        const businessStatusBadge = wrapper.find('[data-testid="business-status-badge"]');
-        expect(businessStatusBadge.exists()).toBe(true);
-        expect(businessStatusBadge.text()).toMatch(/Approved/i);
-        // It must NOT be converted to "ARCHIVED" as business status
-        expect(businessStatusBadge.text()).not.toMatch(/Archived/i);
+function field(wrapper: VueWrapper, key: string): string {
+    return wrapper.get(`[data-testid="field-${key}"]`).text();
+}
 
-        // Separate archived badge MUST be present
-        const archivedBadge = wrapper.find('[data-testid="archived-badge"]');
-        expect(archivedBadge.exists()).toBe(true);
-        expect(archivedBadge.text()).toMatch(/Archived/i);
-
-        // Header identity
-        expect(wrapper.find('[data-testid="request-no"]').text()).toContain('NSCMF-202609-00101');
-        expect(wrapper.find('[data-testid="family-subtype"]').text()).toContain('ACTIVATION');
-        expect(wrapper.find('[data-testid="owner-name"]').text()).toContain('Budi Santoso');
-        expect(wrapper.find('[data-testid="team-name"]').text()).toContain('Core Network');
-        expect(wrapper.find('[data-testid="record-version"]').text()).toContain('3');
+describe('Record detail (FE-18)', () => {
+    beforeEach(() => {
+        resetInertia({ auth: { permissions: ['nscmf.view'] } });
     });
 
-    it('AC2 — detail_uses_effective_signoffs: approver return mengosongkan ReviewedBy efektif tetapi history tetap event lama', () => {
-        // When approver returns the record, server clears effective reviewed_by_user_id / reviewed_at in iteration
-        const record: NscmfDetailRecord = {
-            id: 102,
-            request_no: 'NSCMF-202609-00102',
-            family: 'CHANGE',
-            subtype: 'MAINTENANCE',
+    it('shows the header with labels, not raw codes, and links back to history', () => {
+        const wrapper = mountShow({ ...BASE, family: 'ACTIVATION', subtype: 'UPGRADE_DOWNGRADE', activation: {} });
+
+        expect(wrapper.get('[data-testid="request-no"]').text()).toBe('DEMO-ACT-005');
+        expect(wrapper.get('[data-testid="family-subtype"]').text()).toBe('Activation · Upgrade / Downgrade');
+        expect(field(wrapper, 'request_date')).toBe('2026-09-01');
+        expect(field(wrapper, 'record_version')).toBe('3');
+        expect(field(wrapper, 'owner')).toBe('Demo Requester A');
+        expect(field(wrapper, 'team')).toBe('Demo Team Alpha');
+        expect(wrapper.get('#main-content a[href="/history"]').text()).toBe('Back to history');
+    });
+
+    it('AC1: keeps the business status and the archived flag separate', () => {
+        const wrapper = mountShow({ ...BASE, is_archived: true, family: 'CHANGE', subtype: 'MAINTENANCE', change: {} });
+
+        expect(wrapper.get('[data-testid="business-status-badge"]').text()).toBe('Approved');
+        expect(wrapper.get('[data-testid="archived-badge"]').text()).toBe('Archived');
+    });
+
+    it('AC2: shows the effective sign-offs from the server, including a cleared review', () => {
+        const wrapper = mountShow({
+            ...BASE,
             business_status: 'PENDING_REVIEW',
-            record_version: 5,
-            is_archived: false,
-            owner: { id: 1, name: 'Budi Santoso' },
-            team: { id: 10, name: 'Core Network' },
-            requested_by: { id: 1, name: 'Budi Santoso' },
-            first_submitted_at: '2026-09-17T09:10:00+07:00',
-            reviewed_by: null, // Cleared on approver return
-            reviewed_at: null, // Cleared on approver return
+            reviewed_by: null,
+            reviewed_at: null,
             approved_by: null,
             approved_at: null,
-            change: {
-                maintenance_purpose: 'Firmware upgrade',
-            },
-        };
-
-        const wrapper = mount(Show, {
-            props: { record },
+            family: 'CHANGE',
+            subtype: 'UPGRADE',
+            change: {},
         });
 
-        const requestedBySection = wrapper.find('[data-testid="signoff-requested-by"]');
-        expect(requestedBySection.text()).toContain('Budi Santoso');
-
-        const reviewedBySection = wrapper.find('[data-testid="signoff-reviewed-by"]');
-        // Effective reviewed_by is null/empty, must show neutral indicator (e.g. "-" or "Pending" or "Not reviewed")
-        expect(reviewedBySection.text()).not.toContain('Budi Santoso');
-        expect(reviewedBySection.text()).toMatch(/—|-|None|Not reviewed|Pending/i);
-
-        const approvedBySection = wrapper.find('[data-testid="signoff-approved-by"]');
-        expect(approvedBySection.text()).toMatch(/—|-|None|Not approved|Pending/i);
+        expect(wrapper.get('[data-testid="signoff-requested-by"]').text()).toContain('Demo Requester A');
+        expect(wrapper.get('[data-testid="signoff-reviewed-by"]').text()).toContain('—');
+        expect(wrapper.get('[data-testid="signoff-approved-by"]').text()).toContain('—');
     });
 
-    it('AC3 — detail_does_not_infer_signer: human ApprovedBy bukan signature status dan tidak otomatis PDF signed', () => {
-        const record: NscmfDetailRecord = {
-            id: 103,
-            request_no: 'NSCMF-202609-00103',
+    it('AC3: shows the human approver without implying a signed PDF', () => {
+        const wrapper = mountShow({ ...BASE, family: 'CHANGE', subtype: 'UPGRADE', change: {} });
+
+        expect(wrapper.get('[data-testid="signoff-approved-by"]').text()).toContain('Demo Approver');
+        expect(wrapper.text().toLowerCase()).not.toContain('signed');
+    });
+
+    it('AC4: renders every Activation field, collection and site block, keeping 0 and showing a dash for null', () => {
+        const wrapper = mountShow({
+            ...BASE,
             family: 'ACTIVATION',
             subtype: 'ACTIVATION',
-            business_status: 'APPROVED',
-            record_version: 4,
-            is_archived: false,
-            owner: { id: 1, name: 'Budi Santoso' },
-            team: { id: 10, name: 'Core Network' },
-            requested_by: { id: 1, name: 'Budi Santoso' },
-            first_submitted_at: '2026-09-17T09:10:00+07:00',
-            reviewed_by: { id: 2, name: 'Dewi Reviewer' },
-            reviewed_at: '2026-09-17T09:30:00+07:00',
-            approved_by: { id: 3, name: 'Agus Approver' },
-            approved_at: '2026-09-17T09:55:00+07:00',
             activation: {
-                customer_name: 'PT Telco Sejahtera',
-            },
-        };
-
-        const wrapper = mount(Show, {
-            props: { record },
-        });
-
-        // Human ApprovedBy is shown
-        const approvedBySection = wrapper.find('[data-testid="signoff-approved-by"]');
-        expect(approvedBySection.text()).toContain('Agus Approver');
-
-        // Must NOT infer or display that digital signature / PDF is signed or certificate issued
-        const signatureStatus = wrapper.find('[data-testid="digital-signature-status"]');
-        expect(signatureStatus.exists()).toBe(false);
-
-        // Check text content across the whole view does not claim "PDF Signed" or "Digitally Signed by Agus Approver"
-        expect(wrapper.text()).not.toMatch(/PDF Signed/i);
-        expect(wrapper.text()).not.toMatch(/Digitally Signed by Agus/i);
-    });
-
-    it('AC4 — detail_renders_both_families: semua field collections/sites/results dari 05_FORM_CONTRACTS tampil sesuai data; null tidak jadi 0', () => {
-        // Test Activation family with collections and direct_site/pop_site
-        const activationRecord: NscmfDetailRecord = {
-            id: 104,
-            request_no: 'NSCMF-202609-00104',
-            family: 'ACTIVATION',
-            subtype: 'UPGRADE_DOWNGRADE',
-            business_status: 'APPROVED',
-            record_version: 2,
-            is_archived: false,
-            owner: { id: 1, name: 'Budi Santoso' },
-            team: { id: 10, name: 'Core Network' },
-            activation: {
-                customer_name: 'PT Maju Mundur',
-                contact_name: 'Ibu Siti',
+                customer_name: 'Demo Customer',
+                contact_name: 'Demo Contact',
                 installation_rfs_date: '2026-10-01',
+                lan_ip_allocation: '198.51.100.0/29',
+                wan_ip: '192.0.2.10',
+                gateway: '192.0.2.1',
+                pop: 'Demo POP',
+                regional: 'Demo Region',
+                preferred_upstream: 'Demo Upstream A',
+                secondary_upstream: null,
+                primary_noc_link: 'Demo Link 1',
+                secondary_noc_link: null,
+                downlink_router: 'Demo Router',
                 bandwidth_international_mbps: 100.5,
-                bandwidth_domestic_iix_mbps: null, // Must remain neutral, NOT 0
-                references: [
-                    { reference_type: 'IWO', specification: 'IWO-9988' },
-                    { reference_type: 'OTHER', specification: 'Custom ref note' },
-                ],
+                bandwidth_domestic_iix_mbps: null,
+                bandwidth_mixed_mbps: 0,
+                domain_name_1: 'example.com',
+                domain_name_2: null,
+                primary_dns: '192.0.2.53',
+                secondary_dns: null,
+                mx_primary: '10 mail.example.com',
+                mx_secondary: null,
+                hosting_platform: 'Demo Hosting',
+                hosting_capacity_gb: 50,
+                migrate_domain: true,
+                migrate_hosting: false,
+                references: [{ reference_type: 'IWO', specification: null }],
                 service_blocks: [
                     {
-                        service_context: 'EXISTING',
-                        service_id: 'SVC-100',
-                        service_status: 'ACTIVATED',
-                        service_description: 'Old 50Mbps link',
-                        service_location: 'Gedung A Lt 3',
-                    },
-                    {
                         service_context: 'NEW',
-                        service_id: 'SVC-101',
+                        service_id: 'SVC-DEMO-1',
                         service_status: 'ACTIVATED',
-                        service_description: 'New 100Mbps link',
-                        service_location: 'Gedung A Lt 4',
+                        service_description: 'Demo internet',
+                        service_location: 'Demo Street 1',
                     },
                 ],
-                sla_items: [{ row_no: 1, requirement_text: 'SLA 99.9% uptime' }],
-                virtual_connections: [{ row_no: 1, bandwidth_mbps: 50 }],
-                priority_destinations: [{ row_no: 1, destination: 'IXP Singapore' }],
-                direct_site: {
-                    latency_ms: 0, // 0 must survive and be displayed as 0, not empty or null!
-                    packet_loss_percent: 0,
-                    rssi: null, // Null must NOT be displayed as 0!
-                    routers: 'Cisco ASR 9000',
-                },
-                pop_site: {
-                    vlan_id: 1024,
-                    port: 'Te0/0/1',
-                },
+                sla_items: [{ row_no: 1, requirement_text: 'Demo SLA' }],
+                virtual_connections: [{ row_no: 1, bandwidth_mbps: 25 }],
+                priority_destinations: [{ row_no: 1, destination: 'Demo CDN' }],
+                direct_site: { latency_ms: 0, packet_loss_percent: 0.5, rssi: null, cable: 'Demo Fiber' },
+                pop_site: { vlan_id: 100, port: 'Gi0/1' },
             },
-        };
-
-        const wrapperActivation = mount(Show, {
-            props: { record: activationRecord },
         });
 
-        // Ensure fields render correctly
-        expect(wrapperActivation.find('[data-testid="activation-customer-name"]').text()).toContain('PT Maju Mundur');
-        expect(wrapperActivation.find('[data-testid="activation-contact-name"]').text()).toContain('Ibu Siti');
-        expect(wrapperActivation.find('[data-testid="activation-bw-intl"]').text()).toContain('100.5');
+        expect(field(wrapper, 'customer_name')).toBe('Demo Customer');
+        expect(field(wrapper, 'gateway')).toBe('192.0.2.1');
+        expect(field(wrapper, 'secondary_upstream')).toBe('—');
+        expect(field(wrapper, 'bandwidth_international_mbps')).toBe('100.5');
+        expect(field(wrapper, 'bandwidth_domestic_iix_mbps')).toBe('—');
+        expect(field(wrapper, 'bandwidth_mixed_mbps')).toBe('0');
+        expect(field(wrapper, 'mx_primary')).toBe('10 mail.example.com');
+        expect(field(wrapper, 'hosting_capacity_gb')).toBe('50');
+        expect(field(wrapper, 'migrate_domain')).toBe('Yes');
+        expect(field(wrapper, 'migrate_hosting')).toBe('No');
+        expect(field(wrapper, 'direct_site.latency_ms')).toBe('0');
+        expect(field(wrapper, 'direct_site.rssi')).toBe('—');
+        expect(field(wrapper, 'direct_site.cable')).toBe('Demo Fiber');
+        expect(field(wrapper, 'pop_site.vlan_id')).toBe('100');
+        expect(wrapper.get('[data-testid="table-references"]').text()).toContain('IWO');
+        expect(wrapper.get('[data-testid="table-service_blocks"]').text()).toContain('New service');
+        expect(wrapper.get('[data-testid="table-service_blocks"]').text()).toContain('Activated');
+        expect(wrapper.get('[data-testid="table-sla_items"]').text()).toContain('Demo SLA');
+        expect(wrapper.get('[data-testid="table-virtual_connections"]').text()).toContain('25');
+        expect(wrapper.get('[data-testid="table-priority_destinations"]').text()).toContain('Demo CDN');
+    });
 
-        // Domestic IIX was null: must display "-" or neutral symbol, NEVER "0"
-        const domBw = wrapperActivation.find('[data-testid="activation-bw-dom"]');
-        expect(domBw.text()).toMatch(/—|-|None/i);
-        expect(domBw.text()).not.toBe('0');
-
-        // direct_site latency_ms was 0: must display "0" (zero survived)
-        const latency = wrapperActivation.find('[data-testid="direct-site-latency"]');
-        expect(latency.text()).toContain('0');
-
-        // direct_site rssi was null: must display neutral, NOT "0"
-        const rssi = wrapperActivation.find('[data-testid="direct-site-rssi"]');
-        expect(rssi.text()).toMatch(/—|-|None/i);
-        expect(rssi.text()).not.toBe('0');
-
-        // Test Change family with results and impacts
-        const changeRecord: NscmfDetailRecord = {
-            id: 105,
-            request_no: 'NSCMF-202609-00105',
+    it('AC4: renders every Change field and collection, including results', () => {
+        const wrapper = mountShow({
+            ...BASE,
+            request_no: 'DEMO-CHG-006',
             family: 'CHANGE',
-            subtype: 'EMERGENCY',
-            business_status: 'APPROVED',
-            record_version: 7,
-            is_archived: false,
-            owner: { id: 1, name: 'Budi Santoso' },
-            team: { id: 10, name: 'Core Network' },
+            subtype: 'UPGRADE',
             change: {
-                maintenance_purpose: 'Emergency link reroute',
-                target_execution_date: '2026-09-18',
-                monitoring_period_value: 24,
-                monitoring_period_unit: 'HOUR',
-                rollback_scenario: 'Revert BGP routes to secondary ISP',
-                announcement_timing: 'TWO_DAYS_BEFORE_EMERGENCY',
-                facing_challenges: [{ row_no: 1, challenge_text: 'High traffic volume' }],
-                identified_problems: [{ row_no: 1, problem_text: 'Fiber cut at segment C' }],
+                maintenance_purpose: 'Demo purpose',
+                target_execution_date: '2026-10-10',
+                monitoring_period_value: 3,
+                monitoring_period_unit: 'DAY',
+                rollback_scenario: 'Demo rollback',
+                announcement_timing: 'ONE_WEEK_BEFORE',
+                facing_challenges: [{ row_no: 1, challenge_text: 'Demo challenge' }],
+                identified_problems: [{ row_no: 1, problem_text: 'Demo problem' }],
                 service_impacts: [
                     { impact_code: 'NOC15', other_description: null },
-                    { impact_code: 'OTHER', other_description: 'VIP Enterprise client' },
+                    { impact_code: 'OTHER', other_description: 'Demo impact' },
                 ],
-                improvement_items: [
-                    {
-                        row_no: 1,
-                        plan_text: 'Splice fiber cable core 12',
-                        target_kpi: 'Loss < 0.2dB',
-                    },
-                ],
+                improvement_items: [{ row_no: 1, plan_text: 'Demo plan', target_kpi: 'Error rate 0' }],
                 results: [
-                    {
-                        row_no: 1,
-                        result_summary: 'Fiber spliced successfully',
-                        performance_information: 'Signal level -18dBm',
-                        result_status: 'SUCCESSFUL',
-                    },
+                    { row_no: 1, result_summary: 'Demo result', performance_information: 'Stable', result_status: 'Done' },
                 ],
             },
-        };
-
-        const wrapperChange = mount(Show, {
-            props: { record: changeRecord },
         });
 
-        expect(wrapperChange.find('[data-testid="change-purpose"]').text()).toContain('Emergency link reroute');
-        expect(wrapperChange.find('[data-testid="change-rollback"]').text()).toContain('Revert BGP routes');
-        expect(wrapperChange.find('[data-testid="change-results"]').text()).toContain('Fiber spliced successfully');
-        expect(wrapperChange.find('[data-testid="change-results"]').text()).toContain('SUCCESSFUL');
+        expect(field(wrapper, 'maintenance_purpose')).toBe('Demo purpose');
+        expect(field(wrapper, 'monitoring_period')).toBe('3 Days');
+        expect(field(wrapper, 'announcement_timing')).toBe('1 week before');
+        expect(field(wrapper, 'rollback_scenario')).toBe('Demo rollback');
+        expect(wrapper.get('[data-testid="table-facing_challenges"]').text()).toContain('Demo challenge');
+        expect(wrapper.get('[data-testid="table-identified_problems"]').text()).toContain('Demo problem');
+        expect(wrapper.get('[data-testid="table-service_impacts"]').text()).toContain('Demo impact');
+        expect(wrapper.get('[data-testid="table-improvement_items"]').text()).toContain('Error rate 0');
+        expect(wrapper.get('[data-testid="table-results"]').text()).toContain('Demo result');
     });
 
-    it('renders tabs and handles unavailable Timeline/Attachments with neutral read-only stubs', async () => {
-        const record: NscmfDetailRecord = {
-            id: 106,
-            request_no: 'NSCMF-202609-00106',
-            family: 'ACTIVATION',
-            subtype: 'ACTIVATION',
-            business_status: 'DRAFT',
-            record_version: 1,
-            is_archived: false,
-            owner: { id: 1, name: 'Budi Santoso' },
-            team: { id: 10, name: 'Core Network' },
-            activation: {
-                customer_name: 'PT Test',
-            },
-        };
+    it('shows a dash for an unset monitoring period and "None" for empty collections', () => {
+        const wrapper = mountShow({ ...BASE, family: 'CHANGE', subtype: 'MAINTENANCE', change: { results: [] } });
 
-        const wrapper = mount(Show, {
-            props: { record },
-        });
-
-        // Tabs exist
-        const tabs = wrapper.findAll('[role="tab"]');
-        expect(tabs.length).toBeGreaterThanOrEqual(3);
-
-        // Form Detail tab is active by default
-        expect(wrapper.find('[data-testid="form-detail-section"]').exists()).toBe(true);
-
-        // Click Timeline tab
-        const timelineTab = tabs.find((t) => t.text().includes('Timeline'));
-        expect(timelineTab?.exists()).toBe(true);
-        await timelineTab?.trigger('click');
-
-        // Timeline tab shows unavailable/read-only stub without fake evidence
-        const timelineSection = wrapper.find('[data-testid="timeline-stub"]');
-        expect(timelineSection.exists()).toBe(true);
-        expect(timelineSection.text()).toMatch(/Timeline history unavailable|Timeline view is not available/i);
-
-        // Click back to Form Detail tab
-        const formTab = tabs.find((t) => t.text().includes('Form Detail'));
-        expect(formTab?.exists()).toBe(true);
-        await formTab?.trigger('click');
-        expect(wrapper.find('[data-testid="form-detail-section"]').exists()).toBe(true);
-
-        // Click Attachments tab
-        const attachmentsTab = tabs.find((t) => t.text().includes('Attachments'));
-        expect(attachmentsTab?.exists()).toBe(true);
-        await attachmentsTab?.trigger('click');
-
-        // Attachments tab shows unavailable/read-only stub without fake evidence
-        const attachmentsSection = wrapper.find('[data-testid="attachments-stub"]');
-        expect(attachmentsSection.exists()).toBe(true);
-        expect(attachmentsSection.text()).toMatch(/Attachments unavailable|Attachments are not available/i);
+        expect(field(wrapper, 'monitoring_period')).toBe('—');
+        expect(wrapper.get('[data-testid="table-results"]').text()).toContain('None');
     });
 
-    it('does not mount editable inputs in readonly view', () => {
-        const record: NscmfDetailRecord = {
-            id: 107,
-            request_no: 'NSCMF-202609-00107',
-            family: 'ACTIVATION',
-            subtype: 'ACTIVATION',
-            business_status: 'APPROVED',
-            record_version: 1,
-            is_archived: false,
-            owner: { id: 1, name: 'Budi Santoso' },
-            team: { id: 10, name: 'Core Network' },
-            activation: {
-                customer_name: 'PT Read Only',
-                contact_name: 'Pak Doni',
-            },
-        };
+    it('switches to the Timeline and Attachments tabs, which are not available yet', async () => {
+        const wrapper = mountShow({ ...BASE, family: 'CHANGE', subtype: 'MAINTENANCE', change: {} });
 
-        const wrapper = mount(Show, {
-            props: { record },
-        });
+        await wrapper.get('[data-testid="tab-timeline"]').trigger('click');
+        expect(wrapper.get('[data-testid="timeline-stub"]').text()).toContain('not available yet');
+        expect(wrapper.find('[data-testid="form-detail-section"]').exists()).toBe(false);
 
-        // Read-only view must NOT mount input, select, textarea editable elements
-        expect(wrapper.findAll('input').length).toBe(0);
-        expect(wrapper.findAll('select').length).toBe(0);
-        expect(wrapper.findAll('textarea').length).toBe(0);
+        await wrapper.get('[data-testid="tab-attachments"]').trigger('click');
+        expect(wrapper.get('[data-testid="attachments-stub"]').text()).toContain('not available yet');
+
+        await wrapper.get('[data-testid="tab-form"]').trigger('click');
+        expect(wrapper.find('[data-testid="form-detail-section"]').exists()).toBe(true);
+    });
+
+    it('is read-only: no inputs of any kind', () => {
+        const wrapper = mountShow({ ...BASE, family: 'ACTIVATION', subtype: 'ACTIVATION', activation: {} });
+
+        expect(wrapper.findAll('input, select, textarea')).toHaveLength(0);
     });
 });
