@@ -73,7 +73,7 @@ const props = withDefaults(
             teams_configured: false,
             users_configured: false,
             setup_completed: false,
-            signing_ready: true,
+            signing_ready: false,
         }),
         roles: () => [],
         teams: () => [],
@@ -92,8 +92,9 @@ const steps = [
     { id: 4, title: 'Complete', description: 'Verify setup completion and system readiness' },
 ] as const;
 
-// Determine initial step position strictly based on server readiness projection (AC4)
+// Determine initial step position strictly based on server readiness projection (AC4, B-15-3)
 function calculateInitialStep(): number {
+    if (props.readiness.setup_completed) return 4;
     if (!props.readiness.roles_configured) return 1;
     if (!props.readiness.teams_configured) return 2;
     if (!props.readiness.users_configured) return 3;
@@ -711,9 +712,15 @@ function finalizeSetup(): void {
                         <CheckCircle2 class="w-8 h-8" />
                     </div>
                     <div>
-                        <h2 class="text-lg font-bold text-foreground">Setup Completed & Verified</h2>
+                        <h2 class="text-lg font-bold text-foreground">
+                            {{ readiness.setup_completed ? 'Setup Completed & Verified' : 'Setup Summary & Readiness' }}
+                        </h2>
                         <p class="text-sm text-muted-foreground mt-1">
-                            Baseline organizational setup is ready. Review the summary below before launching into the operational dashboard.
+                            {{
+                                readiness.setup_completed
+                                    ? 'Baseline organizational setup is ready. Review the summary below before launching into the operational dashboard.'
+                                    : 'Review the setup progress and system readiness below before completing setup.'
+                            }}
                         </p>
                     </div>
                 </div>
@@ -723,21 +730,24 @@ function finalizeSetup(): void {
                     <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">System Readiness</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                         <div class="flex items-center gap-2 p-2.5 rounded-lg bg-card border border-border text-xs">
-                            <Check class="w-4 h-4 text-emerald-500" />
+                            <Check v-if="readiness.roles_configured" data-testid="readiness-roles-check" class="w-4 h-4 text-emerald-500" />
+                            <ShieldAlert v-else class="w-4 h-4 text-amber-500" />
                             <div>
                                 <p class="font-medium text-foreground">Roles & Permissions</p>
                                 <p class="text-[11px] text-muted-foreground">{{ roles.length }} configured</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 p-2.5 rounded-lg bg-card border border-border text-xs">
-                            <Check class="w-4 h-4 text-emerald-500" />
+                            <Check v-if="readiness.teams_configured" data-testid="readiness-teams-check" class="w-4 h-4 text-emerald-500" />
+                            <ShieldAlert v-else class="w-4 h-4 text-amber-500" />
                             <div>
                                 <p class="font-medium text-foreground">Teams</p>
                                 <p class="text-[11px] text-muted-foreground">{{ teams.length }} configured</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 p-2.5 rounded-lg bg-card border border-border text-xs">
-                            <Check class="w-4 h-4 text-emerald-500" />
+                            <Check v-if="readiness.users_configured" data-testid="readiness-users-check" class="w-4 h-4 text-emerald-500" />
+                            <ShieldAlert v-else class="w-4 h-4 text-amber-500" />
                             <div>
                                 <p class="font-medium text-foreground">Operational Users</p>
                                 <p class="text-[11px] text-muted-foreground">{{ users.length }} configured</p>
