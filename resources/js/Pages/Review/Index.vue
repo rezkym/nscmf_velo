@@ -109,12 +109,12 @@ const ALLOWED_FILTER_KEYS = new Set([
 const RESERVED_QUERY_KEYS = new Set(['page', 'per_page', 'sort', 'direction', 'q']);
 
 function onQueryChange(newQuery: TableQuery): void {
-    const payload: Record<string, string | number | undefined> = {};
+    const payload: Record<string, string | number | boolean | undefined> = {};
 
     if (newQuery.filters) {
         for (const [key, value] of Object.entries(newQuery.filters)) {
             if (ALLOWED_FILTER_KEYS.has(key) && !RESERVED_QUERY_KEYS.has(key)) {
-                if (typeof value === 'string' || typeof value === 'number') {
+                if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
                     payload[key] = value;
                 }
             }
@@ -122,10 +122,12 @@ function onQueryChange(newQuery: TableQuery): void {
     }
 
     const perPageNum = Number(newQuery.per_page);
-    const clampedPerPage = Math.min(100, Math.max(1, Number.isFinite(perPageNum) ? perPageNum : 25));
+    const validPerPage = Number.isFinite(perPageNum) ? Math.trunc(perPageNum) : 25;
+    const clampedPerPage = Math.min(100, Math.max(1, validPerPage));
 
     const pageNum = Number(newQuery.page);
-    const clampedPage = Math.max(1, Number.isFinite(pageNum) ? pageNum : 1);
+    const validPage = Number.isFinite(pageNum) ? Math.trunc(pageNum) : 1;
+    const clampedPage = Math.max(1, validPage);
 
     payload.page = clampedPage;
     payload.per_page = clampedPerPage;
