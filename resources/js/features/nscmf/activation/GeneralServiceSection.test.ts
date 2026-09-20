@@ -1,13 +1,8 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
-import type { ActivationDraftFields, ActivationSubtype } from '../types';
-import GeneralServiceSection from './GeneralServiceSection.vue';
-
-type GeneralFields = Pick<
-    ActivationDraftFields,
-    'customer_name' | 'contact_name' | 'installation_rfs_date' | 'references' | 'service_blocks'
->;
+import type { ActivationSubtype } from '../types';
+import GeneralServiceSection, { type GeneralFields } from './GeneralServiceSection.vue';
 
 function mountSection(
     modelValue: GeneralFields = {},

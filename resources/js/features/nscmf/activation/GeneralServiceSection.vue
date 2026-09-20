@@ -17,7 +17,7 @@ import type {
 import { REFERENCE_TYPE_LABELS, SERVICE_STATUS_LABELS } from '../types';
 
 /** Customer, references and the two service blocks (06 §24-27). */
-type GeneralFields = Pick<
+export type GeneralFields = Pick<
     ActivationDraftFields,
     'customer_name' | 'contact_name' | 'installation_rfs_date' | 'references' | 'service_blocks'
 >;

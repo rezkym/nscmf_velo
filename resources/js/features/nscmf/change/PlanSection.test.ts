@@ -1,18 +1,8 @@
 import { type DOMWrapper, mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
-import type { ChangeDraftFields, ChangeSubtype } from '../types';
-import PlanSection from './PlanSection.vue';
-
-type PlanFields = Pick<
-    ChangeDraftFields,
-    | 'improvement_items'
-    | 'target_execution_date'
-    | 'monitoring_period_value'
-    | 'monitoring_period_unit'
-    | 'rollback_scenario'
-    | 'announcement_timing'
->;
+import type { ChangeSubtype } from '../types';
+import PlanSection, { type PlanFields } from './PlanSection.vue';
 
 function mountSection(
     modelValue: PlanFields = {},

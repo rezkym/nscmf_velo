@@ -1,13 +1,8 @@
 import { type DOMWrapper, mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
-import type { ChangeDraftFields, ChangeSubtype } from '../types';
-import PurposeImpactSection from './PurposeImpactSection.vue';
-
-type PurposeFields = Pick<
-    ChangeDraftFields,
-    'maintenance_purpose' | 'facing_challenges' | 'identified_problems' | 'service_impacts'
->;
+import type { ChangeSubtype } from '../types';
+import PurposeImpactSection, { type PurposeFields } from './PurposeImpactSection.vue';
 
 function mountSection(
     modelValue: PurposeFields = {},

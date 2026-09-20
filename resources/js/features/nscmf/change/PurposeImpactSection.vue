@@ -14,7 +14,7 @@ import type {
 import { SERVICE_IMPACT_LABELS } from '../types';
 
 /** Purpose, challenges, problems and service impact (06 §35-38). */
-type PurposeFields = Pick<
+export type PurposeFields = Pick<
     ChangeDraftFields,
     'maintenance_purpose' | 'facing_challenges' | 'identified_problems' | 'service_impacts'
 >;

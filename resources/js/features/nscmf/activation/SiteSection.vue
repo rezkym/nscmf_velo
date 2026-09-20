@@ -7,7 +7,7 @@ import { fieldError, type FieldErrors } from '../fieldErrors';
 import type { ActivationDraftFields, DirectSiteBlock, PopSiteBlock } from '../types';
 
 /** Customer site blocks (06 §32-33). Both are optional 1:1 objects; `null` clears one (12 §27.1). */
-type SiteFields = Pick<ActivationDraftFields, 'direct_site' | 'pop_site'>;
+export type SiteFields = Pick<ActivationDraftFields, 'direct_site' | 'pop_site'>;
 
 const model = defineModel<SiteFields>({ required: true });
 
