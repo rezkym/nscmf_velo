@@ -52,8 +52,11 @@ const isStateEligible = computed(
 );
 const isActionAllowed = computed(() => props.allowedActions.includes('submit'));
 
+const isSubmitting = ref(false);
+
 const canSubmit = computed(() => {
     return (
+        !isSubmitting.value &&
         isOwner.value &&
         hasPermission.value &&
         isStateEligible.value &&
@@ -85,7 +88,7 @@ const saveBlockingMessage = computed(() => {
 });
 
 // Human-friendly field path mapper
-const PATH_LABELS: Record<string, string> = {
+const PATH_LABELS: Record<string, string> = Object.assign(Object.create(null) as Record<string, string>, {
     service_id: 'Service ID',
     service_context: 'Service Context',
     service_status: 'Service Status',
@@ -99,15 +102,15 @@ const PATH_LABELS: Record<string, string> = {
     announcement_timing: 'Announcement Timing',
     customer_name: 'Customer Name',
     contact_name: 'Contact Name',
-};
+});
 
 function formatPathLabel(path: string): string {
     const parts = path.split('.');
     const lastPart = parts[parts.length - 1];
-    if (lastPart && PATH_LABELS[lastPart]) {
-        return PATH_LABELS[lastPart];
+    if (lastPart && Object.prototype.hasOwnProperty.call(PATH_LABELS, lastPart)) {
+        return PATH_LABELS[lastPart]!;
     }
-    return lastPart ? lastPart.replace(/_/g, ' ') : path;
+    return lastPart ? lastPart.replace(/_/g, ' ') : '';
 }
 
 interface MappedError {
@@ -147,20 +150,54 @@ watch(
 function navigateToError(path: string): void {
     emit('navigate-error', path);
 
-    // ID convention: field-<sanitized path>
-    const elementId = `field-${path.replace(/\./g, '-')}`;
-    const el = document.getElementById(elementId);
-    if (el) {
-        el.focus();
-        el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    const message = props.errors[path];
+    if (message) {
+        const textToFind = Array.isArray(message) ? message[0] : message;
+        if (textToFind) {
+            const alerts = Array.from(document.querySelectorAll('.form-field [role="alert"]'));
+            for (const alert of alerts) {
+                if (alert.textContent?.trim().includes(textToFind.trim())) {
+                    const formField = alert.closest('.form-field');
+                    const control = formField?.querySelector<HTMLElement>('input, textarea, select, button');
+                    if (control) {
+                        control.focus();
+                        control.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback: direct ID matching or sanitized path ID
+    const sanitizedId = path.replace(/\./g, '-');
+    const directEl =
+        document.getElementById(path) ??
+        document.getElementById(sanitizedId) ??
+        document.getElementById(`field-${sanitizedId}`);
+    if (directEl) {
+        directEl.focus();
+        directEl.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
     }
 }
 
 function handleSubmit(): void {
     if (!canSubmit.value) return;
-    router.post(`/nscmf/${props.recordId}/submit`, {
-        record_version: props.recordVersion,
-    });
+    isSubmitting.value = true;
+    router.post(
+        `/nscmf/${props.recordId}/submit`,
+        {
+            record_version: props.recordVersion,
+        },
+        {
+            onFinish: () => {
+                isSubmitting.value = false;
+            },
+            onError: () => {
+                isSubmitting.value = false;
+            },
+        },
+    );
 }
 </script>
 
@@ -231,7 +268,7 @@ function handleSubmit(): void {
                         class="underline hover:opacity-80 font-medium inline-block text-left"
                         @click="navigateToError(err.path)"
                     >
-                        {{ err.label }}:
+                        <template v-if="err.label">{{ err.label }}:</template>
                     </button>
                     <span> {{ err.message }}</span>
                 </li>

@@ -1,8 +1,12 @@
 import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { defineComponent, h, ref } from 'vue';
 
 import SubmitPanel from './SubmitPanel.vue';
 import type { BusinessStatus } from './contracts';
+import GeneralServiceSection, { type GeneralFields } from './activation/GeneralServiceSection.vue';
+import PlanSection from './change/PlanSection.vue';
+import type { ChangeDraftFields } from './types';
 import { resetInertia, router } from '@/testing/inertia';
 
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
@@ -98,7 +102,7 @@ describe('SubmitPanel (FE-28)', () => {
     });
 
     describe('AC2: submit_maps_nested_errors', () => {
-        it('renders summary error list and maps nested wire paths to human-readable field labels and focuses target', async () => {
+        it('renders summary error list and maps nested wire paths to human-readable field labels and focuses target', () => {
             const serverErrors = {
                 'activation.service_blocks.0.service_id': 'Service ID is required for activated blocks',
                 'change.improvement_items.0.plan_text': 'Maintenance plan text is required',
@@ -136,18 +140,77 @@ describe('SubmitPanel (FE-28)', () => {
             expect(secondItem?.text()).toContain('plan text');
             expect(secondItem?.text()).toContain('Maintenance plan text is required');
 
-            // Target field element in DOM
-            const targetInput = document.createElement('input');
-            targetInput.id = 'field-activation-service_blocks-0-service_id';
-            document.body.appendChild(targetInput);
-            const focusSpy = vi.spyOn(targetInput, 'focus');
+            // Target field element in DOM: test with real sections mounted in DOM
+            const generalModel = ref<GeneralFields>({
+                service_blocks: [
+                    {
+                        service_context: 'NEW',
+                        service_id: null,
+                    },
+                ],
+            });
+            const planModel = ref<Partial<ChangeDraftFields>>({
+                improvement_items: [
+                    {
+                        row_no: 1,
+                        plan_text: null,
+                        target_kpi: null,
+                    },
+                ],
+            });
 
-            await firstLink?.trigger('click');
-            expect(wrapper.emitted('navigate-error')).toBeTruthy();
-            expect(wrapper.emitted('navigate-error')?.[0]).toEqual(['activation.service_blocks.0.service_id']);
-            expect(focusSpy).toHaveBeenCalled();
+            const harness = mount(
+                defineComponent({
+                    setup() {
+                        return () =>
+                            h('div', [
+                                h(GeneralServiceSection, {
+                                    modelValue: generalModel.value,
+                                    subtype: 'ACTIVATION',
+                                    errors: serverErrors,
+                                }),
+                                h(PlanSection, {
+                                    modelValue: planModel.value,
+                                    subtype: 'MAINTENANCE',
+                                    errors: serverErrors,
+                                }),
+                                h(SubmitPanel, {
+                                    recordId: 42,
+                                    recordVersion: 3,
+                                    businessStatus: 'DRAFT',
+                                    ownerId: 10,
+                                    allowedActions: ['submit'],
+                                    saveState: 'clean',
+                                    errors: serverErrors,
+                                }),
+                            ]);
+                    },
+                }),
+                { attachTo: document.body },
+            );
 
-            targetInput.remove();
+            const panel = harness.findComponent(SubmitPanel);
+            const panelSummary = panel.find('[data-testid="error-summary"]');
+            expect(panelSummary.exists()).toBe(true);
+
+            const errorButtons = panel.findAll('[data-testid="error-summary-item"] button');
+            expect(errorButtons.length).toBe(2);
+
+            // Click first error: activation.service_blocks.0.service_id
+            // Real element in DOM is #service-new-service_id
+            const btn1 = errorButtons[0]?.element as HTMLElement;
+            btn1.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(panel.emitted('navigate-error')?.[0]).toEqual(['activation.service_blocks.0.service_id']);
+            expect(document.activeElement?.id).toBe('service-new-service_id');
+
+            // Click second error: change.improvement_items.0.plan_text
+            // Real element in DOM is #improvement_items-0-plan_text
+            const btn2 = errorButtons[1]?.element as HTMLElement;
+            btn2.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(panel.emitted('navigate-error')?.[1]).toEqual(['change.improvement_items.0.plan_text']);
+            expect(document.activeElement?.id).toBe('improvement_items-0-plan_text');
+
+            harness.unmount();
             wrapper.unmount();
         });
     });
@@ -186,9 +249,56 @@ describe('SubmitPanel (FE-28)', () => {
             expect(submitBtn.attributes('disabled')).toBeUndefined();
 
             await submitBtn.trigger('click');
-            expect(router.post).toHaveBeenCalledWith('/nscmf/42/submit', {
-                record_version: 3,
+            expect(router.post).toHaveBeenCalledWith(
+                '/nscmf/42/submit',
+                {
+                    record_version: 3,
+                },
+                expect.any(Object),
+            );
+        });
+
+        it('prevents double-submit while submission request is in-flight', async () => {
+            const wrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    ownerId: 10,
+                    allowedActions: ['submit'],
+                    saveState: 'clean',
+                },
             });
+
+            const submitBtn = wrapper.find('[data-testid="submit-button"]');
+            expect(submitBtn.attributes('disabled')).toBeUndefined();
+
+            await submitBtn.trigger('click');
+            expect(router.post).toHaveBeenCalledTimes(1);
+
+            // Button should now be disabled and further clicks blocked
+            expect(submitBtn.attributes('disabled')).toBeDefined();
+            await submitBtn.trigger('click');
+            expect(router.post).toHaveBeenCalledTimes(1);
+
+            // Exercise onFinish and onError callbacks passed to router.post
+            const postCall = vi.mocked(router.post).mock.calls[0];
+            const options = postCall?.[2] as { onFinish?: () => void; onError?: () => void };
+            expect(options?.onFinish).toBeDefined();
+            expect(options?.onError).toBeDefined();
+
+            options?.onError?.();
+            await wrapper.vm.$nextTick();
+            expect(submitBtn.attributes('disabled')).toBeUndefined();
+
+            await submitBtn.trigger('click');
+            expect(router.post).toHaveBeenCalledTimes(2);
+
+            const secondPostCall = vi.mocked(router.post).mock.calls[1];
+            const secondOptions = secondPostCall?.[2] as { onFinish?: () => void };
+            secondOptions?.onFinish?.();
+            await wrapper.vm.$nextTick();
+            expect(submitBtn.attributes('disabled')).toBeUndefined();
         });
     });
 
@@ -225,9 +335,13 @@ describe('SubmitPanel (FE-28)', () => {
             expect(submitBtn.text()).toBe('Submit for Review');
 
             await submitBtn.trigger('click');
-            expect(router.post).toHaveBeenCalledWith('/nscmf/42/submit', {
-                record_version: 5,
-            });
+            expect(router.post).toHaveBeenCalledWith(
+                '/nscmf/42/submit',
+                {
+                    record_version: 5,
+                },
+                expect.any(Object),
+            );
         });
     });
 
@@ -312,6 +426,28 @@ describe('SubmitPanel (FE-28)', () => {
             const link = wrapper.find('[data-testid="error-summary-item"] button');
             await link.trigger('click');
             expect(wrapper.emitted('navigate-error')?.[0]).toEqual(['nonexistent.field']);
+
+            // Direct ID fallback lookup branch
+            const directTarget = document.createElement('input');
+            directTarget.id = 'direct-field-id';
+            document.body.appendChild(directTarget);
+            const focusSpy = vi.spyOn(directTarget, 'focus');
+
+            const wrapperWithDirect = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    errors: {
+                        'direct-field-id': 'Error without matching alert',
+                    },
+                },
+            });
+
+            const directLink = wrapperWithDirect.find('[data-testid="error-summary-item"] button');
+            await directLink.trigger('click');
+            expect(focusSpy).toHaveBeenCalled();
+            directTarget.remove();
         });
 
         it('does not submit when canSubmit is false and handleSubmit is called directly', () => {
