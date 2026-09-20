@@ -746,4 +746,194 @@ describe('useDraftSave (FE-27)', () => {
             expect(requests.length).toBe(1);
         });
     });
+
+    describe('Additional coverage for branch & edge paths', () => {
+        it('covers onFlash and fallback to usePage() flash conflict', () => {
+            const fields = ref<ActivationDraftFields>({ customer_name: 'Test' });
+            let onErrorCalledWith: unknown = null;
+            const draft = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 1,
+                fields,
+                onError: (err) => {
+                    onErrorCalledWith = err;
+                },
+            });
+
+            void draft.save();
+            const req = lastRequest('/nscmf/42/draft');
+            expect(req).toBeDefined();
+
+            // 1. Call onFlash with a domain error that has conflict without message (testing message fallback)
+            req?.options.onFlash?.({
+                flash: {
+                    domain_error: {
+                        code: 'NSCMF_VERSION_CONFLICT',
+                    },
+                },
+            });
+
+            expect(draft.isConflict.value).toBe(true);
+            expect(draft.conflictError.value?.message).toBe('A newer version exists.');
+            expect(onErrorCalledWith).toMatchObject({
+                status: 409,
+                code: 'NSCMF_VERSION_CONFLICT',
+                message: 'A newer version exists.',
+            });
+        });
+
+        it('covers checkPageFlashForConflict fallback to usePage() when pageOrFlash is null/empty', async () => {
+            const fields = ref<ActivationDraftFields>({ customer_name: 'Test' });
+            const draft = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 1,
+                fields,
+            });
+
+            void draft.save();
+            const req = lastRequest('/nscmf/42/draft');
+            expect(req).toBeDefined();
+
+            // Set up pageProps.flash directly in mock inertia
+            await flashDomainError({
+                code: 'RECORD_CONFLICT',
+                message: 'Conflict from page',
+            });
+
+            // Call onSuccess with null/empty page so checkPageFlashForConflict has to fall back to usePage()
+            req?.options.onSuccess?.(null);
+
+            expect(draft.isConflict.value).toBe(true);
+            expect(draft.conflictError.value).toMatchObject({
+                status: 409,
+                code: 'RECORD_CONFLICT',
+                message: 'Conflict from page',
+            });
+        });
+
+        it('covers inFlightSnapshot fallback branch, empty onError branch, and non-conflict onHttpException branches', () => {
+            const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
+            const draft = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 1,
+                fields,
+            });
+
+            // 1. onError with null err
+            void draft.save();
+            let req = lastRequest('/nscmf/42/draft');
+            req?.options.onError?.(null as never);
+            expect(draft.saveStatus.value).toBe('error');
+            expect(draft.validationErrors.value).toEqual({});
+
+            // 2. onHttpException 409 with empty envelopeData code/message fallbacks
+            draft.resolveConflict();
+            void draft.save();
+            req = lastRequest('/nscmf/42/draft');
+            req?.options.onHttpException?.({
+                status: 409,
+                data: {},
+            });
+            expect(draft.isConflict.value).toBe(true);
+            expect(draft.conflictError.value?.code).toBe('NSCMF_VERSION_CONFLICT');
+            expect(draft.conflictError.value?.message).toBe('A newer version of this record exists.');
+
+            // 3. onHttpException 422 with empty envelopeData.code and empty message fallbacks
+            draft.resolveConflict();
+            void draft.save();
+            req = lastRequest('/nscmf/42/draft');
+            req?.options.onHttpException?.({
+                status: 422,
+                data: {
+                    code: '',
+                    message: '',
+                    errors: undefined,
+                },
+            });
+            expect(draft.feedbackError.value?.code).toBe('NSCMF_VALIDATION_FAILED');
+            expect(draft.feedbackError.value?.message).toBe('Validation failed');
+            expect(draft.validationErrors.value).toBeNull();
+
+            // 4. inFlightSnapshot fallback when inFlightSnapshot is null at onSuccess
+            void draft.save();
+            req = lastRequest('/nscmf/42/draft');
+            // Trigger second concurrent save while first in flight so inFlightCount > 1
+            fields.value.customer_name = 'Changed';
+            // Finish first request with clean page
+            req?.options.onSuccess?.({ props: { record: { record_version: 2 } } });
+            expect(draft.currentVersion.value).toBe(2);
+
+            // 5. Test double finishThisRequest to cover settled early-return branch
+            req?.options.onError?.({});
+            expect(draft.currentVersion.value).toBe(2);
+        });
+
+        it('covers checkPageFlashForConflict when usePage() returns page without flash property (fallback to page.props.flash)', async () => {
+            const fields = ref<ActivationDraftFields>({ customer_name: 'Test' });
+            const draft = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 1,
+                fields,
+            });
+
+            // Mock usePage to return { props: { flash: { domain_error: { code: 'VERSION_CONFLICT' } } } } without top-level flash
+            const { inertiaModule } = await import('@/testing/inertia');
+            const originalUsePage = inertiaModule.usePage;
+            inertiaModule.usePage = () =>
+                ({
+                    props: {
+                        flash: {
+                            domain_error: {
+                                code: 'VERSION_CONFLICT',
+                                message: 'Props flash conflict',
+                            },
+                        },
+                    },
+                }) as never;
+
+            try {
+                void draft.save();
+                const req = lastRequest('/nscmf/42/draft');
+                req?.options.onSuccess?.(null);
+
+                expect(draft.isConflict.value).toBe(true);
+                expect(draft.conflictError.value?.message).toBe('Props flash conflict');
+            } finally {
+                inertiaModule.usePage = originalUsePage;
+            }
+        });
+
+        it('covers lastSavedSnapshot fallback when inFlightSnapshot is null and multiple inFlightCount', () => {
+            const fields = ref<ActivationDraftFields>({ customer_name: 'Original' });
+            const draft = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 1,
+                fields,
+            });
+
+            // Call router.patch through draft.save()
+            void draft.save();
+            const req = lastRequest('/nscmf/42/draft');
+
+            // Trigger onFlash without conflict
+            req?.options.onFlash?.({});
+
+            // Trigger onNetworkError to set inFlightSnapshot = null
+            req?.options.onNetworkError?.(new Error('fail'));
+
+            // Now trigger onSuccess on the same request options where inFlightSnapshot is now null!
+            req?.options.onSuccess?.({
+                props: {
+                    record: { record_version: 2 },
+                },
+            });
+
+            expect(draft.currentVersion.value).toBe(2);
+        });
+    });
 });

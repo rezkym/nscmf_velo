@@ -183,9 +183,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                 if (settled) return;
                 settled = true;
                 inFlightCount = Math.max(0, inFlightCount - 1);
-                if (inFlightCount === 0) {
-                    isSaving.value = false;
-                }
+                isSaving.value = false;
                 resolve();
                 handleNextQueued();
             };
