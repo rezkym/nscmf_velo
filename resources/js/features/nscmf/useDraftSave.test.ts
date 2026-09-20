@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 import { mount } from '@vue/test-utils';
-import { lastRequest, requests, resetInertia } from '@/testing/inertia';
+import { flashDomainError, lastRequest, requests, resetInertia } from '@/testing/inertia';
 import { useDraftSave } from './useDraftSave';
 import type { ActivationDraftFields, ChangeDraftFields } from './types';
 
@@ -230,13 +230,19 @@ describe('useDraftSave (FE-27)', () => {
             expect(requests.length).toBe(1);
 
             const req = requests[0];
-            // Simulate 409 conflict
-            (req?.options.onError as ((err: unknown) => void) | undefined)?.({
-                status: 409,
+            // Simulate 409 conflict delivered via flash domain_error on response
+            await flashDomainError({
                 code: 'NSCMF_VERSION_CONFLICT',
-                message: 'A newer version exists.',
-                context: {
-                    latest_record_version: 10,
+                message: 'A newer version of this record exists.',
+            });
+            req?.options.onSuccess?.({
+                props: {
+                    flash: {
+                        domain_error: {
+                            code: 'NSCMF_VERSION_CONFLICT',
+                            message: 'A newer version of this record exists.',
+                        },
+                    },
                 },
             });
 
