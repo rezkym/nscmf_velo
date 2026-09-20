@@ -204,4 +204,20 @@ describe('PurposeImpactSection (FE-24)', () => {
             'This challenge is too long.',
         );
     });
+
+    it('touches only the Other row when its description changes', async () => {
+        const wrapper = mountSection({
+            service_impacts: [
+                { impact_code: 'NOC15', other_description: null },
+                { impact_code: 'OTHER', other_description: null },
+            ],
+        });
+
+        await wrapper.get('#impact-OTHER-description').setValue('Demo impact');
+
+        expect(lastModel(wrapper).service_impacts).toEqual([
+            { impact_code: 'NOC15', other_description: null },
+            { impact_code: 'OTHER', other_description: 'Demo impact' },
+        ]);
+    });
 });

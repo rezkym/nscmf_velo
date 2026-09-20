@@ -24,12 +24,10 @@ function renumber(list: T[]): T[] {
 }
 
 function addRow(): void {
-    if (props.disabled || atMax.value) return;
     rows.value = renumber([...rows.value, props.newRow()]);
 }
 
 function removeRow(index: number): void {
-    if (props.disabled) return;
     rows.value = renumber(rows.value.filter((_, position) => position !== index));
 }
 

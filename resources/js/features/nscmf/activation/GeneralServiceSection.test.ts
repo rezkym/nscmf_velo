@@ -236,4 +236,14 @@ describe('GeneralServiceSection (FE-20)', () => {
 
         expect(wrapper.get('#installation_rfs_date-error').text()).toContain('Enter a valid date.');
     });
+
+    it('writes the contact name and the RFS date into their own keys', async () => {
+        const contact = mountSection();
+        await contact.get('#contact_name').setValue('Demo Contact');
+        expect(lastModel(contact)).toEqual({ contact_name: 'Demo Contact' });
+
+        const rfs = mountSection();
+        await rfs.get('#installation_rfs_date').setValue('2026-10-01');
+        expect(lastModel(rfs)).toEqual({ installation_rfs_date: '2026-10-01' });
+    });
 });
