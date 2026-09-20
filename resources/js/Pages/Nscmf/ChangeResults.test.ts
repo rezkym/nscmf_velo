@@ -28,7 +28,7 @@ const BASE_RECORD: NscmfDetailRecord = {
         monitoring_period_value: 2,
         monitoring_period_unit: 'HOUR',
         rollback_scenario: 'Revert to switch firmware 15.1 from backup partition',
-        announcement_timing: 'SEVEN_DAYS',
+        announcement_timing: 'TWO_WEEKS_BEFORE',
         facing_challenges: [{ row_no: 1, challenge_text: 'Intermittent packet drops' }],
         identified_problems: [{ row_no: 1, problem_text: 'Memory leak in routing daemon' }],
         service_impacts: [{ impact_code: 'NOC15', other_description: null }],
@@ -98,6 +98,22 @@ describe('ChangeResults (FE-29)', () => {
             expect(Object.keys(payload).sort()).toEqual(['record_version', 'results']);
         });
 
+        it('buildChangeResultsPayload validates recordVersion, results array and row objects', () => {
+            expect(() => buildChangeResultsPayload(0, [])).toThrow('record_version must be a positive integer');
+            expect(() => buildChangeResultsPayload(1.5, [])).toThrow('record_version must be a positive integer');
+            expect(() => (buildChangeResultsPayload as (v: number, r: unknown) => unknown)(1, null)).toThrow(
+                'results must be an array',
+            );
+            expect(() => (buildChangeResultsPayload as (v: number, r: unknown) => unknown)(1, [null])).toThrow(
+                'results rows must be objects',
+            );
+            expect(() => buildChangeResultsPayload(1, [{ row_no: 0 }])).toThrow('results: invalid row_no 0');
+            expect(() => buildChangeResultsPayload(1, [{ row_no: 6 }])).toThrow('results: invalid row_no 6');
+            expect(() => buildChangeResultsPayload(1, [{ row_no: 1 }, { row_no: 1 }])).toThrow(
+                'results: duplicate row_no 1',
+            );
+        });
+
         it('submits PATCH /nscmf/{record}/change-results with exactly record_version and results (no change wrapper, no planning/header)', async () => {
             const wrapper = mountChangeResults();
 
@@ -121,6 +137,13 @@ describe('ChangeResults (FE-29)', () => {
                 ],
             });
             expect(Object.keys(req?.data ?? {}).sort()).toEqual(['record_version', 'results']);
+
+            // onFinish sets submitting to false
+            req?.options.onFinish?.();
+            await nextTick();
+            expect((wrapper.get('[data-testid="submit-results-btn"]').element as HTMLButtonElement).disabled).toBe(
+                false,
+            );
         });
     });
 
@@ -133,10 +156,14 @@ describe('ChangeResults (FE-29)', () => {
             expect(wrapper.find('[data-testid="ineligible-alert"]').exists()).toBe(false);
         });
 
-        it('disables mutation or shows warning when actor is non-owner', () => {
+        it('disables mutation or shows warning when actor is non-owner or owner is missing', () => {
             const wrapper = mountChangeResults({}, { id: 999 });
             expect(wrapper.find('[data-testid="ineligible-alert"]').exists()).toBe(true);
             expect(wrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(false);
+
+            const noOwnerWrapper = mountChangeResults({ owner: null });
+            expect(noOwnerWrapper.find('[data-testid="ineligible-alert"]').exists()).toBe(true);
+            expect(noOwnerWrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(false);
         });
 
         it('disables mutation when record is not in PENDING_REVIEW', () => {
@@ -229,6 +256,25 @@ describe('ChangeResults (FE-29)', () => {
             expect(wrapper.get('[data-testid="field-maintenance_purpose"]').text()).toBe(
                 'Upgrade core switch firmware to version 15.2',
             );
+        });
+
+        it('handles empty planning fields with dashes in context display', () => {
+            const emptyRecord: NscmfDetailRecord = {
+                ...BASE_RECORD,
+                change: {
+                    results: [
+                        {
+                            row_no: 0,
+                            result_summary: null,
+                            performance_information: null,
+                            result_status: null,
+                        },
+                    ],
+                },
+            };
+            const wrapper = mountChangeResults(emptyRecord);
+            expect(wrapper.get('[data-testid="field-maintenance_purpose"]').text()).toBe('—');
+            expect(wrapper.get('[data-testid="field-monitoring_period"]').text()).toBe('—');
         });
     });
 });
