@@ -75,7 +75,7 @@ const validationErrorList = computed(() => {
 });
 
 const canShowSaveStatus = computed(() => {
-    // AC2: If session is revoked/expired, NEVER claim saved or in-progress save
+    // If session is revoked/expired, NEVER claim saved or in-progress save
     if (isSessionRevoked.value) return false;
     return Boolean(props.saveStatus);
 });
@@ -111,7 +111,7 @@ function handleLogin(): void {
             </span>
         </div>
 
-        <!-- 401 Session Revoked / Expired (AC2) -->
+        <!-- 401 Session Revoked / Expired -->
         <div
             v-if="isSessionRevoked"
             role="alert"
@@ -136,7 +136,7 @@ function handleLogin(): void {
             </div>
         </div>
 
-        <!-- 409 Version Conflict (AC1) -->
+        <!-- 409 Version Conflict -->
         <div
             v-else-if="isConflict"
             role="alert"
@@ -162,7 +162,7 @@ function handleLogin(): void {
             </div>
         </div>
 
-        <!-- 422 Validation Error (AC1) -->
+        <!-- 422 Validation Error -->
         <div
             v-else-if="isValidation"
             role="alert"
@@ -180,7 +180,7 @@ function handleLogin(): void {
             </ul>
         </div>
 
-        <!-- 403 Forbidden - Generic & safe (AC3) -->
+        <!-- 403 Forbidden - Generic & safe -->
         <div
             v-else-if="isForbidden"
             role="alert"
@@ -191,7 +191,7 @@ function handleLogin(): void {
             <p class="mt-1 text-xs text-muted-foreground">You do not have permission to perform this action.</p>
         </div>
 
-        <!-- 404 Not Found - Generic & safe (AC3) -->
+        <!-- 404 Not Found - Generic & safe -->
         <div
             v-else-if="isNotFound"
             role="alert"
@@ -202,7 +202,7 @@ function handleLogin(): void {
             <p class="mt-1 text-xs text-muted-foreground">The requested resource was not found or is unavailable.</p>
         </div>
 
-        <!-- 429 Throttled (AC4) -->
+        <!-- 429 Throttled -->
         <div
             v-else-if="isThrottled"
             role="alert"
@@ -225,7 +225,7 @@ function handleLogin(): void {
             </div>
         </div>
 
-        <!-- 503 Service Unavailable (AC1) -->
+        <!-- 503 Service Unavailable -->
         <div
             v-else-if="isServiceUnavailable"
             role="alert"
@@ -250,7 +250,7 @@ function handleLogin(): void {
             </div>
         </div>
 
-        <!-- Network connection issue (AC4) -->
+        <!-- Network connection issue -->
         <div
             v-else-if="isNetworkFailure"
             role="alert"

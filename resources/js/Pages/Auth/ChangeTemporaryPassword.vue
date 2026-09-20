@@ -30,7 +30,7 @@ function submit(): void {
 
     clientError.value = null;
 
-    // AC1: Client-side minimum 6 characters validation
+    // Client-side minimum 6 characters validation
     if (form.password.length < 6) {
         clientError.value = 'Password must be at least 6 characters.';
         return;
@@ -49,14 +49,14 @@ function submit(): void {
             // Errors rendered safely without password exposure
         },
         onFinish: () => {
-            // AC4: Clear sensitive values when done / failed
+            // Clear sensitive values when done / failed
             form.reset('password', 'password_confirmation');
         },
     });
 }
 
 onBeforeUnmount(() => {
-    // AC4: Clean up secrets when unmounting component
+    // Clean up secrets when unmounting component
     form.reset('password', 'password_confirmation');
 });
 </script>

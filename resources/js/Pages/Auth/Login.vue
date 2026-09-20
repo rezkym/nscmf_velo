@@ -12,7 +12,7 @@ const form = useForm({
 
 // Generic failure / throttle error computation
 const errorMessage = computed(() => {
-    // AC2: Generic failure / throttle error computation
+    // Generic failure / throttle error computation
     // Covers generic auth failure on username/password or throttle
     const errors = form.errors as Record<string, string | undefined>;
     if (errors.throttle) {
@@ -28,14 +28,14 @@ function submit(): void {
 
     form.post('/login', {
         onFinish: () => {
-            // AC3: Clears password when done / failed while preserving nonsecret username
+            // Clears password when done / failed while preserving nonsecret username
             form.reset('password');
         },
     });
 }
 
 onBeforeUnmount(() => {
-    // AC3: Clean up secret when leaving / unmounting component
+    // Clean up secret when leaving / unmounting component
     form.reset('password');
 });
 </script>

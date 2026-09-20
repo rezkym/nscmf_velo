@@ -55,7 +55,7 @@ const emit = defineEmits<{
     (e: 'update:query', query: TableQuery): void;
 }>();
 
-// Stale response handling (AC3)
+// Stale response handling
 const lastAcceptedRequestId = ref<number | string | undefined>(props.requestId);
 const currentItems = ref<Record<string, unknown>[]>([...props.items]);
 
@@ -86,7 +86,7 @@ watch(
     { immediate: true, deep: true },
 );
 
-// Search input handling (AC2)
+// Search input handling
 const searchInput = computed({
     get: () => props.query?.q ?? '',
     set: (val: string) => {
@@ -98,7 +98,7 @@ const searchInput = computed({
     },
 });
 
-// Per-page change handling (AC2)
+// Per-page change handling
 function onPerPageChange(perPageVal: number | string) {
     const parsed = typeof perPageVal === 'string' ? parseInt(perPageVal, 10) : perPageVal;
     const clamped = Math.min(100, Math.max(1, isNaN(parsed) ? 25 : parsed));
@@ -109,7 +109,7 @@ function onPerPageChange(perPageVal: number | string) {
     });
 }
 
-// Sort change handling (AC2 & AC4)
+// Sort change handling
 function onSortChange(sortField: string) {
     if (props.sortWhitelist && props.sortWhitelist.length > 0) {
         if (!props.sortWhitelist.includes(sortField)) {
