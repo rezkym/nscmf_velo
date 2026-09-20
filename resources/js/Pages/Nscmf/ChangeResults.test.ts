@@ -3,7 +3,7 @@ import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { NscmfDetailRecord } from '@/Pages/Nscmf/Show.vue';
-import { lastRequest, resetInertia, router } from '@/testing/inertia';
+import { lastRequest, requests, resetInertia, respondToRequest, router } from '@/testing/inertia';
 
 import ChangeResults, { buildChangeResultsPayload, displayValue } from './ChangeResults.vue';
 
@@ -197,9 +197,11 @@ describe('ChangeResults (FE-29)', () => {
             expect(wrapper.find('[data-testid="ineligible-alert"]').exists()).toBe(true);
             expect(wrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(false);
 
-            // Directly invoking submitResults when ineligible is an early no-op
+            // Directly invoking submitResults when ineligible is an early no-op: no request sent
             const vm = wrapper.vm as unknown as { submitResults?: () => void };
-            expect(() => vm.submitResults?.()).not.toThrow();
+            const reqCountBefore = requests.length;
+            vm.submitResults?.();
+            expect(requests.length).toBe(reqCountBefore);
 
             const noOwnerWrapper = mountChangeResults({ owner: null });
             expect(noOwnerWrapper.find('[data-testid="ineligible-alert"]').exists()).toBe(true);
@@ -231,12 +233,60 @@ describe('ChangeResults (FE-29)', () => {
             const req = lastRequest('/nscmf/42/change-results');
             expect(req).toBeDefined();
 
-            req?.options.onError?.({
-                results: 'You are not eligible to update results of this record.',
+            // Real 422 wire response delivers through onHttpException + onError
+            await respondToRequest(req, {
+                status: 422,
+                errors: {
+                    results: 'You are not eligible to update results of this record.',
+                },
             });
-            await nextTick();
 
             expect(wrapper.text()).toContain('You are not eligible to update results of this record.');
+        });
+
+        it('handles real 403 server denial without leaking actor info and surfaces safe generic feedback', async () => {
+            const wrapper = mountChangeResults();
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+
+            const req = lastRequest('/nscmf/42/change-results');
+            expect(req).toBeDefined();
+
+            // Real 403 response arrives via onHttpException + flash.domain_error
+            await respondToRequest(req, {
+                status: 403,
+                flash: {
+                    domain_error: {
+                        code: 'FORBIDDEN',
+                        message: 'You do not have permission to perform this action.',
+                    },
+                },
+            });
+
+            expect(wrapper.find('[data-testid="feedback-forbidden"]').exists()).toBe(true);
+            expect(wrapper.text()).toContain('Access Denied');
+        });
+
+        it('does not misclassify ordinary 422 field errors as 409 conflict', async () => {
+            const wrapper = mountChangeResults();
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+
+            const req = lastRequest('/nscmf/42/change-results');
+            expect(req).toBeDefined();
+
+            // 422 where error key contains "version" or "conflict"
+            await respondToRequest(req, {
+                status: 422,
+                errors: {
+                    record_version: 'The record version is invalid.',
+                    conflicting_rows: 'Rows conflict with the reviewer version.',
+                },
+            });
+
+            expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(false);
+            expect(wrapper.find('[data-testid="feedback-validation"]').exists()).toBe(true);
+            expect(wrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(true);
+            const resultsSection = wrapper.findComponent({ name: 'ResultsSection' });
+            expect(resultsSection.props('disabled')).toBe(false);
         });
     });
 
@@ -248,21 +298,97 @@ describe('ChangeResults (FE-29)', () => {
             const req = lastRequest('/nscmf/42/change-results');
             expect(req).toBeDefined();
 
-            // Simulate server returning 409 conflict
-            req?.options.onError?.({
-                conflict: 'NSCMF_VERSION_CONFLICT: Record was modified by reviewer',
+            // Real 409 conflict delivered through onHttpException + flash.domain_error
+            await respondToRequest(req, {
+                status: 409,
+                flash: {
+                    domain_error: {
+                        code: 'NSCMF_VERSION_CONFLICT',
+                        message: 'Record was modified by another user.',
+                    },
+                },
             });
-            await nextTick();
 
             expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(true);
             expect(wrapper.text().toLowerCase()).not.toContain('saved just now');
 
+            // Affordance check: submit button removed, editor disabled
+            expect(wrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(false);
+            const resultsSection = wrapper.findComponent({ name: 'ResultsSection' });
+            expect(resultsSection.props('disabled')).toBe(true);
+
             const refreshBtn = wrapper.find('[data-testid="feedback-refresh-btn"]');
             expect(refreshBtn.exists()).toBe(true);
 
-            // Clicking refresh reloads the page
+            // B-29-3b: Clicking refresh reloads the page and clears conflict state upon reload
             await refreshBtn.trigger('click');
             expect(router.reload).toHaveBeenCalled();
+
+            // When reload completes (e.g. onSuccess/props advance), conflict panel clears and editor is re-enabled
+            const reloadOptions = (router.reload as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0] as
+                | { onSuccess?: (page?: unknown) => void }
+                | undefined;
+            reloadOptions?.onSuccess?.();
+            await nextTick();
+
+            expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(false);
+            expect(wrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(true);
+            expect(resultsSection.props('disabled')).toBe(false);
+        });
+
+        it('resyncs local model and confirms saved on successful update', async () => {
+            const wrapper = mountChangeResults();
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+
+            const req = lastRequest('/nscmf/42/change-results');
+            expect(req).toBeDefined();
+
+            // Success 200 response with acknowledged record
+            const updatedRecord: NscmfDetailRecord = {
+                ...BASE_RECORD,
+                record_version: 8,
+                change: {
+                    ...BASE_RECORD.change,
+                    results: [
+                        {
+                            row_no: 1,
+                            result_summary: 'Acknowledged firmware update',
+                            performance_information: 'CPU 10%',
+                            result_status: 'SUCCESS',
+                        },
+                    ],
+                },
+            };
+
+            await respondToRequest(req, {
+                status: 200,
+                props: { record: updatedRecord },
+            });
+
+            await wrapper.setProps({ record: updatedRecord });
+            await nextTick();
+
+            expect(wrapper.text()).toContain('Saved just now');
+        });
+
+        it('handles malformed projection error gracefully via RequestFeedback (N-29-3)', async () => {
+            const wrapper = mountChangeResults();
+            const vm = wrapper.vm as unknown as {
+                resultsModel: { results: unknown[] };
+                submitResults: () => void;
+            };
+
+            // Set duplicate row_no in resultsModel to trigger builder error
+            vm.resultsModel.results = [
+                { row_no: 1, result_summary: 'first' },
+                { row_no: 1, result_summary: 'duplicate' },
+            ];
+
+            vm.submitResults();
+            await nextTick();
+
+            expect(wrapper.find('[data-testid="feedback-validation"]').exists()).toBe(true);
+            expect(wrapper.text()).toContain('results: duplicate row_no 1.');
         });
     });
 

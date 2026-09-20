@@ -11,6 +11,9 @@ import { type Mock, vi } from 'vitest';
 type VisitOptions = {
     onSuccess?: (page?: unknown) => void;
     onError?: (errors: Record<string, string>) => void;
+    onHttpException?: (response: { status: number; data?: unknown; headers?: Record<string, string> }) => boolean | void;
+    onFlash?: (flash: unknown) => void;
+    onNetworkError?: (error: Error) => boolean | void;
     onFinish?: () => void;
     [key: string]: unknown;
 };
@@ -115,6 +118,57 @@ export function resetInertia(props: Record<string, unknown> = {}): void {
 /** Simulates the server flashing a domain error (12 §10) and the page rendering the new props. */
 export async function flashDomainError(error: { code?: string; message?: string }): Promise<void> {
     pageProps.flash = { ...(pageProps.flash as Record<string, unknown> | undefined), domain_error: error };
+    await nextTick();
+}
+
+/**
+ * Dispatches an Inertia response through the recorded request's callbacks,
+ * mirroring real @inertiajs/vue3 dispatch order:
+ * - 200 + x-inertia: onSuccess -> onFinish
+ * - 422 + x-inertia: onHttpException -> onError -> onFinish
+ * - 409/403 + x-inertia + flash.domain_error: onHttpException -> onFlash -> onSuccess -> onFinish
+ * - 409/403 non-inertia JSON: onHttpException -> onNetworkError -> onFinish
+ */
+export async function respondToRequest(
+    request: RecordedRequest | undefined,
+    response: {
+        status: number;
+        isInertia?: boolean;
+        data?: Record<string, unknown>;
+        props?: Record<string, unknown>;
+        flash?: Record<string, unknown>;
+        errors?: Record<string, string>;
+    },
+): Promise<void> {
+    if (!request) throw new Error('Cannot respond to undefined request');
+    const { status, isInertia = true, data, props = {}, flash, errors } = response;
+    const headers: Record<string, string> = isInertia ? { 'x-inertia': 'true' } : {};
+    const httpResponse = {
+        status,
+        data: data ?? (isInertia ? { props, flash } : {}),
+        headers,
+    };
+
+    if (status >= 400) {
+        request.options.onHttpException?.(httpResponse);
+    }
+
+    if (isInertia) {
+        if (flash) {
+            pageProps.flash = flash;
+            request.options.onFlash?.(flash);
+        }
+        if (errors && Object.keys(errors).length > 0) {
+            request.options.onError?.(errors);
+        } else {
+            Object.assign(pageProps, props);
+            request.options.onSuccess?.({ props: { ...pageProps, ...props }, flash });
+        }
+    } else if (status >= 400) {
+        request.options.onNetworkError?.(new Error(`HTTP error ${status}`));
+    }
+
+    request.options.onFinish?.();
     await nextTick();
 }
 
