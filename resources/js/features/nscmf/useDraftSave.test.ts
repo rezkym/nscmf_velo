@@ -318,24 +318,20 @@ describe('useDraftSave (FE-27)', () => {
                 status: 503,
             });
 
-            // 3. 422 Validation Error
+            // 3. 422 Validation Error - real Inertia delivers flat Record<string, string> bag to onError
             const retry2 = draft.retry();
             expect(requests.length).toBe(3);
-            (requests[2]?.options.onError as ((err: unknown) => void) | undefined)?.({
-                status: 422,
-                code: 'NSCMF_VALIDATION_FAILED',
-                message: 'Draft payload validation error',
-                errors: {
-                    'activation.lan_ip_allocation': ['Invalid IP format'],
-                },
+            requests[2]?.options.onError?.({
+                'activation.lan_ip_allocation': 'Invalid IP format',
             });
             await retry2;
 
             expect(draft.saveStatus.value).toBe('error');
             expect(draft.validationErrors.value).toMatchObject({
-                'activation.lan_ip_allocation': ['Invalid IP format'],
+                'activation.lan_ip_allocation': 'Invalid IP format',
             });
             expect(draft.feedbackError.value?.status).toBe(422);
+            expect(draft.feedbackError.value?.code).toBe('NSCMF_VALIDATION_FAILED');
         });
 
         it('supports empty incomplete draft without treating missing submit-required fields as draft save blockers', async () => {

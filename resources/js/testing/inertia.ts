@@ -11,6 +11,8 @@ import { type Mock, vi } from 'vitest';
 type VisitOptions = {
     onSuccess?: (page?: unknown) => void;
     onError?: (errors: Record<string, string>) => void;
+    onHttpException?: (response: unknown) => void;
+    onNetworkError?: (error: unknown) => void;
     onFinish?: () => void;
     [key: string]: unknown;
 };
