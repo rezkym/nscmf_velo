@@ -2,7 +2,8 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetInertia, router } from '@/testing/inertia';
-import Index, { type ReviewQueueItem, type PaginationMeta } from './Index.vue';
+import Index, { type ReviewQueueItem } from './Index.vue';
+import type { PaginationMeta } from '@/features/nscmf/contracts';
 
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
 
@@ -105,6 +106,23 @@ describe('Review Queue — Index.vue (FE-30)', () => {
             expect(text).toContain('Pending Review');
         });
 
+        it('handles null / missing dates, requester, and team gracefully with dash', () => {
+            const partialItem: ReviewQueueItem = {
+                id: 104,
+                request_no: 'NSCMF-202609-00004',
+                family: 'ACTIVATION',
+                subtype: 'DEACTIVATION',
+                request_date: null,
+                requester: null,
+                team: null,
+                business_status: 'PENDING_REVIEW',
+            };
+
+            const wrapper = mountReviewQueue({ items: [partialItem] });
+            expect(wrapper.text()).toContain('Activation · Deactivation');
+            expect(wrapper.text()).toContain('—');
+        });
+
         it('displays separate Archived badge if is_archived is true', () => {
             const archivedItem: ReviewQueueItem = {
                 id: 103,
@@ -184,6 +202,38 @@ describe('Review Queue — Index.vue (FE-30)', () => {
             expect(router.get).toHaveBeenCalledWith(
                 '/review',
                 expect.objectContaining({ q: 'NSCMF-202609', page: 1 }),
+                expect.any(Object),
+            );
+        });
+
+        it('forwards filters from query emission when filters are provided', () => {
+            const wrapper = mountReviewQueue();
+
+            const resourceTable = wrapper.findComponent({ name: 'ResourceTable' });
+            resourceTable.vm.$emit('update:query', {
+                page: 2,
+                per_page: 50,
+                sort: 'request_no',
+                direction: 'desc',
+                q: 'filter-test',
+                filters: {
+                    family: 'CHANGE',
+                    team_id: 2,
+                    unsupported_object: { ignored: true },
+                },
+            });
+
+            expect(router.get).toHaveBeenCalledWith(
+                '/review',
+                expect.objectContaining({
+                    page: 2,
+                    per_page: 50,
+                    sort: 'request_no',
+                    direction: 'desc',
+                    q: 'filter-test',
+                    family: 'CHANGE',
+                    team_id: 2,
+                }),
                 expect.any(Object),
             );
         });
