@@ -47,7 +47,9 @@ const { user, can } = usePermissions();
 
 const isOwner = computed(() => Boolean(user.value?.id && props.ownerId === user.value.id));
 const hasPermission = computed(() => can('nscmf.submit'));
-const isStateEligible = computed(() => props.businessStatus === 'DRAFT' || props.businessStatus === 'REVISION_REQUIRED');
+const isStateEligible = computed(
+    () => props.businessStatus === 'DRAFT' || props.businessStatus === 'REVISION_REQUIRED',
+);
 const isActionAllowed = computed(() => props.allowedActions.includes('submit'));
 
 const canSubmit = computed(() => {
@@ -168,7 +170,7 @@ function handleSubmit(): void {
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <span class="text-xs text-muted-foreground font-medium">Current Status:</span>
-                <Badge data-testid="submit-status-badge" variant="outline">
+                <Badge data-testid="submit-status-badge" variant="neutral">
                     {{ statusLabel }}
                 </Badge>
             </div>
@@ -182,9 +184,7 @@ function handleSubmit(): void {
                 <span v-if="requestNo" class="font-mono font-medium">
                     {{ requestNo }}
                 </span>
-                <span v-if="iteration !== null && iteration !== undefined">
-                    Iteration: {{ iteration }}
-                </span>
+                <span v-if="iteration !== null && iteration !== undefined"> Iteration: {{ iteration }} </span>
             </div>
         </div>
 
@@ -225,11 +225,7 @@ function handleSubmit(): void {
         >
             <h3 class="text-sm font-semibold mb-2">There are errors preventing submission</h3>
             <ul class="list-disc list-inside space-y-1 text-sm">
-                <li
-                    v-for="err in mappedErrors"
-                    :key="err.path"
-                    data-testid="error-summary-item"
-                >
+                <li v-for="err in mappedErrors" :key="err.path" data-testid="error-summary-item">
                     <button
                         type="button"
                         class="underline hover:opacity-80 font-medium inline-block text-left"
@@ -251,11 +247,7 @@ function handleSubmit(): void {
         >
             <h3 class="text-sm font-semibold mb-2">Submission Warnings</h3>
             <ul class="list-disc list-inside space-y-1 text-sm">
-                <li
-                    v-for="(warn, idx) in warnings"
-                    :key="idx"
-                    data-testid="warning-summary-item"
-                >
+                <li v-for="(warn, idx) in warnings" :key="idx" data-testid="warning-summary-item">
                     {{ warn }}
                 </li>
             </ul>

@@ -59,7 +59,7 @@ describe('SubmitPanel (FE-28)', () => {
         });
 
         it('disables submit button and displays error when save state is error or conflict', async () => {
-            const wrapper = mount(SubmitPanel, {
+            const conflictWrapper = mount(SubmitPanel, {
                 props: {
                     recordId: 42,
                     recordVersion: 3,
@@ -70,12 +70,30 @@ describe('SubmitPanel (FE-28)', () => {
                 },
             });
 
-            const submitBtn = wrapper.find('[data-testid="submit-button"]');
-            expect(submitBtn.attributes('disabled')).toBeDefined();
+            const conflictBtn = conflictWrapper.find('[data-testid="submit-button"]');
+            expect(conflictBtn.attributes('disabled')).toBeDefined();
 
-            await submitBtn.trigger('click');
+            await conflictBtn.trigger('click');
             expect(router.post).not.toHaveBeenCalled();
-            expect(wrapper.text()).toContain('Resolve version conflict before submitting');
+            expect(conflictWrapper.text()).toContain('Resolve version conflict before submitting');
+
+            const errorWrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    ownerId: 10,
+                    allowedActions: ['submit'],
+                    saveState: 'error',
+                },
+            });
+
+            const errorBtn = errorWrapper.find('[data-testid="submit-button"]');
+            expect(errorBtn.attributes('disabled')).toBeDefined();
+
+            await errorBtn.trigger('click');
+            expect(router.post).not.toHaveBeenCalled();
+            expect(errorWrapper.text()).toContain('Save failed — resolve errors before submitting');
         });
     });
 
@@ -113,6 +131,10 @@ describe('SubmitPanel (FE-28)', () => {
             expect(firstLink?.exists()).toBe(true);
             expect(firstItem?.text()).toContain('Service ID');
             expect(firstItem?.text()).toContain('Service ID is required for activated blocks');
+
+            const secondItem = errorItems[1];
+            expect(secondItem?.text()).toContain('plan text');
+            expect(secondItem?.text()).toContain('Maintenance plan text is required');
 
             // Target field element in DOM
             const targetInput = document.createElement('input');
@@ -210,7 +232,7 @@ describe('SubmitPanel (FE-28)', () => {
     });
 
     describe('AC5: submit_denial_keeps_data', () => {
-        it('keeps business badge unchanged on 403, 409 or 422 denial and displays domain error message without premature optimistic badge transition', async () => {
+        it('keeps business badge unchanged on 403, 409 or 422 denial and displays domain error message without premature optimistic badge transition', () => {
             const wrapper = mount(SubmitPanel, {
                 props: {
                     recordId: 42,
