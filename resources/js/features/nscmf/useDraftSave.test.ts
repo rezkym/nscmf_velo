@@ -293,13 +293,11 @@ describe('useDraftSave (FE-27)', () => {
                 fields,
             });
 
-            // 1. Network failure
+            // 1. Network failure delivered via onNetworkError
             const save1 = draft.save();
-            (requests[0]?.options.onError as ((err: unknown) => void) | undefined)?.({
-                status: 0,
-                isNetworkError: true,
-                message: 'Network connection lost',
-            });
+            expect(requests[0]?.options.onNetworkError).toBeTypeOf('function');
+            requests[0]?.options.onNetworkError?.(new Error('Network connection lost'));
+            requests[0]?.options.onFinish?.();
             await save1;
 
             expect(draft.saveStatus.value).toBe('error');
@@ -312,17 +310,20 @@ describe('useDraftSave (FE-27)', () => {
             const retry1 = draft.retry();
             expect(requests.length).toBe(2);
 
-            // 2. 503 Service Unavailable
-            (requests[1]?.options.onError as ((err: unknown) => void) | undefined)?.({
+            // 2. 503 Service Unavailable delivered via onHttpException
+            expect(requests[1]?.options.onHttpException).toBeTypeOf('function');
+            requests[1]?.options.onHttpException?.({
                 status: 503,
-                message: 'Service Unavailable',
+                statusText: 'Service Unavailable',
             });
+            requests[1]?.options.onFinish?.();
             await retry1;
 
             expect(draft.saveStatus.value).toBe('error');
             expect(draft.feedbackError.value).toMatchObject({
                 status: 503,
             });
+            expect(draft.isSaving.value).toBe(false);
 
             // 3. 422 Validation Error - real Inertia delivers flat Record<string, string> bag to onError
             const retry2 = draft.retry();
