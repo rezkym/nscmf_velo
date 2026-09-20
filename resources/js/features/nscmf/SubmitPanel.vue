@@ -147,37 +147,86 @@ watch(
     { immediate: true },
 );
 
-function navigateToError(path: string): void {
-    emit('navigate-error', path);
+function resolveControlByPath(path: string): HTMLElement | null {
+    if (!path) return null;
 
-    const message = props.errors[path];
-    if (message) {
-        const textToFind = Array.isArray(message) ? message[0] : message;
-        if (textToFind) {
-            const alerts = Array.from(document.querySelectorAll('.form-field [role="alert"]'));
-            for (const alert of alerts) {
-                if (alert.textContent?.trim().includes(textToFind.trim())) {
-                    const formField = alert.closest('.form-field');
-                    const control = formField?.querySelector<HTMLElement>('input, textarea, select, button');
-                    if (control) {
-                        control.focus();
-                        control.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-                        return;
+    // 1. Direct match by exact path or element id
+    const direct =
+        document.getElementById(path) ??
+        document.getElementById(path.replace(/\./g, '-')) ??
+        document.getElementById(`field-${path.replace(/\./g, '-')}`);
+    if (direct) {
+        return direct;
+    }
+
+    // If path starts with section prefix like 'activation.' or 'change.', try without prefix
+    const unprefixed = path.replace(/^(?:activation|change)\./, '');
+    const directUnprefixed =
+        document.getElementById(unprefixed) ??
+        document.getElementById(unprefixed.replace(/\./g, '-')) ??
+        document.getElementById(`field-${unprefixed.replace(/\./g, '-')}`);
+    if (directUnprefixed) {
+        return directUnprefixed;
+    }
+
+    // 2. Natural-key mapping for service_blocks:
+    // GeneralServiceSection maps wire error `activation.service_blocks.${blockIndex(context)}.${field}`.
+    // In DOM, existing is `#service-existing-${fieldName}` and new is `#service-new-${fieldName}`.
+    const serviceMatch = path.match(/^(?:activation\.)?service_blocks\.(\d+)\.(.+)$/);
+    if (serviceMatch) {
+        const wireIndex = Number(serviceMatch[1]);
+        const fieldName = serviceMatch[2];
+
+        const existingControl = document.getElementById(`service-existing-${fieldName}`);
+        const newControl = document.getElementById(`service-new-${fieldName}`);
+
+        if (existingControl && !newControl) return existingControl;
+        if (newControl && !existingControl) return newControl;
+
+        if (existingControl && newControl) {
+            type VueComponentInternal = {
+                props?: Record<string, unknown>;
+                setupState?: Record<string, unknown>;
+                parent?: VueComponentInternal | null;
+            };
+
+            const comp =
+                ((existingControl as unknown as Record<string, unknown>)?.__vueParentComponent as
+                    VueComponentInternal | undefined) ??
+                ((newControl as unknown as Record<string, unknown>)?.__vueParentComponent as
+                    VueComponentInternal | undefined);
+
+            if (comp) {
+                let p: VueComponentInternal | null | undefined = comp.parent;
+                while (p) {
+                    const setup = p.setupState;
+                    if (setup && typeof setup.blockIndex === 'function') {
+                        const blockIndexFn = setup.blockIndex as (context: string) => number;
+                        const existingIdx = blockIndexFn('EXISTING');
+
+                        if (wireIndex === existingIdx) {
+                            return existingControl;
+                        }
+                        return newControl;
                     }
+                    p = p.parent;
                 }
             }
+
+            return existingControl;
         }
     }
 
-    // Fallback: direct ID matching or sanitized path ID
-    const sanitizedId = path.replace(/\./g, '-');
-    const directEl =
-        document.getElementById(path) ??
-        document.getElementById(sanitizedId) ??
-        document.getElementById(`field-${sanitizedId}`);
-    if (directEl) {
-        directEl.focus();
-        directEl.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    return null;
+}
+
+function navigateToError(path: string): void {
+    emit('navigate-error', path);
+
+    const control = resolveControlByPath(path);
+    if (control) {
+        control.focus();
+        control.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
     }
 }
 
@@ -264,12 +313,14 @@ function handleSubmit(): void {
             <ul class="list-disc list-inside space-y-1 text-sm">
                 <li v-for="err in mappedErrors" :key="err.path" data-testid="error-summary-item">
                     <button
+                        v-if="err.label"
                         type="button"
                         class="underline hover:opacity-80 font-medium inline-block text-left"
                         @click="navigateToError(err.path)"
                     >
-                        <template v-if="err.label">{{ err.label }}:</template>
+                        {{ err.label }}:
                     </button>
+                    <span v-else class="font-medium inline-block text-left"> </span>
                     <span> {{ err.message }}</span>
                 </li>
             </ul>

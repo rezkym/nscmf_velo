@@ -213,6 +213,66 @@ describe('SubmitPanel (FE-28)', () => {
             harness.unmount();
             wrapper.unmount();
         });
+
+        it('connects to correct distinct row and control when duplicate error messages exist across reordered rows (F-28-R-1)', () => {
+            const DUPLICATE_MSG = 'Service ID is required';
+            const serverErrors = {
+                'activation.service_blocks.0.service_id': DUPLICATE_MSG,
+                'activation.service_blocks.1.service_id': DUPLICATE_MSG,
+            };
+
+            // Inverted order in model: index 0 is NEW, index 1 is EXISTING
+            // Section renders in order: EXISTING then NEW
+            const generalModel = ref<GeneralFields>({
+                service_blocks: [
+                    { service_context: 'NEW', service_id: null },
+                    { service_context: 'EXISTING', service_id: null },
+                ],
+            });
+
+            const harness = mount(
+                defineComponent({
+                    setup() {
+                        return () =>
+                            h('div', [
+                                h(GeneralServiceSection, {
+                                    modelValue: generalModel.value,
+                                    subtype: 'UPGRADE_DOWNGRADE',
+                                    errors: serverErrors,
+                                }),
+                                h(SubmitPanel, {
+                                    recordId: 42,
+                                    recordVersion: 3,
+                                    businessStatus: 'DRAFT',
+                                    ownerId: 10,
+                                    allowedActions: ['submit'],
+                                    saveState: 'clean',
+                                    errors: serverErrors,
+                                }),
+                            ]);
+                    },
+                }),
+                { attachTo: document.body },
+            );
+
+            const panel = harness.findComponent(SubmitPanel);
+            const errorButtons = panel.findAll('[data-testid="error-summary-item"] button');
+            expect(errorButtons.length).toBe(2);
+
+            // Wire index 0: NEW block -> must focus #service-new-service_id
+            const btn0 = errorButtons[0]?.element as HTMLElement;
+            btn0.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(panel.emitted('navigate-error')?.[0]).toEqual(['activation.service_blocks.0.service_id']);
+            expect(document.activeElement?.id).toBe('service-new-service_id');
+
+            // Wire index 1: EXISTING block -> must focus #service-existing-service_id
+            const btn1 = errorButtons[1]?.element as HTMLElement;
+            btn1.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            expect(panel.emitted('navigate-error')?.[1]).toEqual(['activation.service_blocks.1.service_id']);
+            expect(document.activeElement?.id).toBe('service-existing-service_id');
+
+            harness.unmount();
+        });
     });
 
     describe('AC3: submit_distinguishes_warning', () => {
@@ -390,8 +450,14 @@ describe('SubmitPanel (FE-28)', () => {
                 },
             });
 
-            expect(wrapper.text()).toContain('custom field');
-            expect(wrapper.text()).toContain('unknown prop');
+            const items = wrapper.findAll('[data-testid="error-summary-item"]');
+            expect(items[0]?.text()).toContain('custom field: Custom error');
+            expect(items[1]?.text()).toContain('unknown prop: Nested unknown');
+            // F-28-R-2: blank wire path renders span instead of invisible button
+            const blankItem = items[2];
+            expect(blankItem).toBeDefined();
+            expect(blankItem?.find('button').exists()).toBe(false);
+            expect(blankItem?.text()).toContain('Blank path error');
         });
 
         it('handles array errors and empty error values in mappedErrors', () => {
@@ -427,27 +493,50 @@ describe('SubmitPanel (FE-28)', () => {
             await link.trigger('click');
             expect(wrapper.emitted('navigate-error')?.[0]).toEqual(['nonexistent.field']);
 
-            // Direct ID fallback lookup branch
-            const directTarget = document.createElement('input');
-            directTarget.id = 'direct-field-id';
-            document.body.appendChild(directTarget);
-            const focusSpy = vi.spyOn(directTarget, 'focus');
-
-            const wrapperWithDirect = mount(SubmitPanel, {
-                props: {
-                    recordId: 42,
-                    recordVersion: 3,
-                    businessStatus: 'DRAFT' as BusinessStatus,
-                    errors: {
-                        'direct-field-id': 'Error without matching alert',
+            // Direct ID fallback lookup branch: real section element lookup
+            const planModel = ref<Partial<ChangeDraftFields>>({
+                improvement_items: [
+                    {
+                        row_no: 1,
+                        plan_text: 'Something',
+                        target_kpi: 'KPI',
                     },
-                },
+                ],
             });
 
-            const directLink = wrapperWithDirect.find('[data-testid="error-summary-item"] button');
+            const directHarness = mount(
+                defineComponent({
+                    setup() {
+                        return () =>
+                            h('div', [
+                                h(PlanSection, {
+                                    modelValue: planModel.value,
+                                    subtype: 'MAINTENANCE',
+                                    errors: {},
+                                }),
+                                h(SubmitPanel, {
+                                    recordId: 42,
+                                    recordVersion: 3,
+                                    businessStatus: 'DRAFT',
+                                    errors: {
+                                        'improvement_items-0-plan_text': 'Direct error targeting real element id',
+                                    },
+                                }),
+                            ]);
+                    },
+                }),
+                { attachTo: document.body },
+            );
+
+            const directTarget = document.getElementById('improvement_items-0-plan_text') as HTMLElement;
+            expect(directTarget).not.toBeNull();
+            const focusSpy = vi.spyOn(directTarget, 'focus');
+
+            const directPanel = directHarness.findComponent(SubmitPanel);
+            const directLink = directPanel.find('[data-testid="error-summary-item"] button');
             await directLink.trigger('click');
             expect(focusSpy).toHaveBeenCalled();
-            directTarget.remove();
+            directHarness.unmount();
         });
 
         it('does not submit when canSubmit is false and handleSubmit is called directly', () => {
