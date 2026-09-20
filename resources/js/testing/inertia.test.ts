@@ -54,12 +54,12 @@ describe('inertia test double', () => {
     });
 
     it('starts each test with empty state', () => {
-    inertiaModule.useForm({});
-    resetInertia();
+        inertiaModule.useForm({});
+        resetInertia();
 
-    expect(forms).toHaveLength(0);
-    expect(requests).toHaveLength(0);
-    expect(pageProps).toEqual({});
-    expect(pageFlash).toEqual({});
+        expect(forms).toHaveLength(0);
+        expect(requests).toHaveLength(0);
+        expect(pageProps).toEqual({});
+        expect(pageFlash).toEqual({});
     });
 });

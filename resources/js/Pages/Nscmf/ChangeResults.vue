@@ -129,6 +129,7 @@ const fieldErrors = ref<Record<string, string>>({});
 const feedbackError = ref<RequestFeedbackError | null>(null);
 const saveStatus = ref<SaveStatus>(null);
 const submitting = ref(false);
+const hasTerminalError = ref(false);
 
 function resetToRecord(): void {
     resultsModel.value = {
@@ -141,20 +142,24 @@ function resetToRecord(): void {
     };
     feedbackError.value = null;
     fieldErrors.value = {};
+    hasTerminalError.value = false;
 }
 
 watch(
     () => props.record.record_version,
     () => {
-        resetToRecord();
+        if (!hasTerminalError.value) {
+            resetToRecord();
+        }
     },
 );
 
 watch(
-    () => (page.props as Record<string, unknown> | undefined)?.flash,
+    () => (page as unknown as { flash?: unknown })?.flash,
     (flash) => {
         const dError = domainError(flash);
         if (dError?.code === 'NSCMF_VERSION_CONFLICT') {
+            hasTerminalError.value = true;
             feedbackError.value = {
                 status: 409,
                 code: 'NSCMF_VERSION_CONFLICT',
@@ -162,6 +167,7 @@ watch(
             };
             saveStatus.value = null;
         } else if (dError?.code === 'FORBIDDEN') {
+            hasTerminalError.value = true;
             feedbackError.value = {
                 status: 403,
                 code: 'FORBIDDEN',
@@ -170,6 +176,7 @@ watch(
             saveStatus.value = null;
         }
     },
+    { deep: true },
 );
 
 function display(value: DisplayValue): string {
@@ -259,6 +266,9 @@ function submitResults(): void {
     router.patch(`/nscmf/${props.record.id}/change-results`, payload as unknown as Parameters<typeof router.patch>[1], {
         preserveScroll: true,
         onSuccess: (newPage) => {
+            if (hasTerminalError.value) {
+                return;
+            }
             saveStatus.value = 'saved';
             const pageRecord = (newPage as { props?: { record?: NscmfDetailRecord } })?.props?.record;
             if (pageRecord) {
@@ -284,12 +294,14 @@ function submitResults(): void {
         onHttpException: (response) => {
             saveStatus.value = null;
             if (response.status === 403) {
+                hasTerminalError.value = true;
                 feedbackError.value = {
                     status: 403,
                     code: 'FORBIDDEN',
                     message: 'Access Denied',
                 };
             } else if (response.status === 409) {
+                hasTerminalError.value = true;
                 feedbackError.value = {
                     status: 409,
                     code: 'NSCMF_VERSION_CONFLICT',
@@ -306,11 +318,20 @@ function submitResults(): void {
         onFlash: (flash) => {
             const dError = domainError(flash);
             if (dError?.code === 'FORBIDDEN') {
+                hasTerminalError.value = true;
                 saveStatus.value = null;
                 feedbackError.value = {
                     status: 403,
                     code: 'FORBIDDEN',
                     message: dError.message ?? 'Access Denied',
+                };
+            } else if (dError?.code === 'NSCMF_VERSION_CONFLICT') {
+                hasTerminalError.value = true;
+                saveStatus.value = null;
+                feedbackError.value = {
+                    status: 409,
+                    code: 'NSCMF_VERSION_CONFLICT',
+                    message: dError.message ?? 'A newer version exists.',
                 };
             }
         },
@@ -331,6 +352,7 @@ function submitResults(): void {
 function handleRefresh(): void {
     router.reload({
         onSuccess: () => {
+            hasTerminalError.value = false;
             resetToRecord();
         },
     });

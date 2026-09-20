@@ -429,6 +429,7 @@ describe('ChangeResults (FE-29)', () => {
 
             expect(wrapper.find('[data-testid="feedback-network-error"]').exists()).toBe(true);
             expect(wrapper.text()).toContain('Network Connection Issue');
+            expect(wrapper.text().toLowerCase()).not.toContain('saved just now');
         });
 
         it('real-client-protocol: reads flash from page.flash (or onFlash) and ignores fake page.props.flash', async () => {
