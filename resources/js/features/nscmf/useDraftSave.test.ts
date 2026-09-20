@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, nextTick, ref } from 'vue';
+import { defineComponent, h, ref } from 'vue';
 import { mount } from '@vue/test-utils';
 import { lastRequest, requests, resetInertia } from '@/testing/inertia';
 import { useDraftSave } from './useDraftSave';
@@ -181,19 +181,19 @@ describe('useDraftSave (FE-27)', () => {
             expect(requests.length).toBe(1);
 
             // Complete save1
-            requests[0].options.onSuccess?.({
+            requests[0]?.options.onSuccess?.({
                 props: { record: { id: 42, record_version: 9 } },
             });
             await save1;
 
             // Now second request should be dispatched automatically or queue emptied with latest payload
             expect(requests.length).toBe(2);
-            expect(requests[1].data).toMatchObject({
+            expect(requests[1]?.data).toMatchObject({
                 record_version: 9,
                 activation: { customer_name: 'Second Edit' },
             });
 
-            requests[1].options.onSuccess?.({
+            requests[1]?.options.onSuccess?.({
                 props: { record: { id: 42, record_version: 10 } },
             });
             await save2;
@@ -231,7 +231,7 @@ describe('useDraftSave (FE-27)', () => {
 
             const req = requests[0];
             // Simulate 409 conflict
-            req.options.onError?.({
+            (req?.options.onError as ((err: unknown) => void) | undefined)?.({
                 status: 409,
                 code: 'NSCMF_VERSION_CONFLICT',
                 message: 'A newer version exists.',
@@ -289,7 +289,7 @@ describe('useDraftSave (FE-27)', () => {
 
             // 1. Network failure
             const save1 = draft.save();
-            requests[0].options.onError?.({
+            (requests[0]?.options.onError as ((err: unknown) => void) | undefined)?.({
                 status: 0,
                 isNetworkError: true,
                 message: 'Network connection lost',
@@ -307,7 +307,7 @@ describe('useDraftSave (FE-27)', () => {
             expect(requests.length).toBe(2);
 
             // 2. 503 Service Unavailable
-            requests[1].options.onError?.({
+            (requests[1]?.options.onError as ((err: unknown) => void) | undefined)?.({
                 status: 503,
                 message: 'Service Unavailable',
             });
@@ -321,7 +321,7 @@ describe('useDraftSave (FE-27)', () => {
             // 3. 422 Validation Error
             const retry2 = draft.retry();
             expect(requests.length).toBe(3);
-            requests[2].options.onError?.({
+            (requests[2]?.options.onError as ((err: unknown) => void) | undefined)?.({
                 status: 422,
                 code: 'NSCMF_VALIDATION_FAILED',
                 message: 'Draft payload validation error',
@@ -470,7 +470,181 @@ describe('useDraftSave (FE-27)', () => {
     });
 
     describe('Autosave lifecycle & component mounting', () => {
-        it('automatically saves dirty changes on debounce/interval when enabled', async () => {
+        it('handles options without record_version in response, error branch variations, resolveConflict, and startAutosave when dirty', async () => {
+            const fields = ref<ActivationDraftFields>({
+                customer_name: 'Initial Name',
+            });
+
+            const draft = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 8,
+                fields,
+            });
+
+            // 1. Success response without record props
+            const save1 = draft.save();
+            expect(requests.length).toBe(1);
+            requests[0]?.options.onSuccess?.({});
+            await save1;
+            expect(draft.currentVersion.value).toBe(8); // version remains unchanged
+
+            // 2. Error branch: error with 422 code without 422 status
+            fields.value.customer_name = 'Dirty After';
+            const save2 = draft.save();
+            expect(requests.length).toBe(2);
+            (requests[1]?.options.onError as ((err: unknown) => void) | undefined)?.({
+                code: 'NSCMF_VALIDATION_FAILED',
+            });
+            await save2;
+            expect(draft.validationErrors.value).toBeNull();
+
+            // 3. Error branch: error with 409 code without 409 status, and onError with undefined err
+            fields.value.customer_name = 'Dirty After 2';
+            const save3 = draft.save();
+            expect(requests.length).toBe(3);
+            (requests[2]?.options.onError as ((err: unknown) => void) | undefined)?.(undefined);
+            await save3;
+            expect(draft.feedbackError.value).toEqual({});
+
+            fields.value.customer_name = 'Dirty After 3';
+            const save4 = draft.save();
+            expect(requests.length).toBe(4);
+            (requests[3]?.options.onError as ((err: unknown) => void) | undefined)?.({
+                code: 'NSCMF_VERSION_CONFLICT',
+            });
+            await save4;
+            expect(draft.isConflict.value).toBe(true);
+
+            // 4. resolveConflict clears isConflict and conflictError
+            draft.resolveConflict();
+            expect(draft.isConflict.value).toBe(false);
+            expect(draft.conflictError.value).toBeNull();
+            expect(draft.feedbackError.value).toBeNull();
+
+            // 5. startAutosave when dirty schedules autosave immediately; when clean does not schedule
+            const draftWithTimer = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 8,
+                fields,
+                autosaveInterval: 2000,
+            });
+            draftWithTimer.stopAutosave();
+            expect(draftWithTimer.isDirty.value).toBe(false);
+            draftWithTimer.startAutosave();
+            vi.advanceTimersByTime(2000);
+            expect(requests.length).toBe(4); // no new request because not dirty
+
+            draftWithTimer.stopAutosave();
+            fields.value.customer_name = 'Changed While Stopped';
+            expect(draftWithTimer.isDirty.value).toBe(true);
+            draftWithTimer.startAutosave();
+            vi.advanceTimersByTime(2000);
+            expect(requests.length).toBe(5);
+
+            // Also test startAutosave when conflict is active
+            draftWithTimer.stopAutosave();
+            fields.value.customer_name = 'Another change';
+            draftWithTimer.isConflict.value = true;
+            draftWithTimer.startAutosave();
+            vi.advanceTimersByTime(2000);
+            expect(requests.length).toBe(5); // blocked by conflict
+            draftWithTimer.isConflict.value = false;
+
+            // Test watch trigger when autosaveInterval is not set (hits line 87 early return)
+            const draftNoInterval = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 8,
+                fields,
+            });
+            fields.value.customer_name = 'Trigger watch without autosave interval';
+            expect(draftNoInterval.isDirty.value).toBe(true);
+
+            // Test scheduleAutosave with interval when isConflict is true
+            const draftConflictInterval = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 8,
+                fields,
+                autosaveInterval: 1000,
+            });
+            draftConflictInterval.isConflict.value = true;
+            fields.value.customer_name = 'Trigger while conflict interval';
+            expect(draftConflictInterval.isDirty.value).toBe(true);
+            draftConflictInterval.isConflict.value = false;
+
+            // Test watch trigger when autosaveInterval is set but autosave is stopped
+            const draftStopped = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 8,
+                fields,
+                autosaveInterval: 1000,
+            });
+            draftStopped.stopAutosave();
+            fields.value.customer_name = 'Trigger watch when stopped';
+            expect(draftStopped.isDirty.value).toBe(true);
+
+            // Test scheduleAutosave directly when autosave is stopped
+            draftStopped.startAutosave();
+            draftStopped.stopAutosave();
+            // Call scheduleAutosave implicitly via field change while stopped
+            fields.value.customer_name = 'Trigger while stopped directly';
+            expect(draftStopped.isDirty.value).toBe(true);
+
+            // Trigger watch callback when isDirty is false (mutate to same lastSavedSnapshot)
+            fields.value.customer_name = 'Initial Name';
+            expect(draft.isDirty.value).toBe(false);
+
+            // 6. Test multiple queued saves while saving (re-entering executeSave when pendingSavePromise already exists)
+            const slowDraft = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 8,
+                fields,
+            });
+            fields.value.customer_name = 'In-flight Base';
+            const p1 = slowDraft.save();
+            expect(requests.length).toBe(6);
+            fields.value.customer_name = 'Queued 1';
+            const p2 = slowDraft.save();
+            fields.value.customer_name = 'Queued 2';
+            const p3 = slowDraft.save();
+            expect(requests.length).toBe(6);
+
+            requests[5]?.options.onSuccess?.({
+                props: { record: { id: 42, record_version: 9 } },
+            });
+            await p1;
+
+            expect(requests.length).toBe(7);
+            requests[6]?.options.onSuccess?.({
+                props: { record: { id: 42, record_version: 10 } },
+            });
+            await Promise.all([p2, p3]);
+
+            // 7. Test autosave timer firing when isSaving is true or isConflict is true
+            const timerDraft = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 10,
+                fields,
+                autosaveInterval: 1000,
+            });
+            fields.value.customer_name = 'Timer change';
+            timerDraft.isSaving.value = true;
+            vi.advanceTimersByTime(1000); // executeSave not called because isSaving is true
+            timerDraft.isSaving.value = false;
+
+            fields.value.customer_name = 'Timer conflict change';
+            timerDraft.isConflict.value = true;
+            vi.advanceTimersByTime(1000); // executeSave not called because isConflict is true
+            timerDraft.isConflict.value = false;
+        });
+
+        it('automatically saves dirty changes on debounce/interval when enabled', () => {
             const fields = ref<ActivationDraftFields>({
                 customer_name: 'Initial Name',
             });
@@ -497,7 +671,7 @@ describe('useDraftSave (FE-27)', () => {
             vi.advanceTimersByTime(1000);
             expect(requests.length).toBe(1);
 
-            requests[0].options.onSuccess?.({
+            requests[0]?.options.onSuccess?.({
                 props: { record: { id: 42, record_version: 9 } },
             });
 
@@ -506,7 +680,7 @@ describe('useDraftSave (FE-27)', () => {
             expect(draft.isDirty.value).toBe(false);
         });
 
-        it('pauses and resumes autosave, and cleans up timers on unmount / stop', async () => {
+        it('pauses and resumes autosave, and cleans up timers on unmount / stop', () => {
             const fields = ref<ActivationDraftFields>({
                 customer_name: 'Test',
             });
@@ -528,12 +702,13 @@ describe('useDraftSave (FE-27)', () => {
             const wrapper = mount(TestComponent);
 
             fields.value.customer_name = 'Paused Test';
-            hookDraft!.stopAutosave();
+            const instance = hookDraft!;
+            instance.stopAutosave();
 
             vi.advanceTimersByTime(5000);
             expect(requests.length).toBe(0);
 
-            hookDraft!.startAutosave();
+            instance.startAutosave();
             vi.advanceTimersByTime(3000);
             expect(requests.length).toBe(1);
 

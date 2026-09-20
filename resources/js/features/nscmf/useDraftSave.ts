@@ -71,7 +71,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
     watch(
         () => JSON.stringify(options.fields.value),
         () => {
-            if (isDirty.value && isAutosaveRunning && !isConflict.value) {
+            if (isDirty.value) {
                 scheduleAutosave();
             }
         },
@@ -79,8 +79,13 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
     );
 
     function scheduleAutosave(): void {
-        if (!options.autosaveInterval || isConflict.value || !isAutosaveRunning) return;
-        if (autosaveTimer) clearTimeout(autosaveTimer);
+        if (autosaveTimer) {
+            clearTimeout(autosaveTimer);
+            autosaveTimer = null;
+        }
+        if (!options.autosaveInterval || isConflict.value || !isAutosaveRunning) {
+            return;
+        }
         autosaveTimer = setTimeout(() => {
             if (!isSaving.value && !isConflict.value && isAutosaveRunning) {
                 void executeSave();
@@ -130,7 +135,8 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
             router.patch(url, payload as never, {
                 onSuccess: (page: unknown) => {
                     isSaving.value = false;
-                    const responseRecord = (page as { props?: { record?: { record_version?: number } } })?.props?.record;
+                    const responseRecord = (page as { props?: { record?: { record_version?: number } } })?.props
+                        ?.record;
                     if (responseRecord && typeof responseRecord.record_version === 'number') {
                         currentVersion.value = responseRecord.record_version;
                         options.onSuccess?.(responseRecord.record_version);
