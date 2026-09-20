@@ -243,6 +243,7 @@ function submitResults(): void {
 
     fieldErrors.value = {};
     feedbackError.value = null;
+    hasTerminalError.value = false;
     saveStatus.value = 'saving';
 
     let payload: ReturnType<typeof buildChangeResultsPayload>;
