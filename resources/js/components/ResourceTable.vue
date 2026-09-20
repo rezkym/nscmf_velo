@@ -86,27 +86,31 @@ watch(
     { immediate: true, deep: true },
 );
 
+/**
+ * Every emitted query goes through here, so the per_page bounds from the list contract
+ * (default 25, minimum 1, maximum 100) also hold for a value the parent supplied.
+ */
+function emitQuery(patch: Partial<TableQuery>) {
+    const merged = { ...props.query, ...patch };
+    const parsed = typeof merged.per_page === 'number' ? merged.per_page : Number(merged.per_page);
+    emit('update:query', {
+        ...merged,
+        per_page: Math.min(100, Math.max(1, Number.isFinite(parsed) ? parsed : 25)),
+    });
+}
+
 // Search input handling
 const searchInput = computed({
     get: () => props.query?.q ?? '',
     set: (val: string) => {
-        emit('update:query', {
-            ...props.query,
-            q: val,
-            page: 1,
-        });
+        emitQuery({ q: val, page: 1 });
     },
 });
 
 // Per-page change handling
 function onPerPageChange(perPageVal: number | string) {
     const parsed = typeof perPageVal === 'string' ? parseInt(perPageVal, 10) : perPageVal;
-    const clamped = Math.min(100, Math.max(1, isNaN(parsed) ? 25 : parsed));
-    emit('update:query', {
-        ...props.query,
-        per_page: clamped,
-        page: 1,
-    });
+    emitQuery({ per_page: isNaN(parsed) ? 25 : parsed, page: 1 });
 }
 
 // Sort change handling
@@ -125,21 +129,12 @@ function onSortChange(sortField: string) {
         nextDirection = currentDirection === 'asc' ? 'desc' : 'asc';
     }
 
-    emit('update:query', {
-        ...props.query,
-        sort: sortField,
-        direction: nextDirection,
-        page: 1,
-    });
+    emitQuery({ sort: sortField, direction: nextDirection, page: 1 });
 }
 
 function onPageChange(targetPage: number) {
     const maxPage = props.meta?.last_page ?? 1;
-    const clampedPage = Math.min(maxPage, Math.max(1, targetPage));
-    emit('update:query', {
-        ...props.query,
-        page: clampedPage,
-    });
+    emitQuery({ page: Math.min(maxPage, Math.max(1, targetPage)) });
 }
 
 function getHeaderAriaSort(col: ColumnDef): 'ascending' | 'descending' | 'none' | undefined {
@@ -159,12 +154,6 @@ const isNextDisabled = computed(() => {
     const current = props.meta?.current_page ?? props.query?.page ?? 1;
     const last = props.meta?.last_page ?? 1;
     return current >= last;
-});
-
-defineExpose({
-    onPerPageChange,
-    onSortChange,
-    onPageChange,
 });
 </script>
 
