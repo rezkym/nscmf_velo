@@ -1,660 +1,209 @@
-<script lang="ts">
-import type { ImprovementItemRow } from '../draftPayload';
-
-export type ChangeSubtype = 'Maintenance' | 'Upgrade' | 'Emergency';
-export type FormMode = 'first_submit' | 'resubmit' | 'review';
-
-export type MonitoringPeriodUnit = 'MINUTE' | 'HOUR' | 'DAY' | 'WEEK';
-export type AnnouncementTiming = 'ONE_WEEK_BEFORE' | 'TWO_WEEKS_BEFORE' | 'TWO_DAYS_BEFORE_EMERGENCY';
-
-export const MONITORING_UNITS: readonly MonitoringPeriodUnit[] = ['MINUTE', 'HOUR', 'DAY', 'WEEK'] as const;
-
-export const ANNOUNCEMENT_TIMINGS: readonly { value: AnnouncementTiming; label: string }[] = [
-    { value: 'ONE_WEEK_BEFORE', label: '1 week before' },
-    { value: 'TWO_WEEKS_BEFORE', label: '2 weeks before' },
-    { value: 'TWO_DAYS_BEFORE_EMERGENCY', label: '2 days before (emergency)' },
-] as const;
-
-export interface PlanSectionModelValue {
-    improvement_items?: ImprovementItemRow[];
-    target_execution_date?: string | null;
-    monitoring_period_value?: number | null;
-    monitoring_period_unit?: MonitoringPeriodUnit | null;
-    rollback_scenario?: string | null;
-    announcement_timing?: AnnouncementTiming | null;
-    record_version?: number;
-}
-
-export interface PlanSectionProps {
-    subtype?: ChangeSubtype;
-    mode?: FormMode;
-    todayJakarta?: string;
-    originalTargetExecutionDate?: string | null;
-    modelValue?: PlanSectionModelValue;
-    disabled?: boolean;
-    readonly?: boolean;
-}
-</script>
-
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { buildDraftPayload, type ChangeDraftWirePayload } from '../draftPayload';
+import Alert from '@/components/ui/Alert.vue';
+import { controlClass } from '@/components/ui/control';
+import FormField from '@/components/ui/FormField.vue';
+import { computed } from 'vue';
 
-const props = withDefaults(defineProps<PlanSectionProps>(), {
-    subtype: 'Maintenance',
-    mode: 'first_submit',
-    todayJakarta: () => new Date().toISOString().slice(0, 10),
-    originalTargetExecutionDate: null,
-    modelValue: () => ({
-        improvement_items: [],
-        target_execution_date: null,
-        monitoring_period_value: null,
-        monitoring_period_unit: null,
-        rollback_scenario: null,
-        announcement_timing: null,
-        record_version: 1,
-    }),
-    disabled: false,
-    readonly: false,
+import DraftField from '../DraftField.vue';
+import DraftNumberField from '../DraftNumberField.vue';
+import { fieldError, type FieldErrors } from '../fieldErrors';
+import RepeatableRows from '../RepeatableRows.vue';
+import type {
+    AnnouncementTiming,
+    ChangeDraftFields,
+    ChangeSubtype,
+    ImprovementItemRow,
+    MonitoringUnit,
+} from '../types';
+import { ANNOUNCEMENT_TIMING_LABELS, MONITORING_UNIT_LABELS } from '../types';
+
+/** Improvement plan, schedule, monitoring, rollback and announcement (06 §39-43). */
+type PlanFields = Pick<
+    ChangeDraftFields,
+    | 'improvement_items'
+    | 'target_execution_date'
+    | 'monitoring_period_value'
+    | 'monitoring_period_unit'
+    | 'rollback_scenario'
+    | 'announcement_timing'
+>;
+
+const model = defineModel<PlanFields>({ required: true });
+
+const props = withDefaults(defineProps<{ subtype: ChangeSubtype; errors?: FieldErrors; disabled?: boolean }>(), {
+    errors: () => ({}),
 });
 
-const emit = defineEmits<{
-    (e: 'update:modelValue', value: PlanSectionModelValue): void;
-    (e: 'validate', errors: Record<string, string>): void;
-}>();
+const MAX_ROWS = 3;
 
-// Internal reactive fields
-const improvementItems = ref<ImprovementItemRow[]>(
-    props.modelValue?.improvement_items ? JSON.parse(JSON.stringify(props.modelValue.improvement_items)) : [],
-);
-const targetExecutionDate = ref<string>(props.modelValue?.target_execution_date || '');
-const monitoringPeriodValue = ref<number | null>(
-    props.modelValue?.monitoring_period_value !== undefined ? props.modelValue.monitoring_period_value : null,
-);
-const monitoringPeriodUnit = ref<MonitoringPeriodUnit | null>(props.modelValue?.monitoring_period_unit || null);
-const rollbackScenario = ref<string>(props.modelValue?.rollback_scenario || '');
-const announcementTiming = ref<AnnouncementTiming | null>(props.modelValue?.announcement_timing || null);
-
-// Errors state for validation
-const errors = ref<Record<string, string>>({});
-
-// Keep local state in sync when props.modelValue changes externally
-watch(
-    () => props.modelValue,
-    (newVal) => {
-        if (!newVal) return;
-        improvementItems.value = newVal.improvement_items ? JSON.parse(JSON.stringify(newVal.improvement_items)) : [];
-        targetExecutionDate.value = newVal.target_execution_date || '';
-        monitoringPeriodValue.value =
-            newVal.monitoring_period_value !== undefined ? newVal.monitoring_period_value : null;
-        monitoringPeriodUnit.value = newVal.monitoring_period_unit || null;
-        rollbackScenario.value = newVal.rollback_scenario || '';
-        announcementTiming.value = newVal.announcement_timing || null;
-    },
-    { deep: true },
-);
-
-// Helper for code-point-aware truncation to prevent lone surrogates (N-25-1, R-25-5)
-function truncateCodePoints(val: string, max: number): string {
-    return [...val].slice(0, max).join('');
+function update(patch: Partial<PlanFields>): void {
+    model.value = { ...model.value, ...patch };
 }
 
-// Helper to check for lone surrogate in string
-function hasLoneSurrogate(val: string): boolean {
-    return /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(val);
+function error(...segments: (string | number)[]): string | undefined {
+    return fieldError(props.errors, 'change', ...segments);
 }
 
-// Helper to sanitize lone surrogates in string while preserving valid characters
-function sanitizeSurrogates(val: string): string {
-    return val.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
+function onUnitChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    update({ monitoring_period_unit: value === '' ? null : (value as MonitoringUnit) });
 }
 
-// Helper to clamp string only when necessary or contains lone surrogate (N-25-1, N-25-3)
-function safeClamp(val: string, max: number): string {
-    const sanitized = hasLoneSurrogate(val) ? sanitizeSurrogates(val) : val;
-    if ([...sanitized].length > max) {
-        return truncateCodePoints(sanitized, max);
-    }
-    return sanitized;
+function onTimingChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    update({ announcement_timing: value === '' ? null : (value as AnnouncementTiming) });
 }
 
-function notifyUpdate() {
-    const rawVal = monitoringPeriodValue.value;
-    const num =
-        rawVal !== null && rawVal !== undefined && (rawVal as unknown) !== '' && !Number.isNaN(Number(rawVal))
-            ? Number(rawVal)
-            : null;
-    const isFiniteVal = num !== null && Number.isFinite(num) && num > 0 && num <= 999999;
-    const safeFiniteVal = isFiniteVal ? num : null;
-
-    const rawUnit = monitoringPeriodUnit.value;
-    const isValidUnit = typeof rawUnit === 'string' && (MONITORING_UNITS as readonly unknown[]).includes(rawUnit);
-    const safeUnit = isValidUnit ? rawUnit : null;
-
-    const rawTiming = announcementTiming.value;
-    const validTimings = ANNOUNCEMENT_TIMINGS.map((t) => t.value) as readonly unknown[];
-    const safeTiming = typeof rawTiming === 'string' && validTimings.includes(rawTiming) ? rawTiming : null;
-
-    // Length validation for text fields
-    improvementItems.value.forEach((item, i) => {
-        const rowNo = item.row_no || i + 1;
-        if (item.plan_text && [...item.plan_text].length > 1000) {
-            errors.value[`plan_text_${rowNo}`] = 'Plan text must not exceed 1000 characters';
-        } else {
-            delete errors.value[`plan_text_${rowNo}`];
-        }
-        if (item.target_kpi && [...item.target_kpi].length > 1000) {
-            errors.value[`target_kpi_${rowNo}`] = 'Target KPI must not exceed 1000 characters';
-        } else {
-            delete errors.value[`target_kpi_${rowNo}`];
-        }
-    });
-    if (rollbackScenario.value && [...rollbackScenario.value].length > 4000) {
-        errors.value.rollback_scenario = 'Rollback scenario must not exceed 4000 characters';
-    } else {
-        delete errors.value.rollback_scenario;
-    }
-
-    // Sanitize string fields on emission without truncation (N-25-11 surrogate-safe emission)
-    const sanitizeEmitString = (val: string | null | undefined): string | null => {
-        if (typeof val !== 'string') return null;
-        const sanitized = hasLoneSurrogate(val) ? sanitizeSurrogates(val) : val;
-        return sanitized.trim() ? sanitized : null;
-    };
-
-    emit('update:modelValue', {
-        improvement_items: improvementItems.value.map((item, idx) => ({
-            row_no: item.row_no || idx + 1,
-            plan_text: sanitizeEmitString(item.plan_text),
-            target_kpi: sanitizeEmitString(item.target_kpi),
-        })),
-        target_execution_date: targetExecutionDate.value.trim() ? targetExecutionDate.value : null,
-        monitoring_period_value: safeFiniteVal,
-        monitoring_period_unit: safeUnit,
-        rollback_scenario: sanitizeEmitString(rollbackScenario.value),
-        announcement_timing: safeTiming,
-        record_version: props.modelValue?.record_version ?? 1,
-    });
-}
-
-function addImprovementItem() {
-    if (props.disabled || props.readonly || improvementItems.value.length >= 3) return;
-    const nextRowNo = improvementItems.value.length + 1;
-    improvementItems.value.push({
-        row_no: nextRowNo,
-        plan_text: '',
-        target_kpi: '',
-    });
-    notifyUpdate();
-}
-
-function removeImprovementItem(index: number) {
-    if (props.disabled || props.readonly) return;
-    improvementItems.value.splice(index, 1);
-    // Re-index row_no
-    improvementItems.value.forEach((item, idx) => {
-        item.row_no = idx + 1;
-    });
-    notifyUpdate();
-}
-
-// Non-blocking warning computation
+/** Non-blocking mismatch warning (06 §43); the server decides what may be submitted. */
 const announcementWarning = computed<string | null>(() => {
-    if (!announcementTiming.value) return null;
-    if (props.subtype === 'Emergency' && announcementTiming.value !== 'TWO_DAYS_BEFORE_EMERGENCY') {
-        return 'Emergency change typically uses 2 days before timing.';
+    const timing = model.value.announcement_timing;
+    if (!timing) return null;
+
+    if (props.subtype === 'EMERGENCY' && timing !== 'TWO_DAYS_BEFORE_EMERGENCY') {
+        return 'Emergency changes usually announce 2 days before. Check the timing before submitting.';
     }
-    if (
-        (props.subtype === 'Maintenance' || props.subtype === 'Upgrade') &&
-        announcementTiming.value === 'TWO_DAYS_BEFORE_EMERGENCY'
-    ) {
-        return '2 days before timing is typically reserved for emergency changes.';
+    if (props.subtype !== 'EMERGENCY' && timing === 'TWO_DAYS_BEFORE_EMERGENCY') {
+        return 'The 2-day timing is meant for emergency changes. Check the timing before submitting.';
     }
     return null;
-});
-
-function validateSubmit(): boolean {
-    const newErrors: Record<string, string> = {};
-
-    // F-25-2: Gate submit for readonly or disabled (fail closed)
-    if (props.readonly || props.disabled) {
-        newErrors.form = 'Form is readonly or disabled';
-        errors.value = newErrors;
-        emit('validate', newErrors);
-        return false;
-    }
-
-    // AC1: Improvement items complete pairs validation at submit
-    let completeCount = 0;
-    for (let i = 0; i < improvementItems.value.length; i++) {
-        const item = improvementItems.value[i];
-        if (!item) continue;
-        const rowNo = item.row_no || i + 1;
-        const planText = item.plan_text?.trim() || '';
-        const targetKpi = item.target_kpi?.trim() || '';
-
-        const hasPlan = planText.length > 0;
-        const hasKpi = targetKpi.length > 0;
-
-        if (hasPlan && !hasKpi) {
-            newErrors[`improvement_pair_${rowNo}`] = `Both plan text and target KPI are required for row ${rowNo}`;
-        } else if (!hasPlan && hasKpi) {
-            newErrors[`improvement_pair_${rowNo}`] = `Both plan text and target KPI are required for row ${rowNo}`;
-        } else if (hasPlan && hasKpi) {
-            completeCount++;
-        }
-
-        if (item.plan_text && [...item.plan_text].length > 1000) {
-            newErrors[`plan_text_${rowNo}`] = 'Plan text must not exceed 1000 characters';
-        }
-        if (item.target_kpi && [...item.target_kpi].length > 1000) {
-            newErrors[`target_kpi_${rowNo}`] = 'Target KPI must not exceed 1000 characters';
-        }
-    }
-
-    if (completeCount === 0 && Object.keys(newErrors).length === 0) {
-        newErrors.improvement_items = 'At least 1 complete improvement plan and target KPI pair is required';
-    }
-
-    // AC2: Target Execution Date validation
-    const targetDate = targetExecutionDate.value.trim();
-    if (!targetDate) {
-        newErrors.target_execution_date = 'Target execution date is required';
-    } else {
-        // Validation rules per AC2 & 06 §40:
-        // Reopen review does NOT block on past target date
-        if (props.mode !== 'review') {
-            const today = props.todayJakarta;
-            if (props.mode === 'resubmit') {
-                // If unchanged from originalTargetExecutionDate, past target is accepted
-                const isUnchanged =
-                    props.originalTargetExecutionDate && targetDate === props.originalTargetExecutionDate;
-                if (!isUnchanged && targetDate < today) {
-                    newErrors.target_execution_date = 'Target execution date must be today or in the future';
-                }
-            } else {
-                // first_submit: must be today or future
-                if (targetDate < today) {
-                    newErrors.target_execution_date = 'Target execution date must be today or in the future';
-                }
-            }
-        }
-    }
-
-    // AC3: Monitoring Period pair validation
-    const rawVal = monitoringPeriodValue.value;
-    const isValSet = rawVal !== null && rawVal !== undefined && (rawVal as unknown) !== '';
-    const num = isValSet ? Number(rawVal) : null;
-    const isFiniteNum = num !== null && !Number.isNaN(num) && Number.isFinite(num);
-
-    const rawUnit = monitoringPeriodUnit.value;
-    const isUnitSet = typeof rawUnit === 'string' && rawUnit.trim() !== '';
-    const isValidUnit = isUnitSet && (MONITORING_UNITS as readonly string[]).includes(rawUnit);
-
-    if (isUnitSet && !isValidUnit) {
-        newErrors.monitoring_period_unit = `Invalid monitoring period unit: ${rawUnit}`;
-    }
-
-    if (isValSet && !isFiniteNum) {
-        newErrors.monitoring_period = 'Monitoring period value must be a finite number greater than 0';
-    } else if (isValSet && isFiniteNum && num <= 0) {
-        newErrors.monitoring_period = 'Monitoring period value must be greater than 0';
-    } else if (isValSet && isFiniteNum && num > 999999) {
-        newErrors.monitoring_period = 'Monitoring period value must not exceed 999999';
-    }
-
-    const hasValue = isValSet && isFiniteNum && num > 0 && num <= 999999;
-    const hasUnit = isUnitSet && isValidUnit;
-
-    if (isValSet && !isUnitSet) {
-        newErrors.monitoring_period = 'Monitoring period value and unit must be provided together or both empty';
-    } else if (!isValSet && isUnitSet) {
-        newErrors.monitoring_period = 'Monitoring period value and unit must be provided together or both empty';
-    } else if (!isValSet && !isUnitSet) {
-        // Both empty: at submit stage, 06 §41 requires monitoring period
-        newErrors.monitoring_period = 'Monitoring period is required at submit';
-    }
-
-    // AC4: Rollback Scenario validation
-    const rollback = rollbackScenario.value.trim();
-    if (!rollback) {
-        newErrors.rollback_scenario = 'Rollback scenario is required';
-    } else if (/^N\/?A$/i.test(rollback)) {
-        newErrors.rollback_scenario = 'Rollback scenario cannot be a plain N/A placeholder';
-    } else if ([...rollback].length > 4000) {
-        newErrors.rollback_scenario = 'Rollback scenario must not exceed 4000 characters';
-    }
-
-    // Announcement timing required at submit (F-25-4 closed-set validation)
-    const rawTiming = announcementTiming.value;
-    const validTimings = ANNOUNCEMENT_TIMINGS.map((t) => t.value) as readonly string[];
-    if (!rawTiming) {
-        newErrors.announcement_timing = 'Announcement timing is required';
-    } else if (!validTimings.includes(rawTiming)) {
-        newErrors.announcement_timing = `Invalid announcement timing: ${String(rawTiming)}`;
-    }
-
-    errors.value = newErrors;
-    emit('validate', newErrors);
-    return Object.keys(newErrors).length === 0;
-}
-
-// Method to get wire draft payload using buildDraftPayload helper from draftPayload.ts
-function getDraftPayload(): ChangeDraftWirePayload['change'] {
-    const rawVal = monitoringPeriodValue.value;
-    const num =
-        rawVal !== null && rawVal !== undefined && (rawVal as unknown) !== '' && !Number.isNaN(Number(rawVal))
-            ? Number(rawVal)
-            : null;
-    const isFiniteVal = num !== null && Number.isFinite(num) && num > 0 && num <= 999999;
-
-    const rawUnit = monitoringPeriodUnit.value;
-    const isValidUnit = typeof rawUnit === 'string' && (MONITORING_UNITS as readonly unknown[]).includes(rawUnit);
-
-    // N-25-2 / 06 §41 / 11 §24 / 12 §28.2: Pairing invariant - together or both null on wire
-    const paired = isFiniteVal && isValidUnit;
-    const safeFiniteVal = paired ? num : null;
-    const safeUnit = paired ? rawUnit : null;
-
-    const rawTiming = announcementTiming.value;
-    const validTimings = ANNOUNCEMENT_TIMINGS.map((t) => t.value) as readonly unknown[];
-    const safeTiming = typeof rawTiming === 'string' && validTimings.includes(rawTiming) ? rawTiming : null;
-
-    const payload = buildDraftPayload({
-        family: 'CHANGE',
-        record_version: props.modelValue?.record_version ?? 1,
-        change: {
-            target_execution_date: targetExecutionDate.value.trim() ? targetExecutionDate.value : null,
-            monitoring_period_value: safeFiniteVal,
-            monitoring_period_unit: safeUnit,
-            rollback_scenario: rollbackScenario.value.trim() ? safeClamp(rollbackScenario.value, 4000) : null,
-            announcement_timing: safeTiming,
-            improvement_items: improvementItems.value.map((item, idx) => ({
-                row_no: item.row_no || idx + 1,
-                plan_text:
-                    typeof item.plan_text === 'string' && item.plan_text.trim()
-                        ? safeClamp(item.plan_text, 1000)
-                        : null,
-                target_kpi:
-                    typeof item.target_kpi === 'string' && item.target_kpi.trim()
-                        ? safeClamp(item.target_kpi, 1000)
-                        : null,
-            })),
-        },
-    });
-    return payload.change;
-}
-
-defineExpose({
-    validateSubmit,
-    getDraftPayload,
-    errors,
-    targetExecutionDate,
-    monitoringPeriodValue,
-    monitoringPeriodUnit,
-    rollbackScenario,
-    announcementTiming,
 });
 </script>
 
 <template>
-    <div class="plan-section space-y-6">
-        <!-- Form-level error (e.g. readonly or disabled submit attempt) -->
-        <div
-            v-if="errors.form"
-            data-testid="error-form"
-            class="p-3 text-xs bg-destructive/10 text-destructive border border-destructive/20 rounded-md"
-        >
-            {{ errors.form }}
-        </div>
-
-        <!-- Section Header -->
-        <div class="section-header flex items-center justify-between pb-2 border-b">
+    <div class="space-y-6">
+        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
             <div>
-                <h3 class="text-lg font-semibold text-foreground">Change Plan, Schedule & Rollback</h3>
-                <p class="text-sm text-muted-foreground">
-                    Subtype: <span class="font-medium text-foreground">{{ subtype }}</span>
-                </p>
+                <h2 class="text-base font-semibold">Improvement plan and target KPI</h2>
+                <p class="text-sm text-muted-foreground">Up to three pairs. Both sides belong together at submit.</p>
             </div>
-            <!-- Test trigger button for submit validation -->
-            <button
-                type="button"
-                data-testid="validate-submit-btn"
-                class="hidden"
-                tabindex="-1"
-                aria-hidden="true"
-                :disabled="disabled || readonly"
-                @click="validateSubmit"
+
+            <RepeatableRows
+                data-collection="improvement_items"
+                add-label="Add improvement"
+                empty-hint="No improvements yet."
+                :model-value="model.improvement_items ?? []"
+                :max="MAX_ROWS"
+                :disabled="disabled"
+                :new-row="(): ImprovementItemRow => ({ row_no: 0, plan_text: null, target_kpi: null })"
+                @update:model-value="(rows) => update({ improvement_items: rows })"
             >
-                Validate Submit
-            </button>
-        </div>
-
-        <!-- 1. Improvement Items (Plan / Target KPI pairs) -->
-        <div class="space-y-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h4 class="text-sm font-semibold text-foreground">Improvement Plan & Target KPI</h4>
-                    <p class="text-xs text-muted-foreground">
-                        Max 3 paired items. At submit, at least 1 complete pair is required.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    data-testid="add-improvement-btn"
-                    :disabled="disabled || readonly || improvementItems.length >= 3"
-                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                    @click="addImprovementItem"
-                >
-                    Add Improvement Item
-                </button>
-            </div>
-
-            <div v-if="errors.improvement_items" class="text-xs text-destructive">
-                {{ errors.improvement_items }}
-            </div>
-
-            <div class="space-y-3">
-                <div
-                    v-for="(item, index) in improvementItems"
-                    :key="item.row_no || index"
-                    class="p-4 border rounded-lg bg-card space-y-3"
-                    :data-testid="`improvement-row-${item.row_no || index + 1}`"
-                >
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-semibold text-muted-foreground"
-                            >Row {{ item.row_no || index + 1 }}</span
-                        >
-                        <button
-                            v-if="!readonly && !disabled"
-                            type="button"
-                            class="text-xs text-destructive hover:underline"
-                            @click="removeImprovementItem(index)"
-                        >
-                            Remove
-                        </button>
+                <template #default="{ row, index, update: updateRow }">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <DraftField
+                            :id="`improvement_items-${index}-plan_text`"
+                            :label="`Plan ${index + 1}`"
+                            :rows="3"
+                            :maxlength="1000"
+                            :model-value="row.plan_text ?? null"
+                            :error="error('improvement_items', index, 'plan_text')"
+                            :disabled="disabled"
+                            @update:model-value="(value) => updateRow({ plan_text: value })"
+                        />
+                        <DraftField
+                            :id="`improvement_items-${index}-target_kpi`"
+                            :label="`Target KPI ${index + 1}`"
+                            :rows="3"
+                            :maxlength="1000"
+                            :model-value="row.target_kpi ?? null"
+                            :error="error('improvement_items', index, 'target_kpi')"
+                            :disabled="disabled"
+                            @update:model-value="(value) => updateRow({ target_kpi: value })"
+                        />
                     </div>
+                </template>
+            </RepeatableRows>
+        </section>
 
-                    <div v-if="errors[`improvement_pair_${item.row_no || index + 1}`]" class="text-xs text-destructive">
-                        {{ errors[`improvement_pair_${item.row_no || index + 1}`] }}
-                    </div>
+        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+            <h2 class="text-base font-semibold">Schedule and monitoring</h2>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-medium text-foreground mb-1">
-                                Plan Text <span class="text-muted-foreground">(max 1000)</span>
-                            </label>
-                            <textarea
-                                v-model="item.plan_text"
-                                rows="2"
-                                maxlength="1000"
-                                :disabled="disabled || readonly"
-                                class="w-full text-xs rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                                placeholder="Describe the improvement plan..."
-                                @input="notifyUpdate"
-                            />
-                            <div
-                                v-if="errors[`plan_text_${item.row_no || index + 1}`]"
-                                class="text-xs text-destructive mt-1"
-                            >
-                                {{ errors[`plan_text_${item.row_no || index + 1}`] }}
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-medium text-foreground mb-1">
-                                Target KPI <span class="text-muted-foreground">(free text, max 1000)</span>
-                            </label>
-                            <textarea
-                                v-model="item.target_kpi"
-                                rows="2"
-                                maxlength="1000"
-                                :disabled="disabled || readonly"
-                                class="w-full text-xs rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                                placeholder="e.g. Error rate 0 selama monitoring..."
-                                @input="notifyUpdate"
-                            />
-                            <div
-                                v-if="errors[`target_kpi_${item.row_no || index + 1}`]"
-                                class="text-xs text-destructive mt-1"
-                            >
-                                {{ errors[`target_kpi_${item.row_no || index + 1}`] }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="improvementItems.length === 0" class="text-xs text-muted-foreground italic py-2">
-                    No improvement items added yet. Click "Add Improvement Item" above.
-                </div>
-            </div>
-        </div>
-
-        <!-- 2. Target Execution Date & Schedule -->
-        <div class="space-y-4 pt-4 border-t">
-            <h4 class="text-sm font-semibold text-foreground">Execution Schedule</h4>
-            <div>
-                <label class="block text-xs font-medium text-foreground mb-1">
-                    Target Execution Date <span class="text-destructive">*</span>
-                </label>
-                <input
-                    v-model="targetExecutionDate"
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <DraftField
+                    id="target_execution_date"
+                    label="Target execution date"
                     type="date"
-                    :disabled="disabled || readonly"
-                    class="w-full max-w-xs text-xs rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                    @input="notifyUpdate"
+                    required
+                    :model-value="model.target_execution_date ?? null"
+                    :error="error('target_execution_date')"
+                    :disabled="disabled"
+                    @update:model-value="(value) => update({ target_execution_date: value })"
                 />
-                <div v-if="errors.target_execution_date" class="text-xs text-destructive mt-1">
-                    {{ errors.target_execution_date }}
-                </div>
+                <DraftNumberField
+                    id="monitoring_period_value"
+                    label="Monitoring period"
+                    required
+                    :model-value="model.monitoring_period_value ?? null"
+                    :error="error('monitoring_period_value')"
+                    :disabled="disabled"
+                    @update:model-value="(value) => update({ monitoring_period_value: value })"
+                />
+                <FormField
+                    id="monitoring_period_unit"
+                    label="Monitoring unit"
+                    required
+                    :error="error('monitoring_period_unit')"
+                >
+                    <template #default="{ id, describedBy }">
+                        <select
+                            :id="id"
+                            :value="model.monitoring_period_unit ?? ''"
+                            :disabled="disabled"
+                            :aria-describedby="describedBy"
+                            :class="controlClass"
+                            @change="onUnitChange"
+                        >
+                            <option value="">Not selected</option>
+                            <option v-for="(label, unit) in MONITORING_UNIT_LABELS" :key="unit" :value="unit">
+                                {{ label }}
+                            </option>
+                        </select>
+                    </template>
+                </FormField>
             </div>
-        </div>
+        </section>
 
-        <!-- 3. Monitoring Period -->
-        <div class="space-y-4 pt-4 border-t">
-            <h4 class="text-sm font-semibold text-foreground">Monitoring Period</h4>
-            <p class="text-xs text-muted-foreground">Value (>0) and unit must be paired, or both empty in draft.</p>
-            <div class="flex items-center gap-3">
-                <div class="w-32">
-                    <label class="block text-xs font-medium text-foreground mb-1">Amount</label>
-                    <input
-                        v-model.number="monitoringPeriodValue"
-                        type="number"
-                        min="1"
-                        step="any"
-                        :disabled="disabled || readonly"
-                        class="w-full text-xs rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                        placeholder="e.g. 24"
-                        @input="notifyUpdate"
-                    />
-                </div>
-                <div class="w-40">
-                    <label class="block text-xs font-medium text-foreground mb-1">Unit</label>
+        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+            <h2 class="text-base font-semibold">Rollback and announcement</h2>
+
+            <DraftField
+                id="rollback_scenario"
+                label="Rollback scenario"
+                required
+                help="Describe what happens if the change has to be reverted."
+                :rows="4"
+                :maxlength="4000"
+                :model-value="model.rollback_scenario ?? null"
+                :error="error('rollback_scenario')"
+                :disabled="disabled"
+                @update:model-value="(value) => update({ rollback_scenario: value })"
+            />
+
+            <FormField
+                id="announcement_timing"
+                label="Maintenance announcement"
+                required
+                :error="error('announcement_timing')"
+            >
+                <template #default="{ id, describedBy }">
                     <select
-                        v-model="monitoringPeriodUnit"
-                        :disabled="disabled || readonly"
-                        class="w-full text-xs rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                        @change="notifyUpdate"
+                        :id="id"
+                        :value="model.announcement_timing ?? ''"
+                        :disabled="disabled"
+                        :aria-describedby="describedBy"
+                        :class="[controlClass, 'sm:max-w-md']"
+                        @change="onTimingChange"
                     >
-                        <option :value="null">-- Select unit --</option>
-                        <option v-for="unit in MONITORING_UNITS" :key="unit" :value="unit">
-                            {{ unit }}
+                        <option value="">Not selected</option>
+                        <option v-for="(label, timing) in ANNOUNCEMENT_TIMING_LABELS" :key="timing" :value="timing">
+                            {{ label }}
                         </option>
                     </select>
-                </div>
-            </div>
-            <div
-                v-if="errors.monitoring_period"
-                data-testid="error-monitoring-period"
-                class="text-xs text-destructive mt-1"
-            >
-                {{ errors.monitoring_period }}
-            </div>
-            <div
-                v-if="errors.monitoring_period_unit"
-                data-testid="error-monitoring-period-unit"
-                class="text-xs text-destructive mt-1"
-            >
-                {{ errors.monitoring_period_unit }}
-            </div>
-        </div>
+                </template>
+            </FormField>
 
-        <!-- 4. Rollback Scenario -->
-        <div class="space-y-4 pt-4 border-t">
-            <h4 class="text-sm font-semibold text-foreground">Rollback Scenario</h4>
-            <p class="text-xs text-muted-foreground">
-                Required at submit, max 4000 characters. Meaningful procedure required (plain "N/A" is disallowed).
-            </p>
-            <textarea
-                v-model="rollbackScenario"
-                rows="3"
-                maxlength="4000"
-                :disabled="disabled || readonly"
-                class="w-full text-xs rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                placeholder="Detail the rollback procedure..."
-                @input="notifyUpdate"
-            />
-            <div v-if="errors.rollback_scenario" class="text-xs text-destructive mt-1">
-                {{ errors.rollback_scenario }}
-            </div>
-        </div>
-
-        <!-- 5. Maintenance Announcement Timing -->
-        <div class="space-y-4 pt-4 border-t">
-            <h4 class="text-sm font-semibold text-foreground">Maintenance Announcement</h4>
-            <div class="space-y-2">
-                <label class="block text-xs font-medium text-foreground mb-1">
-                    Announcement Timing <span class="text-destructive">*</span>
-                </label>
-                <div class="space-y-1.5">
-                    <label
-                        v-for="opt in ANNOUNCEMENT_TIMINGS"
-                        :key="opt.value"
-                        class="flex items-center gap-2 text-xs text-foreground cursor-pointer"
-                    >
-                        <input
-                            v-model="announcementTiming"
-                            type="radio"
-                            name="announcement_timing"
-                            :value="opt.value"
-                            :disabled="disabled || readonly"
-                            class="text-primary focus:ring-ring"
-                            @change="notifyUpdate"
-                        />
-                        <span>{{ opt.label }}</span>
-                    </label>
-                </div>
-                <div v-if="errors.announcement_timing" class="text-xs text-destructive mt-1">
-                    {{ errors.announcement_timing }}
-                </div>
-                <!-- Non-blocking Warning -->
-                <div
-                    v-if="announcementWarning"
-                    class="p-3 text-xs bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-md"
-                >
-                    <span class="font-semibold">Notice:</span> {{ announcementWarning }}
-                </div>
-            </div>
-        </div>
+            <Alert v-if="announcementWarning" variant="warning" data-testid="announcement-warning">
+                {{ announcementWarning }}
+            </Alert>
+        </section>
     </div>
 </template>
