@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ref } from 'vue';
-import { lastRequest, requests, resetInertia, router } from '@/testing/inertia';
+import { defineComponent, h, nextTick, ref } from 'vue';
+import { mount } from '@vue/test-utils';
+import { lastRequest, requests, resetInertia } from '@/testing/inertia';
 import { useDraftSave } from './useDraftSave';
 import type { ActivationDraftFields, ChangeDraftFields } from './types';
 
@@ -18,11 +19,15 @@ describe('useDraftSave (FE-27)', () => {
                 customer_name: 'PT Initial Client',
             });
 
+            let onSuccessCalledWith: number | null = null;
             const draft = useDraftSave({
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
                 fields,
+                onSuccess: (ver) => {
+                    onSuccessCalledWith = ver;
+                },
             });
 
             expect(draft.currentVersion.value).toBe(8);
@@ -57,6 +62,7 @@ describe('useDraftSave (FE-27)', () => {
             await savePromise;
 
             expect(draft.currentVersion.value).toBe(9);
+            expect(onSuccessCalledWith).toBe(9);
             expect(draft.saveStatus.value).toBe('saved');
             expect(draft.isSaving.value).toBe(false);
 
@@ -204,13 +210,20 @@ describe('useDraftSave (FE-27)', () => {
                 customer_name: 'My Unsaved Work',
             });
 
+            let onErrorCalledWith: unknown = null;
             const draft = useDraftSave({
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
                 fields,
                 autosaveInterval: 3000,
+                onError: (err) => {
+                    onErrorCalledWith = err;
+                },
             });
+
+            // Edit field to make dirty
+            fields.value.customer_name = 'My Unsaved Work 2';
 
             // Start autosave
             vi.advanceTimersByTime(3000);
@@ -232,9 +245,17 @@ describe('useDraftSave (FE-27)', () => {
                 status: 409,
                 code: 'NSCMF_VERSION_CONFLICT',
             });
+            expect(onErrorCalledWith).toMatchObject({
+                status: 409,
+                code: 'NSCMF_VERSION_CONFLICT',
+            });
             expect(draft.saveStatus.value).toBe('error');
             // Unsaved input is preserved in fields
-            expect(fields.value.customer_name).toBe('My Unsaved Work');
+            expect(fields.value.customer_name).toBe('My Unsaved Work 2');
+
+            // Explicit call to save() while in conflict should be rejected/no-op
+            await draft.save();
+            expect(requests.length).toBe(1);
 
             // Crucial: Autosave MUST stop! Timer advancing must NOT trigger another request
             vi.advanceTimersByTime(10000);
@@ -247,6 +268,9 @@ describe('useDraftSave (FE-27)', () => {
 
             // User has options to resolve: e.g. acknowledge or refresh
             expect(typeof draft.resolveConflict).toBe('function');
+            draft.resolveConflict();
+            expect(draft.isConflict.value).toBe(false);
+            expect(draft.conflictError.value).toBeNull();
         });
     });
 
@@ -445,7 +469,7 @@ describe('useDraftSave (FE-27)', () => {
         });
     });
 
-    describe('Autosave lifecycle & timers', () => {
+    describe('Autosave lifecycle & component mounting', () => {
         it('automatically saves dirty changes on debounce/interval when enabled', async () => {
             const fields = ref<ActivationDraftFields>({
                 customer_name: 'Initial Name',
@@ -482,27 +506,42 @@ describe('useDraftSave (FE-27)', () => {
             expect(draft.isDirty.value).toBe(false);
         });
 
-        it('pauses and resumes autosave, and cleans up timers on unmount / stop', () => {
+        it('pauses and resumes autosave, and cleans up timers on unmount / stop', async () => {
             const fields = ref<ActivationDraftFields>({
                 customer_name: 'Test',
             });
 
-            const draft = useDraftSave({
-                recordId: 42,
-                family: 'ACTIVATION',
-                recordVersion: 8,
-                fields,
-                autosaveInterval: 3000,
+            let hookDraft: ReturnType<typeof useDraftSave> | null = null;
+            const TestComponent = defineComponent({
+                setup() {
+                    hookDraft = useDraftSave({
+                        recordId: 42,
+                        family: 'ACTIVATION',
+                        recordVersion: 8,
+                        fields,
+                        autosaveInterval: 3000,
+                    });
+                    return () => h('div');
+                },
             });
 
+            const wrapper = mount(TestComponent);
+
             fields.value.customer_name = 'Paused Test';
-            draft.stopAutosave();
+            hookDraft!.stopAutosave();
 
             vi.advanceTimersByTime(5000);
             expect(requests.length).toBe(0);
 
-            draft.startAutosave();
+            hookDraft!.startAutosave();
             vi.advanceTimersByTime(3000);
+            expect(requests.length).toBe(1);
+
+            // Clean up component / unmount
+            wrapper.unmount();
+            fields.value.customer_name = 'Unmounted Test';
+            vi.advanceTimersByTime(5000);
+            // No new request after unmount
             expect(requests.length).toBe(1);
         });
     });
