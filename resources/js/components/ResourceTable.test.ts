@@ -76,50 +76,38 @@ describe('ResourceTable.vue', () => {
             expect(latestQuery.page).toBe(1);
         });
 
-        it('clamps or rejects per_page > 100 so per_page 101 tidak dikirim', () => {
-            const currentQuery: TableQuery = {
-                page: 1,
-                per_page: 25,
-            };
-
+        it('clamps or rejects per_page > 100 so per_page 101 tidak dikirim', async () => {
             const wrapper = mount(ResourceTable, {
                 props: {
                     columns: sampleColumns,
                     items: [],
-                    query: currentQuery,
+                    query: { page: 2, per_page: 101 } satisfies TableQuery,
                 },
             });
 
-            const vm = wrapper.vm as unknown as { onPerPageChange: (p: number) => void };
-            vm.onPerPageChange(101);
+            await wrapper.get('[data-testid="table-search-input"]').setValue('demo');
 
             const emitted = wrapper.emitted('update:query');
-            expect(emitted).toBeTruthy();
             const latestQuery = (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
-            expect(latestQuery.per_page).toBeLessThanOrEqual(100);
-            expect(latestQuery.per_page).not.toBe(101);
+            expect(latestQuery.per_page).toBe(100);
         });
 
-        it('rejects unknown sort field not in whitelist: sort tak dikenal ditolak', () => {
+        it('rejects unknown sort field not in whitelist: sort tak dikenal ditolak', async () => {
             const wrapper = mount(ResourceTable, {
                 props: {
                     columns: sampleColumns,
                     items: [],
                     query: { page: 1, per_page: 25 },
-                    sortWhitelist: ['request_no', 'title'],
+                    sortWhitelist: ['request_no'],
                 },
             });
 
-            const vm = wrapper.vm as unknown as { onSortChange: (s: string) => void };
-            vm.onSortChange('malicious_or_unknown_field');
+            await wrapper.get('[data-testid="sort-button-title"]').trigger('click');
+            expect(wrapper.emitted('update:query')).toBeUndefined();
 
+            await wrapper.get('[data-testid="sort-button-request_no"]').trigger('click');
             const emitted = wrapper.emitted('update:query');
-            if (emitted && emitted[emitted.length - 1]) {
-                const latestQuery = emitted[emitted.length - 1]?.[0] as TableQuery;
-                expect(latestQuery.sort).not.toBe('malicious_or_unknown_field');
-            } else {
-                expect(emitted).toBeFalsy();
-            }
+            expect((emitted?.[0]?.[0] as TableQuery).sort).toBe('request_no');
         });
     });
 
