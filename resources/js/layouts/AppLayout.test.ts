@@ -268,4 +268,19 @@ describe('AppLayout.vue', () => {
         // But slot content is rendered in a minimalist/isolated container
         expect(wrapper.text()).toContain('Must change password form');
     });
+
+    it('shows the page title next to the product name, and only when it adds something', () => {
+        mockPageProps.value = {
+            auth: {
+                user: { id: 1, username: 'demo.requester.a', name: 'Demo Requester A', must_change_password: false },
+                permissions: [],
+            },
+        };
+
+        const titled = mount(AppLayout, { props: { title: 'Dashboard' } });
+        expect(titled.get('header').text()).toContain('/ Dashboard');
+
+        const untitled = mount(AppLayout, { props: { title: 'NSCMF' } });
+        expect(untitled.get('header').text()).not.toContain('/');
+    });
 });

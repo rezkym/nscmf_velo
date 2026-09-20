@@ -159,4 +159,22 @@ describe('FormField.vue', () => {
             expect(wrapper.text()).toContain('<b id="injected">bold</b>');
         });
     });
+
+    it('marks a required field and leaves an optional one unmarked', () => {
+        const required = mount(FormField, { props: { id: 'name', label: 'Name', required: true } });
+        expect(required.get('[data-required]').text()).toBe('*');
+
+        const optional = mount(FormField, { props: { id: 'name', label: 'Name' } });
+        expect(optional.find('[data-required]').exists()).toBe(false);
+    });
+
+    it('renders the control alone when no label is given', () => {
+        const wrapper = mount(FormField, {
+            props: { id: 'bare' },
+            slots: { default: '<input id="bare" />' },
+        });
+
+        expect(wrapper.find('label').exists()).toBe(false);
+        expect(wrapper.find('#bare').exists()).toBe(true);
+    });
 });

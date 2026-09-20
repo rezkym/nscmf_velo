@@ -297,4 +297,33 @@ describe('RequestFeedback.vue (FE-07)', () => {
             expect(wrapper.text()).toContain('An unexpected error occurred. Please try again later.');
         });
     });
+
+    it('lists no validation messages when the error carries none, and reports a failed save', () => {
+        const withoutErrors = mount(RequestFeedback, {
+            props: { error: { status: 422, code: 'VALIDATION_FAILED', message: 'Some fields need attention.' } },
+        });
+        expect(withoutErrors.findAll('li')).toHaveLength(0);
+
+        const failedSave = mount(RequestFeedback, { props: { saveStatus: 'error' } });
+        expect(failedSave.text()).toContain('Save failed');
+    });
+
+    it('shows a save indicator only for a status it knows, and skips a message of an unexpected type', () => {
+        const noStatus = mount(RequestFeedback, { props: { saveStatus: null, showSaveStatus: true } });
+        expect(noStatus.text()).not.toContain('Saving');
+        expect(noStatus.text()).not.toContain('Saved just now');
+
+        const oddPayload = mount(RequestFeedback, {
+            props: {
+                error: {
+                    status: 422,
+                    code: 'VALIDATION_FAILED',
+                    message: 'Some fields need attention.',
+                    errors: { row_no: 42 as unknown as string, name: 'The name is required.' },
+                },
+            },
+        });
+        const messages = oddPayload.findAll('li').map((item) => item.text());
+        expect(messages).toEqual(['The name is required.']);
+    });
 });
