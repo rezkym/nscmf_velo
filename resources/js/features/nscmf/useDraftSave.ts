@@ -162,17 +162,36 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                     saveStatus.value = 'error';
 
                     const rawError = (err ?? {}) as RequestFeedbackError;
-                    feedbackError.value = rawError;
 
-                    if (rawError.status === 409 || rawError.code === 'NSCMF_VERSION_CONFLICT') {
-                        isConflict.value = true;
-                        conflictError.value = rawError;
-                        stopAutosave();
-                    } else if (rawError.status === 422 || rawError.code === 'NSCMF_VALIDATION_FAILED') {
-                        validationErrors.value = rawError.errors ?? null;
+                    // Real Inertia delivers flat Record<string, string> field->message map to onError on 422
+                    if (
+                        rawError &&
+                        typeof rawError === 'object' &&
+                        !('status' in rawError) &&
+                        !('code' in rawError) &&
+                        !('message' in rawError) &&
+                        Object.keys(rawError).length > 0
+                    ) {
+                        const fieldBag = rawError as unknown as Record<string, string>;
+                        validationErrors.value = fieldBag;
+                        feedbackError.value = {
+                            status: 422,
+                            code: 'NSCMF_VALIDATION_FAILED',
+                            errors: fieldBag,
+                        };
+                    } else {
+                        feedbackError.value = rawError;
+
+                        if (rawError.status === 409 || rawError.code === 'NSCMF_VERSION_CONFLICT') {
+                            isConflict.value = true;
+                            conflictError.value = rawError;
+                            stopAutosave();
+                        } else if (rawError.status === 422 || rawError.code === 'NSCMF_VALIDATION_FAILED') {
+                            validationErrors.value = rawError.errors ?? null;
+                        }
                     }
 
-                    options.onError?.(rawError);
+                    options.onError?.(feedbackError.value ?? rawError);
                     resolve();
                     handleNextQueued();
                 },
