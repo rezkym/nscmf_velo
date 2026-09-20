@@ -3,7 +3,7 @@ import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { NscmfDetailRecord } from '@/Pages/Nscmf/Show.vue';
-import { lastRequest, requests, resetInertia, respondToRequest, router } from '@/testing/inertia';
+import { lastRequest, pageFlash, pageProps, requests, resetInertia, respondToRequest, router } from '@/testing/inertia';
 
 import ChangeResults, { buildChangeResultsPayload, displayValue } from './ChangeResults.vue';
 
@@ -264,6 +264,7 @@ describe('ChangeResults (FE-29)', () => {
 
             expect(wrapper.find('[data-testid="feedback-forbidden"]').exists()).toBe(true);
             expect(wrapper.text()).toContain('Access Denied');
+            expect(wrapper.text().toLowerCase()).not.toContain('saved just now');
         });
 
         it('does not misclassify ordinary 422 field errors as 409 conflict', async () => {
@@ -335,6 +336,50 @@ describe('ChangeResults (FE-29)', () => {
             expect(resultsSection.props('disabled')).toBe(false);
         });
 
+        it('handles version-advancing 409 conflict (7->9) without wiping conflict panel or claiming saved', async () => {
+            const wrapper = mountChangeResults();
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+
+            const req = lastRequest('/nscmf/42/change-results');
+            expect(req).toBeDefined();
+
+            // Real 409 conflict with newer record version (7 -> 9)
+            const newerRecord: NscmfDetailRecord = {
+                ...BASE_RECORD,
+                record_version: 9,
+                change: {
+                    ...BASE_RECORD.change,
+                    results: [
+                        {
+                            row_no: 1,
+                            result_summary: 'NEWER SERVER TEXT',
+                            performance_information: 'CPU 50%',
+                            result_status: 'RUNNING',
+                        },
+                    ],
+                },
+            };
+
+            await respondToRequest(req, {
+                status: 409,
+                props: { record: newerRecord },
+                flash: {
+                    domain_error: {
+                        code: 'NSCMF_VERSION_CONFLICT',
+                        message: 'A newer version exists.',
+                    },
+                },
+            });
+
+            // Even if props.record updates with the newer version, conflict panel must persist and NOT show "Saved just now"
+            await wrapper.setProps({ record: newerRecord });
+            await nextTick();
+
+            expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(true);
+            expect(wrapper.text().toLowerCase()).not.toContain('saved just now');
+            expect(wrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(false);
+        });
+
         it('resyncs local model and confirms saved on successful update', async () => {
             const wrapper = mountChangeResults();
             await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
@@ -384,6 +429,32 @@ describe('ChangeResults (FE-29)', () => {
 
             expect(wrapper.find('[data-testid="feedback-network-error"]').exists()).toBe(true);
             expect(wrapper.text()).toContain('Network Connection Issue');
+        });
+
+        it('real-client-protocol: reads flash from page.flash (or onFlash) and ignores fake page.props.flash', async () => {
+            const wrapper = mountChangeResults();
+
+            // When page.flash receives a domain_error, it sets conflict state
+            // Reset and check page.flash vs page.props.flash
+            pageProps.flash = {
+                domain_error: {
+                    code: 'NSCMF_VERSION_CONFLICT',
+                    message: 'A newer version exists.',
+                },
+            };
+            await nextTick();
+
+            // Fake page.props.flash must NOT activate feedbackError (as dead code is dropped)
+            expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(false);
+
+            // Real wire channel: page.flash
+            pageFlash.domain_error = {
+                code: 'NSCMF_VERSION_CONFLICT',
+                message: 'A newer version exists.',
+            };
+            await nextTick();
+
+            expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(true);
         });
 
         it('handles malformed projection error gracefully via RequestFeedback (N-29-3)', async () => {

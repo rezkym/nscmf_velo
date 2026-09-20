@@ -47,6 +47,7 @@ export interface RecordedRequest {
 }
 
 export const pageProps = reactive<Record<string, unknown>>({});
+export const pageFlash = reactive<Record<string, unknown>>({});
 export const forms: MockForm[] = [];
 export const requests: RecordedRequest[] = [];
 
@@ -108,12 +109,14 @@ export const inertiaModule = {
     }),
     router,
     useForm: (initial: Record<string, unknown>) => createForm(initial),
-    usePage: () => ({ props: pageProps }),
+    usePage: () => ({ props: pageProps, flash: pageFlash }),
 };
 
-export function resetInertia(props: Record<string, unknown> = {}): void {
+export function resetInertia(props: Record<string, unknown> = {}, flash: Record<string, unknown> = {}): void {
     for (const key of Object.keys(pageProps)) delete pageProps[key];
+    for (const key of Object.keys(pageFlash)) delete pageFlash[key];
     Object.assign(pageProps, props);
+    Object.assign(pageFlash, flash);
     forms.length = 0;
     requests.length = 0;
     vi.clearAllMocks();
@@ -122,6 +125,7 @@ export function resetInertia(props: Record<string, unknown> = {}): void {
 /** Simulates the server flashing a domain error (12 §10) and the page rendering the new props. */
 export async function flashDomainError(error: { code?: string; message?: string }): Promise<void> {
     pageProps.flash = { ...(pageProps.flash as Record<string, unknown> | undefined), domain_error: error };
+    pageFlash.domain_error = error;
     await nextTick();
 }
 
@@ -159,7 +163,10 @@ export async function respondToRequest(
 
     if (isInertia) {
         if (flash) {
-            pageProps.flash = flash;
+            for (const key of Object.keys(pageFlash)) delete pageFlash[key];
+            Object.assign(pageFlash, flash);
+            // Delete flash from pageProps if present, to model real wire: page.flash is at page root, not in props
+            delete pageProps.flash;
             request.options.onFlash?.(flash);
         }
         if (errors && Object.keys(errors).length > 0) {
