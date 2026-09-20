@@ -3,6 +3,7 @@ import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 import ReauthenticationDialog from '@/components/ReauthenticationDialog.vue';
+import { controlClass } from '@/components/ui/control';
 import Alert from '@/components/ui/Alert.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
@@ -44,9 +45,6 @@ withDefaults(defineProps<{ users?: UserRow[]; teams?: TeamOption[]; roles?: Role
 
 const { can } = usePermissions();
 const page = usePage();
-
-const INPUT_CLASS =
-    'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
 
 // Plain dialogs (create form, profile, team, roles) — at most one is open.
 type Dialog = { kind: 'create' } | { kind: 'profile' | 'team' | 'roles'; user: UserRow };
@@ -344,7 +342,7 @@ const sensitiveCopy = computed(() => (pendingAction.value ? SENSITIVE_COPY[pendi
                         type="text"
                         maxlength="150"
                         :aria-describedby="describedBy"
-                        :class="INPUT_CLASS"
+                        :class="controlClass"
                     />
                 </template>
             </FormField>
@@ -357,7 +355,7 @@ const sensitiveCopy = computed(() => (pendingAction.value ? SENSITIVE_COPY[pendi
                         maxlength="150"
                         autocomplete="off"
                         :aria-describedby="describedBy"
-                        :class="INPUT_CLASS"
+                        :class="controlClass"
                     />
                 </template>
             </FormField>
@@ -367,7 +365,7 @@ const sensitiveCopy = computed(() => (pendingAction.value ? SENSITIVE_COPY[pendi
                         :id="id"
                         v-model.number="createForm.team_id"
                         :aria-describedby="describedBy"
-                        :class="INPUT_CLASS"
+                        :class="controlClass"
                     >
                         <option :value="null" disabled>Select a team</option>
                         <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
@@ -419,7 +417,7 @@ const sensitiveCopy = computed(() => (pendingAction.value ? SENSITIVE_COPY[pendi
                         type="text"
                         maxlength="150"
                         :aria-describedby="describedBy"
-                        :class="INPUT_CLASS"
+                        :class="controlClass"
                     />
                 </template>
             </FormField>
@@ -446,7 +444,7 @@ const sensitiveCopy = computed(() => (pendingAction.value ? SENSITIVE_COPY[pendi
                         :id="id"
                         v-model.number="teamForm.team_id"
                         :aria-describedby="describedBy"
-                        :class="INPUT_CLASS"
+                        :class="controlClass"
                     >
                         <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
                     </select>

@@ -3,6 +3,7 @@ import { useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 import ReauthenticationDialog from '@/components/ReauthenticationDialog.vue';
+import { controlClass } from '@/components/ui/control';
 import Alert from '@/components/ui/Alert.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
@@ -183,7 +184,7 @@ function savePermissions(): void {
                         required
                         :aria-describedby="describedBy"
                         :disabled="nameForm.processing"
-                        class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                        :class="controlClass"
                     />
                 </template>
             </FormField>

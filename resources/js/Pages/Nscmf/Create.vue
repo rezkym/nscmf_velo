@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue';
 
 import Alert from '@/components/ui/Alert.vue';
 import Button from '@/components/ui/Button.vue';
+import { controlClass } from '@/components/ui/control';
 import FormField from '@/components/ui/FormField.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import {
@@ -18,9 +19,6 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
 // Manual request number rule (06 §19); the server re-validates and checks uniqueness.
 const MANUAL_REQUEST_NO = /^[A-Za-z0-9][A-Za-z0-9._/-]{2,63}$/;
-
-const INPUT_CLASS =
-    'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
 
 const { user } = usePermissions();
 
@@ -77,7 +75,7 @@ function submit(): void {
             <form v-else class="space-y-5 rounded-lg border border-border bg-card p-6" @submit.prevent="submit">
                 <FormField id="family" label="Form family" required>
                     <template #default="{ id }">
-                        <select :id="id" v-model="form.family" :disabled="form.processing" :class="INPUT_CLASS">
+                        <select :id="id" v-model="form.family" :disabled="form.processing" :class="controlClass">
                             <option v-for="(label, family) in FAMILY_LABELS" :key="family" :value="family">
                                 {{ label }}
                             </option>
@@ -87,7 +85,7 @@ function submit(): void {
 
                 <FormField id="subtype" label="Subtype" required>
                     <template #default="{ id }">
-                        <select :id="id" v-model="form.subtype" :disabled="form.processing" :class="INPUT_CLASS">
+                        <select :id="id" v-model="form.subtype" :disabled="form.processing" :class="controlClass">
                             <option v-for="subtype in SUBTYPES_BY_FAMILY[form.family]" :key="subtype" :value="subtype">
                                 {{ SUBTYPE_LABELS[subtype] }}
                             </option>
@@ -135,7 +133,7 @@ function submit(): void {
                             autocomplete="off"
                             :aria-describedby="describedBy"
                             :disabled="form.processing"
-                            :class="[INPUT_CLASS, 'font-mono']"
+                            :class="[controlClass, 'font-mono']"
                         />
                     </template>
                 </FormField>
