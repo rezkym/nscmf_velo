@@ -4,8 +4,8 @@
 
 ## Where the work landed
 
-`main` carries FE-01..25 plus the cleanup. It was built from four merge commits,
-each one a review unit the project owner approved:
+`main` carries FE-01..25 plus the cleanup. It was built from merge commits, each
+one a review unit the project owner approved:
 
 | Merge | Brings |
 |---|---|
@@ -13,6 +13,10 @@ each one a review unit the project owner approved:
 | `26efc7a` Merge FE-01..10 coverage into main | the missing tests for the foundation slices |
 | `da7cd28` Merge FE-05 table fix into main | the `per_page` bound fix in `ResourceTable` |
 | `3456144` Merge section field slice exports into main | each section exports the slice it owns |
+| `1de03bc` Merge the FE-11..25 handoff into main | this folder, plus two corrected document citations in code comments |
+
+Any merge made after this document was written is visible with
+`git log --first-parent main`.
 
 The commit before all of this is tagged **`safety/main-before-fe-11-25-merge`**
 (`d74cf3f`). Comparing that tag with `main` over `resources/js` shows the whole
