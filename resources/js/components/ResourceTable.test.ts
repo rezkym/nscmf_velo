@@ -76,6 +76,23 @@ describe('ResourceTable.vue', () => {
             expect(latestQuery.page).toBe(1);
         });
 
+        it('emits the chosen page size and returns to the first page', async () => {
+            const wrapper = mount(ResourceTable, {
+                props: {
+                    columns: sampleColumns,
+                    items: [],
+                    query: { page: 3, per_page: 25 } satisfies TableQuery,
+                },
+            });
+
+            await wrapper.get('[data-testid="table-per-page-select"]').setValue('50');
+
+            const emitted = wrapper.emitted('update:query');
+            const latestQuery = (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
+            expect(latestQuery.per_page).toBe(50);
+            expect(latestQuery.page).toBe(1);
+        });
+
         it('clamps or rejects per_page > 100 so per_page 101 tidak dikirim', async () => {
             const wrapper = mount(ResourceTable, {
                 props: {
