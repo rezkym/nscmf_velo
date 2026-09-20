@@ -1,5 +1,6 @@
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { type Ref, computed, getCurrentInstance, onBeforeUnmount, ref, toValue, watch } from 'vue';
+import { domainError } from '@/lib/apiErrors';
 import { buildActivationDraftPayload, buildChangeDraftPayload } from './draftPayload';
 import type { ActivationDraftFields, ChangeDraftFields, NscmfFamily } from './types';
 
@@ -38,7 +39,7 @@ export interface UseDraftSaveReturn {
     retry: () => Promise<void>;
     startAutosave: () => void;
     stopAutosave: () => void;
-    resolveConflict: () => void;
+    resolveConflict: (newVersion?: number) => void;
 }
 
 export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields>(
@@ -135,14 +136,34 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
             router.patch(url, payload as never, {
                 onSuccess: (page: unknown) => {
                     isSaving.value = false;
-                    const responseRecord = (page as { props?: { record?: { record_version?: number } } })?.props
-                        ?.record;
+
+                    // Check for flashed domain error (e.g. 409 NSCMF_VERSION_CONFLICT)
+                    const pageObj = page as { props?: { flash?: unknown; record?: { record_version?: number } } };
+                    const dErr = domainError(pageObj?.props?.flash);
+                    if (dErr && (dErr.code === 'NSCMF_VERSION_CONFLICT' || dErr.code?.includes('CONFLICT'))) {
+                        isConflict.value = true;
+                        const conflictObj: RequestFeedbackError = {
+                            status: 409,
+                            code: dErr.code,
+                            message: dErr.message ?? 'A newer version exists.',
+                        };
+                        conflictError.value = conflictObj;
+                        feedbackError.value = conflictObj;
+                        saveStatus.value = 'error';
+                        stopAutosave();
+                        options.onError?.(conflictObj);
+                        resolve();
+                        handleNextQueued();
+                        return;
+                    }
+
+                    const responseRecord = pageObj?.props?.record;
                     if (responseRecord && typeof responseRecord.record_version === 'number') {
                         currentVersion.value = responseRecord.record_version;
                         options.onSuccess?.(responseRecord.record_version);
                     }
 
-                    lastSavedSnapshot.value = inFlightSnapshot!;
+                    lastSavedSnapshot.value = inFlightSnapshot ?? lastSavedSnapshot.value;
                     inFlightSnapshot = null;
 
                     // If user modified fields while in-flight, keep dirty and don't falsely claim saved
@@ -238,10 +259,13 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
         }
     }
 
-    function resolveConflict(): void {
+    function resolveConflict(newVersion?: number): void {
         isConflict.value = false;
         conflictError.value = null;
         feedbackError.value = null;
+        if (typeof newVersion === 'number') {
+            currentVersion.value = newVersion;
+        }
     }
 
     if (getCurrentInstance()) {
