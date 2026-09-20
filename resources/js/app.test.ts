@@ -40,7 +40,7 @@ describe('application entry', () => {
     });
 
     it('falls back to NSCMF when no application name is configured', async () => {
-        vi.stubEnv('VITE_APP_NAME', undefined as unknown as string);
+        vi.stubEnv('VITE_APP_NAME', undefined);
 
         const title = await bootTitle();
 

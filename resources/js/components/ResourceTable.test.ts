@@ -76,50 +76,55 @@ describe('ResourceTable.vue', () => {
             expect(latestQuery.page).toBe(1);
         });
 
-        it('clamps or rejects per_page > 100 so per_page 101 tidak dikirim', () => {
-            const currentQuery: TableQuery = {
-                page: 1,
-                per_page: 25,
-            };
-
+        it('emits the chosen page size and returns to the first page', async () => {
             const wrapper = mount(ResourceTable, {
                 props: {
                     columns: sampleColumns,
                     items: [],
-                    query: currentQuery,
+                    query: { page: 3, per_page: 25 } satisfies TableQuery,
                 },
             });
 
-            const vm = wrapper.vm as unknown as { onPerPageChange: (p: number) => void };
-            vm.onPerPageChange(101);
+            await wrapper.get('[data-testid="table-per-page-select"]').setValue('50');
 
             const emitted = wrapper.emitted('update:query');
-            expect(emitted).toBeTruthy();
             const latestQuery = (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
-            expect(latestQuery.per_page).toBeLessThanOrEqual(100);
-            expect(latestQuery.per_page).not.toBe(101);
+            expect(latestQuery.per_page).toBe(50);
+            expect(latestQuery.page).toBe(1);
         });
 
-        it('rejects unknown sort field not in whitelist: sort tak dikenal ditolak', () => {
+        it('clamps or rejects per_page > 100 so per_page 101 tidak dikirim', async () => {
+            const wrapper = mount(ResourceTable, {
+                props: {
+                    columns: sampleColumns,
+                    items: [],
+                    query: { page: 2, per_page: 101 } satisfies TableQuery,
+                },
+            });
+
+            await wrapper.get('[data-testid="table-search-input"]').setValue('demo');
+
+            const emitted = wrapper.emitted('update:query');
+            const latestQuery = (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
+            expect(latestQuery.per_page).toBe(100);
+        });
+
+        it('rejects unknown sort field not in whitelist: sort tak dikenal ditolak', async () => {
             const wrapper = mount(ResourceTable, {
                 props: {
                     columns: sampleColumns,
                     items: [],
                     query: { page: 1, per_page: 25 },
-                    sortWhitelist: ['request_no', 'title'],
+                    sortWhitelist: ['request_no'],
                 },
             });
 
-            const vm = wrapper.vm as unknown as { onSortChange: (s: string) => void };
-            vm.onSortChange('malicious_or_unknown_field');
+            await wrapper.get('[data-testid="sort-button-title"]').trigger('click');
+            expect(wrapper.emitted('update:query')).toBeUndefined();
 
+            await wrapper.get('[data-testid="sort-button-request_no"]').trigger('click');
             const emitted = wrapper.emitted('update:query');
-            if (emitted && emitted[emitted.length - 1]) {
-                const latestQuery = emitted[emitted.length - 1]?.[0] as TableQuery;
-                expect(latestQuery.sort).not.toBe('malicious_or_unknown_field');
-            } else {
-                expect(emitted).toBeFalsy();
-            }
+            expect((emitted?.[0]?.[0] as TableQuery).sort).toBe('request_no');
         });
     });
 
@@ -308,5 +313,96 @@ describe('ResourceTable copy', () => {
         expect(wrapper.find('[data-testid="pagination-prev"]').text()).toBe('Previous');
         expect(wrapper.find('[data-testid="pagination-next"]').text()).toBe('Next');
         expect(wrapper.text()).toContain('Per page');
+    });
+
+    describe('response ordering, rendering and pagination fallbacks', () => {
+        it('AC3: accepts the first response, keeps the newest one and ignores an older id', async () => {
+            const wrapper = mount(ResourceTable, {
+                props: { columns: sampleColumns, items: [{ request_no: 'first' }], requestId: 1 },
+            });
+            expect(wrapper.text()).toContain('first');
+
+            await wrapper.setProps({ items: [{ request_no: 'second' }], requestId: 2 });
+            expect(wrapper.text()).toContain('second');
+
+            await wrapper.setProps({ items: [{ request_no: 'late first' }], requestId: 1 });
+            expect(wrapper.text()).toContain('second');
+            expect(wrapper.text()).not.toContain('late first');
+        });
+
+        it('AC3: orders non-numeric request ids on their own, and starts accepting once one arrives', async () => {
+            const wrapper = mount(ResourceTable, {
+                props: { columns: sampleColumns, items: [{ request_no: 'no id yet' }] },
+            });
+            expect(wrapper.text()).toContain('no id yet');
+
+            await wrapper.setProps({ items: [{ request_no: 'search-b' }], requestId: 'b' });
+            expect(wrapper.text()).toContain('search-b');
+
+            await wrapper.setProps({ items: [{ request_no: 'search-a' }], requestId: 'a' });
+            expect(wrapper.text()).toContain('search-b');
+
+            await wrapper.setProps({ items: [{ request_no: 'search-c' }], requestId: 'c' });
+            expect(wrapper.text()).toContain('search-c');
+        });
+
+        it('renders an actions column only when the caller provides one', () => {
+            const withoutActions = mount(ResourceTable, {
+                props: { columns: sampleColumns, items: [{ id: 'row-1', request_no: 'DEMO-ACT-001' }] },
+            });
+            expect(withoutActions.text()).not.toContain('Actions');
+
+            const withActions = mount(ResourceTable, {
+                props: { columns: sampleColumns, items: [{ request_no: 'DEMO-ACT-001' }] },
+                slots: { actions: '<button data-testid="row-action">Open</button>' },
+            });
+            expect(withActions.get('th:last-of-type').text()).toBe('Actions');
+            expect(withActions.find('[data-testid="row-action"]').exists()).toBe(true);
+        });
+
+        it('falls back to the first page and an empty count when the server sent no pagination meta', () => {
+            const wrapper = mount(ResourceTable, {
+                props: {
+                    columns: sampleColumns,
+                    items: [],
+                    query: { page: 1, per_page: undefined as unknown as number },
+                },
+            });
+
+            expect(wrapper.text()).toContain('Page 1 of 1 (0 total)');
+            expect(wrapper.get('[data-testid="pagination-prev"]').attributes('disabled')).toBeDefined();
+            expect(wrapper.get('[data-testid="pagination-next"]').attributes('disabled')).toBeDefined();
+            expect(wrapper.get<HTMLSelectElement>('[data-testid="table-per-page-select"]').element.value).toBe('25');
+        });
+
+        it('sends the page size the contract allows when the query carries none', async () => {
+            const wrapper = mount(ResourceTable, {
+                props: {
+                    columns: sampleColumns,
+                    items: [],
+                    query: { page: 1, per_page: undefined as unknown as number },
+                },
+            });
+
+            await wrapper.get('[data-testid="table-search-input"]').setValue('demo');
+
+            const emitted = wrapper.emitted('update:query');
+            expect((emitted?.[emitted.length - 1]?.[0] as TableQuery).per_page).toBe(25);
+        });
+
+        it('cycles the sort direction back to ascending on the third click', async () => {
+            const wrapper = mount(ResourceTable, {
+                props: {
+                    columns: sampleColumns,
+                    items: [],
+                    query: { page: 1, per_page: 25, sort: 'request_no', direction: 'desc' },
+                },
+            });
+
+            await wrapper.get('[data-testid="sort-button-request_no"]').trigger('click');
+
+            const emitted = wrapper.emitted('update:query');
+            expect((emitted?.[0]?.[0] as TableQuery).direction).toBe('asc');
+        });
     });
 });

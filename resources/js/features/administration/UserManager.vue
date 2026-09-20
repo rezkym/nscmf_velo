@@ -129,13 +129,9 @@ function cancelSensitive(): void {
     pendingAction.value = null;
 }
 
-function onReauthenticated(): void {
-    isReauthOpen.value = false;
-    const action = pendingAction.value;
-    if (action) runSensitive(action);
-}
-
 function runSensitive(action: SensitiveAction): void {
+    isReauthOpen.value = false;
+
     const finish = () => {
         pendingAction.value = null;
     };
@@ -214,8 +210,6 @@ function revealCredential(username: string): void {
     const flashed = temporaryCredentialFromFlash(page.props.flash);
     if (flashed) credential.value = { ...flashed, username: flashed.username ?? username };
 }
-
-const sensitiveCopy = computed(() => (pendingAction.value ? SENSITIVE_COPY[pendingAction.value.kind] : null));
 </script>
 
 <template>
@@ -506,11 +500,12 @@ const sensitiveCopy = computed(() => (pendingAction.value ? SENSITIVE_COPY[pendi
     </Modal>
 
     <ReauthenticationDialog
+        v-if="pendingAction"
         :open="isReauthOpen"
-        :target-action-title="sensitiveCopy?.title"
-        :target-action-description="sensitiveCopy?.description"
+        :target-action-title="SENSITIVE_COPY[pendingAction.kind].title"
+        :target-action-description="SENSITIVE_COPY[pendingAction.kind].description"
         :error-code="reauthErrorCode"
-        @success="onReauthenticated"
+        @success="runSensitive(pendingAction)"
         @cancel="cancelSensitive"
     />
 

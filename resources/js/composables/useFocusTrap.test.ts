@@ -14,6 +14,18 @@ const Host = defineComponent({
     },
 });
 
+const ThreeButtons = defineComponent({
+    props: { open: { type: Boolean, required: true } },
+    setup(props) {
+        const panel = ref<HTMLElement | null>(null);
+        useFocusTrap(panel, () => props.open, { onEscape: () => undefined });
+        return () =>
+            props.open
+                ? h('div', { ref: panel }, [h('button', 'One'), h('button', 'Two'), h('button', 'Three')])
+                : null;
+    },
+});
+
 describe('useFocusTrap', () => {
     it('refocuses nothing when the element that had focus is not an HTML element', async () => {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -34,5 +46,26 @@ describe('useFocusTrap', () => {
 
         wrapper.unmount();
         svg.remove();
+    });
+
+    it('wraps Tab only at the edges and ignores other keys', async () => {
+        const wrapper = mount(ThreeButtons, { props: { open: true }, attachTo: document.body });
+        await nextTick();
+
+        const [first, middle, last] = wrapper.findAll('button').map((button) => button.element as HTMLElement);
+        if (!first || !middle || !last) throw new Error('buttons missing');
+
+        middle.focus();
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
+        expect(document.activeElement).toBe(middle);
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', cancelable: true }));
+        expect(document.activeElement).toBe(middle);
+
+        last.focus();
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', cancelable: true }));
+        expect(document.activeElement).toBe(first);
+
+        wrapper.unmount();
     });
 });

@@ -10,7 +10,8 @@ export interface ColumnDef {
 
 export interface TableQuery {
     page: number;
-    per_page: number;
+    /** Optional: the table falls back to the contract default of 25. */
+    per_page?: number;
     sort?: string;
     direction?: 'asc' | 'desc';
     q?: string;
@@ -59,54 +60,51 @@ const emit = defineEmits<{
 const lastAcceptedRequestId = ref<number | string | undefined>(props.requestId);
 const currentItems = ref<Record<string, unknown>[]>([...props.items]);
 
+/** Numeric ids compare by value, anything else in their own order. */
+function isOlder(incoming: number | string, accepted: number | string): boolean {
+    const a = Number(incoming);
+    const b = Number(accepted);
+    return Number.isFinite(a) && Number.isFinite(b) ? a < b : incoming < accepted;
+}
+
 watch(
     () => [props.items, props.requestId] as const,
-    ([newItems, newReqId]) => {
-        if (newReqId !== undefined) {
-            if (lastAcceptedRequestId.value === undefined) {
-                lastAcceptedRequestId.value = newReqId;
-                currentItems.value = [...newItems];
-            } else {
-                const prev = Number(lastAcceptedRequestId.value);
-                const next = Number(newReqId);
-                if (!isNaN(prev) && !isNaN(next)) {
-                    if (next >= prev) {
-                        lastAcceptedRequestId.value = newReqId;
-                        currentItems.value = [...newItems];
-                    }
-                } else if (newReqId >= lastAcceptedRequestId.value) {
-                    lastAcceptedRequestId.value = newReqId;
-                    currentItems.value = [...newItems];
-                }
-            }
-        } else {
-            currentItems.value = [...newItems];
+    ([newItems, newRequestId]) => {
+        const accepted = lastAcceptedRequestId.value;
+        if (newRequestId !== undefined && accepted !== undefined && isOlder(newRequestId, accepted)) {
+            return;
         }
+
+        if (newRequestId !== undefined) lastAcceptedRequestId.value = newRequestId;
+        currentItems.value = [...newItems];
     },
     { immediate: true, deep: true },
 );
+
+/**
+ * Every emitted query goes through here, so the per_page bounds from the list contract
+ * (default 25, minimum 1, maximum 100) also hold for a value the parent supplied.
+ */
+function emitQuery(patch: Partial<TableQuery>) {
+    const merged = { ...props.query, ...patch };
+    const perPage = Number(merged.per_page);
+    emit('update:query', {
+        ...merged,
+        per_page: Math.min(100, Math.max(1, Number.isFinite(perPage) ? perPage : 25)),
+    });
+}
 
 // Search input handling
 const searchInput = computed({
     get: () => props.query?.q ?? '',
     set: (val: string) => {
-        emit('update:query', {
-            ...props.query,
-            q: val,
-            page: 1,
-        });
+        emitQuery({ q: val, page: 1 });
     },
 });
 
-// Per-page change handling
-function onPerPageChange(perPageVal: number | string) {
-    const parsed = typeof perPageVal === 'string' ? parseInt(perPageVal, 10) : perPageVal;
-    const clamped = Math.min(100, Math.max(1, isNaN(parsed) ? 25 : parsed));
-    emit('update:query', {
-        ...props.query,
-        per_page: clamped,
-        page: 1,
-    });
+// Per-page change handling; emitQuery applies the contract bounds
+function onPerPageChange(perPageVal: string) {
+    emitQuery({ per_page: Number(perPageVal), page: 1 });
 }
 
 // Sort change handling
@@ -125,21 +123,11 @@ function onSortChange(sortField: string) {
         nextDirection = currentDirection === 'asc' ? 'desc' : 'asc';
     }
 
-    emit('update:query', {
-        ...props.query,
-        sort: sortField,
-        direction: nextDirection,
-        page: 1,
-    });
+    emitQuery({ sort: sortField, direction: nextDirection, page: 1 });
 }
 
 function onPageChange(targetPage: number) {
-    const maxPage = props.meta?.last_page ?? 1;
-    const clampedPage = Math.min(maxPage, Math.max(1, targetPage));
-    emit('update:query', {
-        ...props.query,
-        page: clampedPage,
-    });
+    emitQuery({ page: Math.min(lastPage.value, Math.max(1, targetPage)) });
 }
 
 function getHeaderAriaSort(col: ColumnDef): 'ascending' | 'descending' | 'none' | undefined {
@@ -150,22 +138,11 @@ function getHeaderAriaSort(col: ColumnDef): 'ascending' | 'descending' | 'none' 
     return 'none';
 }
 
-const isPrevDisabled = computed(() => {
-    const current = props.meta?.current_page ?? props.query?.page ?? 1;
-    return current <= 1;
-});
+const currentPage = computed(() => props.meta?.current_page ?? props.query.page);
+const lastPage = computed(() => props.meta?.last_page ?? 1);
 
-const isNextDisabled = computed(() => {
-    const current = props.meta?.current_page ?? props.query?.page ?? 1;
-    const last = props.meta?.last_page ?? 1;
-    return current >= last;
-});
-
-defineExpose({
-    onPerPageChange,
-    onSortChange,
-    onPageChange,
-});
+const isPrevDisabled = computed(() => currentPage.value <= 1);
+const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
 </script>
 
 <template>
@@ -286,7 +263,7 @@ defineExpose({
         <!-- Pagination Bar -->
         <div class="flex items-center justify-between border-t border-border pt-3">
             <div class="text-sm text-muted-foreground">
-                Page {{ meta?.current_page ?? query?.page ?? 1 }} of {{ meta?.last_page ?? 1 }} ({{ meta?.total ?? 0 }}
+                Page {{ currentPage }} of {{ lastPage }} ({{ meta?.total ?? 0 }}
                 total)
             </div>
             <div class="flex items-center gap-2">
@@ -295,7 +272,7 @@ defineExpose({
                     data-testid="pagination-prev"
                     :disabled="isPrevDisabled"
                     class="rounded border border-input px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                    @click="onPageChange((meta?.current_page ?? query?.page ?? 1) - 1)"
+                    @click="onPageChange(currentPage - 1)"
                 >
                     Previous
                 </button>
@@ -304,7 +281,7 @@ defineExpose({
                     data-testid="pagination-next"
                     :disabled="isNextDisabled"
                     class="rounded border border-input px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                    @click="onPageChange((meta?.current_page ?? query?.page ?? 1) + 1)"
+                    @click="onPageChange(currentPage + 1)"
                 >
                     Next
                 </button>
