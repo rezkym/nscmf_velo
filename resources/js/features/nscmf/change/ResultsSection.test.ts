@@ -58,7 +58,7 @@ describe('ResultsSection (FE-26)', () => {
     });
 
     describe('AC2: results_respect_row_and_length_limits', () => {
-        it('accepts up to 5 rows and blocks adding a 6th row', async () => {
+        it('accepts up to 5 rows and blocks adding a 6th row', () => {
             const wrapper = mountSection({
                 results: [1, 2, 3, 4, 5].map((row_no) => ({
                     row_no,
@@ -95,7 +95,8 @@ describe('ResultsSection (FE-26)', () => {
                 },
                 {
                     errors: {
-                        'change.results.0.result_summary': 'The result summary may not be greater than 2000 characters.',
+                        'change.results.0.result_summary':
+                            'The result summary may not be greater than 2000 characters.',
                         'change.results.0.performance_information':
                             'The performance information may not be greater than 2000 characters.',
                         'change.results.0.result_status': 'The status may not be greater than 255 characters.',
@@ -120,6 +121,10 @@ describe('ResultsSection (FE-26)', () => {
             const wrapper = mountSection({ results: [] });
             expect(wrapper.find('[data-collection="results"]').exists()).toBe(true);
             expect(wrapper.text()).toContain('No results yet.');
+
+            // Also test default undefined results model value
+            const wrapperUndefined = mountSection({});
+            expect(wrapperUndefined.find('[data-collection="results"]').exists()).toBe(true);
         });
 
         it('shows server validation summary/feedback when started row is incomplete at submit', () => {
@@ -274,7 +279,9 @@ describe('ResultsSection (FE-26)', () => {
             expect(wrapper.get('#results-0-performance_information').attributes('disabled')).toBeDefined();
             expect(wrapper.get('#results-0-result_status').attributes('disabled')).toBeDefined();
             expect(control(wrapper, 'results', 'btn-add-row').attributes('disabled')).toBeDefined();
-            expect(wrapper.get('[data-collection="results"] [data-testid="btn-remove-row-0"]').attributes('disabled')).toBeDefined();
+            expect(
+                wrapper.get('[data-collection="results"] [data-testid="btn-remove-row-0"]').attributes('disabled'),
+            ).toBeDefined();
         });
     });
 });
