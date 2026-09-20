@@ -66,7 +66,7 @@ describe('GeneralServiceSection (FE-20)', () => {
         await wrapper.get('[data-testid="reference-OTHER"]').setValue(true);
 
         expect(lastModel(wrapper).references).toEqual([{ reference_type: 'OTHER', specification: null }]);
-        expect(wrapper.find('#reference-OTHER-specification').exists()).toBe(false);
+        expect(wrapper.get<HTMLInputElement>('#reference-OTHER-specification').element.value).toBe('');
     });
 
     it('selects and deselects references without touching the others', async () => {
