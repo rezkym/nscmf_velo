@@ -1,0 +1,15 @@
+/blob-report
+/bootstrap/cache
+/coverage
+/node_modules
+/playwright-report
+/project_doc
+/public
+/storage
+/test-results
+/vendor
+*.md
+*.php
+composer.json
+composer.lock
+package-lock.json

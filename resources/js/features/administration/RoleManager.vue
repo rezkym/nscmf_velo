@@ -1,0 +1,261 @@
+<script setup lang="ts">
+import { useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+
+import ReauthenticationDialog from '@/components/ReauthenticationDialog.vue';
+import { controlClass } from '@/components/ui/control';
+import Alert from '@/components/ui/Alert.vue';
+import Badge from '@/components/ui/Badge.vue';
+import Button from '@/components/ui/Button.vue';
+import FormField from '@/components/ui/FormField.vue';
+import Modal from '@/components/ui/Modal.vue';
+import { usePermissions } from '@/composables/usePermissions';
+import { domainError } from '@/lib/apiErrors';
+import { groupBy, toggleItem } from '@/lib/utils';
+
+export interface PermissionCatalogItem {
+    name: string;
+    group: string;
+    description?: string;
+}
+
+export interface RoleRow {
+    id: number;
+    name: string;
+    is_protected?: boolean;
+    permissions: string[];
+}
+
+const props = withDefaults(defineProps<{ roles?: RoleRow[]; permissionCatalog?: PermissionCatalogItem[] }>(), {
+    roles: () => [],
+    permissionCatalog: () => [],
+});
+
+const { can } = usePermissions();
+const page = usePage();
+
+const permissionGroups = computed(() => groupBy(props.permissionCatalog, (item) => item.group));
+
+// Create or rename a role.
+const nameForm = useForm({ name: '' });
+const isNameFormOpen = ref(false);
+const renamingRole = ref<RoleRow | null>(null);
+
+function openNameForm(role: RoleRow | null): void {
+    renamingRole.value = role;
+    nameForm.clearErrors();
+    nameForm.name = role?.name ?? '';
+    isNameFormOpen.value = true;
+}
+
+function closeNameForm(): void {
+    isNameFormOpen.value = false;
+    renamingRole.value = null;
+}
+
+function submitNameForm(): void {
+    const options = { onSuccess: closeNameForm };
+    if (renamingRole.value) {
+        nameForm.patch(`/administration/roles/${renamingRole.value.id}`, options);
+    } else {
+        nameForm.post('/administration/roles', options);
+    }
+}
+
+// Replace a role's permission set. This changes effective access, so it needs re-authentication.
+const permissionsForm = useForm({ permissions: [] as string[] });
+const permissionsRole = ref<RoleRow | null>(null);
+const permissionsError = ref<string | null>(null);
+const isReauthOpen = ref(false);
+const reauthErrorCode = ref<string | undefined>(undefined);
+
+function openPermissions(role: RoleRow): void {
+    permissionsRole.value = role;
+    permissionsForm.permissions = [...role.permissions];
+    permissionsForm.clearErrors();
+    permissionsError.value = null;
+}
+
+function closePermissions(): void {
+    permissionsRole.value = null;
+}
+
+function requestSavePermissions(): void {
+    reauthErrorCode.value = undefined;
+    permissionsError.value = null;
+    isReauthOpen.value = true;
+}
+
+/**
+ * Domain and action errors arrive flashed, not in the validation error bag (12 §10).
+ * A re-authentication code re-opens the prompt; a rejection keeps the dialog and the selection.
+ */
+watch(
+    () => page.props.flash,
+    (flash) => {
+        const error = domainError(flash);
+        if (!error) return;
+
+        if (error.code === 'REAUTH_REQUIRED' || error.code === 'REAUTH_FAILED') {
+            reauthErrorCode.value = error.code;
+            isReauthOpen.value = true;
+            return;
+        }
+
+        permissionsError.value = error.message ?? 'The permissions could not be saved.';
+    },
+);
+
+function savePermissions(role: RoleRow): void {
+    isReauthOpen.value = false;
+
+    permissionsForm.put(`/administration/roles/${role.id}/permissions`, {
+        onSuccess: () => {
+            permissionsRole.value = null;
+        },
+    });
+}
+</script>
+
+<template>
+    <div class="space-y-4">
+        <div v-if="can('roles.create')" class="flex justify-end">
+            <Button data-testid="create-role-btn" @click="openNameForm(null)"> Create role </Button>
+        </div>
+
+        <div class="overflow-hidden rounded-lg border border-border bg-card">
+            <table class="min-w-full divide-y divide-border text-left text-sm">
+                <thead class="bg-muted text-xs uppercase text-muted-foreground">
+                    <tr>
+                        <th scope="col" class="px-4 py-3">Role</th>
+                        <th scope="col" class="px-4 py-3">Permissions</th>
+                        <th scope="col" class="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                    <tr v-for="role in roles" :key="role.id" :data-testid="`role-row-${role.id}`">
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-2 font-medium text-foreground">
+                                {{ role.name }}
+                                <Badge v-if="role.is_protected" variant="warning">Protected</Badge>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-muted-foreground">{{ role.permissions.length }} permissions</td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right">
+                            <template v-if="!role.is_protected">
+                                <Button
+                                    v-if="can('roles.update')"
+                                    variant="ghost"
+                                    size="sm"
+                                    :data-testid="`edit-role-${role.id}`"
+                                    @click="openNameForm(role)"
+                                >
+                                    Rename
+                                </Button>
+                                <Button
+                                    v-if="can('permissions.assign')"
+                                    variant="ghost"
+                                    size="sm"
+                                    :data-testid="`assign-permissions-${role.id}`"
+                                    @click="openPermissions(role)"
+                                >
+                                    Permissions
+                                </Button>
+                            </template>
+                        </td>
+                    </tr>
+                    <tr v-if="roles.length === 0">
+                        <td colspan="3" class="px-4 py-8 text-center text-muted-foreground">No roles yet.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <Modal
+        :open="isNameFormOpen"
+        :title="renamingRole ? 'Rename role' : 'Create role'"
+        :busy="nameForm.processing"
+        @close="closeNameForm"
+    >
+        <form class="space-y-4" @submit.prevent="submitNameForm">
+            <FormField id="role-name" label="Name" required :error="nameForm.errors.name">
+                <template #default="{ id, describedBy }">
+                    <input
+                        :id="id"
+                        v-model="nameForm.name"
+                        type="text"
+                        maxlength="255"
+                        required
+                        :aria-describedby="describedBy"
+                        :disabled="nameForm.processing"
+                        :class="controlClass"
+                    />
+                </template>
+            </FormField>
+            <div class="flex justify-end gap-2 pt-2">
+                <Button variant="secondary" :disabled="nameForm.processing" @click="closeNameForm">Cancel</Button>
+                <Button
+                    type="submit"
+                    data-testid="save-role-btn"
+                    :disabled="nameForm.processing || !nameForm.name.trim()"
+                >
+                    {{ nameForm.processing ? 'Saving…' : 'Save' }}
+                </Button>
+            </div>
+        </form>
+    </Modal>
+
+    <Modal
+        :open="permissionsRole !== null && !isReauthOpen"
+        :title="`Permissions for ${permissionsRole?.name ?? ''}`"
+        description="Saving changes access for everyone with this role and signs them out of active sessions."
+        :busy="permissionsForm.processing"
+        wide
+        @close="closePermissions"
+    >
+        <div class="space-y-4">
+            <Alert v-if="permissionsError" variant="error">{{ permissionsError }}</Alert>
+            <fieldset v-for="(items, group) in permissionGroups" :key="group" class="space-y-2">
+                <legend class="text-xs font-semibold uppercase text-muted-foreground">{{ group }}</legend>
+                <label v-for="item in items" :key="item.name" class="flex items-start gap-2 text-sm">
+                    <input
+                        type="checkbox"
+                        class="mt-0.5"
+                        :value="item.name"
+                        :checked="permissionsForm.permissions.includes(item.name)"
+                        @change="permissionsForm.permissions = toggleItem(permissionsForm.permissions, item.name)"
+                    />
+                    <span>
+                        <span class="font-mono text-foreground">{{ item.name }}</span>
+                        <span v-if="item.description" class="block text-xs text-muted-foreground">
+                            {{ item.description }}
+                        </span>
+                    </span>
+                </label>
+            </fieldset>
+        </div>
+        <template #footer>
+            <Button variant="secondary" :disabled="permissionsForm.processing" @click="closePermissions">
+                Cancel
+            </Button>
+            <Button
+                data-testid="save-permissions-btn"
+                :disabled="permissionsForm.processing"
+                @click="requestSavePermissions"
+            >
+                {{ permissionsForm.processing ? 'Saving…' : 'Save permissions' }}
+            </Button>
+        </template>
+    </Modal>
+
+    <ReauthenticationDialog
+        v-if="permissionsRole"
+        :open="isReauthOpen"
+        target-action-title="Confirm permission change"
+        target-action-description="Everyone with this role gets the new permissions and is signed out of active sessions."
+        :error-code="reauthErrorCode"
+        @success="savePermissions(permissionsRole)"
+        @cancel="isReauthOpen = false"
+    />
+</template>

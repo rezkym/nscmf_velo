@@ -118,6 +118,22 @@ but ordering and locked behavior remain unchanged.
 
 Prefer small coherent PRs that can independently satisfy Task/PR DoD.
 
+### 5.1 Task Splitting Contract — Required
+
+A task that is too large for one coherent PR MUST be split before coding, and every resulting subtask MUST carry:
+
+```text
+subtask ID (parent ID + letter/number suffix)
+authority reference (document + section)
+one sentence of behavior delivered
+at least one concrete acceptance test named as a test intent
+explicit prerequisite subtask(s)
+```
+
+A subtask inherits its parent's authority, ordering, and locked behavior. Splitting never creates new requirements, new schema, or new routes.
+
+Tasks already split in this document (`T05`, `T18`, `T19`) use the breakdown given here. Any other task may be split by the implementer using this same contract.
+
 ## 6. Mandatory TDD Per Behavioral Task
 
 Every new behavior / bug fix / behavior-changing task follows `15` + `16`:
@@ -310,6 +326,29 @@ Rules:
 - no Spatie Teams columns;
 - no wildcard permission configuration;
 - all migration tests execute against MySQL where semantics matter.
+
+#### T05 Subtask Breakdown — one PR per subtask
+
+Each subtask is one forward-migration slice plus its MySQL schema test. Later subtasks depend on all earlier ones.
+
+| Subtask | Scope | Authority | Acceptance test |
+|---|---|---|---|
+| **T05-1** | `teams`, `users` | `11` §8–9 | `users.team_id` nullable FK to `teams`; protected-superadmin/active flags exist; no Unit/Division/scope column |
+| **T05-2** | Spatie tables via package migration | `11` §10–11 | five standard tables exist unmodified; no `team_id`/`team_foreign_key` column; wildcard config disabled |
+| **T05-3** | `system_settings` typed singleton | `11` §12 | typed columns present; exactly one row enforceable; no generic key/value EAV column |
+| **T05-4** | `nscmf_records` + `nscmf_number_sequences` | `11` §13–15 | status CHECK accepts exactly the seven canonical states; family/subtype CHECK; `request_no` globally unique; sequence row unique per `YYYYMM` |
+| **T05-5** | Activation core: `nscmf_activation_details` | `11` §16 | 1:1 PK/FK to record; every business Draft column nullable **except** `migrate_domain` and `migrate_hosting`, which are `NOT NULL DEFAULT false`, plus the non-null timestamps |
+| **T05-6** | Activation collections: references, service blocks, SLA, virtual connections, priority destinations | `11` §17–21 | unique natural keys `(record, reference_type)`, `(record, service_context)`, `(record, row_no)`; `row_no` CHECK 1..3 |
+| **T05-7** | Activation site details: direct + POP | `11` §22–23 | 1:1 PK/FK; `latency_ms >= 0`; `packet_loss_percent` 0..100; `vlan_id` 1..4094 rejects 0 and 4095 |
+| **T05-8** | Change core: `nscmf_change_details` | `11` §24 | 1:1 PK/FK; `announcement_timing` and `monitoring_period_unit` accept only their closed sets |
+| **T05-9** | Change collections: challenges, problems, impacts, improvement items, results | `11` §25–29 | `row_no` CHECK 1..3 (1..5 for `nscmf_change_results`); `(record, impact_code)` unique; no planning column on results table |
+| **T05-10** | `nscmf_workflow_iterations` + sign-off columns | `11` §30–33 | one open iteration per record; no reviewer-assignment/scope table created |
+| **T05-11** | `business_audit_events`, `business_audit_changes`, `access_audit_events`, `security_audit_events` | `11` §34–38 | append-only shape; no age-purge column/mechanism on authoritative audits |
+| **T05-12** | `nscmf_attachments` + resumable upload session/chunk metadata | `11` §39–40, `11A` | transport status and security status are separate columns; chunk unique `(session, index)` |
+| **T05-13** | Template versions, export batches/requests/snapshots/artifacts, signing certificates, PDF issuances | `11` §41–49 | snapshot rows immutable-by-design; certificate table stores public verification material only |
+| **T05-14** | Laravel framework session/cache/queue tables where a framework migration is needed | `11` §50–51 | `sessions` table present and used; no Redis connection introduced |
+
+Subtask completion rule: a T05 subtask is done only when its migration runs forward against real MySQL 8.4 and its schema test proves the listed constraint, not merely that the table exists.
 
 ### T05A — Core domain enum/rule primitives
 
@@ -560,26 +599,73 @@ Requirements:
 
 ### T18 — Activation Draft persistence
 
-Implement relational Activation form sections according to `06`, `11`, workbook mapping authority, and API autosave contract.
+Implement relational Activation form sections according to `06`, `11`, the `12` §27 payload contract, and the workbook mapping authority.
 
 Draft may be incomplete.
+
+Transport shape is fixed by `12` §7.4.1 and §27. Do not design a different payload.
+
+#### T18 Subtask Breakdown — one PR per subtask
+
+Global prerequisite for all T18 subtasks: `T05-5`, `T05-6`, `T05-7`, `T05B`, `T17`.
+
+`T20` remains downstream and is not a prerequisite. T18 delivers relational persistence with backend transaction and optimistic-concurrency enforcement already in place; T20 integrates autosave/Save Draft UX and conflict presentation with that existing contract.
+
+Mandatory persistence contract for T18A–T18E, established in T18A and inherited by every collection/site subtask (`11` §14, `12` §7.4.1 and §21):
+
+- Service owns the transaction; Repository performs persistence and atomic version-check mechanics.
+- Every save requires the expected current version supplied as `record_version`; a stale version returns `409 NSCMF_VERSION_CONFLICT` without changing parent or child data.
+- All scalar, collection, and site changes in one save commit in the same transaction with exactly one parent `record_version` increment; failure rolls back the entire save.
+- Each persistence subtask MUST prove these rules with relevant real MySQL integration tests: stale saves leave data/version unchanged, successful saves increment once, and a failure during a save leaves no partial changes. These backend guarantees MUST NOT be deferred to T20.
+
+| Subtask | Prerequisite | Behavior delivered | Authority | Acceptance test |
+|---|---|---|---|---|
+| **T18A** | global only | Activation Form Request + scalar `activation` fields persisted to `nscmf_activation_details` | `06` §23–33, `11` §16, `12` §27.1 | omitted key leaves stored value unchanged; explicit `null` clears; unknown key → 422; no `$request->all()` |
+| **T18B** | T18A | `references` selection collection, whole-set replacement | `06` §14, §24, `11` §17, `12` §7.4.1.1 | `[]` deletes all rows; duplicate `reference_type` → 422; unknown type → 422; `IWO` with `specification: null` is persisted, not discarded; `OTHER` without specification still saves in Draft |
+| **T18C** | T18A | `service_blocks` EXISTING/NEW | `06` §26, `11` §18, `12` §7.4.1.1 | duplicate `service_context` → 422; invalid `service_status` → 422; partial block persists in Draft; block carrying only `service_context` is discarded |
+| **T18D** | T18A | `sla_items`, `virtual_connections`, `priority_destinations` | `06` §28, §30, `11` §19–21, `12` §7.4.1.1 | `row_no` outside 1..3 → 422; duplicate `row_no` → 422; row carrying only `row_no` is discarded and occupies no `row_no` |
+| **T18E** | T18A | `direct_site` and `pop_site` 1:1 blocks | `06` §32–33, `11` §22–23 | `null` clears the block; `vlan_id` 4095 → 422; `packet_loss_percent` 101 → 422; `latency_ms` negative → 422 |
+| **T18F** | T18A–T18E | Activation read/detail projection for the edit screen | `12` §24, §27.1 | round-trip: payload saved by T18A–T18E is returned in the same canonical shape |
+
+T18B–T18E have no dependency on each other and MAY run in parallel once T18A is merged.
 
 ### T19 — Change Draft persistence
 
-Implement relational Change form sections including Service Impact model and max Result structure where appropriate.
+Implement relational Change form sections according to `06`, `11`, and the `12` §28 payload contract, including Service Impact multi-select and the max-five Result structure.
 
 Draft may be incomplete.
 
+#### T19 Subtask Breakdown — one PR per subtask
+
+Global prerequisite for all T19 subtasks: `T05-8`, `T05-9`, `T05B`, `T17`. `T20` remains downstream, as for T18.
+
+T19A establishes the same mandatory persistence contract and MySQL acceptance tests stated under T18; T19B–T19E inherit them for Change scalar/collection saves, including Draft/Revision results. Transaction ownership, stale-version rejection, atomic parent-version increment, and full rollback are part of T19 completion, not work deferred to T20. This shared contract does not add a dependency on T18.
+
+| Subtask | Prerequisite | Behavior delivered | Authority | Acceptance test |
+|---|---|---|---|---|
+| **T19A** | global only | Change Form Request + scalar `change` fields persisted to `nscmf_change_details` | `06` §36, §40–43, `11` §24, `12` §28.1 | closed sets enforced for `announcement_timing` and `monitoring_period_unit`; value/unit supplied together or both null; unknown key → 422 |
+| **T19B** | T19A | `facing_challenges` + `identified_problems` | `06` §35, §37, `11` §25–26, `12` §7.4.1.1 | `row_no` outside 1..3 → 422; duplicate → 422; row carrying only `row_no` discarded; Draft accepts zero rows |
+| **T19C** | T19A | `service_impacts` selection collection | `06` §14, §38, `11` §27, `12` §7.4.1.1, §28.2 | duplicate `impact_code` → 422; unknown code → 422; `NOC15` with `other_description: null` is persisted, not discarded; `OTHER` description over 500 chars → 422; impacts never consulted for authorization |
+| **T19D** | T19A | `improvement_items` plan/KPI pairs | `06` §39, `11` §28, `12` §7.4.1.1 | `row_no` 1..3; half-started pair persists in Draft and is judged only at Submit stage; row carrying only `row_no` discarded |
+| **T19E** | T19A | `results` inside Draft/Revision only | `06` §46, `11` §29, `12` §28.2 | `row_no` 1..5; `results` key sent while `PENDING_REVIEW` → 422 rather than silently dropped |
+| **T19F** | T19A–T19E | Change read/detail projection for the edit screen | `12` §24, §28.1 | round-trip: payload saved by T19A–T19E is returned in the same canonical shape |
+
+T19B–T19E have no dependency on each other and MAY run in parallel once T19A is merged.
+
+`T25` remains the only path for Result mutation during `PENDING_REVIEW`; T19E MUST NOT implement it.
+
 ### T20 — Autosave / Save Draft + optimistic concurrency
 
-Implement:
+Prerequisites: completed T18 and T19. Integrate autosave/Save Draft with their existing backend persistence and optimistic-concurrency guarantees (`11` §14, `12` §21); T20 does not introduce or postpone those guarantees.
 
-- structured validated payload;
-- explicit field mapping;
-- `record_version` conflict;
-- no `$request->all()` persistence;
-- safe stale-state response;
+Implement and verify:
+
+- UI payload construction according to `12` §27/§28, using the existing explicit backend field mapping and validated input;
+- submission of the current `record_version` and use of the updated server version after a successful save;
+- safe presentation of `409 NSCMF_VERSION_CONFLICT`, without silently overwriting newer data;
 - UI saving/saved/failure/conflict states.
+
+Acceptance: exercise Activation and Change through the UI/API save flow; a successful save persists the intended data and increments the version exactly once, while a stale browser save preserves the newer stored data/version and displays the conflict. Retain the T18/T19 backend regression tests.
 
 ### T21 — Draft attachment entry-point integration stub
 
@@ -1666,6 +1752,8 @@ identify exact blocked task
 ```
 
 Do not stop unrelated independent tasks that do not depend on the unresolved decision.
+
+Explicitly: workbook cell mapping, renderer qualification, the concrete signing library/key mechanism, and exact rate-limit numeric buckets are owned by Phases 7–8 and the applicable security decision. They are **not** blockers for Phases 0–3 and MUST NOT be used as a reason to delay bootstrap, schema, or Draft-persistence work.
 
 ---
 

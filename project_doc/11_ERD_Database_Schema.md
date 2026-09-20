@@ -715,6 +715,17 @@ TWO_WEEKS_BEFORE
 TWO_DAYS_BEFORE_EMERGENCY
 ```
 
+`monitoring_period_unit` values:
+
+```text
+MINUTE
+HOUR
+DAY
+WEEK
+```
+
+`monitoring_period_value` and `monitoring_period_unit` are both NULL or both present.
+
 ## 25. `nscmf_change_facing_challenges`
 
 ```text

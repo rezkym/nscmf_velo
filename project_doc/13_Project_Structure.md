@@ -823,7 +823,14 @@ No Unit/Division/scope/direct-user-permission/generic-settings/audit-purge route
 
 ## 69. `routes/public.php`
 
-`GET/POST /ispdfvalid`; no public NSCMF API.
+Exactly the canonical public endpoints from `12`:
+
+```text
+GET  /ispdfvalid
+POST /ispdfvalid/verify
+```
+
+No other public route; no public NSCMF API.
 
 ## 70. Route Contract Authority
 
