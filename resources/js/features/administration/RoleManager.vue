@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
 
 import ReauthenticationDialog from '@/components/ReauthenticationDialog.vue';
 import { controlClass } from '@/components/ui/control';
@@ -10,7 +10,7 @@ import Button from '@/components/ui/Button.vue';
 import FormField from '@/components/ui/FormField.vue';
 import Modal from '@/components/ui/Modal.vue';
 import { usePermissions } from '@/composables/usePermissions';
-import { errorCode, firstError } from '@/lib/apiErrors';
+import { domainError } from '@/lib/apiErrors';
 import { groupBy, toggleItem } from '@/lib/utils';
 
 export interface PermissionCatalogItem {
@@ -32,6 +32,7 @@ const props = withDefaults(defineProps<{ roles?: RoleRow[]; permissionCatalog?: 
 });
 
 const { can } = usePermissions();
+const page = usePage();
 
 const permissionGroups = computed(() => groupBy(props.permissionCatalog, (item) => item.group));
 
@@ -87,6 +88,26 @@ function requestSavePermissions(): void {
     isReauthOpen.value = true;
 }
 
+/**
+ * Domain and action errors arrive flashed, not in the validation error bag (12 §10).
+ * A re-authentication code re-opens the prompt; a rejection keeps the dialog and the selection.
+ */
+watch(
+    () => page.props.flash,
+    (flash) => {
+        const error = domainError(flash);
+        if (!error) return;
+
+        if (error.code === 'REAUTH_REQUIRED' || error.code === 'REAUTH_FAILED') {
+            reauthErrorCode.value = error.code;
+            isReauthOpen.value = true;
+            return;
+        }
+
+        permissionsError.value = error.message ?? 'The permissions could not be saved.';
+    },
+);
+
 function savePermissions(): void {
     isReauthOpen.value = false;
     const role = permissionsRole.value;
@@ -95,18 +116,6 @@ function savePermissions(): void {
     permissionsForm.put(`/administration/roles/${role.id}/permissions`, {
         onSuccess: () => {
             permissionsRole.value = null;
-        },
-        onError: (errors) => {
-            const code = errorCode(errors);
-            if (code === 'REAUTH_REQUIRED' || code === 'REAUTH_FAILED') {
-                reauthErrorCode.value = code;
-                isReauthOpen.value = true;
-                return;
-            }
-            permissionsError.value = firstError(errors, 'The permissions could not be saved.', [
-                'message',
-                'permissions',
-            ]);
         },
     });
 }

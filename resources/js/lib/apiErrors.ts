@@ -20,6 +20,15 @@ export interface DomainError {
 }
 
 /** Reads the flashed domain error. Local view-model over the shared flash bag (gap G02). */
-export function domainError(_flash: unknown): DomainError | null {
-    return null;
+export function domainError(flash: unknown): DomainError | null {
+    if (typeof flash !== 'object' || flash === null) return null;
+
+    const flashed = (flash as { domain_error?: unknown }).domain_error;
+    if (typeof flashed !== 'object' || flashed === null) return null;
+
+    const { code, message } = flashed as { code?: unknown; message?: unknown };
+    return {
+        code: typeof code === 'string' ? code : undefined,
+        message: typeof message === 'string' ? message : undefined,
+    };
 }

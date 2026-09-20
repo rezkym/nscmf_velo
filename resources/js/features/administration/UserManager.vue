@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import ReauthenticationDialog from '@/components/ReauthenticationDialog.vue';
 import { controlClass } from '@/components/ui/control';
@@ -12,7 +12,7 @@ import Modal from '@/components/ui/Modal.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import OneTimeCredential from '@/features/administration/OneTimeCredential.vue';
 import { type TemporaryCredential, temporaryCredentialFromFlash } from '@/features/administration/temporaryCredential';
-import { type ErrorBag, errorCode, firstError } from '@/lib/apiErrors';
+import { domainError } from '@/lib/apiErrors';
 import { toggleItem } from '@/lib/utils';
 
 export interface TeamOption {
@@ -83,11 +83,7 @@ function submitTeam(user: UserRow): void {
 
 function enableUser(user: UserRow): void {
     pageError.value = null;
-    router.post(
-        `/administration/users/${user.id}/enable`,
-        {},
-        { onError: (errors) => (pageError.value = firstError(errors, 'The user could not be enabled.', ['message'])) },
-    );
+    router.post(`/administration/users/${user.id}/enable`, {});
 }
 
 // Sensitive actions need a fresh current-password confirmation first (10 §24, 12 §79).
@@ -140,20 +136,6 @@ function onReauthenticated(): void {
 }
 
 function runSensitive(action: SensitiveAction): void {
-    const handleError = (errors: ErrorBag, fallback: string, inDialog: boolean) => {
-        const code = errorCode(errors);
-        if (code === 'REAUTH_REQUIRED' || code === 'REAUTH_FAILED') {
-            reauthErrorCode.value = code;
-            isReauthOpen.value = true;
-            return;
-        }
-        pendingAction.value = null;
-        if (inDialog) {
-            formError.value = errors.message ?? null;
-        } else {
-            pageError.value = firstError(errors, fallback, ['message']);
-        }
-    };
     const finish = () => {
         pendingAction.value = null;
     };
@@ -167,7 +149,6 @@ function runSensitive(action: SensitiveAction): void {
                     closeDialog();
                     revealCredential(username);
                 },
-                onError: (errors) => handleError(errors, 'The user could not be created.', true),
             });
             break;
         }
@@ -177,7 +158,6 @@ function runSensitive(action: SensitiveAction): void {
                     finish();
                     closeDialog();
                 },
-                onError: (errors) => handleError(errors, 'The roles could not be changed.', true),
             });
             break;
         case 'disable':
@@ -186,7 +166,6 @@ function runSensitive(action: SensitiveAction): void {
                 {},
                 {
                     onSuccess: finish,
-                    onError: (errors) => handleError(errors, 'The user could not be disabled.', false),
                 },
             );
             break;
@@ -199,12 +178,37 @@ function runSensitive(action: SensitiveAction): void {
                         finish();
                         revealCredential(action.user.username);
                     },
-                    onError: (errors) => handleError(errors, 'The password could not be reset.', false),
                 },
             );
             break;
     }
 }
+
+/**
+ * Domain and action errors arrive flashed, not in the validation error bag (12 §10).
+ * A re-authentication code re-opens the prompt; anything else is shown where the user is looking.
+ */
+watch(
+    () => page.props.flash,
+    (flash) => {
+        const error = domainError(flash);
+        if (!error) return;
+
+        if (error.code === 'REAUTH_REQUIRED' || error.code === 'REAUTH_FAILED') {
+            reauthErrorCode.value = error.code;
+            isReauthOpen.value = true;
+            return;
+        }
+
+        pendingAction.value = null;
+        const message = error.message ?? 'The action could not be completed.';
+        if (dialog.value) {
+            formError.value = message;
+        } else {
+            pageError.value = message;
+        }
+    },
+);
 
 function revealCredential(username: string): void {
     const flashed = temporaryCredentialFromFlash(page.props.flash);

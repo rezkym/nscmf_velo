@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { router, useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { router, useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
 
 import { controlClass } from '@/components/ui/control';
 import Alert from '@/components/ui/Alert.vue';
@@ -9,7 +9,7 @@ import Button from '@/components/ui/Button.vue';
 import FormField from '@/components/ui/FormField.vue';
 import Modal from '@/components/ui/Modal.vue';
 import { usePermissions } from '@/composables/usePermissions';
-import { firstError } from '@/lib/apiErrors';
+import { domainError } from '@/lib/apiErrors';
 
 export interface Team {
     id: number;
@@ -22,6 +22,7 @@ type LifecycleAction = 'deactivate' | 'reactivate';
 withDefaults(defineProps<{ teams?: Team[] }>(), { teams: () => [] });
 
 const { can } = usePermissions();
+const page = usePage();
 
 const LIFECYCLE_COPY: Record<LifecycleAction, { title: string; description: string }> = {
     deactivate: {
@@ -52,6 +53,18 @@ function closeForm(): void {
     form.reset();
     form.clearErrors();
 }
+
+/** Domain and action errors arrive flashed, not in the validation error bag (12 §10). */
+watch(
+    () => page.props.flash,
+    (flash) => {
+        const error = domainError(flash);
+        if (!error) return;
+
+        lifecycleError.value = error.message ?? 'The team could not be updated.';
+        lifecyclePending.value = false;
+    },
+);
 
 function submitForm(): void {
     if (form.processing) return;
@@ -90,10 +103,9 @@ function confirmLifecycle(): void {
         {},
         {
             onSuccess: () => {
+                // A flashed domain error comes back on a successful redirect; the dialog stays open for it.
+                if (domainError(page.props.flash)) return;
                 lifecycle.value = null;
-            },
-            onError: (errors) => {
-                lifecycleError.value = firstError(errors, 'The team could not be updated.');
             },
             onFinish: () => {
                 lifecyclePending.value = false;
