@@ -15,6 +15,7 @@ export interface SubmitPanelProps {
     allowedActions?: string[];
     saveState?: SaveState;
     errors?: Record<string, string | string[]>;
+    warnings?: string[];
 }
 
 const props = withDefaults(defineProps<SubmitPanelProps>(), {
@@ -22,6 +23,7 @@ const props = withDefaults(defineProps<SubmitPanelProps>(), {
     allowedActions: () => [],
     saveState: 'clean',
     errors: () => ({}),
+    warnings: () => [],
 });
 
 const emit = defineEmits<{
@@ -170,6 +172,25 @@ function handleSubmit(): void {
                         {{ err.label }}:
                     </button>
                     <span> {{ err.message }}</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Warning Summary (Visually distinct from error, non-blocking) -->
+        <div
+            v-if="warnings.length > 0"
+            data-testid="warning-summary"
+            role="status"
+            class="p-4 rounded-md bg-amber-500/10 border border-amber-500 text-amber-900 dark:text-amber-200"
+        >
+            <h3 class="text-sm font-semibold mb-2">Submission Warnings</h3>
+            <ul class="list-disc list-inside space-y-1 text-sm">
+                <li
+                    v-for="(warn, idx) in warnings"
+                    :key="idx"
+                    data-testid="warning-summary-item"
+                >
+                    {{ warn }}
                 </li>
             </ul>
         </div>
