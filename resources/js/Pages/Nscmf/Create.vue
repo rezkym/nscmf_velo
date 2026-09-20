@@ -36,7 +36,7 @@ const requestNoError = computed(() => requestNoProblem.value ?? form.errors.requ
 watch(
     () => form.family,
     (family) => {
-        form.subtype = SUBTYPES_BY_FAMILY[family][0] ?? form.subtype;
+        form.subtype = SUBTYPES_BY_FAMILY[family][0];
     },
 );
 

@@ -70,6 +70,13 @@ function mountPage(permissions: string[] = ALL_USER_PERMISSIONS): VueWrapper {
     return mount(Index, { props: { users, teams, roles }, attachTo: document.body });
 }
 
+/** The single-field dialog form, told apart from the create form, which carries every field. */
+function dialogForm(field: string) {
+    const form = forms.find((candidate) => field in candidate && !('username' in candidate));
+    if (!form) throw new Error(`no dialog form with field ${field}`);
+    return form;
+}
+
 function formWith(field: string) {
     const form = forms.find((candidate) => field in candidate);
     if (!form) throw new Error(`no form with field ${field}`);
@@ -277,5 +284,74 @@ describe('User administration (FE-12)', () => {
         const wrapper = mount(Index, { props: { users: [], teams, roles } });
 
         expect(wrapper.text()).toContain('No users yet.');
+    });
+
+    it('closes the roles dialog once the server accepts the change', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="btn-edit-roles-2"]').trigger('click');
+        await wrapper.get('[data-testid="btn-save-roles"]').trigger('click');
+        await confirmReauth(wrapper);
+
+        lastRequest('/administration/users/2/roles')?.options.onSuccess?.();
+        await nextTick();
+
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    });
+
+    it('shows a flashed denial inside the open dialog, not on the page behind it', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="btn-create-user"]').trigger('click');
+
+        await flashDomainError({ code: 'FORBIDDEN', message: 'You may not create users.' });
+
+        expect(wrapper.get('[role="dialog"]').text()).toContain('You may not create users.');
+        expect(wrapper.find('[data-testid="users-server-error"]').exists()).toBe(false);
+    });
+
+    it('shows a flashed denial inside the roles dialog', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="btn-edit-roles-2"]').trigger('click');
+
+        await flashDomainError({ code: 'PROTECTED_RESOURCE', message: 'This role cannot be removed.' });
+
+        expect(wrapper.get('[role="dialog"]').text()).toContain('This role cannot be removed.');
+    });
+
+    it('falls back to its own wording when a denial carries only a code', async () => {
+        const wrapper = mountPage();
+
+        await flashDomainError({ code: 'FORBIDDEN' });
+
+        expect(wrapper.get('[data-testid="users-server-error"]').text()).toBe('The action could not be completed.');
+    });
+
+    it('shows the role field error and the in-flight labels of every dialog', async () => {
+        const wrapper = mountPage();
+
+        await wrapper.get('[data-testid="btn-create-user"]').trigger('click');
+        const createForm = formWith('username');
+        createForm.errors = { role_ids: 'Select at least one role.' };
+        createForm.processing = true;
+        await nextTick();
+        expect(wrapper.get('[role="dialog"]').text()).toContain('Select at least one role.');
+        expect(wrapper.get('[data-testid="btn-submit-create-user"]').text()).toBe('Creating…');
+
+        await wrapper.get('[data-testid="btn-edit-profile-2"]').trigger('click');
+        dialogForm('name').processing = true;
+        await nextTick();
+        expect(wrapper.get('[role="dialog"]').text()).toContain('Saving…');
+
+        await wrapper.get('[data-testid="btn-edit-team-2"]').trigger('click');
+        dialogForm('team_id').processing = true;
+        await nextTick();
+        expect(wrapper.get('[role="dialog"]').text()).toContain('Saving…');
+
+        await wrapper.get('[data-testid="btn-edit-roles-2"]').trigger('click');
+        const rolesForm = dialogForm('role_ids');
+        rolesForm.errors = { role_ids: 'Select at least one role.' };
+        rolesForm.processing = true;
+        await nextTick();
+        expect(wrapper.get('[role="dialog"]').text()).toContain('Select at least one role.');
+        expect(wrapper.get('[data-testid="btn-save-roles"]').text()).toBe('Saving…');
     });
 });

@@ -246,4 +246,30 @@ describe('GeneralServiceSection (FE-20)', () => {
         await rfs.get('#installation_rfs_date').setValue('2026-10-01');
         expect(lastModel(rfs)).toEqual({ installation_rfs_date: '2026-10-01' });
     });
+
+    it('touches only the row being edited when several exist', async () => {
+        const references = mountSection({
+            references: [
+                { reference_type: 'IWO', specification: 'Keep me' },
+                { reference_type: 'OTHER', specification: null },
+            ],
+        });
+        await references.get('#reference-OTHER-specification').setValue('Demo note');
+        expect(lastModel(references).references).toEqual([
+            { reference_type: 'IWO', specification: 'Keep me' },
+            { reference_type: 'OTHER', specification: 'Demo note' },
+        ]);
+
+        const blocks = mountSection({
+            service_blocks: [
+                { service_context: 'EXISTING', service_id: 'SVC-1' },
+                { service_context: 'NEW', service_id: 'SVC-2' },
+            ],
+        });
+        await blocks.get('#service-new-service_id').setValue('SVC-9');
+        expect(lastModel(blocks).service_blocks).toEqual([
+            { service_context: 'EXISTING', service_id: 'SVC-1' },
+            { service_context: 'NEW', service_id: 'SVC-9' },
+        ]);
+    });
 });

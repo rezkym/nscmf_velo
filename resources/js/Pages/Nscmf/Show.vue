@@ -62,10 +62,9 @@ const TABS = [
 const activeTab = ref<(typeof TABS)[number]['key']>('form');
 
 /** Missing values show a neutral dash; 0 and false are real values. */
-function display(value: Value, labels?: Record<string, string>): string {
+function display(value: Value): string {
     if (value === null || value === undefined || value === '') return '—';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    if (labels && typeof value === 'string') return labels[value] ?? value;
     return String(value);
 }
 
@@ -178,13 +177,13 @@ const activation = computed(() => {
             'pop_site.',
         ),
         references: (a.references ?? []).map((row) => ({
-            type: display(row.reference_type, REFERENCE_TYPE_LABELS),
+            type: REFERENCE_TYPE_LABELS[row.reference_type],
             specification: display(row.specification),
         })),
         serviceBlocks: (a.service_blocks ?? []).map((row) => ({
             context: row.service_context === 'NEW' ? 'New service' : 'Existing service',
             id: display(row.service_id),
-            status: display(row.service_status, SERVICE_STATUS_LABELS),
+            status: display(row.service_status && SERVICE_STATUS_LABELS[row.service_status]),
             description: display(row.service_description),
             location: display(row.service_location),
         })),
@@ -205,7 +204,7 @@ const change = computed(() => {
     const monitoring =
         c.monitoring_period_value === null || c.monitoring_period_value === undefined
             ? '—'
-            : `${c.monitoring_period_value} ${display(c.monitoring_period_unit, MONITORING_UNIT_LABELS)}`;
+            : `${c.monitoring_period_value} ${display(c.monitoring_period_unit && MONITORING_UNIT_LABELS[c.monitoring_period_unit])}`;
     return {
         purpose: items(c, [['maintenance_purpose', 'Maintenance purpose']]),
         plan: [
@@ -214,7 +213,7 @@ const change = computed(() => {
             {
                 key: 'announcement_timing',
                 label: 'Maintenance announcement',
-                value: display(c.announcement_timing, ANNOUNCEMENT_TIMING_LABELS),
+                value: display(c.announcement_timing && ANNOUNCEMENT_TIMING_LABELS[c.announcement_timing]),
             },
             ...items(c, [['rollback_scenario', 'Rollback scenario']]),
         ],
@@ -227,7 +226,7 @@ const change = computed(() => {
             text: display(row.problem_text),
         })),
         impacts: (c.service_impacts ?? []).map((row) => ({
-            impact: display(row.impact_code, SERVICE_IMPACT_LABELS),
+            impact: SERVICE_IMPACT_LABELS[row.impact_code],
             description: display(row.other_description),
         })),
         improvements: (c.improvement_items ?? []).map((row) => ({

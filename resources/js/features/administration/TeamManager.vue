@@ -88,13 +88,11 @@ function openLifecycle(team: Team): void {
 }
 
 function closeLifecycle(): void {
-    if (!lifecyclePending.value) lifecycle.value = null;
+    lifecycle.value = null;
 }
 
-function confirmLifecycle(): void {
-    if (!lifecycle.value || lifecyclePending.value) return;
-
-    const { team, action } = lifecycle.value;
+function confirmLifecycle(entry: { team: Team; action: LifecycleAction }): void {
+    const { team, action } = entry;
     lifecyclePending.value = true;
     lifecycleError.value = null;
 
@@ -209,7 +207,12 @@ function confirmLifecycle(): void {
 
         <template #footer>
             <Button variant="secondary" :disabled="lifecyclePending" @click="closeLifecycle">Cancel</Button>
-            <Button data-testid="confirm-lifecycle-action" :disabled="lifecyclePending" @click="confirmLifecycle">
+            <Button
+                v-if="lifecycle"
+                data-testid="confirm-lifecycle-action"
+                :disabled="lifecyclePending"
+                @click="confirmLifecycle(lifecycle)"
+            >
                 {{ lifecyclePending ? 'Saving…' : 'Confirm' }}
             </Button>
         </template>

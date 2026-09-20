@@ -119,4 +119,15 @@ describe('Create NSCMF (FE-17)', () => {
         expect(wrapper.find('form').exists()).toBe(false);
         expect(wrapper.text()).toContain('Contact an administrator');
     });
+
+    it('AC4: switching back to automatic numbering drops the manual number', async () => {
+        const wrapper = mountCreate();
+        await wrapper.get('[data-testid="numbering-manual"]').setValue(true);
+        await wrapper.get('#request-no').setValue('DEMO-ACT-099');
+
+        await wrapper.get('[data-testid="numbering-automatic"]').setValue(true);
+        await submit(wrapper);
+
+        expect(lastRequest('/nscmf')?.data).toMatchObject({ numbering_mode: 'AUTOMATIC', request_no: null });
+    });
 });

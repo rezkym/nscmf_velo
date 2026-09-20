@@ -170,4 +170,61 @@ describe('Role administration (FE-14)', () => {
         resetInertia({ auth: { permissions: ALL_ROLE_PERMISSIONS } });
         expect(mount(Index, { props: { roles: [], permissionCatalog } }).text()).toContain('No roles yet.');
     });
+
+    it('keeps the permissions dialog open while the save is in flight, then closes it on success', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
+        await wrapper.get('[data-testid="save-permissions-btn"]').trigger('click');
+        await confirmReauth(wrapper);
+
+        const form = forms.find((candidate) => 'permissions' in candidate);
+        if (!form) throw new Error('permissions form missing');
+        form.processing = true;
+        await nextTick();
+
+        await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' });
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(true);
+
+        form.processing = false;
+        lastRequest('/administration/roles/2/permissions')?.options.onSuccess?.();
+        await nextTick();
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    });
+
+    it('closes the permissions dialog on Escape when nothing is in flight', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
+
+        await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' });
+
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    });
+
+    it('falls back to its own wording when a denial carries only a code', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
+
+        await flashDomainError({ code: 'FORBIDDEN' });
+
+        expect(wrapper.get('[role="dialog"]').text()).toContain('The permissions could not be saved.');
+    });
+
+    it('shows the in-flight label while a role name is saving', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="create-role-btn"]').trigger('click');
+
+        const form = forms.find((candidate) => 'name' in candidate);
+        if (!form) throw new Error('role name form missing');
+        form.processing = true;
+        await nextTick();
+
+        expect(wrapper.get('[data-testid="save-role-btn"]').text()).toBe('Saving…');
+    });
+
+    it('hides the permissions action without the assign permission', () => {
+        resetInertia({ auth: { permissions: ['roles.view'] } });
+        const wrapper = mount(Index, { props: { roles, permissionCatalog } });
+
+        expect(wrapper.find('[data-testid="assign-permissions-2"]').exists()).toBe(false);
+    });
 });

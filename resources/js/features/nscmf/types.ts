@@ -22,7 +22,7 @@ export const SUBTYPE_LABELS: Record<NscmfSubtype, string> = {
     EMERGENCY: 'Emergency',
 };
 
-export const SUBTYPES_BY_FAMILY: Record<NscmfFamily, readonly NscmfSubtype[]> = {
+export const SUBTYPES_BY_FAMILY: Record<NscmfFamily, readonly [NscmfSubtype, ...NscmfSubtype[]]> = {
     ACTIVATION: ['ACTIVATION', 'UPGRADE_DOWNGRADE', 'DEACTIVATION'],
     CHANGE: ['MAINTENANCE', 'UPGRADE', 'EMERGENCY'],
 };

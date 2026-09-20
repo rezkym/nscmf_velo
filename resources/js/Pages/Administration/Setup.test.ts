@@ -172,4 +172,32 @@ describe('Initial setup wizard (FE-15)', () => {
         expect(wrapper.get('[data-testid="signing-readiness-status"]').text()).toContain('Ready');
         expect(requests).toHaveLength(0);
     });
+
+    it('returns to the default roles after choosing the manual path', async () => {
+        const wrapper = mountSetup();
+
+        await wrapper.get('[data-testid="role-mode-manual"]').setValue(true);
+        expect(wrapper.find('[data-testid="default-roles"]').exists()).toBe(false);
+
+        await wrapper.get('[data-testid="role-mode-default"]').setValue(true);
+        expect(wrapper.get('[data-testid="default-roles"]').text()).toContain('Superadmin');
+        expect(requests).toHaveLength(0);
+    });
+
+    it('says so when the default roles have not been seeded yet', () => {
+        resetInertia({
+            auth: { user: { id: 1, username: 'superadmin', name: 'Admin' }, permissions: SUPERADMIN_PERMISSIONS },
+        });
+        const wrapper = mount(Setup, {
+            props: {
+                readiness: NOTHING_CONFIGURED,
+                roles: [],
+                teams: [],
+                users: [],
+                permissionCatalog: [],
+            },
+        });
+
+        expect(wrapper.get('[data-testid="default-roles"]').text()).toContain('No roles are available yet.');
+    });
 });

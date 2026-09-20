@@ -167,4 +167,38 @@ describe('Team administration (FE-11)', () => {
         expect(wrapper.get('[role="dialog"] [role="alert"]').text()).toBe('This team cannot be deactivated.');
         expect(wrapper.get('[data-testid="confirm-lifecycle-action"]').attributes('disabled')).toBeUndefined();
     });
+
+    it('keeps the lifecycle dialog open while the action is in flight', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');
+        await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
+
+        await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' });
+
+        expect(wrapper.find('[data-testid="confirm-lifecycle-action"]').exists()).toBe(true);
+    });
+
+    it('closes the lifecycle dialog when the server accepts the action', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');
+        await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
+
+        lastRequest(/deactivate$/)?.options.onSuccess?.();
+        await nextTick();
+
+        expect(wrapper.find('[data-testid="confirm-lifecycle-action"]').exists()).toBe(false);
+    });
+
+    it('keeps the dialog open when the redirect carries a domain error, and falls back to its own wording', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');
+        await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
+
+        await flashDomainError({ code: 'FORBIDDEN' });
+        lastRequest(/deactivate$/)?.options.onSuccess?.();
+        await nextTick();
+
+        expect(wrapper.get('[role="dialog"]').text()).toContain('The team could not be updated.');
+        expect(wrapper.find('[data-testid="confirm-lifecycle-action"]').exists()).toBe(true);
+    });
 });

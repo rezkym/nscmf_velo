@@ -221,4 +221,23 @@ describe('Record detail (FE-18)', () => {
 
         expect(wrapper.findAll('input, select, textarea')).toHaveLength(0);
     });
+
+    it('labels an existing service block and copes with a record that has no form data yet', () => {
+        const wrapper = mountShow({
+            ...BASE,
+            family: 'ACTIVATION',
+            subtype: 'ACTIVATION',
+            activation: { service_blocks: [{ service_context: 'EXISTING', service_id: 'SVC-1' }] },
+        });
+
+        const services = wrapper.get('[data-testid="table-service_blocks"]').text();
+        expect(services).toContain('Existing service');
+        expect(services).toContain('—');
+
+        const bare = mountShow({ ...BASE, family: 'ACTIVATION', subtype: 'ACTIVATION' });
+        expect(bare.get('[data-testid="field-customer_name"]').text()).toBe('—');
+
+        const bareChange = mountShow({ ...BASE, family: 'CHANGE', subtype: 'MAINTENANCE' });
+        expect(bareChange.get('[data-testid="field-maintenance_purpose"]').text()).toBe('—');
+    });
 });

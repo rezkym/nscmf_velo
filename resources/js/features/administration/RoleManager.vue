@@ -54,8 +54,6 @@ function closeNameForm(): void {
 }
 
 function submitNameForm(): void {
-    if (nameForm.processing) return;
-
     const options = { onSuccess: closeNameForm };
     if (renamingRole.value) {
         nameForm.patch(`/administration/roles/${renamingRole.value.id}`, options);
@@ -79,7 +77,7 @@ function openPermissions(role: RoleRow): void {
 }
 
 function closePermissions(): void {
-    if (!permissionsForm.processing) permissionsRole.value = null;
+    permissionsRole.value = null;
 }
 
 function requestSavePermissions(): void {
@@ -108,10 +106,8 @@ watch(
     },
 );
 
-function savePermissions(): void {
+function savePermissions(role: RoleRow): void {
     isReauthOpen.value = false;
-    const role = permissionsRole.value;
-    if (!role) return;
 
     permissionsForm.put(`/administration/roles/${role.id}/permissions`, {
         onSuccess: () => {
@@ -254,11 +250,12 @@ function savePermissions(): void {
     </Modal>
 
     <ReauthenticationDialog
+        v-if="permissionsRole"
         :open="isReauthOpen"
         target-action-title="Confirm permission change"
         target-action-description="Everyone with this role gets the new permissions and is signed out of active sessions."
         :error-code="reauthErrorCode"
-        @success="savePermissions"
+        @success="savePermissions(permissionsRole)"
         @cancel="isReauthOpen = false"
     />
 </template>

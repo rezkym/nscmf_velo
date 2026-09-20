@@ -99,4 +99,23 @@ describe('FE-01: Typed contracts and transport boundaries', () => {
             expect(parsedError.context?.latest_record_version).toBeUndefined();
         });
     });
+
+    describe('rejects a payload that is not an object at all', () => {
+        it('refuses a non-object ChangeResult, DateOnly and error envelope', () => {
+            expect(() => parseChangeResult(null)).toThrow('Invalid ChangeResult payload');
+            expect(() => parseChangeResult('nope')).toThrow('Invalid ChangeResult payload');
+            expect(() => parseDateOnly(20261001)).toThrow(/Invalid DateOnly string/);
+            expect(() => parseDateOnly('2026-13')).toThrow(/Invalid DateOnly string/);
+            expect(() => parseApiErrorEnvelope(null)).toThrow('Invalid ApiErrorEnvelope payload');
+            expect(() => parseApiErrorEnvelope('nope')).toThrow('Invalid ApiErrorEnvelope payload');
+        });
+    });
+
+    describe('falls back to safe defaults for loose fields', () => {
+        it('drops a non-string result_status and names an error envelope without a code', () => {
+            expect(parseChangeResult({ row_no: 1, result_status: 42 }).result_status).toBeNull();
+
+            expect(parseApiErrorEnvelope({})).toMatchObject({ code: 'UNKNOWN_ERROR', message: '' });
+        });
+    });
 });

@@ -97,4 +97,11 @@ describe('OneTimeCredential (FE-13)', () => {
         expect(wrapper.find('[data-testid="btn-copy-credential"]').exists()).toBe(false);
         expect(wrapper.get('[data-testid="credential-lost-advisory"]').text()).toContain('Reset password again');
     });
+
+    it('offers no copy button once the password is gone', () => {
+        const wrapper = mountOpen(null);
+
+        expect(wrapper.find('[data-testid="btn-copy-credential"]').exists()).toBe(false);
+        expect(wrapper.get('[data-testid="credential-lost-advisory"]').text()).toContain('Reset password again');
+    });
 });

@@ -63,10 +63,6 @@ function validate(): boolean {
 }
 
 function handleConfirm(): void {
-    if (props.pending) {
-        return;
-    }
-
     if (!validate()) {
         return;
     }

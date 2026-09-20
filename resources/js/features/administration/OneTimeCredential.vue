@@ -29,10 +29,9 @@ watch(
     },
 );
 
-async function copyPassword(): Promise<void> {
-    if (!props.temporaryPassword) return;
+async function copyPassword(password: string): Promise<void> {
     try {
-        await navigator.clipboard.writeText(props.temporaryPassword);
+        await navigator.clipboard.writeText(password);
         copyState.value = 'copied';
     } catch {
         copyState.value = 'failed';
@@ -55,7 +54,12 @@ async function copyPassword(): Promise<void> {
                     class="flex-1 select-all break-all rounded-md border border-border bg-muted px-3 py-2 font-mono text-sm"
                     >{{ temporaryPassword }}</code
                 >
-                <Button variant="secondary" size="sm" data-testid="btn-copy-credential" @click="copyPassword">
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    data-testid="btn-copy-credential"
+                    @click="copyPassword(temporaryPassword)"
+                >
                     {{ copyState === 'copied' ? 'Copied' : 'Copy' }}
                 </Button>
             </div>
