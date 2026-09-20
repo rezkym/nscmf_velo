@@ -5,7 +5,7 @@ import { fieldError, type FieldErrors } from '../fieldErrors';
 import type { ActivationDraftFields } from '../types';
 
 /** NOC configuration, DNS/domain/email and hosting (06 §29-31). Every field is optional for a draft. */
-type NetworkFields = Pick<
+export type NetworkFields = Pick<
     ActivationDraftFields,
     | 'lan_ip_allocation'
     | 'wan_ip'

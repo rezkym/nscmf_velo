@@ -1,25 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
-import type { ActivationDraftFields } from '../types';
-import NetworkHostingSection from './NetworkHostingSection.vue';
-
-type NetworkFields = Omit<
-    ActivationDraftFields,
-    | 'customer_name'
-    | 'contact_name'
-    | 'installation_rfs_date'
-    | 'references'
-    | 'service_blocks'
-    | 'sla_items'
-    | 'bandwidth_international_mbps'
-    | 'bandwidth_domestic_iix_mbps'
-    | 'bandwidth_mixed_mbps'
-    | 'virtual_connections'
-    | 'priority_destinations'
-    | 'direct_site'
-    | 'pop_site'
->;
+import NetworkHostingSection, { type NetworkFields } from './NetworkHostingSection.vue';
 
 function mountSection(modelValue: NetworkFields = {}, props: Record<string, unknown> = {}): VueWrapper {
     return mount(NetworkHostingSection, { props: { modelValue, ...props } });

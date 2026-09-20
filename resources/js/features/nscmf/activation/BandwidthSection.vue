@@ -6,7 +6,7 @@ import RepeatableRows from '../RepeatableRows.vue';
 import type { ActivationDraftFields, PriorityDestinationRow, SlaItemRow, VirtualConnectionRow } from '../types';
 
 /** Specific requirements (SLA) and bandwidth (06 §28, §30). Each collection holds at most three rows. */
-type BandwidthFields = Pick<
+export type BandwidthFields = Pick<
     ActivationDraftFields,
     | 'sla_items'
     | 'bandwidth_international_mbps'

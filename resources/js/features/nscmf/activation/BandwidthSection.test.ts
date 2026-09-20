@@ -1,18 +1,7 @@
 import { type DOMWrapper, mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
-import type { ActivationDraftFields } from '../types';
-import BandwidthSection from './BandwidthSection.vue';
-
-type BandwidthFields = Pick<
-    ActivationDraftFields,
-    | 'sla_items'
-    | 'bandwidth_international_mbps'
-    | 'bandwidth_domestic_iix_mbps'
-    | 'bandwidth_mixed_mbps'
-    | 'virtual_connections'
-    | 'priority_destinations'
->;
+import BandwidthSection, { type BandwidthFields } from './BandwidthSection.vue';
 
 function mountSection(modelValue: BandwidthFields = {}, props: Record<string, unknown> = {}): VueWrapper {
     return mount(BandwidthSection, { props: { modelValue, ...props } });

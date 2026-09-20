@@ -18,7 +18,7 @@ import type {
 import { ANNOUNCEMENT_TIMING_LABELS, MONITORING_UNIT_LABELS } from '../types';
 
 /** Improvement plan, schedule, monitoring, rollback and announcement (06 §39-43). */
-type PlanFields = Pick<
+export type PlanFields = Pick<
     ChangeDraftFields,
     | 'improvement_items'
     | 'target_execution_date'

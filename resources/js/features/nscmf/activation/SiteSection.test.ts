@@ -1,10 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
-import type { ActivationDraftFields } from '../types';
-import SiteSection from './SiteSection.vue';
-
-type SiteFields = Pick<ActivationDraftFields, 'direct_site' | 'pop_site'>;
+import SiteSection, { type SiteFields } from './SiteSection.vue';
 
 function mountSection(modelValue: SiteFields = {}, props: Record<string, unknown> = {}): VueWrapper {
     return mount(SiteSection, { props: { modelValue, ...props } });
