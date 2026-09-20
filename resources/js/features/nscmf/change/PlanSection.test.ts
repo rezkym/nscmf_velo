@@ -120,7 +120,7 @@ describe('PlanSection (FE-25)', () => {
         expect(options[1]?.text()).toBe('1 week before');
     });
 
-    it('AC4: warns about a mismatched announcement without blocking anything', async () => {
+    it('AC4: warns about a mismatched announcement without blocking anything', () => {
         const emergency = mountSection({ announcement_timing: 'ONE_WEEK_BEFORE' }, { subtype: 'EMERGENCY' });
         expect(emergency.get('[data-testid="announcement-warning"]').text()).toContain('Emergency');
         expect(emergency.findAll('[disabled]')).toHaveLength(0);
