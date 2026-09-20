@@ -10,6 +10,9 @@ defineProps<{
     label: string;
     /** Unit shown next to the control, e.g. "Mbps". */
     suffix?: string;
+    /** Native range hints (06 §32-33); the server is what actually rejects a value. */
+    min?: number;
+    max?: number;
     help?: string;
     error?: string;
     required?: boolean;
@@ -29,6 +32,8 @@ function onInput(event: Event): void {
                     :id="controlId"
                     type="number"
                     inputmode="decimal"
+                    :min="min"
+                    :max="max"
                     :value="value ?? ''"
                     :disabled="disabled"
                     :aria-describedby="describedBy"
