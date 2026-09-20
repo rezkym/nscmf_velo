@@ -354,4 +354,15 @@ describe('User administration (FE-12)', () => {
         expect(wrapper.get('[role="dialog"]').text()).toContain('Select at least one role.');
         expect(wrapper.get('[data-testid="btn-save-roles"]').text()).toBe('Saving…');
     });
+
+    it('shows nothing when a reset succeeds without the server flashing a credential', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="btn-reset-password-2"]').trigger('click');
+        await confirmReauth(wrapper);
+
+        lastRequest('/administration/users/2/reset-password')?.options.onSuccess?.();
+        await nextTick();
+
+        expect(wrapper.find('[data-testid="one-time-credential-container"]').exists()).toBe(false);
+    });
 });
