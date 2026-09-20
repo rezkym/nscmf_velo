@@ -216,6 +216,42 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                     resolve();
                     handleNextQueued();
                 },
+                onHttpException: (response: unknown) => {
+                    isSaving.value = false;
+                    inFlightSnapshot = null;
+                    saveStatus.value = 'error';
+
+                    const res = response as { status?: number; statusText?: string; data?: unknown };
+                    const status = typeof res?.status === 'number' ? res.status : 500;
+                    const errObj: RequestFeedbackError = {
+                        status,
+                        message: res?.statusText ?? 'Server error',
+                    };
+
+                    feedbackError.value = errObj;
+                    options.onError?.(errObj);
+                    resolve();
+                    handleNextQueued();
+                },
+                onNetworkError: (error: unknown) => {
+                    isSaving.value = false;
+                    inFlightSnapshot = null;
+                    saveStatus.value = 'error';
+
+                    const errObj: RequestFeedbackError = {
+                        status: 0,
+                        isNetworkError: true,
+                        message: error instanceof Error ? error.message : 'Network connection lost',
+                    };
+
+                    feedbackError.value = errObj;
+                    options.onError?.(errObj);
+                    resolve();
+                    handleNextQueued();
+                },
+                onFinish: () => {
+                    isSaving.value = false;
+                },
             });
         });
     }
