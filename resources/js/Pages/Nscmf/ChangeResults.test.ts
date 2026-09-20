@@ -371,6 +371,22 @@ describe('ChangeResults (FE-29)', () => {
             expect(wrapper.text()).toContain('Saved just now');
         });
 
+        it('handles network failure error', async () => {
+            const wrapper = mountChangeResults();
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+
+            const req = lastRequest('/nscmf/42/change-results');
+            expect(req).toBeDefined();
+
+            await respondToRequest(req, {
+                status: 500,
+                isInertia: false,
+            });
+
+            expect(wrapper.find('[data-testid="feedback-network-error"]').exists()).toBe(true);
+            expect(wrapper.text()).toContain('Network Connection Issue');
+        });
+
         it('handles malformed projection error gracefully via RequestFeedback (N-29-3)', async () => {
             const wrapper = mountChangeResults();
             const vm = wrapper.vm as unknown as {

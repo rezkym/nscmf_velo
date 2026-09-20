@@ -71,14 +71,14 @@ export function buildChangeResultsPayload(recordVersion: number, results: Change
 </script>
 
 <script setup lang="ts">
-import { Link, router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
 
 import Alert from '@/components/ui/Alert.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import { buttonVariants } from '@/components/ui/button';
-import RequestFeedback, { type RequestFeedbackError } from '@/components/RequestFeedback.vue';
+import RequestFeedback, { type RequestFeedbackError, type SaveStatus } from '@/components/RequestFeedback.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import ResultsSection from '@/features/nscmf/change/ResultsSection.vue';
 import DetailList, { type DetailItem } from '@/features/nscmf/DetailList.vue';
@@ -92,9 +92,11 @@ import {
     SUBTYPE_LABELS,
 } from '@/features/nscmf/types';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { domainError } from '@/lib/apiErrors';
 import type { NscmfDetailRecord } from '@/Pages/Nscmf/Show.vue';
 
 const props = defineProps<{ record: NscmfDetailRecord }>();
+const page = usePage();
 
 const { user, can } = usePermissions();
 
@@ -125,7 +127,50 @@ const resultsModel = ref<{ results: ChangeResultRow[] }>({
 const fieldErrors = ref<Record<string, string>>({});
 // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 const feedbackError = ref<RequestFeedbackError | null>(null);
+const saveStatus = ref<SaveStatus>(null);
 const submitting = ref(false);
+
+function resetToRecord(): void {
+    resultsModel.value = {
+        results: (props.record.change?.results ?? []).map((r, i) => ({
+            row_no: r.row_no || i + 1,
+            result_summary: r.result_summary ?? null,
+            performance_information: r.performance_information ?? null,
+            result_status: r.result_status ?? null,
+        })),
+    };
+    feedbackError.value = null;
+    fieldErrors.value = {};
+}
+
+watch(
+    () => props.record.record_version,
+    () => {
+        resetToRecord();
+    },
+);
+
+watch(
+    () => (page.props as Record<string, unknown> | undefined)?.flash,
+    (flash) => {
+        const dError = domainError(flash);
+        if (dError?.code === 'NSCMF_VERSION_CONFLICT') {
+            feedbackError.value = {
+                status: 409,
+                code: 'NSCMF_VERSION_CONFLICT',
+                message: dError.message ?? 'A newer version exists.',
+            };
+            saveStatus.value = null;
+        } else if (dError?.code === 'FORBIDDEN') {
+            feedbackError.value = {
+                status: 403,
+                code: 'FORBIDDEN',
+                message: dError.message ?? 'Access Denied',
+            };
+            saveStatus.value = null;
+        }
+    },
+);
 
 function display(value: DisplayValue): string {
     return displayValue(value);
@@ -189,32 +234,93 @@ const NUMBERED_TEXT = [
 function submitResults(): void {
     if (!isEligible.value || submitting.value) return;
 
-    submitting.value = true;
     fieldErrors.value = {};
     feedbackError.value = null;
+    saveStatus.value = 'saving';
 
-    const payload = buildChangeResultsPayload(props.record.record_version, resultsModel.value.results);
+    let payload: ReturnType<typeof buildChangeResultsPayload>;
+    try {
+        payload = buildChangeResultsPayload(props.record.record_version, resultsModel.value.results);
+    } catch (err: unknown) {
+        saveStatus.value = 'error';
+        feedbackError.value = {
+            status: 422,
+            code: 'NSCMF_VALIDATION_FAILED',
+            message: err instanceof Error ? err.message : 'Invalid change results data.',
+            errors: {
+                results: [err instanceof Error ? err.message : 'Invalid change results data.'],
+            },
+        };
+        return;
+    }
+
+    submitting.value = true;
 
     router.patch(`/nscmf/${props.record.id}/change-results`, payload as unknown as Parameters<typeof router.patch>[1], {
         preserveScroll: true,
+        onSuccess: (newPage) => {
+            saveStatus.value = 'saved';
+            const pageRecord = (newPage as { props?: { record?: NscmfDetailRecord } })?.props?.record;
+            if (pageRecord) {
+                resultsModel.value = {
+                    results: (pageRecord.change?.results ?? []).map((r, i) => ({
+                        row_no: r.row_no || i + 1,
+                        result_summary: r.result_summary ?? null,
+                        performance_information: r.performance_information ?? null,
+                        result_status: r.result_status ?? null,
+                    })),
+                };
+            }
+        },
         onError: (errs) => {
+            saveStatus.value = 'error';
             fieldErrors.value = errs;
-            const conflictEntry = Object.entries(errs).find(
-                ([k, v]) => k.includes('conflict') || v.includes('NSCMF_VERSION_CONFLICT') || k.includes('version'),
-            );
-            if (conflictEntry) {
+            feedbackError.value = {
+                status: 422,
+                code: 'NSCMF_VALIDATION_FAILED',
+                errors: errs,
+            };
+        },
+        onHttpException: (response) => {
+            saveStatus.value = null;
+            if (response.status === 403) {
+                feedbackError.value = {
+                    status: 403,
+                    code: 'FORBIDDEN',
+                    message: 'Access Denied',
+                };
+            } else if (response.status === 409) {
                 feedbackError.value = {
                     status: 409,
                     code: 'NSCMF_VERSION_CONFLICT',
-                    message: conflictEntry[1],
+                    message: 'A newer version exists.',
                 };
             } else {
                 feedbackError.value = {
-                    status: 422,
-                    code: 'NSCMF_VALIDATION_FAILED',
-                    errors: errs,
+                    status: response.status,
+                    code: 'HTTP_EXCEPTION',
+                    message: 'A server error occurred.',
                 };
             }
+        },
+        onFlash: (flash) => {
+            const dError = domainError(flash);
+            if (dError?.code === 'FORBIDDEN') {
+                saveStatus.value = null;
+                feedbackError.value = {
+                    status: 403,
+                    code: 'FORBIDDEN',
+                    message: dError.message ?? 'Access Denied',
+                };
+            }
+        },
+        onNetworkError: () => {
+            saveStatus.value = 'error';
+            feedbackError.value = {
+                isNetworkError: true,
+                status: 0,
+                message: 'Network connection failed.',
+            };
         },
         onFinish: () => {
             submitting.value = false;
@@ -223,7 +329,11 @@ function submitResults(): void {
 }
 
 function handleRefresh(): void {
-    router.reload();
+    router.reload({
+        onSuccess: () => {
+            resetToRecord();
+        },
+    });
 }
 </script>
 
@@ -308,7 +418,7 @@ function handleRefresh(): void {
                     :disabled="submitting || feedbackError?.code === 'NSCMF_VERSION_CONFLICT'"
                 />
 
-                <RequestFeedback :error="feedbackError" @refresh="handleRefresh" />
+                <RequestFeedback :error="feedbackError" :save-status="saveStatus" @refresh="handleRefresh" />
 
                 <div v-if="feedbackError?.code !== 'NSCMF_VERSION_CONFLICT'" class="flex justify-end">
                     <Button
