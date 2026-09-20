@@ -168,4 +168,55 @@ describe('BandwidthSection (FE-21)', () => {
             0,
         );
     });
+
+    it('writes every bandwidth field and every row into its own key', async () => {
+        for (const key of ['bandwidth_international_mbps', 'bandwidth_domestic_iix_mbps', 'bandwidth_mixed_mbps']) {
+            const wrapper = mountSection();
+            await wrapper.get(`#${key}`).setValue('10');
+            expect(lastModel(wrapper)).toEqual({ [key]: 10 });
+        }
+
+        const vc = mountSection({ virtual_connections: [{ row_no: 1, bandwidth_mbps: null }] });
+        await vc.get('#virtual_connections-0-bandwidth_mbps').setValue('12.5');
+        expect(lastModel(vc).virtual_connections).toEqual([{ row_no: 1, bandwidth_mbps: 12.5 }]);
+
+        const destination = mountSection({ priority_destinations: [{ row_no: 1, destination: null }] });
+        await destination.get('#priority_destinations-0-destination').setValue('Demo CDN');
+        expect(lastModel(destination).priority_destinations).toEqual([{ row_no: 1, destination: 'Demo CDN' }]);
+    });
+
+    it('starts an empty row for every collection', async () => {
+        const wrapper = mountSection();
+
+        await control(wrapper, 'sla_items', 'btn-add-row').trigger('click');
+        expect(lastModel(wrapper).sla_items).toEqual([{ row_no: 1, requirement_text: null }]);
+
+        await control(wrapper, 'virtual_connections', 'btn-add-row').trigger('click');
+        expect(lastModel(wrapper).virtual_connections).toEqual([{ row_no: 1, bandwidth_mbps: null }]);
+
+        await control(wrapper, 'priority_destinations', 'btn-add-row').trigger('click');
+        expect(lastModel(wrapper).priority_destinations).toEqual([{ row_no: 1, destination: null }]);
+    });
+
+    it('shows the row-level server message for every collection', () => {
+        const wrapper = mountSection(
+            {
+                virtual_connections: [{ row_no: 1, bandwidth_mbps: 0 }],
+                priority_destinations: [{ row_no: 1, destination: 'Demo' }],
+            },
+            {
+                errors: {
+                    'activation.virtual_connections.0.bandwidth_mbps': 'Must be greater than zero.',
+                    'activation.priority_destinations.0.destination': 'This destination is too long.',
+                },
+            },
+        );
+
+        expect(wrapper.get('#virtual_connections-0-bandwidth_mbps-error').text()).toContain(
+            'Must be greater than zero.',
+        );
+        expect(wrapper.get('#priority_destinations-0-destination-error').text()).toContain(
+            'This destination is too long.',
+        );
+    });
 });

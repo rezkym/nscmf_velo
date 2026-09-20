@@ -161,4 +161,43 @@ describe('PlanSection (FE-25)', () => {
             ),
         ).toHaveLength(0);
     });
+
+    it('writes every remaining field into its own key', async () => {
+        const kpi = mountSection({ improvement_items: [{ row_no: 1, plan_text: null, target_kpi: null }] });
+        await kpi.get('#improvement_items-0-target_kpi').setValue('Error rate 0');
+        expect(lastModel(kpi).improvement_items).toEqual([{ row_no: 1, plan_text: null, target_kpi: 'Error rate 0' }]);
+
+        const added = mountSection();
+        await control(added, 'improvement_items', 'btn-add-row').trigger('click');
+        expect(lastModel(added).improvement_items).toEqual([{ row_no: 1, plan_text: null, target_kpi: null }]);
+
+        const timing = mountSection();
+        await timing.get('#announcement_timing').setValue('TWO_WEEKS_BEFORE');
+        expect(lastModel(timing)).toEqual({ announcement_timing: 'TWO_WEEKS_BEFORE' });
+
+        const clearedTiming = mountSection({ announcement_timing: 'ONE_WEEK_BEFORE' });
+        await clearedTiming.get('#announcement_timing').setValue('');
+        expect(lastModel(clearedTiming)).toEqual({ announcement_timing: null });
+
+        const clearedUnit = mountSection({ monitoring_period_unit: 'DAY' });
+        await clearedUnit.get('#monitoring_period_unit').setValue('');
+        expect(lastModel(clearedUnit)).toEqual({ monitoring_period_unit: null });
+    });
+
+    it('shows the server message for a row and for the announcement', () => {
+        const wrapper = mountSection(
+            { improvement_items: [{ row_no: 1, plan_text: 'Demo', target_kpi: null }] },
+            {
+                errors: {
+                    'change.improvement_items.0.target_kpi': 'A target KPI is required.',
+                    'change.announcement_timing': 'Choose an announcement timing.',
+                    'change.monitoring_period_unit': 'Choose a unit.',
+                },
+            },
+        );
+
+        expect(wrapper.get('#improvement_items-0-target_kpi-error').text()).toContain('A target KPI is required.');
+        expect(wrapper.get('#announcement_timing-error').text()).toContain('Choose an announcement timing.');
+        expect(wrapper.get('#monitoring_period_unit-error').text()).toContain('Choose a unit.');
+    });
 });

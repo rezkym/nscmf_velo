@@ -167,4 +167,41 @@ describe('PurposeImpactSection (FE-24)', () => {
             0,
         );
     });
+
+    it('writes every row and every impact into its own key', async () => {
+        const challenge = mountSection({ facing_challenges: [{ row_no: 1, challenge_text: null }] });
+        await challenge.get('#facing_challenges-0-challenge_text').setValue('Demo challenge');
+        expect(lastModel(challenge).facing_challenges).toEqual([{ row_no: 1, challenge_text: 'Demo challenge' }]);
+
+        const problem = mountSection();
+        await control(problem, 'identified_problems', 'btn-add-row').trigger('click');
+        expect(lastModel(problem).identified_problems).toEqual([{ row_no: 1, problem_text: null }]);
+
+        for (const code of ['NOC23', 'NOC361', 'REGIONAL', 'POP', 'CUSTOMER']) {
+            const wrapper = mountSection();
+            await wrapper.get(`[data-testid="impact-${code}"]`).setValue(true);
+            expect(lastModel(wrapper).service_impacts).toEqual([{ impact_code: code, other_description: null }]);
+        }
+    });
+
+    it('writes the maintenance purpose and clears it back to null', async () => {
+        const wrapper = mountSection({ maintenance_purpose: 'Demo purpose' });
+
+        await wrapper.get('#maintenance_purpose').setValue('Edited purpose');
+        expect(lastModel(wrapper).maintenance_purpose).toBe('Edited purpose');
+
+        await wrapper.get('#maintenance_purpose').setValue('   ');
+        expect(lastModel(wrapper).maintenance_purpose).toBeNull();
+    });
+
+    it('shows the row-level server message for a challenge', () => {
+        const wrapper = mountSection(
+            { facing_challenges: [{ row_no: 1, challenge_text: 'Demo' }] },
+            { errors: { 'change.facing_challenges.0.challenge_text': 'This challenge is too long.' } },
+        );
+
+        expect(wrapper.get('#facing_challenges-0-challenge_text-error').text()).toContain(
+            'This challenge is too long.',
+        );
+    });
 });

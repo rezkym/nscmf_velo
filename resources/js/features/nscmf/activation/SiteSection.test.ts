@@ -130,4 +130,65 @@ describe('SiteSection (FE-23)', () => {
         expect(wrapper.get('[data-testid="btn-clear-direct-site"]').attributes('disabled')).toBeDefined();
         expect(wrapper.get('[data-testid="btn-clear-pop-site"]').attributes('disabled')).toBeDefined();
     });
+
+    it('writes every field into its own key, for both blocks', async () => {
+        const directText = [
+            'local_loops',
+            'lastmile',
+            'bwa',
+            'antenna_tower',
+            'direction',
+            'routers',
+            'ups',
+            'stabilizer',
+            'cable',
+        ];
+        const directNumbers = ['rssi', 'latency_ms', 'packet_loss_percent'];
+        const popText = ['switch_distribution', 'port', 'local_loops', 'routers', 'cpe_indoor', 'cpe_outdoor'];
+
+        for (const key of directText) {
+            const wrapper = mountSection();
+            await wrapper.get(`#direct_site-${key}`).setValue('Demo value');
+            expect(lastModel(wrapper)).toEqual({ direct_site: { [key]: 'Demo value' } });
+        }
+
+        for (const key of directNumbers) {
+            const wrapper = mountSection();
+            await wrapper.get(`#direct_site-${key}`).setValue('7');
+            expect(lastModel(wrapper)).toEqual({ direct_site: { [key]: 7 } });
+        }
+
+        for (const key of popText) {
+            const wrapper = mountSection();
+            await wrapper.get(`#pop_site-${key}`).setValue('Demo value');
+            expect(lastModel(wrapper)).toEqual({ pop_site: { [key]: 'Demo value' } });
+        }
+
+        const vlan = mountSection();
+        await vlan.get('#pop_site-vlan_id').setValue('100');
+        expect(lastModel(vlan)).toEqual({ pop_site: { vlan_id: 100 } });
+    });
+
+    it('clears the POP block on its own explicit clear', async () => {
+        const wrapper = mountSection({ direct_site: { cable: 'Demo cable' }, pop_site: { port: 'Gi0/1' } });
+
+        await wrapper.get('[data-testid="btn-clear-pop-site"]').trigger('click');
+
+        expect(lastModel(wrapper)).toEqual({ direct_site: { cable: 'Demo cable' }, pop_site: null });
+    });
+
+    it('shows each server message under the field it belongs to', () => {
+        const wrapper = mountSection(
+            {},
+            {
+                errors: {
+                    'activation.direct_site.cable': 'Cable is too long.',
+                    'activation.pop_site.port': 'Port is too long.',
+                },
+            },
+        );
+
+        expect(wrapper.get('#direct_site-cable-error').text()).toContain('Cable is too long.');
+        expect(wrapper.get('#pop_site-port-error').text()).toContain('Port is too long.');
+    });
 });

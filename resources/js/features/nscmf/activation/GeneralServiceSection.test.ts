@@ -182,4 +182,58 @@ describe('GeneralServiceSection (FE-20)', () => {
             ),
         ).toHaveLength(0);
     });
+
+    it('writes every field of both service blocks into its own key', async () => {
+        for (const block of ['existing', 'new'] as const) {
+            const context = block === 'existing' ? 'EXISTING' : 'NEW';
+
+            for (const key of ['service_id', 'service_description', 'service_location']) {
+                const wrapper = mountSection();
+                await wrapper.get(`#service-${block}-${key}`).setValue('Demo value');
+                expect(lastModel(wrapper).service_blocks).toEqual([{ service_context: context, [key]: 'Demo value' }]);
+            }
+
+            const status = mountSection();
+            await status.get(`#service-${block}-service_status`).setValue('ACTIVATED');
+            expect(lastModel(status).service_blocks).toEqual([
+                { service_context: context, service_status: 'ACTIVATED' },
+            ]);
+
+            const cleared = mountSection({
+                service_blocks: [{ service_context: context, service_status: 'ACTIVATED' }],
+            });
+            await cleared.get(`#service-${block}-service_status`).setValue('');
+            expect(lastModel(cleared).service_blocks).toEqual([{ service_context: context, service_status: null }]);
+        }
+    });
+
+    it('selects every reference type on its own', async () => {
+        for (const type of ['IWO', 'VELOSHIP', 'TICKET', 'OTHER']) {
+            const wrapper = mountSection();
+            await wrapper.get(`[data-testid="reference-${type}"]`).setValue(true);
+            expect(lastModel(wrapper).references).toEqual([{ reference_type: type, specification: null }]);
+        }
+    });
+
+    it('clears the specification of Other back to null', async () => {
+        const wrapper = mountSection({ references: [{ reference_type: 'OTHER', specification: 'Demo note' }] });
+
+        await wrapper.get('#reference-OTHER-specification').setValue('   ');
+
+        expect(lastModel(wrapper).references).toEqual([{ reference_type: 'OTHER', specification: null }]);
+    });
+
+    it('shows the server message for the contact and the RFS date', () => {
+        const wrapper = mountSection(
+            {},
+            {
+                errors: {
+                    'activation.installation_rfs_date': 'Enter a valid date.',
+                    'activation.service_blocks.0.service_description': 'Describe the service.',
+                },
+            },
+        );
+
+        expect(wrapper.get('#installation_rfs_date-error').text()).toContain('Enter a valid date.');
+    });
 });

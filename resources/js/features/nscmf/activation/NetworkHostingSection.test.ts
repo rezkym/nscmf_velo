@@ -161,4 +161,57 @@ describe('NetworkHostingSection (FE-22)', () => {
 
         expect(wrapper.findAll('input:not([disabled]), textarea:not([disabled])')).toHaveLength(0);
     });
+
+    it('writes every text field into its own key', async () => {
+        const keys = [
+            'lan_ip_allocation',
+            'wan_ip',
+            'gateway',
+            'pop',
+            'regional',
+            'preferred_upstream',
+            'secondary_upstream',
+            'primary_noc_link',
+            'secondary_noc_link',
+            'downlink_router',
+            'domain_name_1',
+            'domain_name_2',
+            'primary_dns',
+            'secondary_dns',
+            'mx_primary',
+            'mx_secondary',
+            'hosting_platform',
+        ];
+
+        for (const key of keys) {
+            const wrapper = mountSection();
+            await wrapper.get(`#${key}`).setValue('Demo value');
+            expect(lastModel(wrapper)).toEqual({ [key]: 'Demo value' });
+        }
+    });
+
+    it('writes the hosting capacity and both migration flags', async () => {
+        const capacity = mountSection();
+        await capacity.get('#hosting_capacity_gb').setValue('50');
+        expect(lastModel(capacity)).toEqual({ hosting_capacity_gb: 50 });
+
+        const domain = mountSection({ migrate_domain: true });
+        await domain.get('[data-testid="migrate_domain"]').setValue(false);
+        expect(lastModel(domain)).toEqual({ migrate_domain: false });
+    });
+
+    it('shows a server message for an identifier and for a hosting field', () => {
+        const wrapper = mountSection(
+            {},
+            {
+                errors: {
+                    'activation.pop': 'This POP name is too long.',
+                    'activation.hosting_capacity_gb': 'Capacity must be greater than zero.',
+                },
+            },
+        );
+
+        expect(wrapper.get('#pop-error').text()).toContain('This POP name is too long.');
+        expect(wrapper.get('#hosting_capacity_gb-error').text()).toContain('Capacity must be greater than zero.');
+    });
 });
