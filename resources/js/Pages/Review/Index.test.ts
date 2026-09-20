@@ -123,6 +123,27 @@ describe('Review Queue — Index.vue (FE-30)', () => {
             expect(wrapper.text()).toContain('—');
         });
 
+        it('falls back to raw family and subtype strings when labels are missing', () => {
+            const fallbackItem: ReviewQueueItem = {
+                id: 105,
+                request_no: 'NSCMF-202609-00005',
+                family: 'CUSTOM_FAMILY' as unknown as ReviewQueueItem['family'],
+                subtype: 'CUSTOM_SUBTYPE' as unknown as ReviewQueueItem['subtype'],
+                request_date: '2026-09-18',
+                requester: null,
+                team: null,
+                business_status: 'PENDING_REVIEW',
+            };
+
+            const wrapper = mountReviewQueue({ items: [fallbackItem] });
+            expect(wrapper.text()).toContain('CUSTOM_FAMILY · CUSTOM_SUBTYPE');
+        });
+
+        it('handles null meta gracefully without pagination metadata', () => {
+            const wrapper = mountReviewQueue({ meta: null });
+            expect(wrapper.find('table').exists()).toBe(true);
+        });
+
         it('displays separate Archived badge if is_archived is true', () => {
             const archivedItem: ReviewQueueItem = {
                 id: 103,
