@@ -16,6 +16,9 @@ export interface SubmitPanelProps {
     saveState?: SaveState;
     errors?: Record<string, string | string[]>;
     warnings?: string[];
+    requestNo?: string | null;
+    iteration?: number | null;
+    revisionReason?: string | null;
 }
 
 const props = withDefaults(defineProps<SubmitPanelProps>(), {
@@ -24,6 +27,9 @@ const props = withDefaults(defineProps<SubmitPanelProps>(), {
     saveState: 'clean',
     errors: () => ({}),
     warnings: () => [],
+    requestNo: null,
+    iteration: null,
+    revisionReason: null,
 });
 
 const emit = defineEmits<{
@@ -49,6 +55,8 @@ const canSubmit = computed(() => {
         props.saveState !== 'conflict'
     );
 });
+
+const isRevisionMode = computed(() => props.businessStatus === 'REVISION_REQUIRED');
 
 const saveBlockingMessage = computed(() => {
     if (props.saveState === 'dirty') {
@@ -148,6 +156,33 @@ function handleSubmit(): void {
 
 <template>
     <div data-testid="submit-panel" class="space-y-4">
+        <!-- Revision Notice (Shown in Revision Mode with reviewer return reason) -->
+        <div
+            v-if="isRevisionMode"
+            data-testid="revision-notice"
+            role="note"
+            class="p-4 rounded-md bg-blue-500/10 border border-blue-500 text-blue-950 dark:text-blue-200 space-y-1"
+        >
+            <h3 class="text-sm font-semibold">Revision Required</h3>
+            <p v-if="revisionReason" class="text-sm">
+                <span class="font-medium">Return Reason:</span> {{ revisionReason }}
+            </p>
+        </div>
+
+        <!-- Request Meta info (immutable request_no, server iteration) -->
+        <div
+            v-if="requestNo || iteration"
+            data-testid="submit-meta-info"
+            class="flex items-center gap-4 text-xs text-muted-foreground"
+        >
+            <span v-if="requestNo" class="font-mono font-medium">
+                {{ requestNo }}
+            </span>
+            <span v-if="iteration !== null && iteration !== undefined">
+                Iteration: {{ iteration }}
+            </span>
+        </div>
+
         <!-- Error Summary (Focus summary first, links to target fields) -->
         <div
             v-if="mappedErrors.length > 0"
