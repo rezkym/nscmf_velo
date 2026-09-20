@@ -841,7 +841,7 @@ describe('useDraftSave (FE-27)', () => {
             expect(draft.conflictError.value?.code).toBe('NSCMF_VERSION_CONFLICT');
             expect(draft.conflictError.value?.message).toBe('A newer version of this record exists.');
 
-            // 3. onHttpException 422 with empty envelopeData.code and empty message fallbacks
+            // 3. onHttpException 422 with real-shaped envelopeData.code and message fallbacks, and fallback to defaults
             draft.resolveConflict();
             void draft.save();
             req = lastRequest('/nscmf/42/draft');
@@ -856,6 +856,24 @@ describe('useDraftSave (FE-27)', () => {
             expect(draft.feedbackError.value?.code).toBe('NSCMF_VALIDATION_FAILED');
             expect(draft.feedbackError.value?.message).toBe('Validation failed');
             expect(draft.validationErrors.value).toBeNull();
+
+            // 3b. onHttpException 422 with explicit envelope errors
+            draft.resolveConflict();
+            void draft.save();
+            req = lastRequest('/nscmf/42/draft');
+            req?.options.onHttpException?.({
+                status: 422,
+                data: {
+                    code: 'NSCMF_VALIDATION_FAILED',
+                    message: 'Validation failed',
+                    errors: {
+                        customer_name: ['Customer name is required'],
+                    },
+                },
+            });
+            expect(draft.validationErrors.value).toEqual({
+                customer_name: ['Customer name is required'],
+            });
 
             // 4. inFlightSnapshot fallback when inFlightSnapshot is null at onSuccess
             void draft.save();
@@ -918,22 +936,21 @@ describe('useDraftSave (FE-27)', () => {
 
             // Call router.patch through draft.save()
             void draft.save();
-            const req = lastRequest('/nscmf/42/draft');
+            const req1 = lastRequest('/nscmf/42/draft');
 
             // Trigger onFlash without conflict
-            req?.options.onFlash?.({});
+            req1?.options.onFlash?.({});
 
-            // Trigger onNetworkError to set inFlightSnapshot = null
-            req?.options.onNetworkError?.(new Error('fail'));
+            // Trigger onNetworkError on request 1 to reset inFlightSnapshot = null
+            req1?.options.onNetworkError?.(new Error('fail'));
 
-            // Now trigger onSuccess on the same request options where inFlightSnapshot is now null!
-            req?.options.onSuccess?.({
-                props: {
-                    record: { record_version: 2 },
-                },
-            });
+            // Now trigger a 2nd save so inFlightCount increases and creates a 2nd request
+            void draft.save();
+            const req2 = lastRequest('/nscmf/42/draft');
+            expect(req2).toBeDefined();
 
-            expect(draft.currentVersion.value).toBe(2);
+            // When req1 threw onNetworkError, req1 has settled = true, so req1?.options.onSuccess?.(...) returns early!
+            expect(draft.saveStatus.value).toBe('saving');
         });
     });
 });

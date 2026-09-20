@@ -407,6 +407,75 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
         }
     });
 
+    it('N-R3-1: non-2xx x-inertia response does not fall through to onSuccess (status 500, 401, 403, 503)', async () => {
+        const testStatuses = [
+            { status: 500, statusText: 'Internal Server Error' },
+            { status: 401, statusText: 'Unauthorized' },
+            { status: 403, statusText: 'Forbidden' },
+            { status: 503, statusText: 'Service Unavailable' },
+        ];
+
+        for (let i = 0; i < testStatuses.length; i++) {
+            const { status } = testStatuses[i]!;
+            const fields = ref<ActivationDraftFields>({
+                customer_name: `PT Client ${status}`,
+            });
+
+            const draft = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 8,
+                fields,
+            });
+
+            // Mutate fields so draft is dirty before saving
+            fields.value.customer_name = `PT Modified Client ${status}`;
+            expect(draft.isDirty.value).toBe(true);
+
+            const initialReqCount = capturedRequests.length;
+            const savePromise = draft.save();
+            await waitForRequestCount(initialReqCount + 1);
+            const req = capturedRequests[capturedRequests.length - 1]!;
+
+            // Non-2xx + x-inertia with record prop bumping record_version to 99
+            const responseBody = JSON.stringify({
+                component: 'Error',
+                props: {
+                    errors: {},
+                    record: { id: 42, record_version: 99 },
+                },
+                url: '/nscmf/42/draft',
+                version: '1',
+            });
+
+            req.respond(status, { 'x-inertia': 'true', 'content-type': 'application/json' }, responseBody);
+            await savePromise;
+
+            expect(draft.saveStatus.value).toBe('error');
+            expect(draft.isDirty.value).toBe(true);
+            expect(draft.currentVersion.value).toBe(8);
+            expect(draft.isSaving.value).toBe(false);
+
+            // Retry must still dispatch
+            const retryPromise = draft.retry();
+            await waitForRequestCount(initialReqCount + 2);
+            const req2 = capturedRequests[capturedRequests.length - 1]!;
+            req2.respond(
+                200,
+                { 'x-inertia': 'true', 'content-type': 'application/json' },
+                JSON.stringify({
+                    component: 'Nscmf/Show',
+                    props: { record: { id: 42, record_version: 9 } },
+                    url: '/nscmf/42/draft',
+                    version: '1',
+                }),
+            );
+            await retryPromise;
+            expect(draft.saveStatus.value).toBe('saved');
+            expect(draft.currentVersion.value).toBe(9);
+        }
+    });
+
     it('B-27-11: payload-build throw does not wedge the hook (resets isSaving and inFlightCount)', async () => {
         const fields = ref<ActivationDraftFields>({
             customer_name: 'PT Initial Client',

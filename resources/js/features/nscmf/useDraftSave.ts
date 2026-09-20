@@ -194,6 +194,8 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                         checkPageFlashForConflict(flash);
                     },
                     onSuccess: (page: unknown) => {
+                        if (settled) return;
+
                         if (isConflict.value || checkPageFlashForConflict(page)) {
                             finishThisRequest();
                             return;
@@ -206,7 +208,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                             options.onSuccess?.(responseRecord.record_version);
                         }
 
-                        lastSavedSnapshot.value = inFlightSnapshot ?? lastSavedSnapshot.value;
+                        lastSavedSnapshot.value = inFlightSnapshot!;
                         inFlightSnapshot = null;
 
                         // If user modified fields while in-flight, keep dirty and don't falsely claim saved
