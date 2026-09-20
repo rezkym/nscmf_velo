@@ -267,6 +267,50 @@ describe('ChangeResults (FE-29)', () => {
             expect(wrapper.text().toLowerCase()).not.toContain('saved just now');
         });
 
+        it('clears terminal error latch on new submit so successful retry after 403 reports saved just now', async () => {
+            const wrapper = mountChangeResults();
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+
+            const firstReq = lastRequest('/nscmf/42/change-results');
+            expect(firstReq).toBeDefined();
+
+            // First attempt yields 403
+            await respondToRequest(firstReq, {
+                status: 403,
+                flash: {
+                    domain_error: {
+                        code: 'FORBIDDEN',
+                        message: 'You do not have permission to perform this action.',
+                    },
+                },
+            });
+
+            expect(wrapper.find('[data-testid="feedback-forbidden"]').exists()).toBe(true);
+            expect(wrapper.text().toLowerCase()).not.toContain('saved just now');
+
+            // Retry submit
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+
+            const secondReq = lastRequest('/nscmf/42/change-results');
+            expect(secondReq).toBeDefined();
+            expect(secondReq).not.toBe(firstReq);
+
+            // Second attempt succeeds with 200
+            await respondToRequest(secondReq, {
+                status: 200,
+                props: {
+                    record: {
+                        ...BASE_RECORD,
+                        record_version: 8,
+                    },
+                },
+            });
+
+            expect(wrapper.find('[data-testid="feedback-forbidden"]').exists()).toBe(false);
+            expect(wrapper.text()).toContain('Saved just now');
+            expect(wrapper.text()).not.toContain('Saving…');
+        });
+
         it('does not misclassify ordinary 422 field errors as 409 conflict', async () => {
             const wrapper = mountChangeResults();
             await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
