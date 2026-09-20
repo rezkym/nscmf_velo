@@ -15,6 +15,13 @@ them, **they win and this folder is wrong** — fix it.
 Every statement here was checked against the repository or a document at handoff
 time, and each rule names its source, for example `12 §29`.
 
+## Start here
+
+Work from **`main`** (`8955921` at handoff), one scoped branch per slice, for
+example `feat/fe-26`. Every FE-01..25 branch, including `review/fe-11-25`, is
+already merged into `main` and is history only — see
+[01_repository_state.md](01_repository_state.md#where-to-start-read-this-first).
+
 ## Read in this order
 
 | File | What it answers |

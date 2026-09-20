@@ -2,6 +2,31 @@
 
 > Part of the 2026-09-20 frontend handoff. Status, scope and authorities: [README](README.md).
 
+## Where to start (read this first)
+
+**Branch off `main`.** At handoff `main` is at `8955921` and carries everything
+described here. Every branch used during FE-01..25 — `review/fe-11-25`,
+`refactor/fe-11-25-cleanup`, `test/fe-01-10-coverage`,
+`fix/fe-05-resource-table-per-page`, `docs/handoff-fe-11-25` and the older
+`feat/fe-11` … `feat/fe-25` — is **already merged into `main` and is history
+only**. Do not continue work on any of them; anything you need is on `main`.
+
+```bash
+git checkout main
+git pull            # only if main has been pushed by then; it was local at handoff
+git checkout -b feat/fe-26        # one scoped branch per slice
+```
+
+The naming used so far is `feat/fe-NN` for a slice, `fix/…` for a defect and
+`docs/…` for documentation, which follows the flow in `AGENTS.md`:
+`main → scoped branch → Conventional Commits → Pull Request → CI/review → human
+final merge`. The agent may create the branch and the PR and fix review
+findings, but **must not approve or merge its own PR**.
+
+`microtask_fe/02_ATURAN_EKSEKUSI_TDD.md` adds that one FE file is one reviewable
+slice, so keep FE-26, FE-27, FE-28, FE-29 and FE-30 on separate branches instead
+of one large one.
+
 ## Where the work landed
 
 `main` carries FE-01..25 plus the cleanup. It was built from merge commits, each
