@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 
+import Badge from '@/components/ui/Badge.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import type { BusinessStatus } from './contracts';
+import { STATUS_LABELS } from './types';
 import { router } from '@inertiajs/vue3';
 
 export type SaveState = 'clean' | 'dirty' | 'saving' | 'saved' | 'error' | 'conflict';
@@ -19,6 +21,10 @@ export interface SubmitPanelProps {
     requestNo?: string | null;
     iteration?: number | null;
     revisionReason?: string | null;
+    domainError?: {
+        code?: string;
+        message?: string;
+    } | null;
 }
 
 const props = withDefaults(defineProps<SubmitPanelProps>(), {
@@ -30,6 +36,7 @@ const props = withDefaults(defineProps<SubmitPanelProps>(), {
     requestNo: null,
     iteration: null,
     revisionReason: null,
+    domainError: null,
 });
 
 const emit = defineEmits<{
@@ -57,6 +64,7 @@ const canSubmit = computed(() => {
 });
 
 const isRevisionMode = computed(() => props.businessStatus === 'REVISION_REQUIRED');
+const statusLabel = computed(() => STATUS_LABELS[props.businessStatus] ?? props.businessStatus);
 
 const saveBlockingMessage = computed(() => {
     if (props.saveState === 'dirty') {
@@ -156,6 +164,30 @@ function handleSubmit(): void {
 
 <template>
     <div data-testid="submit-panel" class="space-y-4">
+        <!-- Status indicator (always derived from authoritative server props, never locally mutated prematurely) -->
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-muted-foreground font-medium">Current Status:</span>
+                <Badge data-testid="submit-status-badge" variant="outline">
+                    {{ statusLabel }}
+                </Badge>
+            </div>
+
+            <!-- Request Meta info (immutable request_no, server iteration) -->
+            <div
+                v-if="requestNo || iteration"
+                data-testid="submit-meta-info"
+                class="flex items-center gap-4 text-xs text-muted-foreground"
+            >
+                <span v-if="requestNo" class="font-mono font-medium">
+                    {{ requestNo }}
+                </span>
+                <span v-if="iteration !== null && iteration !== undefined">
+                    Iteration: {{ iteration }}
+                </span>
+            </div>
+        </div>
+
         <!-- Revision Notice (Shown in Revision Mode with reviewer return reason) -->
         <div
             v-if="isRevisionMode"
@@ -169,18 +201,17 @@ function handleSubmit(): void {
             </p>
         </div>
 
-        <!-- Request Meta info (immutable request_no, server iteration) -->
+        <!-- Domain Error Alert (403/409/422/etc) -->
         <div
-            v-if="requestNo || iteration"
-            data-testid="submit-meta-info"
-            class="flex items-center gap-4 text-xs text-muted-foreground"
+            v-if="domainError?.message"
+            data-testid="domain-error-alert"
+            role="alert"
+            class="p-4 rounded-md bg-destructive/10 border border-destructive text-destructive space-y-1 text-sm"
         >
-            <span v-if="requestNo" class="font-mono font-medium">
-                {{ requestNo }}
-            </span>
-            <span v-if="iteration !== null && iteration !== undefined">
-                Iteration: {{ iteration }}
-            </span>
+            <div v-if="domainError.code" class="font-mono text-xs font-semibold">
+                {{ domainError.code }}
+            </div>
+            <div>{{ domainError.message }}</div>
         </div>
 
         <!-- Error Summary (Focus summary first, links to target fields) -->
