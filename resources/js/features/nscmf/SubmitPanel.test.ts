@@ -129,4 +129,44 @@ describe('SubmitPanel (FE-28)', () => {
             wrapper.unmount();
         });
     });
+
+    describe('AC3: submit_distinguishes_warning', () => {
+        it('renders warnings separately without blocking submit when optional attachment missing or announcement timing mismatched', async () => {
+            const warnings = [
+                'Upgrade change has no attachment uploaded. Attachments remain optional.',
+                'Announcement timing is atypical for Emergency change.',
+            ];
+
+            const wrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    ownerId: 10,
+                    allowedActions: ['submit'],
+                    saveState: 'clean',
+                    warnings,
+                },
+            });
+
+            const warningBox = wrapper.find('[data-testid="warning-summary"]');
+            expect(warningBox.exists()).toBe(true);
+            expect(warningBox.attributes('role')).toBe('status');
+            expect(warningBox.classes()).toContain('border-amber-500');
+
+            const warningItems = wrapper.findAll('[data-testid="warning-summary-item"]');
+            expect(warningItems.length).toBe(2);
+            expect(warningItems[0]?.text()).toContain('Upgrade change has no attachment uploaded');
+            expect(warningItems[1]?.text()).toContain('Announcement timing is atypical');
+
+            // Submit button MUST remain enabled and submit must proceed
+            const submitBtn = wrapper.find('[data-testid="submit-button"]');
+            expect(submitBtn.attributes('disabled')).toBeUndefined();
+
+            await submitBtn.trigger('click');
+            expect(router.post).toHaveBeenCalledWith('/nscmf/42/submit', {
+                record_version: 3,
+            });
+        });
+    });
 });
