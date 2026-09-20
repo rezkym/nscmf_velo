@@ -81,9 +81,10 @@ hid a bug or faked evidence:
 ## If something needs to be undone
 
 The tag `safety/main-before-fe-11-25-merge` points at the commit before the first
-merge. Each merge is a single first-parent commit on `main`
-(`882af2b`, `26efc7a`, `da7cd28`, `3456144`), so an individual unit can be
-reverted with `git revert -m 1 <merge>` without touching the others. The source
-branches still exist.
+merge. Each review unit is a single first-parent commit on `main`
+(`882af2b`, `26efc7a`, `da7cd28`, `3456144`, `1de03bc`; list them with
+`git log --first-parent main`), so one unit can be reverted with
+`git revert -m 1 <merge>` without touching the others. The source branches still
+exist.
 
 `main` has not been pushed; publishing it is the project owner's decision.
