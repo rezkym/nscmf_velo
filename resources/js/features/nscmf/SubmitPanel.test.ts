@@ -260,4 +260,137 @@ describe('SubmitPanel (FE-28)', () => {
             expect(alert.text()).toContain('The record was modified by another user. Please reload.');
         });
     });
+
+    describe('Coverage edge paths and formatting', () => {
+        it('handles formatPathLabel fallback when path part is not in PATH_LABELS', () => {
+            const wrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    errors: {
+                        custom_field: 'Custom error',
+                        'nested.unknown_prop': 'Nested unknown',
+                        '': 'Blank path error',
+                    },
+                },
+            });
+
+            expect(wrapper.text()).toContain('custom field');
+            expect(wrapper.text()).toContain('unknown prop');
+        });
+
+        it('handles array errors and empty error values in mappedErrors', () => {
+            const wrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    errors: {
+                        service_id: ['First error', 'Second error'],
+                        service_context: '',
+                    },
+                },
+            });
+
+            expect(wrapper.text()).toContain('First error, Second error');
+            expect(wrapper.text()).not.toContain('Service Context');
+        });
+
+        it('handles missing element when navigating to error', async () => {
+            const wrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    errors: {
+                        'nonexistent.field': 'Some error',
+                    },
+                },
+            });
+
+            const link = wrapper.find('[data-testid="error-summary-item"] button');
+            await link.trigger('click');
+            expect(wrapper.emitted('navigate-error')?.[0]).toEqual(['nonexistent.field']);
+        });
+
+        it('does not submit when canSubmit is false and handleSubmit is called directly', () => {
+            const wrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    allowedActions: [],
+                },
+            });
+
+            // Even if click event somehow triggers or handler is invoked directly on the element
+            const submitBtn = wrapper.find('[data-testid="submit-button"]');
+            submitBtn.element.dispatchEvent(new Event('click'));
+            expect(router.post).not.toHaveBeenCalled();
+        });
+
+        it('handles meta info variations: requestNo only and iteration only', () => {
+            const wrapperWithReq = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    requestNo: 'NSCMF-001',
+                    iteration: null,
+                },
+            });
+            expect(wrapperWithReq.text()).toContain('NSCMF-001');
+            expect(wrapperWithReq.text()).not.toContain('Iteration:');
+
+            const wrapperWithIter = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    requestNo: null,
+                    iteration: 2,
+                },
+            });
+            expect(wrapperWithIter.text()).toContain('Iteration: 2');
+        });
+
+        it('handles revision mode without revisionReason', () => {
+            const wrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'REVISION_REQUIRED' as BusinessStatus,
+                    revisionReason: null,
+                },
+            });
+            expect(wrapper.text()).toContain('Revision Required');
+            expect(wrapper.text()).not.toContain('Return Reason:');
+        });
+
+        it('handles domainError without code', () => {
+            const wrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    domainError: {
+                        message: 'General domain failure',
+                    },
+                },
+            });
+            expect(wrapper.text()).toContain('General domain failure');
+        });
+
+        it('falls back to businessStatus when not in STATUS_LABELS', () => {
+            const wrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'UNKNOWN_STATUS' as unknown as BusinessStatus,
+                },
+            });
+            expect(wrapper.find('[data-testid="submit-status-badge"]').text()).toBe('UNKNOWN_STATUS');
+        });
+    });
 });
