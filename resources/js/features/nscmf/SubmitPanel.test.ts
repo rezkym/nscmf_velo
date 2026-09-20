@@ -169,4 +169,43 @@ describe('SubmitPanel (FE-28)', () => {
             });
         });
     });
+
+    describe('AC4: resubmit_preserves_number_and_iteration', () => {
+        it('renders in revision mode with return reason and immutable request number, and button is "Submit for Review"', async () => {
+            const wrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 5,
+                    businessStatus: 'REVISION_REQUIRED' as BusinessStatus,
+                    ownerId: 10,
+                    allowedActions: ['submit'],
+                    saveState: 'clean',
+                    requestNo: 'NSCMF-202609-00042',
+                    iteration: 1,
+                    revisionReason: 'Please clarify service impact on NOC15 and update the rollback steps.',
+                },
+            });
+
+            // Revision notice with return reason
+            const revisionNotice = wrapper.find('[data-testid="revision-notice"]');
+            expect(revisionNotice.exists()).toBe(true);
+            expect(revisionNotice.text()).toContain('Revision Required');
+            expect(revisionNotice.text()).toContain('Please clarify service impact on NOC15');
+
+            // Request number is displayed as read-only / immutable, iteration shown
+            const metaInfo = wrapper.find('[data-testid="submit-meta-info"]');
+            expect(metaInfo.exists()).toBe(true);
+            expect(metaInfo.text()).toContain('NSCMF-202609-00042');
+            expect(metaInfo.text()).toContain('Iteration: 1');
+
+            // Exact button label (§62): "Submit for Review"
+            const submitBtn = wrapper.find('[data-testid="submit-button"]');
+            expect(submitBtn.text()).toBe('Submit for Review');
+
+            await submitBtn.trigger('click');
+            expect(router.post).toHaveBeenCalledWith('/nscmf/42/submit', {
+                record_version: 5,
+            });
+        });
+    });
 });
