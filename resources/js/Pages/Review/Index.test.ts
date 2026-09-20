@@ -329,6 +329,71 @@ describe('Review Queue — Index.vue (FE-30)', () => {
             expect(emittedPayload.evil_param).toBeUndefined();
         });
 
+        it('preserves boolean filter values such as archived and ignores non-primitive/non-supported filter values', () => {
+            const wrapper = mountReviewQueue();
+
+            const resourceTable = wrapper.findComponent({ name: 'ResourceTable' });
+            resourceTable.vm.$emit('update:query', {
+                page: 1,
+                per_page: 25,
+                filters: {
+                    archived: true,
+                    family: 'CHANGE',
+                    owner_user_id: 12,
+                    team_id: null,
+                    business_status: undefined,
+                    subtype: ['ACTIVATION'],
+                    request_date_from: { raw: '2026-01-01' },
+                },
+            });
+
+            const emittedPayload = vi.mocked(router.get).mock.calls.at(-1)?.[1] as Record<string, unknown>;
+            expect(emittedPayload).toBeDefined();
+            expect(emittedPayload.archived).toBe(true);
+            expect(emittedPayload.family).toBe('CHANGE');
+            expect(emittedPayload.owner_user_id).toBe(12);
+            expect(emittedPayload.team_id).toBeUndefined();
+            expect(emittedPayload.business_status).toBeUndefined();
+            expect(emittedPayload.subtype).toBeUndefined();
+            expect(emittedPayload.request_date_from).toBeUndefined();
+        });
+
+        it('clamps per_page and page to integers and uses fallback for non-finite values', () => {
+            const wrapper = mountReviewQueue();
+
+            const resourceTable = wrapper.findComponent({ name: 'ResourceTable' });
+
+            // Fractional per_page and page truncated to integer bounds
+            resourceTable.vm.$emit('update:query', {
+                page: 2.7,
+                per_page: 33.3,
+            });
+
+            expect(router.get).toHaveBeenCalledWith(
+                '/review',
+                expect.objectContaining({
+                    page: 2,
+                    per_page: 33,
+                }),
+                expect.any(Object),
+            );
+
+            // Non-finite values (NaN / undefined) fall back to defaults (page 1, per_page 25)
+            resourceTable.vm.$emit('update:query', {
+                page: NaN,
+                per_page: undefined as unknown as number,
+            });
+
+            expect(router.get).toHaveBeenCalledWith(
+                '/review',
+                expect.objectContaining({
+                    page: 1,
+                    per_page: 25,
+                }),
+                expect.any(Object),
+            );
+        });
+
         it('clamps per_page between 1 and 100, and page >= 1 when emitted from parent handler', () => {
             const wrapper = mountReviewQueue();
 
