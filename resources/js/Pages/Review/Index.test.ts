@@ -259,6 +259,100 @@ describe('Review Queue — Index.vue (FE-30)', () => {
             );
         });
 
+        it('does not allow filters to override reserved keys (page, per_page, sort, direction, q)', () => {
+            const wrapper = mountReviewQueue();
+
+            const resourceTable = wrapper.findComponent({ name: 'ResourceTable' });
+            resourceTable.vm.$emit('update:query', {
+                page: 1,
+                per_page: 25,
+                sort: 'request_no',
+                direction: 'asc',
+                q: 'legit-search',
+                filters: {
+                    page: 99,
+                    per_page: 9999,
+                    sort: 'injected_column',
+                    direction: 'desc',
+                    q: 'injected-search',
+                    family: 'CHANGE',
+                },
+            });
+
+            expect(router.get).toHaveBeenCalledWith(
+                '/review',
+                expect.objectContaining({
+                    page: 1,
+                    per_page: 25,
+                    sort: 'request_no',
+                    direction: 'asc',
+                    q: 'legit-search',
+                    family: 'CHANGE',
+                }),
+                expect.any(Object),
+            );
+        });
+
+        it('rejects or ignores non-allowlisted filter keys from filters object', () => {
+            const wrapper = mountReviewQueue();
+
+            const resourceTable = wrapper.findComponent({ name: 'ResourceTable' });
+            resourceTable.vm.$emit('update:query', {
+                page: 1,
+                per_page: 25,
+                filters: {
+                    family: 'ACTIVATION',
+                    team_id: 5,
+                    admin_override: 1,
+                    injected_sql: 'SELECT 1',
+                    evil_param: 'malicious',
+                },
+            });
+
+            const emittedPayload = vi.mocked(router.get).mock.calls.at(-1)?.[1] as Record<string, unknown>;
+            expect(emittedPayload).toBeDefined();
+            expect(emittedPayload.family).toBe('ACTIVATION');
+            expect(emittedPayload.team_id).toBe(5);
+            expect(emittedPayload.admin_override).toBeUndefined();
+            expect(emittedPayload.injected_sql).toBeUndefined();
+            expect(emittedPayload.evil_param).toBeUndefined();
+        });
+
+        it('clamps per_page between 1 and 100, and page >= 1 when emitted from parent handler', () => {
+            const wrapper = mountReviewQueue();
+
+            const resourceTable = wrapper.findComponent({ name: 'ResourceTable' });
+            // Test upper bound clamping
+            resourceTable.vm.$emit('update:query', {
+                page: 0,
+                per_page: 9999,
+            });
+
+            expect(router.get).toHaveBeenCalledWith(
+                '/review',
+                expect.objectContaining({
+                    page: 1,
+                    per_page: 100,
+                }),
+                expect.any(Object),
+            );
+
+            // Test lower bound clamping & default fallback
+            resourceTable.vm.$emit('update:query', {
+                page: -5,
+                per_page: 0,
+            });
+
+            expect(router.get).toHaveBeenCalledWith(
+                '/review',
+                expect.objectContaining({
+                    page: 1,
+                    per_page: 1,
+                }),
+                expect.any(Object),
+            );
+        });
+
         it('renders empty state correctly when queue has no pending items', () => {
             const wrapper = mountReviewQueue({
                 items: [],
