@@ -6,6 +6,14 @@ export interface ChangeResultsPayload {
     results: ChangeResultRow[];
 }
 
+export type DisplayValue = string | number | boolean | null | undefined;
+
+export function displayValue(value: DisplayValue): string {
+    if (value === null || value === undefined || value === '') return '—';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    return String(value);
+}
+
 function blankToNull(value: unknown): unknown {
     return typeof value === 'string' && value.trim() === '' ? null : value;
 }
@@ -119,12 +127,8 @@ const fieldErrors = ref<Record<string, string>>({});
 const feedbackError = ref<RequestFeedbackError | null>(null);
 const submitting = ref(false);
 
-type Value = string | number | boolean | null | undefined;
-
-function display(value: Value): string {
-    if (value === null || value === undefined || value === '') return '—';
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    return String(value);
+function display(value: DisplayValue): string {
+    return displayValue(value);
 }
 
 function items<T extends object>(
@@ -135,7 +139,7 @@ function items<T extends object>(
     return fields.map(([key, label]) => ({
         key: `${prefix}${key}`,
         label,
-        value: display((source?.[key] ?? null) as Value),
+        value: display((source?.[key] ?? null) as DisplayValue),
     }));
 }
 
