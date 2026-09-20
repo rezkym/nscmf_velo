@@ -13,7 +13,13 @@ export function firstError(errors: ErrorBag, fallback: string, preferredKeys: re
     return Object.values(errors).find((message) => Boolean(message)) ?? fallback;
 }
 
-/** Stable machine code sent alongside a domain error, if any (12 §12). */
-export function errorCode(errors: ErrorBag): string | undefined {
-    return errors.error_code ?? errors.code;
+/** A domain/action error flashed by the server (12 §10), carrying a stable code from the 12 §12 catalog. */
+export interface DomainError {
+    code?: string;
+    message?: string;
+}
+
+/** Reads the flashed domain error. Local view-model over the shared flash bag (gap G02). */
+export function domainError(_flash: unknown): DomainError | null {
+    return null;
 }

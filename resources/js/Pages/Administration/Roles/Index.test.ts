@@ -2,7 +2,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { forms, lastRequest, requests, resetInertia } from '@/testing/inertia';
+import { flashDomainError, forms, lastRequest, requests, resetInertia } from '@/testing/inertia';
 
 import { type PermissionCatalogItem, type RoleRow } from '@/features/administration/RoleManager.vue';
 
@@ -148,11 +148,7 @@ describe('Role administration (FE-14)', () => {
         await wrapper.get('[data-testid="save-permissions-btn"]').trigger('click');
         await confirmReauth(wrapper);
 
-        lastRequest('/administration/roles/2/permissions')?.options.onError?.({
-            message: 'This role is protected.',
-            error_code: 'PROTECTED_RESOURCE',
-        });
-        await nextTick();
+        await flashDomainError({ code: 'PROTECTED_RESOURCE', message: 'This role is protected.' });
 
         const dialog = wrapper.get('[role="dialog"]');
         expect(dialog.get('[role="alert"]').text()).toBe('This role is protected.');
@@ -165,8 +161,7 @@ describe('Role administration (FE-14)', () => {
         await wrapper.get('[data-testid="save-permissions-btn"]').trigger('click');
         await confirmReauth(wrapper);
 
-        lastRequest('/administration/roles/2/permissions')?.options.onError?.({ code: 'REAUTH_REQUIRED' });
-        await nextTick();
+        await flashDomainError({ code: 'REAUTH_REQUIRED' });
 
         expect(wrapper.get('[data-testid="reauth-error"]').text()).toContain('Re-authentication is required');
     });

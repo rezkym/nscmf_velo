@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { errorCode, firstError } from './apiErrors';
+import { domainError, firstError } from './apiErrors';
 
 describe('firstError', () => {
     it('prefers the requested keys in order', () => {
@@ -14,10 +14,25 @@ describe('firstError', () => {
     });
 });
 
-describe('errorCode', () => {
-    it('reads error_code first, then code', () => {
-        expect(errorCode({ error_code: 'PROTECTED_RESOURCE', code: 'X' })).toBe('PROTECTED_RESOURCE');
-        expect(errorCode({ code: 'REAUTH_REQUIRED' })).toBe('REAUTH_REQUIRED');
-        expect(errorCode({})).toBeUndefined();
+describe('domainError', () => {
+    it('reads the flashed domain error with its stable code', () => {
+        expect(
+            domainError({ domain_error: { code: 'PROTECTED_RESOURCE', message: 'This role is protected.' } }),
+        ).toEqual({ code: 'PROTECTED_RESOURCE', message: 'This role is protected.' });
+    });
+
+    it('accepts a domain error that carries only a code', () => {
+        expect(domainError({ domain_error: { code: 'REAUTH_REQUIRED' } })).toEqual({
+            code: 'REAUTH_REQUIRED',
+            message: undefined,
+        });
+    });
+
+    it('has nothing to report when the flash bag carries no domain error', () => {
+        expect(domainError(undefined)).toBeNull();
+        expect(domainError({})).toBeNull();
+        expect(domainError({ domain_error: null })).toBeNull();
+        expect(domainError({ domain_error: 'oops' })).toBeNull();
+        expect(domainError({ domain_error: { message: 'Denied.' } })).toEqual({ code: undefined, message: 'Denied.' });
     });
 });

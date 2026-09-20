@@ -5,7 +5,7 @@
  *   vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
  *   beforeEach(() => resetInertia({ auth: { permissions: ['teams.create'] } }));
  */
-import { defineComponent, h, reactive, toRaw } from 'vue';
+import { defineComponent, h, nextTick, reactive, toRaw } from 'vue';
 import { type Mock, vi } from 'vitest';
 
 type VisitOptions = {
@@ -110,6 +110,12 @@ export function resetInertia(props: Record<string, unknown> = {}): void {
     forms.length = 0;
     requests.length = 0;
     vi.clearAllMocks();
+}
+
+/** Simulates the server flashing a domain error (12 §10) and the page rendering the new props. */
+export async function flashDomainError(error: { code?: string; message?: string }): Promise<void> {
+    pageProps.flash = { ...(pageProps.flash as Record<string, unknown> | undefined), domain_error: error };
+    await nextTick();
 }
 
 /** The most recent request whose URL matches, or undefined. */

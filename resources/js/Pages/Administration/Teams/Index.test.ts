@@ -2,7 +2,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { forms, lastRequest, requests, resetInertia } from '@/testing/inertia';
+import { flashDomainError, forms, lastRequest, requests, resetInertia } from '@/testing/inertia';
 
 import { type Team } from '@/features/administration/TeamManager.vue';
 
@@ -160,7 +160,7 @@ describe('Team administration (FE-11)', () => {
         await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
 
         const request = lastRequest('/administration/teams/1/deactivate');
-        request?.options.onError?.({ team: 'This team cannot be deactivated.' });
+        await flashDomainError({ code: 'FORBIDDEN', message: 'This team cannot be deactivated.' });
         request?.options.onFinish?.();
         await nextTick();
 

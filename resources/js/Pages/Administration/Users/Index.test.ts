@@ -2,7 +2,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { forms, lastRequest, pageProps, requests, resetInertia } from '@/testing/inertia';
+import { flashDomainError, forms, lastRequest, pageProps, requests, resetInertia } from '@/testing/inertia';
 
 import { type RoleOption, type TeamOption, type UserRow } from '@/features/administration/UserManager.vue';
 
@@ -247,8 +247,7 @@ describe('User administration (FE-12)', () => {
         await wrapper.get('[data-testid="btn-disable-user-2"]').trigger('click');
         await confirmReauth(wrapper);
 
-        lastRequest('/administration/users/2/disable')?.options.onError?.({ code: 'REAUTH_REQUIRED' });
-        await nextTick();
+        await flashDomainError({ code: 'REAUTH_REQUIRED' });
 
         expect(wrapper.get('[data-testid="reauth-error"]').text()).toContain('Re-authentication is required');
     });
@@ -258,11 +257,7 @@ describe('User administration (FE-12)', () => {
         await wrapper.get('[data-testid="btn-disable-user-2"]').trigger('click');
         await confirmReauth(wrapper);
 
-        lastRequest('/administration/users/2/disable')?.options.onError?.({
-            message: 'Protected identity cannot be changed.',
-            error_code: 'PROTECTED_RESOURCE',
-        });
-        await nextTick();
+        await flashDomainError({ code: 'PROTECTED_RESOURCE', message: 'Protected identity cannot be changed.' });
 
         expect(wrapper.get('[data-testid="users-server-error"]').text()).toBe('Protected identity cannot be changed.');
     });
