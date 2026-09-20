@@ -1,10 +1,8 @@
-import { router, usePage } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { type Ref, computed, getCurrentInstance, onBeforeUnmount, ref, toValue, watch } from 'vue';
 import { domainError } from '@/lib/apiErrors';
 import { buildActivationDraftPayload, buildChangeDraftPayload } from './draftPayload';
 import type { ActivationDraftFields, ChangeDraftFields, NscmfFamily } from './types';
-
-export type SaveStatus = 'saving' | 'saved' | 'error' | null;
 
 export interface RequestFeedbackError {
     status?: number;
@@ -14,6 +12,8 @@ export interface RequestFeedbackError {
     context?: Record<string, unknown>;
     isNetworkError?: boolean;
 }
+
+export type SaveStatus = 'saving' | 'saved' | 'error' | null;
 
 export interface UseDraftSaveOptions<T extends ActivationDraftFields | ChangeDraftFields> {
     recordId: number | Ref<number>;
@@ -61,6 +61,10 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
     let nextQueuedSaveResolve: (() => void) | null = null;
     let hasQueuedSave = false;
     let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+    const isAutosaveOptionEnabled = computed(() => {
+        if (options.enabled === undefined) return true;
+        return Boolean(toValue(options.enabled));
+    });
     let isAutosaveRunning = Boolean(options.autosaveInterval && options.autosaveInterval > 0);
 
     // Computed dirty state so it updates synchronously on mutation
@@ -84,11 +88,11 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
             clearTimeout(autosaveTimer);
             autosaveTimer = null;
         }
-        if (!options.autosaveInterval || isConflict.value || !isAutosaveRunning) {
+        if (!options.autosaveInterval || isConflict.value || !isAutosaveRunning || !isAutosaveOptionEnabled.value) {
             return;
         }
         autosaveTimer = setTimeout(() => {
-            if (!isSaving.value && !isConflict.value && isAutosaveRunning) {
+            if (!isSaving.value && !isConflict.value && isAutosaveRunning && isAutosaveOptionEnabled.value) {
                 void executeSave();
             }
         }, options.autosaveInterval);
@@ -182,37 +186,15 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                     inFlightSnapshot = null;
                     saveStatus.value = 'error';
 
-                    const rawError = (err ?? {}) as RequestFeedbackError;
+                    const fieldBag = (err ?? {}) as Record<string, string>;
+                    validationErrors.value = fieldBag;
+                    feedbackError.value = {
+                        status: 422,
+                        code: 'NSCMF_VALIDATION_FAILED',
+                        errors: fieldBag,
+                    };
 
-                    // Real Inertia delivers flat Record<string, string> field->message map to onError on 422
-                    if (
-                        rawError &&
-                        typeof rawError === 'object' &&
-                        !('status' in rawError) &&
-                        !('code' in rawError) &&
-                        !('message' in rawError) &&
-                        Object.keys(rawError).length > 0
-                    ) {
-                        const fieldBag = rawError as unknown as Record<string, string>;
-                        validationErrors.value = fieldBag;
-                        feedbackError.value = {
-                            status: 422,
-                            code: 'NSCMF_VALIDATION_FAILED',
-                            errors: fieldBag,
-                        };
-                    } else {
-                        feedbackError.value = rawError;
-
-                        if (rawError.status === 409 || rawError.code === 'NSCMF_VERSION_CONFLICT') {
-                            isConflict.value = true;
-                            conflictError.value = rawError;
-                            stopAutosave();
-                        } else if (rawError.status === 422 || rawError.code === 'NSCMF_VALIDATION_FAILED') {
-                            validationErrors.value = rawError.errors ?? null;
-                        }
-                    }
-
-                    options.onError?.(feedbackError.value ?? rawError);
+                    options.onError?.(feedbackError.value);
                     resolve();
                     handleNextQueued();
                 },

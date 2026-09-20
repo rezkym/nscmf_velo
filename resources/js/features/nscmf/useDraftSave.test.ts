@@ -492,38 +492,46 @@ describe('useDraftSave (FE-27)', () => {
             await save1;
             expect(draft.currentVersion.value).toBe(8); // version remains unchanged
 
-            // 2. Error branch: error with 422 code without 422 status
+            // 2. Error branch: error with flat bag on 422
             fields.value.customer_name = 'Dirty After';
             const save2 = draft.save();
             expect(requests.length).toBe(2);
-            (requests[1]?.options.onError as ((err: unknown) => void) | undefined)?.({
-                code: 'NSCMF_VALIDATION_FAILED',
+            requests[1]?.options.onError?.({
+                'activation.customer_name': 'Invalid name format',
             });
             await save2;
-            expect(draft.validationErrors.value).toBeNull();
+            expect(draft.validationErrors.value).toMatchObject({
+                'activation.customer_name': 'Invalid name format',
+            });
 
-            // 3. Error branch: error with 409 code without 409 status, and onError with undefined err
+            // 3. Error branch: onHttpException and onNetworkError variations
             fields.value.customer_name = 'Dirty After 2';
             const save3 = draft.save();
             expect(requests.length).toBe(3);
-            (requests[2]?.options.onError as ((err: unknown) => void) | undefined)?.(undefined);
+            requests[2]?.options.onHttpException?.(undefined);
             await save3;
-            expect(draft.feedbackError.value).toEqual({});
+            expect(draft.feedbackError.value).toEqual({
+                status: 500,
+                message: 'Server error',
+            });
 
             fields.value.customer_name = 'Dirty After 3';
             const save4 = draft.save();
             expect(requests.length).toBe(4);
-            (requests[3]?.options.onError as ((err: unknown) => void) | undefined)?.({
-                code: 'NSCMF_VERSION_CONFLICT',
-            });
+            requests[3]?.options.onNetworkError?.('connection dropped');
             await save4;
-            expect(draft.isConflict.value).toBe(true);
+            expect(draft.feedbackError.value).toMatchObject({
+                status: 0,
+                isNetworkError: true,
+                message: 'Network connection lost',
+            });
 
-            // 4. resolveConflict clears isConflict and conflictError
-            draft.resolveConflict();
+            // 4. resolveConflict clears isConflict and conflictError, and re-syncs version if passed
+            draft.resolveConflict(15);
             expect(draft.isConflict.value).toBe(false);
             expect(draft.conflictError.value).toBeNull();
             expect(draft.feedbackError.value).toBeNull();
+            expect(draft.currentVersion.value).toBe(15);
 
             // 5. startAutosave when dirty schedules autosave immediately; when clean does not schedule
             const draftWithTimer = useDraftSave({
@@ -577,6 +585,21 @@ describe('useDraftSave (FE-27)', () => {
             fields.value.customer_name = 'Trigger while conflict interval';
             expect(draftConflictInterval.isDirty.value).toBe(true);
             draftConflictInterval.isConflict.value = false;
+
+            // Test watch trigger when autosaveInterval is set but enabled is false
+            const fieldsDisabled = ref<ActivationDraftFields>({ customer_name: 'Static' });
+            const draftDisabled = useDraftSave({
+                recordId: 42,
+                family: 'ACTIVATION',
+                recordVersion: 8,
+                fields: fieldsDisabled,
+                autosaveInterval: 1000,
+                enabled: false,
+            });
+            fieldsDisabled.value.customer_name = 'Trigger watch when disabled';
+            expect(draftDisabled.isDirty.value).toBe(true);
+            vi.advanceTimersByTime(2000);
+            expect(requests.length).toBe(5); // No new save dispatched because enabled: false
 
             // Test watch trigger when autosaveInterval is set but autosave is stopped
             const draftStopped = useDraftSave({

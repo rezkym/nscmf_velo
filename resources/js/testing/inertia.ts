@@ -8,7 +8,7 @@
 import { defineComponent, h, nextTick, reactive, toRaw } from 'vue';
 import { type Mock, vi } from 'vitest';
 
-type VisitOptions = {
+export type VisitOptions = {
     onSuccess?: (page?: unknown) => void;
     onError?: (errors: Record<string, string>) => void;
     onHttpException?: (response: unknown) => void;
