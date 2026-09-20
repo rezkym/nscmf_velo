@@ -1,735 +1,449 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+
+import Badge from '@/components/ui/Badge.vue';
+import { buttonVariants } from '@/components/ui/button';
 import type { BusinessStatus } from '@/features/nscmf/contracts';
+import DetailList, { type DetailItem } from '@/features/nscmf/DetailList.vue';
+import DetailTable from '@/features/nscmf/DetailTable.vue';
+import {
+    type ActivationDraftFields,
+    ANNOUNCEMENT_TIMING_LABELS,
+    type ChangeDraftFields,
+    FAMILY_LABELS,
+    MONITORING_UNIT_LABELS,
+    type NscmfFamily,
+    type NscmfSubtype,
+    REFERENCE_TYPE_LABELS,
+    SERVICE_IMPACT_LABELS,
+    SERVICE_STATUS_LABELS,
+    STATUS_LABELS,
+    SUBTYPE_LABELS,
+} from '@/features/nscmf/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 
-interface UserSnapshot {
+interface PersonRef {
     id: number;
     name: string;
 }
 
-interface TeamSnapshot {
-    id: number;
-    name: string;
-}
-
-interface ReferenceItem {
-    reference_type: string;
-    specification: string | null;
-}
-
-interface ServiceBlockItem {
-    service_context: string;
-    service_id: string;
-    service_status: string;
-    service_description: string;
-    service_location: string;
-}
-
-interface SlaItem {
-    row_no: number;
-    requirement_text: string;
-}
-
-interface VirtualConnectionItem {
-    row_no: number;
-    bandwidth_mbps: number;
-}
-
-interface PriorityDestinationItem {
-    row_no: number;
-    destination: string;
-}
-
-interface DirectSite {
-    local_loops?: string | null;
-    lastmile?: string | null;
-    bwa?: string | null;
-    antenna_tower?: string | null;
-    direction?: string | null;
-    rssi?: number | null;
-    latency_ms?: number | null;
-    packet_loss_percent?: number | null;
-    routers?: string | null;
-    ups?: string | null;
-    stabilizer?: string | null;
-    cable?: string | null;
-}
-
-interface PopSite {
-    switch_distribution?: string | null;
-    port?: string | null;
-    vlan_id?: number | null;
-    local_loops?: string | null;
-    routers?: string | null;
-    cpe_indoor?: string | null;
-    cpe_outdoor?: string | null;
-}
-
-interface ActivationDetail {
-    customer_name?: string | null;
-    contact_name?: string | null;
-    installation_rfs_date?: string | null;
-    lan_ip_allocation?: string | null;
-    wan_ip?: string | null;
-    gateway?: string | null;
-    pop?: string | null;
-    regional?: string | null;
-    preferred_upstream?: string | null;
-    secondary_upstream?: string | null;
-    primary_noc_link?: string | null;
-    secondary_noc_link?: string | null;
-    downlink_router?: string | null;
-    bandwidth_international_mbps?: number | null;
-    bandwidth_domestic_iix_mbps?: number | null;
-    bandwidth_mixed_mbps?: number | null;
-    domain_name_1?: string | null;
-    domain_name_2?: string | null;
-    primary_dns?: string | null;
-    secondary_dns?: string | null;
-    mx_primary?: string | null;
-    mx_secondary?: string | null;
-    hosting_platform?: string | null;
-    hosting_capacity_gb?: number | null;
-    migrate_domain?: boolean;
-    migrate_hosting?: boolean;
-    references?: ReferenceItem[];
-    service_blocks?: ServiceBlockItem[];
-    sla_items?: SlaItem[];
-    virtual_connections?: VirtualConnectionItem[];
-    priority_destinations?: PriorityDestinationItem[];
-    direct_site?: DirectSite | null;
-    pop_site?: PopSite | null;
-}
-
-interface FacingChallengeItem {
-    row_no: number;
-    challenge_text: string;
-}
-
-interface IdentifiedProblemItem {
-    row_no: number;
-    problem_text: string;
-}
-
-interface ServiceImpactItem {
-    impact_code: string;
-    other_description?: string | null;
-}
-
-interface ImprovementItem {
-    row_no: number;
-    plan_text: string;
-    target_kpi: string;
-}
-
-interface ChangeResultItem {
-    row_no: number;
-    result_summary?: string | null;
-    performance_information?: string | null;
-    result_status?: string | null;
-}
-
-interface ChangeDetail {
-    maintenance_purpose?: string | null;
-    target_execution_date?: string | null;
-    monitoring_period_value?: number | null;
-    monitoring_period_unit?: string | null;
-    rollback_scenario?: string | null;
-    announcement_timing?: string | null;
-    facing_challenges?: FacingChallengeItem[];
-    identified_problems?: IdentifiedProblemItem[];
-    service_impacts?: ServiceImpactItem[];
-    improvement_items?: ImprovementItem[];
-    results?: ChangeResultItem[];
-}
-
+/** Record detail projection (12 §24). Sign-offs are the current effective ones from the server. */
 export interface NscmfDetailRecord {
     id: number;
     request_no: string;
-    family: 'ACTIVATION' | 'CHANGE';
-    subtype: string;
+    family: NscmfFamily;
+    subtype: NscmfSubtype;
     request_date?: string | null;
     business_status: BusinessStatus;
     record_version: number;
     is_archived: boolean;
-    owner?: UserSnapshot | null;
-    team?: TeamSnapshot | null;
-    created_at?: string | null;
-    updated_at?: string | null;
-    requested_by?: UserSnapshot | null;
+    owner?: PersonRef | null;
+    team?: PersonRef | null;
+    requested_by?: PersonRef | null;
     first_submitted_at?: string | null;
-    reviewed_by?: UserSnapshot | null;
+    reviewed_by?: PersonRef | null;
     reviewed_at?: string | null;
-    approved_by?: UserSnapshot | null;
+    approved_by?: PersonRef | null;
     approved_at?: string | null;
-    activation?: ActivationDetail;
-    change?: ChangeDetail;
-    allowed_actions?: string[];
+    activation?: ActivationDraftFields;
+    change?: ChangeDraftFields;
 }
 
-const props = defineProps<{
-    record: NscmfDetailRecord;
-}>();
+type Value = string | number | boolean | null | undefined;
 
-const activeTab = ref<'form' | 'timeline' | 'attachments'>('form');
+const props = defineProps<{ record: NscmfDetailRecord }>();
 
-// Helper to format values neutrally without coercing null to 0
-function formatNeutral(val: string | number | boolean | null | undefined): string {
-    if (val === null || val === undefined || val === '') {
-        return '—';
-    }
-    return String(val);
+const TABS = [
+    { key: 'form', label: 'Form' },
+    { key: 'timeline', label: 'Timeline' },
+    { key: 'attachments', label: 'Attachments' },
+] as const;
+const activeTab = ref<(typeof TABS)[number]['key']>('form');
+
+/** Missing values show a neutral dash; 0 and false are real values. */
+function display(value: Value, labels?: Record<string, string>): string {
+    if (value === null || value === undefined || value === '') return '—';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (labels && typeof value === 'string') return labels[value] ?? value;
+    return String(value);
 }
 
-// Business status label mapping (per 07 §33)
-const statusLabelMap: Record<string, string> = {
-    DRAFT: 'Draft',
-    PENDING_REVIEW: 'Pending Review',
-    REVISION_REQUIRED: 'Revision Required',
-    PENDING_APPROVAL: 'Pending Approval',
-    REJECTED: 'Rejected',
-    APPROVED: 'Approved',
-    CANCELLED: 'Cancelled',
-};
+function items<T extends object>(
+    source: T | null | undefined,
+    fields: [keyof T & string, string][],
+    prefix = '',
+): DetailItem[] {
+    return fields.map(([key, label]) => ({
+        key: `${prefix}${key}`,
+        label,
+        value: display((source?.[key] ?? null) as Value),
+    }));
+}
 
-const displayBusinessStatus = computed(() => {
-    return statusLabelMap[props.record.business_status] || props.record.business_status;
+const signoffs = computed(() => [
+    {
+        testid: 'signoff-requested-by',
+        label: 'Requested by',
+        person: props.record.requested_by,
+        at: props.record.first_submitted_at,
+    },
+    {
+        testid: 'signoff-reviewed-by',
+        label: 'Reviewed by',
+        person: props.record.reviewed_by,
+        at: props.record.reviewed_at,
+    },
+    {
+        testid: 'signoff-approved-by',
+        label: 'Approved by',
+        person: props.record.approved_by,
+        at: props.record.approved_at,
+    },
+]);
+
+const summary = computed<DetailItem[]>(() => [
+    { key: 'request_date', label: 'Request date', value: display(props.record.request_date) },
+    { key: 'record_version', label: 'Version', value: display(props.record.record_version) },
+    { key: 'owner', label: 'Owner', value: display(props.record.owner?.name) },
+    { key: 'team', label: 'Team', value: display(props.record.team?.name) },
+]);
+
+const activation = computed(() => {
+    const a = props.record.activation ?? {};
+    return {
+        general: items(a, [
+            ['customer_name', 'Customer name'],
+            ['contact_name', 'Contact name'],
+            ['installation_rfs_date', 'Installation (RFS) date'],
+        ]),
+        network: items(a, [
+            ['lan_ip_allocation', 'LAN IP allocation'],
+            ['wan_ip', 'WAN IP'],
+            ['gateway', 'Gateway'],
+            ['pop', 'POP'],
+            ['regional', 'Regional'],
+            ['preferred_upstream', 'Preferred upstream'],
+            ['secondary_upstream', 'Secondary upstream'],
+            ['primary_noc_link', 'Primary link to NOC'],
+            ['secondary_noc_link', 'Secondary link to NOC'],
+            ['downlink_router', 'Downlink router'],
+        ]),
+        bandwidth: items(a, [
+            ['bandwidth_international_mbps', 'International (Mbps)'],
+            ['bandwidth_domestic_iix_mbps', 'Domestic / IIX (Mbps)'],
+            ['bandwidth_mixed_mbps', 'International & IIX mixed (Mbps)'],
+        ]),
+        hosting: items(a, [
+            ['domain_name_1', 'Domain name 1'],
+            ['domain_name_2', 'Domain name 2'],
+            ['primary_dns', 'Primary DNS'],
+            ['secondary_dns', 'Secondary DNS'],
+            ['mx_primary', 'MX primary'],
+            ['mx_secondary', 'MX secondary'],
+            ['hosting_platform', 'Hosting platform'],
+            ['hosting_capacity_gb', 'Hosting capacity (GB)'],
+            ['migrate_domain', 'Migrate domain'],
+            ['migrate_hosting', 'Migrate hosting'],
+        ]),
+        directSite: items(
+            a.direct_site,
+            [
+                ['local_loops', 'Local loops'],
+                ['lastmile', 'Last mile'],
+                ['bwa', 'BWA'],
+                ['antenna_tower', 'Antenna / tower'],
+                ['direction', 'Direction'],
+                ['rssi', 'RSSI'],
+                ['latency_ms', 'Latency (ms)'],
+                ['packet_loss_percent', 'Packet loss (%)'],
+                ['routers', 'Routers'],
+                ['ups', 'UPS'],
+                ['stabilizer', 'Stabilizer'],
+                ['cable', 'Cable'],
+            ],
+            'direct_site.',
+        ),
+        popSite: items(
+            a.pop_site,
+            [
+                ['switch_distribution', 'Switch distribution'],
+                ['port', 'Port'],
+                ['vlan_id', 'VLAN ID'],
+                ['local_loops', 'Local loops'],
+                ['routers', 'Routers'],
+                ['cpe_indoor', 'CPE indoor'],
+                ['cpe_outdoor', 'CPE outdoor'],
+            ],
+            'pop_site.',
+        ),
+        references: (a.references ?? []).map((row) => ({
+            type: display(row.reference_type, REFERENCE_TYPE_LABELS),
+            specification: display(row.specification),
+        })),
+        serviceBlocks: (a.service_blocks ?? []).map((row) => ({
+            context: row.service_context === 'NEW' ? 'New service' : 'Existing service',
+            id: display(row.service_id),
+            status: display(row.service_status, SERVICE_STATUS_LABELS),
+            description: display(row.service_description),
+            location: display(row.service_location),
+        })),
+        slaItems: (a.sla_items ?? []).map((row) => ({ no: String(row.row_no), text: display(row.requirement_text) })),
+        virtualConnections: (a.virtual_connections ?? []).map((row) => ({
+            no: String(row.row_no),
+            bandwidth: display(row.bandwidth_mbps),
+        })),
+        priorityDestinations: (a.priority_destinations ?? []).map((row) => ({
+            no: String(row.row_no),
+            destination: display(row.destination),
+        })),
+    };
 });
+
+const change = computed(() => {
+    const c = props.record.change ?? {};
+    const monitoring =
+        c.monitoring_period_value === null || c.monitoring_period_value === undefined
+            ? '—'
+            : `${c.monitoring_period_value} ${display(c.monitoring_period_unit, MONITORING_UNIT_LABELS)}`;
+    return {
+        purpose: items(c, [['maintenance_purpose', 'Maintenance purpose']]),
+        plan: [
+            ...items(c, [['target_execution_date', 'Target execution date']]),
+            { key: 'monitoring_period', label: 'Monitoring period', value: monitoring },
+            {
+                key: 'announcement_timing',
+                label: 'Maintenance announcement',
+                value: display(c.announcement_timing, ANNOUNCEMENT_TIMING_LABELS),
+            },
+            ...items(c, [['rollback_scenario', 'Rollback scenario']]),
+        ],
+        challenges: (c.facing_challenges ?? []).map((row) => ({
+            no: String(row.row_no),
+            text: display(row.challenge_text),
+        })),
+        problems: (c.identified_problems ?? []).map((row) => ({
+            no: String(row.row_no),
+            text: display(row.problem_text),
+        })),
+        impacts: (c.service_impacts ?? []).map((row) => ({
+            impact: display(row.impact_code, SERVICE_IMPACT_LABELS),
+            description: display(row.other_description),
+        })),
+        improvements: (c.improvement_items ?? []).map((row) => ({
+            no: String(row.row_no),
+            plan: display(row.plan_text),
+            kpi: display(row.target_kpi),
+        })),
+        results: (c.results ?? []).map((row) => ({
+            no: String(row.row_no),
+            summary: display(row.result_summary),
+            performance: display(row.performance_information),
+            status: display(row.result_status),
+        })),
+    };
+});
+
+const NUMBERED_TEXT = [
+    { key: 'no', label: '#' },
+    { key: 'text', label: 'Description' },
+];
 </script>
 
 <template>
-    <AppLayout :title="`NSCMF - ${record.request_no}`">
-        <Head :title="`NSCMF - ${record.request_no}`" />
-
-        <div class="space-y-6">
-            <!-- Header Section -->
-            <div class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
-                    <div>
-                        <div class="flex items-center gap-3">
-                            <h1 data-testid="request-no" class="text-2xl font-bold tracking-tight">
-                                {{ record.request_no }}
-                            </h1>
-                            <!-- Business Status Badge -->
-                            <span
-                                data-testid="business-status-badge"
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20"
-                            >
-                                {{ displayBusinessStatus }}
-                            </span>
-                            <!-- Separate Archived Badge -->
-                            <span
-                                v-if="record.is_archived"
-                                data-testid="archived-badge"
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border"
-                            >
-                                Archived
-                            </span>
-                        </div>
-                        <p class="text-sm text-muted-foreground mt-1">
-                            <span data-testid="family-subtype" class="font-medium text-foreground">
-                                {{ record.family }} / {{ record.subtype }}
-                            </span>
-                            • Version <span data-testid="record-version">{{ record.record_version }}</span>
-                        </p>
+    <AppLayout :title="record.request_no">
+        <div class="mx-auto max-w-5xl space-y-6">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h1 data-testid="request-no" class="text-xl font-semibold text-foreground">
+                            {{ record.request_no }}
+                        </h1>
+                        <Badge data-testid="business-status-badge">{{ STATUS_LABELS[record.business_status] }}</Badge>
+                        <Badge v-if="record.is_archived" variant="warning" data-testid="archived-badge">Archived</Badge>
                     </div>
-
-                    <div class="flex items-center gap-2">
-                        <Link
-                            href="/nscmf"
-                            class="inline-flex items-center justify-center rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
-                        >
-                            Back to List
-                        </Link>
-                    </div>
+                    <p data-testid="family-subtype" class="text-sm text-muted-foreground">
+                        {{ FAMILY_LABELS[record.family] }} · {{ SUBTYPE_LABELS[record.subtype] }}
+                    </p>
                 </div>
-
-                <!-- Snapshot Info & Sign-offs Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 text-sm">
-                    <!-- Owner / Team Snapshot -->
-                    <div class="border-r pr-4">
-                        <span class="text-xs text-muted-foreground block uppercase font-medium">Owner & Team</span>
-                        <div data-testid="owner-name" class="font-medium text-foreground mt-1">
-                            {{ formatNeutral(record.owner?.name) }}
-                        </div>
-                        <div data-testid="team-name" class="text-xs text-muted-foreground">
-                            {{ formatNeutral(record.team?.name) }}
-                        </div>
-                    </div>
-
-                    <!-- Requested By -->
-                    <div data-testid="signoff-requested-by" class="border-r pr-4">
-                        <span class="text-xs text-muted-foreground block uppercase font-medium">Requested By</span>
-                        <div class="font-medium text-foreground mt-1">
-                            {{ formatNeutral(record.requested_by?.name) }}
-                        </div>
-                        <div class="text-xs text-muted-foreground">
-                            {{ formatNeutral(record.first_submitted_at) }}
-                        </div>
-                    </div>
-
-                    <!-- Reviewed By (Effective projection) -->
-                    <div data-testid="signoff-reviewed-by" class="border-r pr-4">
-                        <span class="text-xs text-muted-foreground block uppercase font-medium">Reviewed By</span>
-                        <div class="font-medium text-foreground mt-1">
-                            {{ formatNeutral(record.reviewed_by?.name) }}
-                        </div>
-                        <div class="text-xs text-muted-foreground">
-                            {{ formatNeutral(record.reviewed_at) }}
-                        </div>
-                    </div>
-
-                    <!-- Approved By (Human actor, distinct from PDF signer) -->
-                    <div data-testid="signoff-approved-by">
-                        <span class="text-xs text-muted-foreground block uppercase font-medium">Approved By</span>
-                        <div class="font-medium text-foreground mt-1">
-                            {{ formatNeutral(record.approved_by?.name) }}
-                        </div>
-                        <div class="text-xs text-muted-foreground">
-                            {{ formatNeutral(record.approved_at) }}
-                        </div>
-                    </div>
-                </div>
+                <Link href="/history" :class="buttonVariants({ variant: 'secondary' })">Back to history</Link>
             </div>
 
-            <!-- Tab Navigation -->
-            <div class="border-b border-border">
-                <nav class="flex space-x-6" role="tablist">
-                    <button
-                        role="tab"
-                        :aria-selected="activeTab === 'form'"
-                        class="py-3 px-1 border-b-2 font-medium text-sm transition-colors"
-                        :class="
-                            activeTab === 'form'
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-muted-foreground hover:text-foreground'
-                        "
-                        @click="activeTab = 'form'"
-                    >
-                        Form Detail
-                    </button>
-                    <button
-                        role="tab"
-                        :aria-selected="activeTab === 'timeline'"
-                        class="py-3 px-1 border-b-2 font-medium text-sm transition-colors"
-                        :class="
-                            activeTab === 'timeline'
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-muted-foreground hover:text-foreground'
-                        "
-                        @click="activeTab = 'timeline'"
-                    >
-                        Timeline
-                    </button>
-                    <button
-                        role="tab"
-                        :aria-selected="activeTab === 'attachments'"
-                        class="py-3 px-1 border-b-2 font-medium text-sm transition-colors"
-                        :class="
-                            activeTab === 'attachments'
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-muted-foreground hover:text-foreground'
-                        "
-                        @click="activeTab = 'attachments'"
-                    >
-                        Attachments
-                    </button>
-                </nav>
-            </div>
-
-            <!-- Tab Content -->
-            <div class="mt-4">
-                <!-- FORM DETAIL TAB -->
-                <div v-if="activeTab === 'form'" data-testid="form-detail-section" class="space-y-6">
-                    <!-- ACTIVATION FAMILY DISPLAY -->
-                    <div v-if="record.family === 'ACTIVATION' && record.activation" class="space-y-6">
-                        <!-- General Info -->
-                        <div class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-4">
-                            <h3 class="text-lg font-semibold border-b pb-2">General Information</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                <div>
-                                    <span class="text-xs text-muted-foreground block">Customer Name</span>
-                                    <span data-testid="activation-customer-name" class="font-medium text-foreground">
-                                        {{ formatNeutral(record.activation.customer_name) }}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span class="text-xs text-muted-foreground block">Contact Name</span>
-                                    <span data-testid="activation-contact-name" class="font-medium text-foreground">
-                                        {{ formatNeutral(record.activation.contact_name) }}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span class="text-xs text-muted-foreground block">Installation RFS Date</span>
-                                    <span class="font-medium text-foreground">
-                                        {{ formatNeutral(record.activation.installation_rfs_date) }}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span class="text-xs text-muted-foreground block"
-                                        >Bandwidth International (Mbps)</span
-                                    >
-                                    <span data-testid="activation-bw-intl" class="font-medium text-foreground">
-                                        {{ formatNeutral(record.activation.bandwidth_international_mbps) }}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span class="text-xs text-muted-foreground block"
-                                        >Bandwidth Domestic IIX (Mbps)</span
-                                    >
-                                    <span data-testid="activation-bw-dom" class="font-medium text-foreground">
-                                        {{ formatNeutral(record.activation.bandwidth_domestic_iix_mbps) }}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span class="text-xs text-muted-foreground block">Bandwidth Mixed (Mbps)</span>
-                                    <span class="font-medium text-foreground">
-                                        {{ formatNeutral(record.activation.bandwidth_mixed_mbps) }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- References Collection -->
-                        <div
-                            v-if="record.activation.references && record.activation.references.length > 0"
-                            class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-4"
-                        >
-                            <h3 class="text-lg font-semibold border-b pb-2">References</h3>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-sm text-left">
-                                    <thead class="bg-muted text-muted-foreground text-xs uppercase">
-                                        <tr>
-                                            <th class="px-4 py-2">Type</th>
-                                            <th class="px-4 py-2">Specification</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-border">
-                                        <tr v-for="(refItem, idx) in record.activation.references" :key="idx">
-                                            <td class="px-4 py-2 font-medium">{{ refItem.reference_type }}</td>
-                                            <td class="px-4 py-2">{{ formatNeutral(refItem.specification) }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Service Blocks Collection -->
-                        <div
-                            v-if="record.activation.service_blocks && record.activation.service_blocks.length > 0"
-                            class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-4"
-                        >
-                            <h3 class="text-lg font-semibold border-b pb-2">Service Blocks</h3>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-sm text-left">
-                                    <thead class="bg-muted text-muted-foreground text-xs uppercase">
-                                        <tr>
-                                            <th class="px-4 py-2">Context</th>
-                                            <th class="px-4 py-2">Service ID</th>
-                                            <th class="px-4 py-2">Status</th>
-                                            <th class="px-4 py-2">Description</th>
-                                            <th class="px-4 py-2">Location</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-border">
-                                        <tr v-for="(sb, idx) in record.activation.service_blocks" :key="idx">
-                                            <td class="px-4 py-2 font-medium">{{ sb.service_context }}</td>
-                                            <td class="px-4 py-2">{{ sb.service_id }}</td>
-                                            <td class="px-4 py-2">{{ sb.service_status }}</td>
-                                            <td class="px-4 py-2">{{ sb.service_description }}</td>
-                                            <td class="px-4 py-2">{{ sb.service_location }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- SLA, Virtual Connections, Priority Destinations Collections -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <!-- SLA Items -->
-                            <div class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-3">
-                                <h4 class="font-semibold text-sm border-b pb-2">SLA Requirements</h4>
-                                <ul
-                                    v-if="record.activation.sla_items && record.activation.sla_items.length > 0"
-                                    class="space-y-2 text-sm"
-                                >
-                                    <li v-for="sla in record.activation.sla_items" :key="sla.row_no">
-                                        <span class="text-muted-foreground">{{ sla.row_no }}.</span>
-                                        {{ sla.requirement_text }}
-                                    </li>
-                                </ul>
-                                <span v-else class="text-xs text-muted-foreground">None</span>
-                            </div>
-
-                            <!-- Virtual Connections -->
-                            <div class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-3">
-                                <h4 class="font-semibold text-sm border-b pb-2">Virtual Connections</h4>
-                                <ul
-                                    v-if="
-                                        record.activation.virtual_connections &&
-                                        record.activation.virtual_connections.length > 0
-                                    "
-                                    class="space-y-2 text-sm"
-                                >
-                                    <li v-for="vc in record.activation.virtual_connections" :key="vc.row_no">
-                                        <span class="text-muted-foreground">{{ vc.row_no }}.</span>
-                                        {{ vc.bandwidth_mbps }} Mbps
-                                    </li>
-                                </ul>
-                                <span v-else class="text-xs text-muted-foreground">None</span>
-                            </div>
-
-                            <!-- Priority Destinations -->
-                            <div class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-3">
-                                <h4 class="font-semibold text-sm border-b pb-2">Priority Destinations</h4>
-                                <ul
-                                    v-if="
-                                        record.activation.priority_destinations &&
-                                        record.activation.priority_destinations.length > 0
-                                    "
-                                    class="space-y-2 text-sm"
-                                >
-                                    <li v-for="pd in record.activation.priority_destinations" :key="pd.row_no">
-                                        <span class="text-muted-foreground">{{ pd.row_no }}.</span> {{ pd.destination }}
-                                    </li>
-                                </ul>
-                                <span v-else class="text-xs text-muted-foreground">None</span>
-                            </div>
-                        </div>
-
-                        <!-- Direct Site & POP Site 1:1 Blocks -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Direct Site -->
-                            <div class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-4">
-                                <h3 class="text-md font-semibold border-b pb-2">Direct Site Details</h3>
-                                <div v-if="record.activation.direct_site" class="grid grid-cols-2 gap-3 text-sm">
-                                    <div>
-                                        <span class="text-xs text-muted-foreground block">Latency (ms)</span>
-                                        <span data-testid="direct-site-latency" class="font-medium text-foreground">
-                                            {{ formatNeutral(record.activation.direct_site.latency_ms) }}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span class="text-xs text-muted-foreground block">Packet Loss (%)</span>
-                                        <span class="font-medium text-foreground">
-                                            {{ formatNeutral(record.activation.direct_site.packet_loss_percent) }}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span class="text-xs text-muted-foreground block">RSSI</span>
-                                        <span data-testid="direct-site-rssi" class="font-medium text-foreground">
-                                            {{ formatNeutral(record.activation.direct_site.rssi) }}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span class="text-xs text-muted-foreground block">Routers</span>
-                                        <span class="font-medium text-foreground">
-                                            {{ formatNeutral(record.activation.direct_site.routers) }}
-                                        </span>
-                                    </div>
-                                </div>
-                                <span v-else class="text-xs text-muted-foreground">Not provided</span>
-                            </div>
-
-                            <!-- POP Site -->
-                            <div class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-4">
-                                <h3 class="text-md font-semibold border-b pb-2">POP Site Details</h3>
-                                <div v-if="record.activation.pop_site" class="grid grid-cols-2 gap-3 text-sm">
-                                    <div>
-                                        <span class="text-xs text-muted-foreground block">VLAN ID</span>
-                                        <span class="font-medium text-foreground">
-                                            {{ formatNeutral(record.activation.pop_site.vlan_id) }}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span class="text-xs text-muted-foreground block">Port</span>
-                                        <span class="font-medium text-foreground">
-                                            {{ formatNeutral(record.activation.pop_site.port) }}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span class="text-xs text-muted-foreground block">Switch Distribution</span>
-                                        <span class="font-medium text-foreground">
-                                            {{ formatNeutral(record.activation.pop_site.switch_distribution) }}
-                                        </span>
-                                    </div>
-                                </div>
-                                <span v-else class="text-xs text-muted-foreground">Not provided</span>
-                            </div>
-                        </div>
+            <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                <DetailList :items="summary" />
+                <dl class="grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-3">
+                    <div v-for="signoff in signoffs" :key="signoff.testid" :data-testid="signoff.testid">
+                        <dt class="text-xs text-muted-foreground">{{ signoff.label }}</dt>
+                        <dd class="text-sm text-foreground">{{ display(signoff.person?.name) }}</dd>
+                        <dd class="text-xs text-muted-foreground">{{ display(signoff.at) }}</dd>
                     </div>
+                </dl>
+            </section>
 
-                    <!-- CHANGE FAMILY DISPLAY -->
-                    <div v-else-if="record.family === 'CHANGE' && record.change" class="space-y-6">
-                        <!-- Maintenance Purpose & Planning -->
-                        <div class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-4">
-                            <h3 class="text-lg font-semibold border-b pb-2">Change Plan & Purpose</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                <div class="col-span-full">
-                                    <span class="text-xs text-muted-foreground block">Maintenance Purpose</span>
-                                    <p data-testid="change-purpose" class="mt-1 text-foreground whitespace-pre-wrap">
-                                        {{ formatNeutral(record.change.maintenance_purpose) }}
-                                    </p>
-                                </div>
-                                <div>
-                                    <span class="text-xs text-muted-foreground block">Target Execution Date</span>
-                                    <span class="font-medium text-foreground">
-                                        {{ formatNeutral(record.change.target_execution_date) }}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span class="text-xs text-muted-foreground block">Monitoring Period</span>
-                                    <span class="font-medium text-foreground">
-                                        {{
-                                            record.change.monitoring_period_value !== null &&
-                                            record.change.monitoring_period_value !== undefined
-                                                ? `${record.change.monitoring_period_value} ${record.change.monitoring_period_unit || ''}`
-                                                : '—'
-                                        }}
-                                    </span>
-                                </div>
-                                <div class="col-span-full">
-                                    <span class="text-xs text-muted-foreground block">Rollback Scenario</span>
-                                    <p data-testid="change-rollback" class="mt-1 text-foreground whitespace-pre-wrap">
-                                        {{ formatNeutral(record.change.rollback_scenario) }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Challenges & Identified Problems -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-3">
-                                <h4 class="font-semibold text-sm border-b pb-2">Facing Challenges</h4>
-                                <ul
-                                    v-if="record.change.facing_challenges && record.change.facing_challenges.length > 0"
-                                    class="space-y-2 text-sm"
-                                >
-                                    <li v-for="fc in record.change.facing_challenges" :key="fc.row_no">
-                                        <span class="text-muted-foreground">{{ fc.row_no }}.</span>
-                                        {{ fc.challenge_text }}
-                                    </li>
-                                </ul>
-                                <span v-else class="text-xs text-muted-foreground">None</span>
-                            </div>
-
-                            <div class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-3">
-                                <h4 class="font-semibold text-sm border-b pb-2">Identified Problems</h4>
-                                <ul
-                                    v-if="
-                                        record.change.identified_problems &&
-                                        record.change.identified_problems.length > 0
-                                    "
-                                    class="space-y-2 text-sm"
-                                >
-                                    <li v-for="ip in record.change.identified_problems" :key="ip.row_no">
-                                        <span class="text-muted-foreground">{{ ip.row_no }}.</span>
-                                        {{ ip.problem_text }}
-                                    </li>
-                                </ul>
-                                <span v-else class="text-xs text-muted-foreground">None</span>
-                            </div>
-                        </div>
-
-                        <!-- Service Impacts -->
-                        <div
-                            v-if="record.change.service_impacts && record.change.service_impacts.length > 0"
-                            class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-3"
-                        >
-                            <h4 class="font-semibold text-sm border-b pb-2">Service Impacts</h4>
-                            <div class="flex flex-wrap gap-2">
-                                <div
-                                    v-for="(impact, idx) in record.change.service_impacts"
-                                    :key="idx"
-                                    class="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-muted text-foreground border"
-                                >
-                                    <span class="font-semibold">{{ impact.impact_code }}</span>
-                                    <span v-if="impact.other_description" class="ml-1 text-muted-foreground">
-                                        ({{ impact.other_description }})
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Improvement Items -->
-                        <div
-                            v-if="record.change.improvement_items && record.change.improvement_items.length > 0"
-                            class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-3"
-                        >
-                            <h4 class="font-semibold text-sm border-b pb-2">Improvement Items</h4>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-sm text-left">
-                                    <thead class="bg-muted text-muted-foreground text-xs uppercase">
-                                        <tr>
-                                            <th class="px-4 py-2">#</th>
-                                            <th class="px-4 py-2">Plan</th>
-                                            <th class="px-4 py-2">Target KPI</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-border">
-                                        <tr v-for="item in record.change.improvement_items" :key="item.row_no">
-                                            <td class="px-4 py-2 font-medium">{{ item.row_no }}</td>
-                                            <td class="px-4 py-2">{{ item.plan_text }}</td>
-                                            <td class="px-4 py-2">{{ item.target_kpi }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Results of Change -->
-                        <div
-                            v-if="record.change.results && record.change.results.length > 0"
-                            data-testid="change-results"
-                            class="bg-card text-card-foreground p-6 rounded-lg border shadow-sm space-y-3"
-                        >
-                            <h4 class="font-semibold text-sm border-b pb-2">Results of Change</h4>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-sm text-left">
-                                    <thead class="bg-muted text-muted-foreground text-xs uppercase">
-                                        <tr>
-                                            <th class="px-4 py-2">#</th>
-                                            <th class="px-4 py-2">Result Summary</th>
-                                            <th class="px-4 py-2">Performance Information</th>
-                                            <th class="px-4 py-2">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-border">
-                                        <tr v-for="res in record.change.results" :key="res.row_no">
-                                            <td class="px-4 py-2 font-medium">{{ res.row_no }}</td>
-                                            <td class="px-4 py-2">{{ formatNeutral(res.result_summary) }}</td>
-                                            <td class="px-4 py-2">{{ formatNeutral(res.performance_information) }}</td>
-                                            <td class="px-4 py-2 font-medium">
-                                                {{ formatNeutral(res.result_status) }}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- TIMELINE TAB (Unavailable / Stub) -->
-                <div
-                    v-else-if="activeTab === 'timeline'"
-                    data-testid="timeline-stub"
-                    class="p-8 text-center border rounded-lg bg-card"
+            <div role="tablist" class="flex gap-6 border-b border-border">
+                <button
+                    v-for="tab in TABS"
+                    :key="tab.key"
+                    type="button"
+                    role="tab"
+                    :data-testid="`tab-${tab.key}`"
+                    :aria-selected="activeTab === tab.key"
+                    class="-mb-px border-b-2 px-1 py-2 text-sm font-medium"
+                    :class="
+                        activeTab === tab.key
+                            ? 'border-primary text-foreground'
+                            : 'border-transparent text-muted-foreground hover:text-foreground'
+                    "
+                    @click="activeTab = tab.key"
                 >
-                    <p class="text-sm text-muted-foreground">Timeline history unavailable</p>
-                </div>
-
-                <!-- ATTACHMENTS TAB (Unavailable / Stub) -->
-                <div
-                    v-else-if="activeTab === 'attachments'"
-                    data-testid="attachments-stub"
-                    class="p-8 text-center border rounded-lg bg-card"
-                >
-                    <p class="text-sm text-muted-foreground">Attachments unavailable</p>
-                </div>
+                    {{ tab.label }}
+                </button>
             </div>
+
+            <div v-if="activeTab === 'form'" data-testid="form-detail-section" class="space-y-6">
+                <template v-if="record.family === 'ACTIVATION'">
+                    <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                        <h2 class="text-base font-semibold">General and service</h2>
+                        <DetailList :items="activation.general" />
+                        <DetailTable
+                            data-testid="table-references"
+                            title="References"
+                            :columns="[
+                                { key: 'type', label: 'Type' },
+                                { key: 'specification', label: 'Specification' },
+                            ]"
+                            :rows="activation.references"
+                        />
+                        <DetailTable
+                            data-testid="table-service_blocks"
+                            title="Services"
+                            :columns="[
+                                { key: 'context', label: 'Service' },
+                                { key: 'id', label: 'Service ID' },
+                                { key: 'status', label: 'Status' },
+                                { key: 'description', label: 'Description' },
+                                { key: 'location', label: 'Location' },
+                            ]"
+                            :rows="activation.serviceBlocks"
+                        />
+                        <DetailTable
+                            data-testid="table-sla_items"
+                            title="Specific requirements (SLA)"
+                            :columns="NUMBERED_TEXT"
+                            :rows="activation.slaItems"
+                        />
+                    </section>
+
+                    <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                        <h2 class="text-base font-semibold">NOC configuration</h2>
+                        <DetailList :items="activation.network" />
+                    </section>
+
+                    <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                        <h2 class="text-base font-semibold">Bandwidth</h2>
+                        <DetailList :items="activation.bandwidth" />
+                        <DetailTable
+                            data-testid="table-virtual_connections"
+                            title="Virtual connections"
+                            :columns="[
+                                { key: 'no', label: '#' },
+                                { key: 'bandwidth', label: 'Bandwidth (Mbps)' },
+                            ]"
+                            :rows="activation.virtualConnections"
+                        />
+                        <DetailTable
+                            data-testid="table-priority_destinations"
+                            title="Priority destinations"
+                            :columns="[
+                                { key: 'no', label: '#' },
+                                { key: 'destination', label: 'Destination' },
+                            ]"
+                            :rows="activation.priorityDestinations"
+                        />
+                    </section>
+
+                    <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                        <h2 class="text-base font-semibold">Domain, DNS and hosting</h2>
+                        <DetailList :items="activation.hosting" />
+                    </section>
+
+                    <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                        <h2 class="text-base font-semibold">Customer site (direct)</h2>
+                        <DetailList :items="activation.directSite" />
+                    </section>
+
+                    <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                        <h2 class="text-base font-semibold">Customer site at POP</h2>
+                        <DetailList :items="activation.popSite" />
+                    </section>
+                </template>
+
+                <template v-else>
+                    <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                        <h2 class="text-base font-semibold">Purpose of changes</h2>
+                        <DetailList :items="change.purpose" />
+                        <DetailTable
+                            data-testid="table-facing_challenges"
+                            title="Facing challenges"
+                            :columns="NUMBERED_TEXT"
+                            :rows="change.challenges"
+                        />
+                        <DetailTable
+                            data-testid="table-identified_problems"
+                            title="Identified problems"
+                            :columns="NUMBERED_TEXT"
+                            :rows="change.problems"
+                        />
+                        <DetailTable
+                            data-testid="table-service_impacts"
+                            title="Service impact"
+                            :columns="[
+                                { key: 'impact', label: 'Impact' },
+                                { key: 'description', label: 'Description' },
+                            ]"
+                            :rows="change.impacts"
+                        />
+                    </section>
+
+                    <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                        <h2 class="text-base font-semibold">Plan, schedule and rollback</h2>
+                        <DetailTable
+                            data-testid="table-improvement_items"
+                            title="Improvement plan and target KPI"
+                            :columns="[
+                                { key: 'no', label: '#' },
+                                { key: 'plan', label: 'Plan' },
+                                { key: 'kpi', label: 'Target KPI' },
+                            ]"
+                            :rows="change.improvements"
+                        />
+                        <DetailList :items="change.plan" />
+                    </section>
+
+                    <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                        <h2 class="text-base font-semibold">Result of changes</h2>
+                        <DetailTable
+                            data-testid="table-results"
+                            title="Results"
+                            :columns="[
+                                { key: 'no', label: '#' },
+                                { key: 'summary', label: 'Result summary' },
+                                { key: 'performance', label: 'Performance information' },
+                                { key: 'status', label: 'Status' },
+                            ]"
+                            :rows="change.results"
+                        />
+                    </section>
+                </template>
+            </div>
+
+            <p
+                v-else
+                :data-testid="`${activeTab}-stub`"
+                class="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground"
+            >
+                {{ activeTab === 'timeline' ? 'The timeline' : 'Attachments' }} are not available yet.
+            </p>
         </div>
     </AppLayout>
 </template>

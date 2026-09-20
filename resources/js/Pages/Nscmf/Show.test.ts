@@ -174,7 +174,12 @@ describe('Record detail (FE-18)', () => {
                 ],
                 improvement_items: [{ row_no: 1, plan_text: 'Demo plan', target_kpi: 'Error rate 0' }],
                 results: [
-                    { row_no: 1, result_summary: 'Demo result', performance_information: 'Stable', result_status: 'Done' },
+                    {
+                        row_no: 1,
+                        result_summary: 'Demo result',
+                        performance_information: 'Stable',
+                        result_status: 'Done',
+                    },
                 ],
             },
         });
