@@ -163,6 +163,9 @@ describe('GeneralServiceSection (FE-20)', () => {
             'A specification is required for Other.',
         );
         expect(wrapper.get('#service-new-service_id-error').text()).toContain('The service ID is required.');
+        expect(
+            wrapper.get('[data-error-path="activation.service_blocks.0.service_id"]').find('input').attributes('id'),
+        ).toBe('service-new-service_id');
     });
 
     it('sends no request of its own and disables every control when asked', () => {

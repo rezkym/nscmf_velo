@@ -208,6 +208,7 @@ function onStatusChange(context: ServiceContext, event: Event): void {
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <DraftField
                     :id="`service-${service.key}-service_id`"
+                    :data-error-path="`activation.service_blocks.${blockIndex(service.context)}.service_id`"
                     label="Service ID"
                     :maxlength="100"
                     :required="REQUIRED_BLOCKS[subtype][service.context]"
@@ -219,6 +220,7 @@ function onStatusChange(context: ServiceContext, event: Event): void {
 
                 <FormField
                     :id="`service-${service.key}-service_status`"
+                    :data-error-path="`activation.service_blocks.${blockIndex(service.context)}.service_status`"
                     label="Service status"
                     :required="REQUIRED_BLOCKS[subtype][service.context]"
                     :error="error('service_blocks', blockIndex(service.context), 'service_status')"
@@ -226,6 +228,7 @@ function onStatusChange(context: ServiceContext, event: Event): void {
                     <template #default="{ id, describedBy }">
                         <select
                             :id="id"
+                            :data-error-path="`activation.service_blocks.${blockIndex(service.context)}.service_status`"
                             :value="block(service.context)?.service_status ?? ''"
                             :disabled="disabled"
                             :aria-describedby="describedBy"
@@ -242,6 +245,7 @@ function onStatusChange(context: ServiceContext, event: Event): void {
 
                 <DraftField
                     :id="`service-${service.key}-service_description`"
+                    :data-error-path="`activation.service_blocks.${blockIndex(service.context)}.service_description`"
                     label="Service description"
                     class="sm:col-span-2"
                     :rows="3"
@@ -255,6 +259,7 @@ function onStatusChange(context: ServiceContext, event: Event): void {
 
                 <DraftField
                     :id="`service-${service.key}-service_location`"
+                    :data-error-path="`activation.service_blocks.${blockIndex(service.context)}.service_location`"
                     label="Service location"
                     class="sm:col-span-2"
                     :maxlength="500"

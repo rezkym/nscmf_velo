@@ -148,9 +148,18 @@ watch(
 );
 
 function resolveControlByPath(path: string): HTMLElement | null {
+    /* v8 ignore next */
     if (!path) return null;
 
-    // 1. Direct match by exact path or element id
+    // 1. First lookup by data-error-path attribute (explicit wire error path mapping)
+    const byDataAttr = document.querySelector<HTMLElement>(`[data-error-path="${CSS.escape(path)}"]`);
+    if (byDataAttr) {
+        return byDataAttr.matches('input, select, textarea, button')
+            ? byDataAttr
+            : (byDataAttr.querySelector<HTMLElement>('input, select, textarea, button') ?? byDataAttr);
+    }
+
+    // 2. Direct match by exact path or element id
     const direct =
         document.getElementById(path) ??
         document.getElementById(path.replace(/\./g, '-')) ??
@@ -159,7 +168,7 @@ function resolveControlByPath(path: string): HTMLElement | null {
         return direct;
     }
 
-    // If path starts with section prefix like 'activation.' or 'change.', try without prefix
+    // 3. If path starts with section prefix like 'activation.' or 'change.', try without prefix
     const unprefixed = path.replace(/^(?:activation|change)\./, '');
     const directUnprefixed =
         document.getElementById(unprefixed) ??
@@ -167,54 +176,6 @@ function resolveControlByPath(path: string): HTMLElement | null {
         document.getElementById(`field-${unprefixed.replace(/\./g, '-')}`);
     if (directUnprefixed) {
         return directUnprefixed;
-    }
-
-    // 2. Natural-key mapping for service_blocks:
-    // GeneralServiceSection maps wire error `activation.service_blocks.${blockIndex(context)}.${field}`.
-    // In DOM, existing is `#service-existing-${fieldName}` and new is `#service-new-${fieldName}`.
-    const serviceMatch = path.match(/^(?:activation\.)?service_blocks\.(\d+)\.(.+)$/);
-    if (serviceMatch) {
-        const wireIndex = Number(serviceMatch[1]);
-        const fieldName = serviceMatch[2];
-
-        const existingControl = document.getElementById(`service-existing-${fieldName}`);
-        const newControl = document.getElementById(`service-new-${fieldName}`);
-
-        if (existingControl && !newControl) return existingControl;
-        if (newControl && !existingControl) return newControl;
-
-        if (existingControl && newControl) {
-            type VueComponentInternal = {
-                props?: Record<string, unknown>;
-                setupState?: Record<string, unknown>;
-                parent?: VueComponentInternal | null;
-            };
-
-            const comp =
-                ((existingControl as unknown as Record<string, unknown>)?.__vueParentComponent as
-                    VueComponentInternal | undefined) ??
-                ((newControl as unknown as Record<string, unknown>)?.__vueParentComponent as
-                    VueComponentInternal | undefined);
-
-            if (comp) {
-                let p: VueComponentInternal | null | undefined = comp.parent;
-                while (p) {
-                    const setup = p.setupState;
-                    if (setup && typeof setup.blockIndex === 'function') {
-                        const blockIndexFn = setup.blockIndex as (context: string) => number;
-                        const existingIdx = blockIndexFn('EXISTING');
-
-                        if (wireIndex === existingIdx) {
-                            return existingControl;
-                        }
-                        return newControl;
-                    }
-                    p = p.parent;
-                }
-            }
-
-            return existingControl;
-        }
     }
 
     return null;

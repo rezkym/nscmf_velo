@@ -537,6 +537,40 @@ describe('SubmitPanel (FE-28)', () => {
             await directLink.trigger('click');
             expect(focusSpy).toHaveBeenCalled();
             directHarness.unmount();
+
+            // Direct input element with data-error-path attribute directly on the input
+            const inputEl = document.createElement('input');
+            inputEl.id = 'direct-input-target';
+            inputEl.setAttribute('data-error-path', 'direct.input.path');
+            document.body.appendChild(inputEl);
+            const inputFocusSpy = vi.spyOn(inputEl, 'focus');
+
+            // Container element without child input/button
+            const containerEl = document.createElement('div');
+            containerEl.setAttribute('data-error-path', 'container.only.path');
+            document.body.appendChild(containerEl);
+            const containerFocusSpy = vi.spyOn(containerEl, 'focus');
+
+            const inputWrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    errors: {
+                        'direct.input.path': 'Direct input error',
+                        'container.only.path': 'Container error',
+                    },
+                },
+            });
+            const errorLinks = inputWrapper.findAll('[data-testid="error-summary-item"] button');
+            await errorLinks[0]?.trigger('click');
+            expect(inputFocusSpy).toHaveBeenCalled();
+            await errorLinks[1]?.trigger('click');
+            expect(containerFocusSpy).toHaveBeenCalled();
+
+            inputEl.remove();
+            containerEl.remove();
+            inputWrapper.unmount();
         });
 
         it('does not submit when canSubmit is false and handleSubmit is called directly', () => {
