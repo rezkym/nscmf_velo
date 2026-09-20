@@ -123,20 +123,31 @@ describe('Review Queue — Index.vue (FE-30)', () => {
             expect(wrapper.text()).toContain('—');
         });
 
-        it('falls back to raw family and subtype strings when labels are missing', () => {
-            const fallbackItem: ReviewQueueItem = {
+        it('formats Activation type and Change subtypes correctly', () => {
+            const activationItem: ReviewQueueItem = {
                 id: 105,
                 request_no: 'NSCMF-202609-00005',
-                family: 'CUSTOM_FAMILY' as unknown as ReviewQueueItem['family'],
-                subtype: 'CUSTOM_SUBTYPE' as unknown as ReviewQueueItem['subtype'],
+                family: 'ACTIVATION',
+                subtype: 'ACTIVATION',
                 request_date: '2026-09-18',
                 requester: null,
                 team: null,
                 business_status: 'PENDING_REVIEW',
             };
+            const changeItem: ReviewQueueItem = {
+                id: 106,
+                request_no: 'NSCMF-202609-00006',
+                family: 'CHANGE',
+                subtype: 'EMERGENCY',
+                request_date: '2026-09-19',
+                requester: null,
+                team: null,
+                business_status: 'PENDING_REVIEW',
+            };
 
-            const wrapper = mountReviewQueue({ items: [fallbackItem] });
-            expect(wrapper.text()).toContain('CUSTOM_FAMILY · CUSTOM_SUBTYPE');
+            const wrapper = mountReviewQueue({ items: [activationItem, changeItem] });
+            expect(wrapper.text()).toContain('Activation');
+            expect(wrapper.text()).toContain('Change · Emergency');
         });
 
         it('handles null meta gracefully without pagination metadata', () => {

@@ -32,8 +32,6 @@ export interface ReviewQueueItem extends Record<string, unknown> {
     is_archived?: boolean;
 }
 
-export type { PaginationMeta };
-
 const props = withDefaults(
     defineProps<{
         items?: ReviewQueueItem[];
@@ -92,26 +90,49 @@ const tableMeta = computed<ReviewTablePaginationMeta | null>(() => {
 });
 
 function formatType(family: NscmfFamily, subtype: NscmfSubtype): string {
-    const familyLabel = FAMILY_LABELS[family] ?? family;
-    const subtypeLabel = SUBTYPE_LABELS[subtype] ?? subtype;
-    return family === 'ACTIVATION' && subtype === 'ACTIVATION' ? 'Activation' : `${familyLabel} · ${subtypeLabel}`;
+    return family === 'ACTIVATION' && subtype === 'ACTIVATION'
+        ? 'Activation'
+        : `${FAMILY_LABELS[family]} · ${SUBTYPE_LABELS[subtype]}`;
 }
 
+const ALLOWED_FILTER_KEYS = new Set([
+    'family',
+    'subtype',
+    'business_status',
+    'archived',
+    'request_date_from',
+    'request_date_to',
+    'owner_user_id',
+    'team_id',
+]);
+
+const RESERVED_QUERY_KEYS = new Set(['page', 'per_page', 'sort', 'direction', 'q']);
+
 function onQueryChange(newQuery: TableQuery): void {
-    const payload: Record<string, string | number | undefined> = {
-        page: newQuery.page,
-        per_page: newQuery.per_page,
-        sort: newQuery.sort,
-        direction: newQuery.direction,
-        q: newQuery.q,
-    };
+    const payload: Record<string, string | number | undefined> = {};
+
     if (newQuery.filters) {
         for (const [key, value] of Object.entries(newQuery.filters)) {
-            if (typeof value === 'string' || typeof value === 'number') {
-                payload[key] = value;
+            if (ALLOWED_FILTER_KEYS.has(key) && !RESERVED_QUERY_KEYS.has(key)) {
+                if (typeof value === 'string' || typeof value === 'number') {
+                    payload[key] = value;
+                }
             }
         }
     }
+
+    const perPageNum = Number(newQuery.per_page);
+    const clampedPerPage = Math.min(100, Math.max(1, Number.isFinite(perPageNum) ? perPageNum : 25));
+
+    const pageNum = Number(newQuery.page);
+    const clampedPage = Math.max(1, Number.isFinite(pageNum) ? pageNum : 1);
+
+    payload.page = clampedPage;
+    payload.per_page = clampedPerPage;
+    payload.sort = newQuery.sort;
+    payload.direction = newQuery.direction;
+    payload.q = newQuery.q;
+
     router.get('/review', payload, {
         preserveState: true,
         preserveScroll: true,
