@@ -18,7 +18,8 @@ const props = defineProps<{
 
 const atMax = computed(() => props.max !== undefined && rows.value.length >= props.max);
 
-/** Row numbers are positional (11 §22); rows that have none, such as selections, are left alone. */
+/** Row numbers are positional: each row table keys on a unique row_no in its range (11 §19-21, §25-26,
+ * §28-29; wire ranges in 12 §27.2, §28.2). Rows without row_no, such as selections, are left alone. */
 function renumber(list: T[]): T[] {
     return list.map((row, index) => ('row_no' in row ? { ...row, row_no: index + 1 } : row));
 }
