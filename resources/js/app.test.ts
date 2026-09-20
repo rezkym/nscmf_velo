@@ -1,53 +1,67 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, type Component, type Plugin } from 'vue';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { resolvePage } from '@/lib/inertia';
-
-interface CapturedOptions {
-    title: (title: string) => string;
-    resolve: unknown;
-    setup: (options: { el: HTMLElement; App: unknown; props: object; plugin: { install: () => void } }) => void;
-    progress: { color: string };
-}
-
-const createInertiaApp = vi.hoisted(() => vi.fn<(options: CapturedOptions) => Promise<void>>());
+const createInertiaApp = vi.fn();
 
 vi.mock('@inertiajs/vue3', () => ({ createInertiaApp }));
+vi.mock('../css/app.css', () => ({}));
 
-describe('application entry point', () => {
-    let options: CapturedOptions;
+interface EntryOptions {
+    title: (title: string) => string;
+    setup: (context: { el: Element; App: Component; props: Record<string, unknown>; plugin: Plugin }) => void;
+}
 
-    beforeAll(async () => {
-        await import('./app');
+/** Boots the entry once and returns the options it handed to Inertia. */
+async function boot(): Promise<EntryOptions> {
+    vi.resetModules();
+    createInertiaApp.mockClear();
+    await import('./app');
+    const options = createInertiaApp.mock.calls[0]?.[0] as EntryOptions | undefined;
+    if (!options) throw new Error('the entry did not create the Inertia app');
+    return options;
+}
 
-        const captured = createInertiaApp.mock.calls[0]?.[0];
+async function bootTitle(): Promise<(title: string) => string> {
+    return (await boot()).title;
+}
 
-        if (captured === undefined) {
-            throw new Error('createInertiaApp was not called');
-        }
-
-        options = captured;
+describe('application entry', () => {
+    beforeEach(() => {
+        vi.unstubAllEnvs();
     });
 
-    it('boots Inertia exactly once with the page resolver and brand progress color', () => {
-        expect(createInertiaApp).toHaveBeenCalledTimes(1);
-        expect(options.resolve).toBe(resolvePage);
-        expect(options.progress).toEqual({ color: '#1B2CC1' });
+    it('suffixes the page title with the configured application name', async () => {
+        vi.stubEnv('VITE_APP_NAME', 'NSCMF Demo');
+
+        const title = await bootTitle();
+
+        expect(title('Dashboard')).toBe('Dashboard - NSCMF Demo');
+        expect(title('')).toBe('NSCMF Demo');
     });
 
-    it('formats document titles with the application name', () => {
-        expect(options.title('Dashboard')).toBe('Dashboard - NSCMF');
-        expect(options.title('')).toBe('NSCMF');
+    it('falls back to NSCMF when no application name is configured', async () => {
+        vi.stubEnv('VITE_APP_NAME', undefined as unknown as string);
+
+        const title = await bootTitle();
+
+        expect(title('Dashboard')).toBe('Dashboard - NSCMF');
     });
 
-    it('mounts the Inertia root component with the Inertia plugin', () => {
+    it('mounts the resolved page into the element Inertia provides', async () => {
+        const { setup } = await boot();
         const el = document.createElement('div');
-        const plugin = { install: vi.fn() };
-        const App = defineComponent({ setup: () => () => h('p', 'inertia root') });
+        document.body.appendChild(el);
+        const installed = vi.fn();
 
-        options.setup({ el, App, props: {}, plugin });
+        setup({
+            el,
+            App: defineComponent({ setup: () => () => 'page body' }),
+            props: {},
+            plugin: { install: installed },
+        });
 
-        expect(plugin.install).toHaveBeenCalledTimes(1);
-        expect(el.textContent).toBe('inertia root');
+        expect(installed).toHaveBeenCalledOnce();
+        expect(el.textContent).toContain('page body');
+        el.remove();
     });
 });

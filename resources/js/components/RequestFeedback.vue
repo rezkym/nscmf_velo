@@ -105,7 +105,7 @@ function handleLogin(): void {
                 <span class="inline-block h-2 w-2 rounded-full bg-emerald-600"></span>
                 Saved just now
             </span>
-            <span v-else-if="saveStatus === 'error'" class="text-destructive flex items-center gap-1.5">
+            <span v-else class="text-destructive flex items-center gap-1.5">
                 <span class="inline-block h-2 w-2 rounded-full bg-destructive"></span>
                 Save failed — retry
             </span>

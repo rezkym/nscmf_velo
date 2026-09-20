@@ -177,4 +177,27 @@ describe('ActionDialog (FE-04)', () => {
 
         wrapper.unmount();
     });
+
+    it('shows the request number, the consequence and the destination when given', () => {
+        const wrapper = mount(ActionDialog, {
+            props: {
+                open: true,
+                title: 'Forward for approval',
+                requestNo: 'DEMO-ACT-005',
+                consequence: 'The record moves to Pending Approval.',
+                destination: 'Approver pool',
+            },
+        });
+
+        const text = wrapper.text();
+        expect(text).toContain('DEMO-ACT-005');
+        expect(text).toContain('The record moves to Pending Approval.');
+        expect(text).toContain('Approver pool');
+    });
+
+    it('omits the request number line when there is none', () => {
+        const wrapper = mount(ActionDialog, { props: { open: true, title: 'Cancel record' } });
+
+        expect(wrapper.text()).not.toContain('Request No:');
+    });
 });
