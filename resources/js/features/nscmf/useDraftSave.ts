@@ -171,172 +171,183 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
         feedbackError.value = null;
         validationErrors.value = null;
 
-        const snapshotToSave = JSON.stringify(options.fields.value);
-        inFlightSnapshot = snapshotToSave;
+        try {
+            const snapshotToSave = JSON.stringify(options.fields.value);
+            inFlightSnapshot = snapshotToSave;
 
-        const payload = buildPayload(currentVersion.value, options.fields.value);
-        const url = `/nscmf/${recordId.value}/draft`;
+            const payload = buildPayload(currentVersion.value, options.fields.value);
+            const url = `/nscmf/${recordId.value}/draft`;
 
-        return new Promise<void>((resolve) => {
-            let settled = false;
-            const finishThisRequest = () => {
-                if (settled) return;
-                settled = true;
-                inFlightCount = Math.max(0, inFlightCount - 1);
-                isSaving.value = false;
-                resolve();
-                handleNextQueued();
-            };
+            return new Promise<void>((resolve) => {
+                let settled = false;
+                const finishThisRequest = () => {
+                    if (settled) return;
+                    settled = true;
+                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    isSaving.value = false;
+                    resolve();
+                    handleNextQueued();
+                };
 
-            router.patch(url, payload as never, {
-                onFlash: (flash: unknown) => {
-                    checkPageFlashForConflict(flash);
-                },
-                onSuccess: (page: unknown) => {
-                    if (isConflict.value || checkPageFlashForConflict(page)) {
-                        finishThisRequest();
-                        return;
-                    }
-
-                    const pageObj = page as { props?: { record?: { record_version?: number } } };
-                    const responseRecord = pageObj?.props?.record;
-                    if (responseRecord && typeof responseRecord.record_version === 'number') {
-                        currentVersion.value = responseRecord.record_version;
-                        options.onSuccess?.(responseRecord.record_version);
-                    }
-
-                    lastSavedSnapshot.value = inFlightSnapshot ?? lastSavedSnapshot.value;
-                    inFlightSnapshot = null;
-
-                    // If user modified fields while in-flight, keep dirty and don't falsely claim saved
-                    const currentStr = JSON.stringify(options.fields.value);
-                    if (currentStr !== lastSavedSnapshot.value) {
-                        saveStatus.value = null;
-                    } else {
-                        saveStatus.value = 'saved';
-                    }
-
-                    finishThisRequest();
-                },
-                onError: (err: unknown) => {
-                    inFlightSnapshot = null;
-                    saveStatus.value = 'error';
-
-                    const fieldBag = (err ?? {}) as Record<string, string>;
-                    validationErrors.value = fieldBag;
-                    feedbackError.value = {
-                        status: 422,
-                        code: 'NSCMF_VALIDATION_FAILED',
-                        errors: fieldBag,
-                    };
-
-                    options.onError?.(feedbackError.value);
-                    finishThisRequest();
-                },
-                onHttpException: (response: unknown) => {
-                    inFlightSnapshot = null;
-                    saveStatus.value = 'error';
-
-                    const res = response as { status?: number; statusText?: string; data?: unknown };
-                    const status = typeof res?.status === 'number' ? res.status : 500;
-
-                    let envelopeData: {
-                        code?: string;
-                        message?: string;
-                        errors?: Record<string, string[] | string>;
-                        context?: Record<string, unknown>;
-                    } | null = null;
-
-                    if (res?.data) {
-                        try {
-                            envelopeData = parseApiErrorEnvelope(res.data);
-                        } catch {
-                            // res.data is not a valid 12 §9 envelope
+                router.patch(url, payload as never, {
+                    onFlash: (flash: unknown) => {
+                        checkPageFlashForConflict(flash);
+                    },
+                    onSuccess: (page: unknown) => {
+                        if (isConflict.value || checkPageFlashForConflict(page)) {
+                            finishThisRequest();
+                            return;
                         }
-                    }
 
-                    // Also check if res.data is an Inertia page object containing flash.domain_error
-                    let flashedDomainErr: { code?: string; message?: string } | null = null;
-                    if (res?.data && typeof res.data === 'object') {
-                        const dataObj = res.data as Record<string, unknown>;
-                        const rawFlash = dataObj.flash ?? (dataObj.props as Record<string, unknown> | undefined)?.flash;
-                        flashedDomainErr = domainError(rawFlash);
-                    }
+                        const pageObj = page as { props?: { record?: { record_version?: number } } };
+                        const responseRecord = pageObj?.props?.record;
+                        if (responseRecord && typeof responseRecord.record_version === 'number') {
+                            currentVersion.value = responseRecord.record_version;
+                            options.onSuccess?.(responseRecord.record_version);
+                        }
 
-                    const isConflict =
-                        status === 409 ||
-                        envelopeData?.code === 'NSCMF_VERSION_CONFLICT' ||
-                        envelopeData?.code?.includes('CONFLICT') ||
-                        flashedDomainErr?.code === 'NSCMF_VERSION_CONFLICT' ||
-                        flashedDomainErr?.code?.includes('CONFLICT');
+                        lastSavedSnapshot.value = inFlightSnapshot ?? lastSavedSnapshot.value;
+                        inFlightSnapshot = null;
 
-                    if (isConflict) {
-                        const conflictObj: RequestFeedbackError = {
-                            status: 409,
-                            code:
-                                (envelopeData?.code !== 'UNKNOWN_ERROR' ? envelopeData?.code : undefined) ??
-                                flashedDomainErr?.code ??
-                                'NSCMF_VERSION_CONFLICT',
-                            message:
-                                (envelopeData?.message ? envelopeData.message : undefined) ??
-                                flashedDomainErr?.message ??
-                                'A newer version of this record exists.',
+                        // If user modified fields while in-flight, keep dirty and don't falsely claim saved
+                        const currentStr = JSON.stringify(options.fields.value);
+                        if (currentStr !== lastSavedSnapshot.value) {
+                            saveStatus.value = null;
+                        } else {
+                            saveStatus.value = 'saved';
+                        }
+
+                        finishThisRequest();
+                    },
+                    onError: (err: unknown) => {
+                        inFlightSnapshot = null;
+                        saveStatus.value = 'error';
+
+                        const fieldBag = (err ?? {}) as Record<string, string>;
+                        validationErrors.value = fieldBag;
+                        feedbackError.value = {
+                            status: 422,
+                            code: 'NSCMF_VALIDATION_FAILED',
+                            errors: fieldBag,
+                        };
+
+                        options.onError?.(feedbackError.value);
+                        finishThisRequest();
+                    },
+                    onHttpException: (response: unknown) => {
+                        inFlightSnapshot = null;
+                        saveStatus.value = 'error';
+
+                        const res = response as { status?: number; statusText?: string; data?: unknown };
+                        const status = typeof res?.status === 'number' ? res.status : 500;
+
+                        let envelopeData: {
+                            code?: string;
+                            message?: string;
+                            errors?: Record<string, string[] | string>;
+                            context?: Record<string, unknown>;
+                        } | null = null;
+
+                        if (res?.data) {
+                            try {
+                                envelopeData = parseApiErrorEnvelope(res.data);
+                            } catch {
+                                // res.data is not a valid 12 §9 envelope
+                            }
+                        }
+
+                        // Also check if res.data is an Inertia page object containing flash.domain_error
+                        let flashedDomainErr: { code?: string; message?: string } | null = null;
+                        if (res?.data && typeof res.data === 'object') {
+                            const dataObj = res.data as Record<string, unknown>;
+                            const rawFlash =
+                                dataObj.flash ?? (dataObj.props as Record<string, unknown> | undefined)?.flash;
+                            flashedDomainErr = domainError(rawFlash);
+                        }
+
+                        const isConflict =
+                            status === 409 ||
+                            envelopeData?.code === 'NSCMF_VERSION_CONFLICT' ||
+                            envelopeData?.code?.includes('CONFLICT') ||
+                            flashedDomainErr?.code === 'NSCMF_VERSION_CONFLICT' ||
+                            flashedDomainErr?.code?.includes('CONFLICT');
+
+                        if (isConflict) {
+                            const conflictObj: RequestFeedbackError = {
+                                status: 409,
+                                code:
+                                    (envelopeData?.code !== 'UNKNOWN_ERROR' ? envelopeData?.code : undefined) ??
+                                    flashedDomainErr?.code ??
+                                    'NSCMF_VERSION_CONFLICT',
+                                message:
+                                    (envelopeData?.message ? envelopeData.message : undefined) ??
+                                    flashedDomainErr?.message ??
+                                    'A newer version of this record exists.',
+                                context: envelopeData?.context,
+                            };
+                            applyConflict(conflictObj);
+                            finishThisRequest();
+                            return;
+                        }
+
+                        if (status === 422) {
+                            const errObj: RequestFeedbackError = {
+                                status: 422,
+                                code: envelopeData?.code || 'NSCMF_VALIDATION_FAILED',
+                                message: envelopeData?.message || 'Validation failed',
+                                errors: envelopeData?.errors,
+                                context: envelopeData?.context,
+                            };
+                            feedbackError.value = errObj;
+                            if (envelopeData?.errors) {
+                                validationErrors.value = envelopeData.errors;
+                            }
+                            options.onError?.(errObj);
+                            finishThisRequest();
+                            return;
+                        }
+
+                        const errObj: RequestFeedbackError = {
+                            status,
+                            code: envelopeData?.code,
+                            message: envelopeData?.message || res?.statusText || 'Server error',
+                            errors: envelopeData?.errors,
                             context: envelopeData?.context,
                         };
-                        applyConflict(conflictObj);
-                        finishThisRequest();
-                        return false;
-                    }
 
-                    if (status === 422 && envelopeData) {
-                        validationErrors.value = envelopeData.errors ?? null;
-                        const errObj: RequestFeedbackError = {
-                            status: 422,
-                            code: envelopeData.code || 'NSCMF_VALIDATION_FAILED',
-                            message: envelopeData.message || 'Validation failed',
-                            errors: envelopeData.errors,
-                            context: envelopeData.context,
-                        };
                         feedbackError.value = errObj;
                         options.onError?.(errObj);
                         finishThisRequest();
-                        return false;
-                    }
+                    },
+                    onNetworkError: (error: unknown) => {
+                        inFlightSnapshot = null;
+                        saveStatus.value = 'error';
 
-                    const errObj: RequestFeedbackError = {
-                        status,
-                        code: envelopeData?.code,
-                        message: envelopeData?.message || res?.statusText || 'Server error',
-                        errors: envelopeData?.errors,
-                        context: envelopeData?.context,
-                    };
+                        const errObj: RequestFeedbackError = {
+                            status: 0,
+                            isNetworkError: true,
+                            message: error instanceof Error ? error.message : 'Network connection lost',
+                        };
 
-                    feedbackError.value = errObj;
-                    options.onError?.(errObj);
-                    finishThisRequest();
-                    return false;
-                },
-                onNetworkError: (error: unknown) => {
-                    inFlightSnapshot = null;
-                    saveStatus.value = 'error';
-
-                    const errObj: RequestFeedbackError = {
-                        status: 0,
-                        isNetworkError: true,
-                        message: error instanceof Error ? error.message : 'Network connection lost',
-                    };
-
-                    feedbackError.value = errObj;
-                    options.onError?.(errObj);
-                    finishThisRequest();
-                },
-                onFinish: () => {
-                    if (inFlightCount === 0) {
-                        isSaving.value = false;
-                    }
-                },
+                        feedbackError.value = errObj;
+                        options.onError?.(errObj);
+                        finishThisRequest();
+                    },
+                    onFinish: () => {
+                        if (inFlightCount === 0) {
+                            isSaving.value = false;
+                        }
+                    },
+                });
             });
-        });
+        } catch (err) {
+            inFlightCount = Math.max(0, inFlightCount - 1);
+            isSaving.value = false;
+            saveStatus.value = 'error';
+            inFlightSnapshot = null;
+            handleNextQueued();
+            throw err;
+        }
     }
 
     function handleNextQueued(): void {

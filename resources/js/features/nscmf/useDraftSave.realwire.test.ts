@@ -103,6 +103,14 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
         http.setClient({});
         document.cookie = 'XSRF-TOKEN=probe-csrf-token; path=/';
 
+        // jsdom does not implement HTMLDialogElement.prototype.showModal
+        if (!HTMLDialogElement.prototype.showModal) {
+            HTMLDialogElement.prototype.showModal = function () {};
+        }
+        if (!HTMLDialogElement.prototype.close) {
+            HTMLDialogElement.prototype.close = function () {};
+        }
+
         // Initialize Inertia router page state so router.visit/patch can read currentPageUrl
         router.init({
             initialPage: {
@@ -318,5 +326,128 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
         draft.resolveConflict();
         expect(draft.isConflict.value).toBe(false);
         expect(draft.currentVersion.value).toBe(14);
+    });
+
+    it('B-27-10: 422 with x-inertia surfaces validationErrors without being suppressed by onHttpException return false', async () => {
+        const fields = ref<ActivationDraftFields>({
+            customer_name: 'PT Initial Client',
+        });
+
+        const draft = useDraftSave({
+            recordId: 42,
+            family: 'ACTIVATION',
+            recordVersion: 8,
+            fields,
+        });
+
+        const savePromise = draft.save();
+        const req = await waitForRequest();
+        expect(capturedRequests.length).toBe(1);
+
+        // 422 response with x-inertia header and field errors in props.errors
+        const responseBody = JSON.stringify({
+            component: 'Nscmf/Show',
+            props: {
+                errors: {
+                    customer_name: 'Customer name is invalid',
+                },
+                record: { id: 42, record_version: 8 },
+            },
+            url: '/nscmf/42/draft',
+            version: '1',
+            flash: {},
+        });
+
+        req.respond(422, { 'x-inertia': 'true', 'content-type': 'application/json' }, responseBody);
+        await new Promise((r) => setTimeout(r, 50));
+        await savePromise;
+
+        expect(draft.saveStatus.value).toBe('error');
+        expect(draft.validationErrors.value).toEqual({
+            customer_name: 'Customer name is invalid',
+        });
+        expect(draft.feedbackError.value).toMatchObject({
+            status: 422,
+            code: 'NSCMF_VALIDATION_FAILED',
+            errors: {
+                customer_name: 'Customer name is invalid',
+            },
+        });
+    });
+
+    it('B-27-10: 500 error does not return false from onHttpException and preserves global httpException event', async () => {
+        const fields = ref<ActivationDraftFields>({
+            customer_name: 'PT Initial Client',
+        });
+
+        const draft = useDraftSave({
+            recordId: 42,
+            family: 'ACTIVATION',
+            recordVersion: 8,
+            fields,
+        });
+
+        let globalHttpExceptionFired = false;
+        const removeListener = router.on('httpException', () => {
+            globalHttpExceptionFired = true;
+        });
+
+        try {
+            const savePromise = draft.save();
+            const req = await waitForRequest();
+            expect(capturedRequests.length).toBe(1);
+
+            req.respond(500, { 'content-type': 'text/html' }, 'Internal Server Error');
+            await savePromise;
+
+            expect(draft.saveStatus.value).toBe('error');
+            expect(globalHttpExceptionFired).toBe(true);
+        } finally {
+            removeListener();
+        }
+    });
+
+    it('B-27-11: payload-build throw does not wedge the hook (resets isSaving and inFlightCount)', async () => {
+        const fields = ref<ActivationDraftFields>({
+            customer_name: 'PT Initial Client',
+        });
+
+        // recordVersion 0 violates positive integer requirement in buildActivationDraftPayload
+        const draft = useDraftSave({
+            recordId: 42,
+            family: 'ACTIVATION',
+            recordVersion: 0,
+            fields,
+        });
+
+        expect(draft.isSaving.value).toBe(false);
+
+        // Attempting to save will throw inside buildPayload
+        await expect(draft.save()).rejects.toThrow(/record_version/);
+
+        // Crucial B-27-11 fix: Hook must NOT be wedged!
+        expect(draft.isSaving.value).toBe(false);
+        expect(draft.saveStatus.value).toBe('error');
+
+        // Now fix version to a valid integer; next save must be able to dispatch
+        draft.currentVersion.value = 8;
+        const savePromise = draft.save();
+        const req = await waitForRequest();
+        expect(capturedRequests.length).toBe(1);
+
+        req.respond(
+            200,
+            { 'x-inertia': 'true', 'content-type': 'application/json' },
+            JSON.stringify({
+                component: 'Nscmf/Show',
+                props: { record: { id: 42, record_version: 9 } },
+                url: '/nscmf/42/draft',
+                version: '1',
+            }),
+        );
+        await savePromise;
+
+        expect(draft.isSaving.value).toBe(false);
+        expect(draft.currentVersion.value).toBe(9);
     });
 });
