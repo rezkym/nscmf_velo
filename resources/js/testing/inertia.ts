@@ -11,7 +11,11 @@ import { type Mock, vi } from 'vitest';
 type VisitOptions = {
     onSuccess?: (page?: unknown) => void;
     onError?: (errors: Record<string, string>) => void;
-    onHttpException?: (response: { status: number; data?: unknown; headers?: Record<string, string> }) => boolean | void;
+    onHttpException?: (response: {
+        status: number;
+        data?: unknown;
+        headers?: Record<string, string>;
+    }) => boolean | void;
     onFlash?: (flash: unknown) => void;
     onNetworkError?: (error: Error) => boolean | void;
     onFinish?: () => void;

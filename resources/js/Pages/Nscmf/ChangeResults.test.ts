@@ -326,8 +326,7 @@ describe('ChangeResults (FE-29)', () => {
 
             // When reload completes (e.g. onSuccess/props advance), conflict panel clears and editor is re-enabled
             const reloadOptions = (router.reload as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0] as
-                | { onSuccess?: (page?: unknown) => void }
-                | undefined;
+                { onSuccess?: (page?: unknown) => void } | undefined;
             reloadOptions?.onSuccess?.();
             await nextTick();
 
