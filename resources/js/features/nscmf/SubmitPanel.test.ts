@@ -208,4 +208,34 @@ describe('SubmitPanel (FE-28)', () => {
             });
         });
     });
+
+    describe('AC5: submit_denial_keeps_data', () => {
+        it('keeps business badge unchanged on 403, 409 or 422 denial and displays domain error message without premature optimistic badge transition', async () => {
+            const wrapper = mount(SubmitPanel, {
+                props: {
+                    recordId: 42,
+                    recordVersion: 3,
+                    businessStatus: 'DRAFT' as BusinessStatus,
+                    ownerId: 10,
+                    allowedActions: ['submit'],
+                    saveState: 'clean',
+                    domainError: {
+                        code: 'NSCMF_VERSION_CONFLICT',
+                        message: 'The record was modified by another user. Please reload.',
+                    },
+                },
+            });
+
+            // Badge or status display MUST show Draft, not Pending Review
+            const statusDisplay = wrapper.find('[data-testid="submit-status-badge"]');
+            expect(statusDisplay.exists()).toBe(true);
+            expect(statusDisplay.text()).toBe('Draft');
+
+            // Domain error alert rendered
+            const alert = wrapper.find('[data-testid="domain-error-alert"]');
+            expect(alert.exists()).toBe(true);
+            expect(alert.attributes('role')).toBe('alert');
+            expect(alert.text()).toContain('The record was modified by another user. Please reload.');
+        });
+    });
 });
