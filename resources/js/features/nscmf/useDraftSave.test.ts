@@ -337,7 +337,8 @@ describe('useDraftSave (FE-27)', () => {
                 'activation.lan_ip_allocation': 'Invalid IP format',
             });
             expect(draft.feedbackError.value?.status).toBe(422);
-            expect(draft.feedbackError.value?.code).toBe('NSCMF_VALIDATION_FAILED');
+            // No client-invented code: the Inertia error bag carries none (G07).
+            expect(draft.feedbackError.value?.code).toBeUndefined();
         });
 
         it('supports empty incomplete draft without treating missing submit-required fields as draft save blockers', async () => {
@@ -774,11 +775,11 @@ describe('useDraftSave (FE-27)', () => {
             });
 
             expect(draft.isConflict.value).toBe(true);
-            expect(draft.conflictError.value?.message).toBe('A newer version exists.');
+            expect(draft.conflictError.value?.message).toBe('A newer version of this record exists.');
             expect(onErrorCalledWith).toMatchObject({
                 status: 409,
                 code: 'NSCMF_VERSION_CONFLICT',
-                message: 'A newer version exists.',
+                message: 'A newer version of this record exists.',
             });
         });
 
@@ -797,7 +798,7 @@ describe('useDraftSave (FE-27)', () => {
 
             // Set up pageProps.flash directly in mock inertia
             await flashDomainError({
-                code: 'RECORD_CONFLICT',
+                code: 'NSCMF_STATE_CONFLICT',
                 message: 'Conflict from page',
             });
 
@@ -807,7 +808,7 @@ describe('useDraftSave (FE-27)', () => {
             expect(draft.isConflict.value).toBe(true);
             expect(draft.conflictError.value).toMatchObject({
                 status: 409,
-                code: 'RECORD_CONFLICT',
+                code: 'NSCMF_STATE_CONFLICT',
                 message: 'Conflict from page',
             });
         });
@@ -837,8 +838,9 @@ describe('useDraftSave (FE-27)', () => {
                 data: {},
             });
             expect(draft.isConflict.value).toBe(true);
-            expect(draft.conflictError.value?.code).toBe('NSCMF_VERSION_CONFLICT');
-            expect(draft.conflictError.value?.message).toBe('A newer version of this record exists.');
+            // The body carried no code, so none is claimed and the copy stays neutral.
+            expect(draft.conflictError.value?.code).toBeUndefined();
+            expect(draft.conflictError.value?.message).toBe('This record changed. Refresh to see the latest version.');
 
             // 3. onHttpException 422 with real-shaped envelopeData.code and message fallbacks, and fallback to defaults
             draft.resolveConflict();
@@ -852,7 +854,7 @@ describe('useDraftSave (FE-27)', () => {
                     errors: undefined,
                 },
             });
-            expect(draft.feedbackError.value?.code).toBe('NSCMF_VALIDATION_FAILED');
+            expect(draft.feedbackError.value?.code).toBeUndefined();
             expect(draft.feedbackError.value?.message).toBe('Validation failed');
             expect(draft.validationErrors.value).toBeNull();
 
@@ -900,42 +902,6 @@ describe('useDraftSave (FE-27)', () => {
             req = lastRequest('/nscmf/42/draft');
             req?.options.onNetworkError?.('plain string' as never);
             expect(draft.feedbackError.value?.message).toBe('Network connection lost');
-        });
-
-        it('covers checkPageFlashForConflict when usePage() returns page without flash property (fallback to page.props.flash)', async () => {
-            const fields = ref<ActivationDraftFields>({ customer_name: 'Test' });
-            const draft = useDraftSave({
-                recordId: 42,
-                family: 'ACTIVATION',
-                recordVersion: 1,
-                fields,
-            });
-
-            // Mock usePage to return { props: { flash: { domain_error: { code: 'VERSION_CONFLICT' } } } } without top-level flash
-            const { inertiaModule } = await import('@/testing/inertia');
-            const originalUsePage = inertiaModule.usePage;
-            inertiaModule.usePage = () =>
-                ({
-                    props: {
-                        flash: {
-                            domain_error: {
-                                code: 'VERSION_CONFLICT',
-                                message: 'Props flash conflict',
-                            },
-                        },
-                    },
-                }) as never;
-
-            try {
-                void draft.save();
-                const req = lastRequest('/nscmf/42/draft');
-                req?.options.onSuccess?.(null);
-
-                expect(draft.isConflict.value).toBe(true);
-                expect(draft.conflictError.value?.message).toBe('Props flash conflict');
-            } finally {
-                inertiaModule.usePage = originalUsePage;
-            }
         });
 
         it('covers lastSavedSnapshot fallback when inFlightSnapshot is null and multiple inFlightCount', () => {

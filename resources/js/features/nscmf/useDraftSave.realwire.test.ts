@@ -368,7 +368,6 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
         });
         expect(draft.feedbackError.value).toMatchObject({
             status: 422,
-            code: 'NSCMF_VALIDATION_FAILED',
             errors: {
                 customer_name: 'Customer name is invalid',
             },

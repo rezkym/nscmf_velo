@@ -1,6 +1,6 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { type Ref, computed, getCurrentInstance, onBeforeUnmount, ref, toValue, watch } from 'vue';
-import { domainError } from '@/lib/apiErrors';
+import { isRecordConflictCode, pageDomainError } from '@/lib/apiErrors';
 import { parseApiErrorEnvelope } from './contracts';
 import { buildActivationDraftPayload, buildChangeDraftPayload } from './draftPayload';
 import type { ActivationDraftFields, ChangeDraftFields, NscmfFamily } from './types';
@@ -49,7 +49,6 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
 
     // Snapshot tracking for dirty state & concurrency
     const lastSavedSnapshot = ref(JSON.stringify(toValue(options.fields)));
-    let inFlightSnapshot: string | null = null;
     let inFlightCount = 0;
     let pendingSavePromise: Promise<void> | null = null;
     let nextQueuedSaveResolve: (() => void) | null = null;
@@ -99,6 +98,24 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
         return buildChangeDraftPayload(version, fieldsData as ChangeDraftFields);
     }
 
+    /**
+     * Describes a record conflict without overstating it: only NSCMF_VERSION_CONFLICT means a newer
+     * version exists (12 §21). A state or archived conflict gets the server's own message, or a
+     * neutral one, because the remedy is the same refresh but the cause is not.
+     */
+    function conflictFeedback(
+        status: number,
+        code: string | undefined,
+        message: string | undefined,
+        context?: Record<string, unknown>,
+    ): RequestFeedbackError {
+        const fallback =
+            code === 'NSCMF_VERSION_CONFLICT'
+                ? 'A newer version of this record exists.'
+                : 'This record changed. Refresh to see the latest version.';
+        return { status, code, message: message || fallback, context };
+    }
+
     function applyConflict(conflictObj: RequestFeedbackError): void {
         isConflict.value = true;
         conflictError.value = conflictObj;
@@ -109,37 +126,16 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
     }
 
     function checkPageFlashForConflict(pageOrFlash?: unknown): boolean {
-        let flashBag: unknown = undefined;
-        if (pageOrFlash && typeof pageOrFlash === 'object') {
-            const obj = pageOrFlash as Record<string, unknown>;
-            if (obj.flash !== undefined) {
-                flashBag = obj.flash;
-            } else if (
-                obj.props &&
-                typeof obj.props === 'object' &&
-                (obj.props as Record<string, unknown>).flash !== undefined
-            ) {
-                flashBag = (obj.props as Record<string, unknown>).flash;
-            } else {
-                flashBag = pageOrFlash;
-            }
-        }
-        if (!flashBag) {
+        let dErr = pageDomainError(pageOrFlash);
+        if (!dErr) {
             try {
-                const page = usePage();
-                flashBag = (page as { flash?: unknown })?.flash ?? page?.props?.flash;
+                dErr = pageDomainError(usePage());
             } catch {
-                // Not in inertia component context
+                // Not in an Inertia component context.
             }
         }
-        const dErr = domainError(flashBag);
-        if (dErr && (dErr.code === 'NSCMF_VERSION_CONFLICT' || dErr.code?.includes('CONFLICT'))) {
-            const conflictObj: RequestFeedbackError = {
-                status: 409,
-                code: dErr.code,
-                message: dErr.message ?? 'A newer version exists.',
-            };
-            applyConflict(conflictObj);
+        if (dErr && isRecordConflictCode(dErr.code)) {
+            applyConflict(conflictFeedback(409, dErr.code, dErr.message));
             return true;
         }
         return false;
@@ -173,7 +169,6 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
 
         try {
             const snapshotToSave = JSON.stringify(options.fields.value);
-            inFlightSnapshot = snapshotToSave;
 
             const payload = buildPayload(currentVersion.value, options.fields.value);
             const url = `/nscmf/${recordId.value}/draft`;
@@ -208,8 +203,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                             options.onSuccess?.(responseRecord.record_version);
                         }
 
-                        lastSavedSnapshot.value = inFlightSnapshot!;
-                        inFlightSnapshot = null;
+                        lastSavedSnapshot.value = snapshotToSave;
 
                         // If user modified fields while in-flight, keep dirty and don't falsely claim saved
                         const currentStr = JSON.stringify(options.fields.value);
@@ -222,14 +216,14 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                         finishThisRequest();
                     },
                     onError: (err: unknown) => {
-                        inFlightSnapshot = null;
                         saveStatus.value = 'error';
 
+                        // The Inertia error bag carries no code; 422 alone identifies validation
+                        // (12 §10, RequestFeedback classifies on status). G07: do not invent a name.
                         const fieldBag = (err ?? {}) as Record<string, string>;
                         validationErrors.value = fieldBag;
                         feedbackError.value = {
                             status: 422,
-                            code: 'NSCMF_VALIDATION_FAILED',
                             errors: fieldBag,
                         };
 
@@ -237,7 +231,6 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                         finishThisRequest();
                     },
                     onHttpException: (response: unknown) => {
-                        inFlightSnapshot = null;
                         saveStatus.value = 'error';
 
                         const res = response as { status?: number; statusText?: string; data?: unknown };
@@ -258,36 +251,23 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                             }
                         }
 
-                        // Also check if res.data is an Inertia page object containing flash.domain_error
-                        let flashedDomainErr: { code?: string; message?: string } | null = null;
-                        if (res?.data && typeof res.data === 'object') {
-                            const dataObj = res.data as Record<string, unknown>;
-                            const rawFlash =
-                                dataObj.flash ?? (dataObj.props as Record<string, unknown> | undefined)?.flash;
-                            flashedDomainErr = domainError(rawFlash);
-                        }
+                        // res.data may also be an Inertia page carrying flash.domain_error.
+                        const flashedDomainErr = pageDomainError(res?.data);
 
-                        const isConflict =
-                            status === 409 ||
-                            envelopeData?.code === 'NSCMF_VERSION_CONFLICT' ||
-                            envelopeData?.code?.includes('CONFLICT') ||
-                            flashedDomainErr?.code === 'NSCMF_VERSION_CONFLICT' ||
-                            flashedDomainErr?.code?.includes('CONFLICT');
+                        // parseApiErrorEnvelope reports UNKNOWN_ERROR when the body carries no code.
+                        const rawCode = envelopeData?.code;
+                        const envelopeCode = rawCode && rawCode !== 'UNKNOWN_ERROR' ? rawCode : undefined;
+                        const conflictCode = [envelopeCode, flashedDomainErr?.code].find(isRecordConflictCode);
 
-                        if (isConflict) {
-                            const conflictObj: RequestFeedbackError = {
-                                status: 409,
-                                code:
-                                    (envelopeData?.code !== 'UNKNOWN_ERROR' ? envelopeData?.code : undefined) ??
-                                    flashedDomainErr?.code ??
-                                    'NSCMF_VERSION_CONFLICT',
-                                message:
-                                    (envelopeData?.message ? envelopeData.message : undefined) ??
-                                    flashedDomainErr?.message ??
-                                    'A newer version of this record exists.',
-                                context: envelopeData?.context,
-                            };
-                            applyConflict(conflictObj);
+                        if (status === 409 || conflictCode) {
+                            applyConflict(
+                                conflictFeedback(
+                                    409,
+                                    conflictCode ?? envelopeCode ?? flashedDomainErr?.code,
+                                    envelopeData?.message || flashedDomainErr?.message,
+                                    envelopeData?.context,
+                                ),
+                            );
                             finishThisRequest();
                             return;
                         }
@@ -295,7 +275,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                         if (status === 422) {
                             const errObj: RequestFeedbackError = {
                                 status: 422,
-                                code: envelopeData?.code || 'NSCMF_VALIDATION_FAILED',
+                                code: envelopeCode,
                                 message: envelopeData?.message || 'Validation failed',
                                 errors: envelopeData?.errors,
                                 context: envelopeData?.context,
@@ -322,7 +302,6 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                         finishThisRequest();
                     },
                     onNetworkError: (error: unknown) => {
-                        inFlightSnapshot = null;
                         saveStatus.value = 'error';
 
                         const errObj: RequestFeedbackError = {
@@ -346,26 +325,28 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
             inFlightCount = Math.max(0, inFlightCount - 1);
             isSaving.value = false;
             saveStatus.value = 'error';
-            inFlightSnapshot = null;
             handleNextQueued();
             throw err;
         }
     }
 
     function handleNextQueued(): void {
-        if (hasQueuedSave && !isConflict.value) {
-            hasQueuedSave = false;
-            const resolver = nextQueuedSaveResolve;
-            nextQueuedSaveResolve = null;
-            pendingSavePromise = null;
+        const wasQueued = hasQueuedSave;
+        const resolver = nextQueuedSaveResolve;
+        hasQueuedSave = false;
+        nextQueuedSaveResolve = null;
+        pendingSavePromise = null;
+
+        if (wasQueued && !isConflict.value) {
             void executeSave().then(() => {
                 resolver?.();
             });
-        } else {
-            hasQueuedSave = false;
-            nextQueuedSaveResolve = null;
-            pendingSavePromise = null;
+            return;
         }
+
+        // A conflict cancels the queued save, but whoever awaited it still has to be released:
+        // FE-28 AC1 gates Submit on this promise.
+        resolver?.();
     }
 
     async function save(): Promise<void> {
