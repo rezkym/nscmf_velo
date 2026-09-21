@@ -1,7 +1,7 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { type Ref, computed, getCurrentInstance, onBeforeUnmount, ref, toValue, watch } from 'vue';
 import { isRecordConflictCode, pageDomainError } from '@/lib/apiErrors';
-import { parseApiErrorEnvelope } from './contracts';
+import { type BusinessStatus, parseApiErrorEnvelope } from './contracts';
 import { buildActivationDraftPayload, buildChangeDraftPayload } from './draftPayload';
 import type { ActivationDraftFields, ChangeDraftFields, NscmfFamily } from './types';
 
@@ -12,6 +12,8 @@ export interface UseDraftSaveOptions<T extends ActivationDraftFields | ChangeDra
     recordId: number | Ref<number>;
     family: NscmfFamily;
     recordVersion: number | Ref<number>;
+    /** Where the record stands, so the Change payload can withhold `results` (12 §28.2). */
+    businessStatus: BusinessStatus | Ref<BusinessStatus>;
     fields: Ref<T>;
     autosaveInterval?: number;
     enabled?: boolean | Ref<boolean>;
@@ -95,7 +97,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
         if (options.family === 'ACTIVATION') {
             return buildActivationDraftPayload(version, fieldsData as ActivationDraftFields);
         }
-        return buildChangeDraftPayload(version, fieldsData as ChangeDraftFields);
+        return buildChangeDraftPayload(version, fieldsData as ChangeDraftFields, toValue(options.businessStatus));
     }
 
     /**

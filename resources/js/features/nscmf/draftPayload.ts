@@ -1,3 +1,4 @@
+import type { BusinessStatus } from './contracts';
 import type { ActivationDraftFields, ChangeDraftFields } from './types';
 
 /**
@@ -124,10 +125,28 @@ export function buildActivationDraftPayload(
     };
 }
 
-export function buildChangeDraftPayload(recordVersion: number, change: ChangeDraftFields): ChangeDraftPayload {
+/** The states in which the draft payload may carry `results` (12 §28.2). */
+const RESULTS_EDITABLE_STATUSES: readonly BusinessStatus[] = ['DRAFT', 'REVISION_REQUIRED'];
+
+/**
+ * `businessStatus` is required, not optional: outside DRAFT/REVISION_REQUIRED the server rejects a
+ * `results` key with 422 (12 §28.2), so a caller must never be able to forget to say where the
+ * record stands. Results are then edited through PATCH /nscmf/{record}/change-results (12 §29).
+ */
+export function buildChangeDraftPayload(
+    recordVersion: number,
+    change: ChangeDraftFields,
+    businessStatus: BusinessStatus,
+): ChangeDraftPayload {
+    const sendable = { ...change };
+    if (!RESULTS_EDITABLE_STATUSES.includes(businessStatus)) {
+        // Omitted, never `[]`: an empty array would delete every stored row (12 §7.4.1).
+        delete sendable.results;
+    }
+
     return {
         record_version: checkedRecordVersion(recordVersion),
-        change: pickFields(change, CHANGE_SCALARS, CHANGE_COLLECTIONS, {}),
+        change: pickFields(sendable, CHANGE_SCALARS, CHANGE_COLLECTIONS, {}),
     };
 }
 

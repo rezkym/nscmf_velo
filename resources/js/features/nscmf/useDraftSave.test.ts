@@ -24,6 +24,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
                 onSuccess: (ver) => {
                     onSuccessCalledWith = ver;
@@ -106,6 +107,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
             });
 
@@ -167,6 +169,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
             });
 
@@ -215,6 +218,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
                 autosaveInterval: 3000,
                 onError: (err) => {
@@ -290,6 +294,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
             });
 
@@ -352,6 +357,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
             });
 
@@ -397,6 +403,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
             });
 
@@ -442,6 +449,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'CHANGE',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
             });
 
@@ -482,6 +490,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
             });
 
@@ -538,6 +547,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
                 autosaveInterval: 2000,
             });
@@ -568,6 +578,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
             });
             fields.value.customer_name = 'Trigger watch without autosave interval';
@@ -578,6 +589,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
                 autosaveInterval: 1000,
             });
@@ -592,6 +604,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields: fieldsDisabled,
                 autosaveInterval: 1000,
                 enabled: false,
@@ -606,6 +619,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
                 autosaveInterval: 1000,
             });
@@ -629,6 +643,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
             });
             fields.value.customer_name = 'In-flight Base';
@@ -656,6 +671,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 10,
+                businessStatus: 'DRAFT',
                 fields,
                 autosaveInterval: 1000,
             });
@@ -679,6 +695,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
                 autosaveInterval: 3000,
             });
@@ -718,6 +735,7 @@ describe('useDraftSave (FE-27)', () => {
                         recordId: 42,
                         family: 'ACTIVATION',
                         recordVersion: 8,
+                        businessStatus: 'DRAFT',
                         fields,
                         autosaveInterval: 3000,
                     });
@@ -755,6 +773,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 1,
+                businessStatus: 'DRAFT',
                 fields,
                 onError: (err) => {
                     onErrorCalledWith = err;
@@ -789,6 +808,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 1,
+                businessStatus: 'DRAFT',
                 fields,
             });
 
@@ -819,6 +839,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 1,
+                businessStatus: 'DRAFT',
                 fields,
             });
 
@@ -910,6 +931,7 @@ describe('useDraftSave (FE-27)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 1,
+                businessStatus: 'DRAFT',
                 fields,
             });
 
@@ -937,7 +959,13 @@ describe('useDraftSave (FE-27)', () => {
 describe('queued save settlement (FE-27 AC3 / FE-28 AC1)', () => {
     it('settles a queued save when the in-flight request ends in a conflict', async () => {
         const fields = ref<ActivationDraftFields>({ customer_name: 'First' });
-        const draft = useDraftSave({ recordId: 42, family: 'ACTIVATION', recordVersion: 8, fields });
+        const draft = useDraftSave({
+            recordId: 42,
+            family: 'ACTIVATION',
+            recordVersion: 8,
+            businessStatus: 'DRAFT',
+            fields,
+        });
 
         const firstSave = draft.save();
 
@@ -967,7 +995,7 @@ describe('queued save settlement (FE-27 AC3 / FE-28 AC1)', () => {
 });
 
 describe('FE-26 AC4: results_do_not_save_pending_review_via_draft', () => {
-    it('omits results from the draft PATCH while the record is in PENDING_REVIEW', async () => {
+    it('omits results from the draft PATCH while the record is in PENDING_REVIEW', () => {
         const fields = ref<ChangeDraftFields>({
             maintenance_purpose: 'Routine check',
             results: [
@@ -997,7 +1025,7 @@ describe('FE-26 AC4: results_do_not_save_pending_review_via_draft', () => {
         expect(sent.change.maintenance_purpose).toBe('Routine check');
     });
 
-    it('sends results while the record is still editable', async () => {
+    it('sends results while the record is still editable', () => {
         const fields = ref<ChangeDraftFields>({
             results: [
                 {

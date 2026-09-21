@@ -140,6 +140,7 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
             recordId: 42,
             family: 'ACTIVATION',
             recordVersion: 8,
+            businessStatus: 'DRAFT',
             fields,
             autosaveInterval: 3000,
         });
@@ -193,6 +194,7 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
             recordId: 42,
             family: 'ACTIVATION',
             recordVersion: 8,
+            businessStatus: 'DRAFT',
             fields,
         });
 
@@ -232,6 +234,7 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
             recordId: 42,
             family: 'ACTIVATION',
             recordVersion: 8,
+            businessStatus: 'DRAFT',
             fields,
             autosaveInterval: 50,
         });
@@ -297,6 +300,7 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
             recordId: 42,
             family: 'ACTIVATION',
             recordVersion: 8,
+            businessStatus: 'DRAFT',
             fields,
         });
 
@@ -337,6 +341,7 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
             recordId: 42,
             family: 'ACTIVATION',
             recordVersion: 8,
+            businessStatus: 'DRAFT',
             fields,
         });
 
@@ -383,6 +388,7 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
             recordId: 42,
             family: 'ACTIVATION',
             recordVersion: 8,
+            businessStatus: 'DRAFT',
             fields,
         });
 
@@ -424,6 +430,7 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
                 recordId: 42,
                 family: 'ACTIVATION',
                 recordVersion: 8,
+                businessStatus: 'DRAFT',
                 fields,
             });
 
@@ -485,6 +492,7 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
             recordId: 42,
             family: 'ACTIVATION',
             recordVersion: 0,
+            businessStatus: 'DRAFT',
             fields,
         });
 

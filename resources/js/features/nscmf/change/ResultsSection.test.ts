@@ -2,7 +2,6 @@ import { type DOMWrapper, mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
 import { buildChangeDraftPayload } from '../draftPayload';
-import type { BusinessStatus } from '../contracts';
 import type { ChangeSubtype } from '../types';
 import ResultsSection, { type ResultFields } from './ResultsSection.vue';
 
@@ -157,29 +156,35 @@ describe('ResultsSection (FE-26)', () => {
     });
 
     describe('AC4: results_do_not_save_pending_review_via_draft', () => {
-        it('demonstrates that parent state PENDING_REVIEW must omit results from change draft payload', () => {
-            const recordVersion = 1;
-            const businessStatus: BusinessStatus = 'PENDING_REVIEW';
-            const draftFormFields = {
-                maintenance_purpose: 'Routine check',
-                results: [
-                    {
-                        row_no: 1,
-                        result_summary: 'Done',
-                        performance_information: 'Good',
-                        result_status: 'SUCCESS',
-                    },
-                ],
-            };
+        it('has its rows withheld from the draft payload once the record is in PENDING_REVIEW', () => {
+            const wrapper = mountSection({ results: [] });
 
-            // Simulating container/parent payload builder logic as specified by AC4
-            const payload = buildChangeDraftPayload(recordVersion, {
-                ...draftFormFields,
-                ...(businessStatus === 'PENDING_REVIEW' ? { results: undefined } : {}),
-            });
+            // The section keeps editing the rows it owns; the wire boundary decides what travels.
+            const rows = [
+                {
+                    row_no: 1,
+                    result_summary: 'Done',
+                    performance_information: 'Good',
+                    result_status: 'SUCCESS',
+                },
+            ];
 
-            expect(payload.change.results).toBeUndefined();
-            expect(payload.change.maintenance_purpose).toBe('Routine check');
+            expect(
+                buildChangeDraftPayload(1, { maintenance_purpose: 'Routine check', results: rows }, 'DRAFT').change,
+            ).toHaveProperty('results');
+
+            const pendingReview = buildChangeDraftPayload(
+                1,
+                { maintenance_purpose: 'Routine check', results: rows },
+                'PENDING_REVIEW',
+            ).change;
+
+            // 12 §28.2: in PENDING_REVIEW the server rejects a results key on /draft with 422;
+            // results travel through PATCH /change-results instead (12 §29).
+            expect('results' in pendingReview).toBe(false);
+            expect(pendingReview.maintenance_purpose).toBe('Routine check');
+
+            expect(wrapper.find('[data-collection="results"]').exists()).toBe(true);
         });
     });
 

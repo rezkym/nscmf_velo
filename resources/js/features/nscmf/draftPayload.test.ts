@@ -8,13 +8,13 @@ function activation(fields: ActivationDraftFields): ActivationDraftFields {
 }
 
 function change(fields: ChangeDraftFields): ChangeDraftFields {
-    return buildChangeDraftPayload(8, fields).change;
+    return buildChangeDraftPayload(8, fields, 'DRAFT').change;
 }
 
 describe('draft payload (12 §129.1)', () => {
     it('passes the record version through without touching it', () => {
         expect(buildActivationDraftPayload(8, {})).toEqual({ record_version: 8, activation: {} });
-        expect(buildChangeDraftPayload(1, {})).toEqual({ record_version: 1, change: {} });
+        expect(buildChangeDraftPayload(1, {}, 'DRAFT')).toEqual({ record_version: 1, change: {} });
         expect(() => buildActivationDraftPayload(0, {})).toThrow(/record_version/);
     });
 
@@ -185,19 +185,23 @@ describe('draft payload (12 §129.1)', () => {
 
     it('builds the full change payload the contract shows', () => {
         expect(
-            buildChangeDraftPayload(3, {
-                maintenance_purpose: 'Demo purpose',
-                target_execution_date: '2026-10-10',
-                monitoring_period_value: 3,
-                monitoring_period_unit: 'DAY',
-                rollback_scenario: 'Demo rollback',
-                announcement_timing: 'ONE_WEEK_BEFORE',
-                facing_challenges: [{ row_no: 1, challenge_text: 'Demo challenge' }],
-                identified_problems: [{ row_no: 1, problem_text: 'Demo problem' }],
-                service_impacts: [{ impact_code: 'OTHER', other_description: 'Demo impact' }],
-                improvement_items: [{ row_no: 1, plan_text: 'Demo plan', target_kpi: 'Error rate 0' }],
-                results: [],
-            }),
+            buildChangeDraftPayload(
+                3,
+                {
+                    maintenance_purpose: 'Demo purpose',
+                    target_execution_date: '2026-10-10',
+                    monitoring_period_value: 3,
+                    monitoring_period_unit: 'DAY',
+                    rollback_scenario: 'Demo rollback',
+                    announcement_timing: 'ONE_WEEK_BEFORE',
+                    facing_challenges: [{ row_no: 1, challenge_text: 'Demo challenge' }],
+                    identified_problems: [{ row_no: 1, problem_text: 'Demo problem' }],
+                    service_impacts: [{ impact_code: 'OTHER', other_description: 'Demo impact' }],
+                    improvement_items: [{ row_no: 1, plan_text: 'Demo plan', target_kpi: 'Error rate 0' }],
+                    results: [],
+                },
+                'DRAFT',
+            ),
         ).toEqual({
             record_version: 3,
             change: {
