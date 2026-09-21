@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 
+import Alert from '@/components/ui/Alert.vue';
 import Badge from '@/components/ui/Badge.vue';
+import Button from '@/components/ui/Button.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import type { BusinessStatus } from './contracts';
 import { STATUS_LABELS } from './types';
@@ -88,7 +90,7 @@ const saveBlockingMessage = computed(() => {
 });
 
 // Human-friendly field path mapper
-const PATH_LABELS: Record<string, string> = Object.assign(Object.create(null) as Record<string, string>, {
+const PATH_LABELS: Record<string, string> = {
     service_id: 'Service ID',
     service_context: 'Service Context',
     service_status: 'Service Status',
@@ -102,15 +104,12 @@ const PATH_LABELS: Record<string, string> = Object.assign(Object.create(null) as
     announcement_timing: 'Announcement Timing',
     customer_name: 'Customer Name',
     contact_name: 'Contact Name',
-});
+};
 
 function formatPathLabel(path: string): string {
-    const parts = path.split('.');
-    const lastPart = parts[parts.length - 1];
-    if (lastPart && Object.prototype.hasOwnProperty.call(PATH_LABELS, lastPart)) {
-        return PATH_LABELS[lastPart]!;
-    }
-    return lastPart ? lastPart.replace(/_/g, ' ') : '';
+    const lastPart = path.split('.').at(-1);
+    if (!lastPart) return '';
+    return PATH_LABELS[lastPart] ?? lastPart.replace(/_/g, ' ');
 }
 
 interface MappedError {
@@ -147,37 +146,27 @@ watch(
     { immediate: true },
 );
 
+const CONTROLS = 'input, select, textarea, button';
+
+/**
+ * Finds the control a server error path belongs to. Sections publish exactly two things:
+ * a `data-error-path`/`data-error-wire-path` attribute where a row needs its natural key and the
+ * persisted index to agree, and otherwise a control id that is the wire path with `-` for `.` and
+ * without the family prefix (the section contract). Nothing else is produced, so nothing else is
+ * searched for.
+ */
 function resolveControlByPath(path: string): HTMLElement | null {
-    // 1. First lookup by data-error-path attribute (explicit wire error path mapping)
     const byDataAttr = document.querySelector<HTMLElement>(
         `[data-error-path="${CSS.escape(path)}"], [data-error-wire-path="${CSS.escape(path)}"]`,
     );
     if (byDataAttr) {
-        return byDataAttr.matches('input, select, textarea, button')
+        return byDataAttr.matches(CONTROLS)
             ? byDataAttr
-            : (byDataAttr.querySelector<HTMLElement>('input, select, textarea, button') ?? byDataAttr);
+            : (byDataAttr.querySelector<HTMLElement>(CONTROLS) ?? byDataAttr);
     }
 
-    // 2. Direct match by exact path or element id
-    const direct =
-        document.getElementById(path) ??
-        document.getElementById(path.replace(/\./g, '-')) ??
-        document.getElementById(`field-${path.replace(/\./g, '-')}`);
-    if (direct) {
-        return direct;
-    }
-
-    // 3. If path starts with section prefix like 'activation.' or 'change.', try without prefix
-    const unprefixed = path.replace(/^(?:activation|change)\./, '');
-    const directUnprefixed =
-        document.getElementById(unprefixed) ??
-        document.getElementById(unprefixed.replace(/\./g, '-')) ??
-        document.getElementById(`field-${unprefixed.replace(/\./g, '-')}`);
-    if (directUnprefixed) {
-        return directUnprefixed;
-    }
-
-    return null;
+    const controlId = path.replace(/^(?:activation|change)\./, '').replace(/\./g, '-');
+    return document.getElementById(controlId);
 }
 
 function navigateToError(path: string): void {
@@ -235,30 +224,14 @@ function handleSubmit(): void {
         </div>
 
         <!-- Revision Notice (Shown in Revision Mode with reviewer return reason) -->
-        <div
-            v-if="isRevisionMode"
-            data-testid="revision-notice"
-            role="note"
-            class="p-4 rounded-md bg-blue-500/10 border border-blue-500 text-blue-950 dark:text-blue-200 space-y-1"
-        >
-            <h3 class="text-sm font-semibold">Revision Required</h3>
-            <p v-if="revisionReason" class="text-sm">
-                <span class="font-medium">Return Reason:</span> {{ revisionReason }}
-            </p>
-        </div>
+        <Alert v-if="isRevisionMode" data-testid="revision-notice" variant="info" title="Revision Required">
+            <p v-if="revisionReason"><span class="font-medium">Return Reason:</span> {{ revisionReason }}</p>
+        </Alert>
 
         <!-- Domain Error Alert (403/409/422/etc) -->
-        <div
-            v-if="domainError?.message"
-            data-testid="domain-error-alert"
-            role="alert"
-            class="p-4 rounded-md bg-destructive/10 border border-destructive text-destructive space-y-1 text-sm"
-        >
-            <div v-if="domainError.code" class="font-mono text-xs font-semibold">
-                {{ domainError.code }}
-            </div>
-            <div>{{ domainError.message }}</div>
-        </div>
+        <Alert v-if="domainError?.message" data-testid="domain-error-alert" variant="error">
+            {{ domainError.message }}
+        </Alert>
 
         <!-- Error Summary (Focus summary first, links to target fields) -->
         <div
@@ -287,32 +260,18 @@ function handleSubmit(): void {
         </div>
 
         <!-- Warning Summary (Visually distinct from error, non-blocking) -->
-        <div
-            v-if="warnings.length > 0"
-            data-testid="warning-summary"
-            role="status"
-            class="p-4 rounded-md bg-amber-500/10 border border-amber-500 text-amber-900 dark:text-amber-200"
-        >
-            <h3 class="text-sm font-semibold mb-2">Submission Warnings</h3>
-            <ul class="list-disc list-inside space-y-1 text-sm">
+        <Alert v-if="warnings.length > 0" data-testid="warning-summary" variant="warning" title="Submission Warnings">
+            <ul class="list-disc list-inside space-y-1">
                 <li v-for="(warn, idx) in warnings" :key="idx" data-testid="warning-summary-item">
                     {{ warn }}
                 </li>
             </ul>
-        </div>
+        </Alert>
 
         <div v-if="saveBlockingMessage" data-testid="save-blocking-message" class="text-sm text-destructive">
             {{ saveBlockingMessage }}
         </div>
 
-        <button
-            type="button"
-            data-testid="submit-button"
-            :disabled="!canSubmit"
-            class="px-4 py-2 font-medium rounded-md bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="handleSubmit"
-        >
-            Submit for Review
-        </button>
+        <Button data-testid="submit-button" :disabled="!canSubmit" @click="handleSubmit"> Submit for Review </Button>
     </div>
 </template>

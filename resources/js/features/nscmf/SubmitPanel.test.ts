@@ -373,8 +373,10 @@ describe('SubmitPanel (FE-28)', () => {
 
             const warningBox = wrapper.find('[data-testid="warning-summary"]');
             expect(warningBox.exists()).toBe(true);
+            // 06 §68: a warning is visually and semantically distinct from an error, which is
+            // role="alert". The styling itself belongs to the shared Alert component.
             expect(warningBox.attributes('role')).toBe('status');
-            expect(warningBox.classes()).toContain('border-amber-500');
+            expect(wrapper.find('[data-testid="error-summary"]').exists()).toBe(false);
 
             const warningItems = wrapper.findAll('[data-testid="warning-summary-item"]');
             expect(warningItems.length).toBe(2);
@@ -731,5 +733,30 @@ describe('SubmitPanel (FE-28)', () => {
             });
             expect(wrapper.find('[data-testid="submit-status-badge"]').text()).toBe('UNKNOWN_STATUS');
         });
+    });
+});
+
+describe('resolving a scalar error path against a real section', () => {
+    it('focuses the control whose id is the wire path without its family prefix', async () => {
+        const errors = { 'activation.customer_name': 'Customer name is required' };
+        const harness = mount(
+            defineComponent({
+                setup: () => () =>
+                    h('div', [
+                        h(GeneralServiceSection, { subtype: 'ACTIVATION', modelValue: {}, errors }),
+                        h(SubmitPanel, { recordId: 42, recordVersion: 3, businessStatus: 'DRAFT', errors }),
+                    ]),
+            }),
+            { attachTo: document.body },
+        );
+        try {
+            await harness.vm.$nextTick();
+            await harness.get('[data-testid="error-summary-item"] button').trigger('click');
+
+            // Section contract: control id is the wire path with '-' for '.', minus the family prefix.
+            expect(document.activeElement).toBe(harness.get('#customer_name').element);
+        } finally {
+            harness.unmount();
+        }
     });
 });
