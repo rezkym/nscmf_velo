@@ -8,7 +8,7 @@
 import { defineComponent, h, nextTick, reactive, toRaw } from 'vue';
 import { type Mock, vi } from 'vitest';
 
-export type VisitOptions = {
+type VisitOptions = {
     onSuccess?: (page?: unknown) => void;
     onError?: (errors: Record<string, string>) => void;
     onHttpException?: (response: {
@@ -131,11 +131,10 @@ export async function flashDomainError(error: { code?: string; message?: string 
 
 /**
  * Dispatches an Inertia response through the recorded request's callbacks,
- * mirroring real @inertiajs/vue3 dispatch order:
- * - 200 + x-inertia: onSuccess -> onFinish
- * - 422 + x-inertia: onHttpException -> onError -> onFinish
- * - 409/403 + x-inertia + flash.domain_error: onHttpException -> onFlash -> onSuccess -> onFinish
- * - 409/403 non-inertia JSON: onHttpException -> onNetworkError -> onFinish
+ * Models ordinary responses, not redirects or transport failures.
+ * HTTP exception cancellation stops page processing. Otherwise an Inertia
+ * page dispatches flash followed by field errors or success, then finish.
+ * A received non-Inertia HTTP response is not a network failure.
  */
 export async function respondToRequest(
     request: RecordedRequest | undefined,
@@ -157,8 +156,10 @@ export async function respondToRequest(
         headers,
     };
 
-    if (status >= 400) {
-        request.options.onHttpException?.(httpResponse);
+    if (status >= 400 && request.options.onHttpException?.(httpResponse) === false) {
+        request.options.onFinish?.();
+        await nextTick();
+        return;
     }
 
     if (isInertia) {
@@ -167,16 +168,15 @@ export async function respondToRequest(
             Object.assign(pageFlash, flash);
             // Delete flash from pageProps if present, to model real wire: page.flash is at page root, not in props
             delete pageProps.flash;
-            request.options.onFlash?.(flash);
+            if (Object.keys(flash).length > 0) request.options.onFlash?.(flash);
         }
+
+        Object.assign(pageProps, props);
         if (errors && Object.keys(errors).length > 0) {
             request.options.onError?.(errors);
         } else {
-            Object.assign(pageProps, props);
             request.options.onSuccess?.({ props: { ...pageProps, ...props }, flash });
         }
-    } else if (status >= 400) {
-        request.options.onNetworkError?.(new Error(`HTTP error ${status}`));
     }
 
     request.options.onFinish?.();

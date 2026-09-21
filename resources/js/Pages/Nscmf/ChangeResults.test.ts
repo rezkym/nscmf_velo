@@ -68,6 +68,109 @@ describe('ChangeResults (FE-29)', () => {
     });
 
     describe('AC1: result_only_payload_has_exact_keys', () => {
+        it('fails safely if malformed projection access throws a non-Error value', async () => {
+            const wrapper = mountChangeResults();
+            const malformed = { ...BASE_RECORD };
+            Object.defineProperty(malformed, 'record_version', {
+                get: () => {
+                    // Deliberately exercise the unknown-catch fallback, not an application throw.
+                    // eslint-disable-next-line @typescript-eslint/only-throw-error
+                    throw 'Invalid projection';
+                },
+            });
+            // Replace the original object in place so submit reads the hostile getter,
+            // without manufacturing a failure inside the transport mock.
+            const record = (wrapper.props() as { record: NscmfDetailRecord }).record;
+            const original = Object.getOwnPropertyDescriptor(record, 'record_version')!;
+            Object.defineProperty(
+                record,
+                'record_version',
+                Object.getOwnPropertyDescriptor(malformed, 'record_version')!,
+            );
+            try {
+                await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+                expect(requests).toHaveLength(0);
+                expect(wrapper.text()).toContain('Invalid change results data.');
+                expect(wrapper.text()).not.toContain('Saved just now');
+            } finally {
+                Object.defineProperty(record, 'record_version', original);
+                wrapper.unmount();
+            }
+        });
+
+        it.each(['FORBIDDEN', 'NSCMF_VERSION_CONFLICT'])(
+            'handles %s flash without an optional message',
+            async (code) => {
+                const wrapper = mountChangeResults();
+                await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+                await respondToRequest(lastRequest('/nscmf/42/change-results'), {
+                    status: 200,
+                    flash: { domain_error: { code } },
+                });
+                expect(wrapper.text().toLowerCase()).not.toContain('saved just now');
+                expect(wrapper.text()).toContain(code === 'FORBIDDEN' ? 'Access Denied' : 'A newer version exists');
+                wrapper.unmount();
+            },
+        );
+
+        it('allows a successful response with unrelated flash', async () => {
+            const wrapper = mountChangeResults();
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+            await respondToRequest(lastRequest('/nscmf/42/change-results'), {
+                status: 200,
+                flash: { notice: 'Updated' },
+            });
+            expect(wrapper.text()).toContain('Saved just now');
+            wrapper.unmount();
+        });
+
+        it('resets the editor to empty fields when a newer projection clears results', async () => {
+            const wrapper = mountChangeResults();
+            await wrapper.setProps({
+                record: {
+                    ...BASE_RECORD,
+                    record_version: 8,
+                    change: {
+                        results: [
+                            { row_no: 0, result_summary: null, performance_information: null, result_status: null },
+                        ],
+                    },
+                },
+            });
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+            expect(lastRequest('/nscmf/42/change-results')?.data).toEqual({ record_version: 8, results: [] });
+            await respondToRequest(lastRequest('/nscmf/42/change-results'), {
+                status: 200,
+                props: { record: { ...BASE_RECORD, change: undefined } },
+            });
+            expect(wrapper.text()).toContain('Saved just now');
+            await wrapper.setProps({ record: { ...BASE_RECORD, record_version: 9, change: undefined } });
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+            expect(lastRequest('/nscmf/42/change-results')?.data).toEqual({ record_version: 9, results: [] });
+            wrapper.unmount();
+        });
+
+        it('normalizes empty result fields in a successful refreshed projection', async () => {
+            const wrapper = mountChangeResults();
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+            const refreshed = {
+                ...BASE_RECORD,
+                record_version: 8,
+                change: {
+                    results: [{ row_no: 0, result_summary: null, performance_information: null, result_status: null }],
+                },
+            };
+            await respondToRequest(lastRequest('/nscmf/42/change-results'), {
+                status: 200,
+                props: { record: refreshed },
+            });
+            expect(wrapper.text()).toContain('Saved just now');
+            for (const input of wrapper.findAll('textarea')) expect(input.element.value).toBe('');
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+            expect(lastRequest('/nscmf/42/change-results')?.data.results).toEqual([]);
+            wrapper.unmount();
+        });
+
         it('buildChangeResultsPayload produces { record_version, results } and drops unstarted rows', () => {
             const payload = buildChangeResultsPayload(7, [
                 {
@@ -459,17 +562,25 @@ describe('ChangeResults (FE-29)', () => {
             expect(wrapper.text()).toContain('Saved just now');
         });
 
-        it('handles network failure error', async () => {
+        it('never reports saved after an Inertia server error', async () => {
+            const wrapper = mountChangeResults();
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+            const req = lastRequest('/nscmf/42/change-results');
+            await respondToRequest(req, { status: 500, props: {} });
+            expect(wrapper.text().toLowerCase()).not.toContain('saved just now');
+            expect(wrapper.text()).toContain('Unexpected Error');
+        });
+
+        it('handles a disconnected network', async () => {
             const wrapper = mountChangeResults();
             await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
 
             const req = lastRequest('/nscmf/42/change-results');
             expect(req).toBeDefined();
 
-            await respondToRequest(req, {
-                status: 500,
-                isInertia: false,
-            });
+            req?.options.onNetworkError?.(new Error('Connection lost'));
+            req?.options.onFinish?.();
+            await nextTick();
 
             expect(wrapper.find('[data-testid="feedback-network-error"]').exists()).toBe(true);
             expect(wrapper.text()).toContain('Network Connection Issue');

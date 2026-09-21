@@ -314,7 +314,6 @@ describe('useDraftSave (FE-27)', () => {
             expect(requests[1]?.options.onHttpException).toBeTypeOf('function');
             requests[1]?.options.onHttpException?.({
                 status: 503,
-                statusText: 'Service Unavailable',
             });
             requests[1]?.options.onFinish?.();
             await retry1;
@@ -508,7 +507,7 @@ describe('useDraftSave (FE-27)', () => {
             fields.value.customer_name = 'Dirty After 2';
             const save3 = draft.save();
             expect(requests.length).toBe(3);
-            requests[2]?.options.onHttpException?.(undefined);
+            requests[2]?.options.onHttpException?.({ status: 500 });
             await save3;
             expect(draft.feedbackError.value).toEqual({
                 status: 500,
@@ -518,12 +517,12 @@ describe('useDraftSave (FE-27)', () => {
             fields.value.customer_name = 'Dirty After 3';
             const save4 = draft.save();
             expect(requests.length).toBe(4);
-            requests[3]?.options.onNetworkError?.('connection dropped');
+            requests[3]?.options.onNetworkError?.(new Error('connection dropped'));
             await save4;
             expect(draft.feedbackError.value).toMatchObject({
                 status: 0,
                 isNetworkError: true,
-                message: 'Network connection lost',
+                message: 'connection dropped',
             });
 
             // 4. resolveConflict clears isConflict and conflictError, and re-syncs version if passed
@@ -887,6 +886,20 @@ describe('useDraftSave (FE-27)', () => {
             // 5. Test double finishThisRequest to cover settled early-return branch
             req?.options.onError?.({});
             expect(draft.currentVersion.value).toBe(2);
+
+            // 6. onHttpException with non-object response to cover typeof fallback to 500
+            draft.resolveConflict();
+            void draft.save();
+            req = lastRequest('/nscmf/42/draft');
+            req?.options.onHttpException?.(null as never);
+            expect(draft.feedbackError.value?.status).toBe(500);
+
+            // 7. onNetworkError with non-Error value to cover fallback message
+            draft.resolveConflict();
+            void draft.save();
+            req = lastRequest('/nscmf/42/draft');
+            req?.options.onNetworkError?.('plain string' as never);
+            expect(draft.feedbackError.value?.message).toBe('Network connection lost');
         });
 
         it('covers checkPageFlashForConflict when usePage() returns page without flash property (fallback to page.props.flash)', async () => {

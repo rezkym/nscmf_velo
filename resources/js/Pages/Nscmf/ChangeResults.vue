@@ -294,15 +294,14 @@ function submitResults(): void {
         },
         onHttpException: (response) => {
             saveStatus.value = null;
+            hasTerminalError.value = true;
             if (response.status === 403) {
-                hasTerminalError.value = true;
                 feedbackError.value = {
                     status: 403,
                     code: 'FORBIDDEN',
                     message: 'Access Denied',
                 };
             } else if (response.status === 409) {
-                hasTerminalError.value = true;
                 feedbackError.value = {
                     status: 409,
                     code: 'NSCMF_VERSION_CONFLICT',
