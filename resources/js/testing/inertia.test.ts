@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils';
 import { defineComponent, h } from 'vue';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { forms, inertiaModule, lastRequest, pageProps, requests, resetInertia, router } from './inertia';
+import { forms, inertiaModule, lastRequest, pageFlash, pageProps, requests, resetInertia, router } from './inertia';
 
 describe('inertia test double', () => {
     beforeEach(() => resetInertia({ auth: { permissions: ['teams.view'] } }));
@@ -60,5 +60,6 @@ describe('inertia test double', () => {
         expect(forms).toHaveLength(0);
         expect(requests).toHaveLength(0);
         expect(pageProps).toEqual({});
+        expect(pageFlash).toEqual({});
     });
 });
