@@ -3,6 +3,7 @@ import { defineComponent, h } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+    flashDomainError,
     forms,
     inertiaModule,
     lastRequest,
@@ -162,5 +163,30 @@ describe('inertia test double', () => {
         expect(requests).toHaveLength(0);
         expect(pageProps).toEqual({});
         expect(pageFlash).toEqual({});
+    });
+});
+
+describe('flashDomainError channels', () => {
+    beforeEach(() => resetInertia());
+
+    it('fills both channels by default', async () => {
+        await flashDomainError({ code: 'FORBIDDEN' });
+
+        expect(pageFlash.domain_error).toEqual({ code: 'FORBIDDEN' });
+        expect((pageProps.flash as { domain_error?: unknown }).domain_error).toEqual({ code: 'FORBIDDEN' });
+    });
+
+    it('fills only the page root when asked, so a props-only reader stays blind', async () => {
+        await flashDomainError({ code: 'FORBIDDEN' }, 'page');
+
+        expect(pageFlash.domain_error).toEqual({ code: 'FORBIDDEN' });
+        expect(pageProps.flash).toBeUndefined();
+    });
+
+    it('fills only the shared props when asked, so a page-root reader stays blind', async () => {
+        await flashDomainError({ code: 'FORBIDDEN' }, 'props');
+
+        expect((pageProps.flash as { domain_error?: unknown }).domain_error).toEqual({ code: 'FORBIDDEN' });
+        expect(pageFlash.domain_error).toBeUndefined();
     });
 });
