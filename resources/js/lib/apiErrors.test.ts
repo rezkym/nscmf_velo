@@ -81,3 +81,36 @@ describe('pageDomainError', () => {
         expect(pageDomainError('oops')).toBeNull();
     });
 });
+
+describe('pageDomainError across both flash channels', () => {
+    const flashed = { domain_error: { code: 'FORBIDDEN', message: 'Denied.' } };
+    const expected = { code: 'FORBIDDEN', message: 'Denied.' };
+
+    // The installed @inertiajs/core carries flash at Page.flash, but a Laravel application may also
+    // share a `flash` prop. Until a real NSCMF response exists (gap G02) the reader accepts both,
+    // so no part of the UI can read the wrong one and silently never fire.
+    it('reads flash from the page root', () => {
+        expect(pageDomainError({ flash: flashed })).toEqual(expected);
+    });
+
+    it('reads flash from the shared props', () => {
+        expect(pageDomainError({ props: { flash: flashed } })).toEqual(expected);
+    });
+
+    it('reads a bare flash bag, which is what onFlash hands over', () => {
+        expect(pageDomainError(flashed)).toEqual(expected);
+    });
+
+    it('prefers the page root when a page carries both', () => {
+        expect(
+            pageDomainError({
+                flash: { domain_error: { code: 'NSCMF_VERSION_CONFLICT' } },
+                props: { flash: flashed },
+            }),
+        ).toEqual({ code: 'NSCMF_VERSION_CONFLICT', message: undefined });
+    });
+
+    it('falls through to the props channel when the page root has no domain error', () => {
+        expect(pageDomainError({ flash: {}, props: { flash: flashed } })).toEqual(expected);
+    });
+});
