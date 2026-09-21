@@ -32,6 +32,7 @@ already merged into `main` and is history only — see
 | [03_draft_section_contract.md](03_draft_section_contract.md) | the contract the six draft sections follow: props, naming, ids, test ids, test skeleton |
 | [04_fe_26_30_readiness.md](04_fe_26_30_readiness.md) | per task FE-26..30: what exists, what is missing, which contract rules bite |
 | [05_open_items_and_boundaries.md](05_open_items_and_boundaries.md) | open gaps, deliberate removals that must not come back, honest limitations |
+| [06_fe_26_30_review.md](06_fe_26_30_review.md) | the 2026-09-21 review of FE-26..30 on `fix/fe-26-30-closure`: defects found, patches, gates, what stays open |
 
 ## The three sentences that matter most
 
