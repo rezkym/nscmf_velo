@@ -1,5 +1,5 @@
 import type { BusinessStatus } from './contracts';
-import type { ActivationDraftFields, ChangeDraftFields } from './types';
+import type { ActivationDraftFields, ChangeDraftFields, ChangeResultRow } from './types';
 
 /**
  * Builds the PATCH /nscmf/{record}/draft body (12 §26-28) from the edit form's draft fields.
@@ -103,16 +103,19 @@ const CHANGE_SCALARS = [
     'announcement_timing',
 ] as const satisfies readonly (keyof ChangeDraftFields)[];
 
+/** 06 §46-48, 12 §28.2: up to five rows keyed by row_no, carrying exactly three content fields. */
+const RESULTS_RULE: CollectionRule = {
+    key: 'row_no',
+    maxRowNo: 5,
+    fields: ['result_summary', 'performance_information', 'result_status'],
+};
+
 const CHANGE_COLLECTIONS: Record<string, CollectionRule> = {
     facing_challenges: { key: 'row_no', maxRowNo: 3, fields: ['challenge_text'] },
     identified_problems: { key: 'row_no', maxRowNo: 3, fields: ['problem_text'] },
     service_impacts: { key: 'impact_code', fields: ['other_description'], keepWithoutContent: true },
     improvement_items: { key: 'row_no', maxRowNo: 3, fields: ['plan_text', 'target_kpi'] },
-    results: {
-        key: 'row_no',
-        maxRowNo: 5,
-        fields: ['result_summary', 'performance_information', 'result_status'],
-    },
+    results: RESULTS_RULE,
 };
 
 export function buildActivationDraftPayload(
@@ -150,7 +153,25 @@ export function buildChangeDraftPayload(
     };
 }
 
-function checkedRecordVersion(recordVersion: number): number {
+/**
+ * Normalises Change result rows against the same whole-set rule the draft payload uses
+ * (12 §7.4.1, row_no 1..5), so the narrow /change-results endpoint (12 §29) shares one
+ * implementation with the draft path instead of hand-rolling a second copy.
+ */
+export function normalizeResultRows(rows: unknown): ChangeResultRow[] {
+    return normalizeRows('results', rows, RESULTS_RULE).map((row) => ({
+        row_no: Number(row.row_no),
+        result_summary: asNullableText(row.result_summary),
+        performance_information: asNullableText(row.performance_information),
+        result_status: asNullableText(row.result_status),
+    }));
+}
+
+function asNullableText(value: unknown): string | null {
+    return typeof value === 'string' ? value : null;
+}
+
+export function checkedRecordVersion(recordVersion: number): number {
     if (!Number.isSafeInteger(recordVersion) || recordVersion < 1) {
         throw new Error(`record_version must be a positive integer, received ${String(recordVersion)}.`);
     }

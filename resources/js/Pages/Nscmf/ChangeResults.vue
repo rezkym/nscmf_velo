@@ -1,9 +1,20 @@
 <script lang="ts">
+import { checkedRecordVersion, normalizeResultRows } from '@/features/nscmf/draftPayload';
 import type { ChangeResultRow } from '@/features/nscmf/types';
 
 export interface ChangeResultsPayload {
     record_version: number;
     results: ChangeResultRow[];
+}
+
+/** The editable rows this page owns, read off a record projection. */
+export function resultRowsOf(record: { change?: { results?: ChangeResultRow[] | null } | null }): ChangeResultRow[] {
+    return (record.change?.results ?? []).map((row, index) => ({
+        row_no: row.row_no || index + 1,
+        result_summary: row.result_summary ?? null,
+        performance_information: row.performance_information ?? null,
+        result_status: row.result_status ?? null,
+    }));
 }
 
 export type DisplayValue = string | number | boolean | null | undefined;
@@ -14,58 +25,18 @@ export function displayValue(value: DisplayValue): string {
     return String(value);
 }
 
-function blankToNull(value: unknown): unknown {
-    return typeof value === 'string' && value.trim() === '' ? null : value;
-}
-
 /**
  * Builds the PATCH /nscmf/{record}/change-results payload (12 §29).
  * Exact keys only: record_version, results.
- * Any started row is preserved with row_no; unstarted rows (all content fields null/blank) are dropped.
+ *
+ * The rows themselves follow the same whole-set rules as every other collection (12 §7.4.1), so the
+ * normalisation is the shared one; only the envelope differs from the draft payload, which wraps
+ * everything in `change`.
  */
 export function buildChangeResultsPayload(recordVersion: number, results: ChangeResultRow[]): ChangeResultsPayload {
-    if (!Number.isSafeInteger(recordVersion) || recordVersion < 1) {
-        throw new Error(`record_version must be a positive integer, received ${String(recordVersion)}.`);
-    }
-    if (!Array.isArray(results)) {
-        throw new Error('results must be an array.');
-    }
-
-    const normalizedResults: ChangeResultRow[] = [];
-    const seenRowNos = new Set<number>();
-
-    for (const row of results) {
-        if (!row || typeof row !== 'object') {
-            throw new Error('results rows must be objects.');
-        }
-
-        const rowNo = row.row_no;
-        if (!Number.isInteger(rowNo) || rowNo < 1 || rowNo > 5) {
-            throw new Error(`results: invalid row_no ${String(rowNo)}.`);
-        }
-        if (seenRowNos.has(rowNo)) {
-            throw new Error(`results: duplicate row_no ${String(rowNo)}.`);
-        }
-        seenRowNos.add(rowNo);
-
-        const summary = (blankToNull(row.result_summary ?? null) as string | null) ?? null;
-        const performance = (blankToNull(row.performance_information ?? null) as string | null) ?? null;
-        const status = (blankToNull(row.result_status ?? null) as string | null) ?? null;
-
-        const started = summary !== null || performance !== null || status !== null;
-        if (started) {
-            normalizedResults.push({
-                row_no: rowNo,
-                result_summary: summary,
-                performance_information: performance,
-                result_status: status,
-            });
-        }
-    }
-
     return {
-        record_version: recordVersion,
-        results: normalizedResults,
+        record_version: checkedRecordVersion(recordVersion),
+        results: normalizeResultRows(results),
     };
 }
 </script>
@@ -78,7 +49,10 @@ import Alert from '@/components/ui/Alert.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import { buttonVariants } from '@/components/ui/button';
-import RequestFeedback, { type RequestFeedbackError, type SaveStatus } from '@/components/RequestFeedback.vue';
+import RequestFeedback from '@/components/RequestFeedback.vue';
+// Types come from their canonical module, not through the SFC: a type re-exported from a .vue file
+// resolves to `any` for eslint, which is what the suppression here used to paper over.
+import type { RequestFeedbackError, SaveStatus } from '@/types/feedback';
 import { usePermissions } from '@/composables/usePermissions';
 import ResultsSection from '@/features/nscmf/change/ResultsSection.vue';
 import DetailList, { type DetailItem } from '@/features/nscmf/DetailList.vue';
@@ -92,7 +66,7 @@ import {
     SUBTYPE_LABELS,
 } from '@/features/nscmf/types';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { domainError } from '@/lib/apiErrors';
+import { pageDomainError } from '@/lib/apiErrors';
 import type { NscmfDetailRecord } from '@/Pages/Nscmf/Show.vue';
 
 const props = defineProps<{ record: NscmfDetailRecord }>();
@@ -113,68 +87,76 @@ const isEligible = computed(() => {
     );
 });
 
-const initialResults = (props.record.change?.results ?? []).map((r, i) => ({
-    row_no: r.row_no || i + 1,
-    result_summary: r.result_summary ?? null,
-    performance_information: r.performance_information ?? null,
-    result_status: r.result_status ?? null,
-}));
-
-const resultsModel = ref<{ results: ChangeResultRow[] }>({
-    results: initialResults,
-});
+const resultsModel = ref<{ results: ChangeResultRow[] }>({ results: resultRowsOf(props.record) });
 
 const fieldErrors = ref<Record<string, string>>({});
-// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 const feedbackError = ref<RequestFeedbackError | null>(null);
 const saveStatus = ref<SaveStatus>(null);
 const submitting = ref(false);
+/** Latched once the record moved or access was refused: editing stops until an explicit refresh. */
 const hasTerminalError = ref(false);
 
+/** Only a stale base version makes further editing pointless; other errors are reported, not locked. */
+const isVersionConflict = computed(() => feedbackError.value?.code === 'NSCMF_VERSION_CONFLICT');
+
+/** The rows as last loaded from the server, so local typing can be told apart from a server change. */
+const loadedRows = ref(JSON.stringify(resultsModel.value.results));
+const hasUnsavedRows = computed(() => JSON.stringify(resultsModel.value.results) !== loadedRows.value);
+
+function adoptRows(rows: ChangeResultRow[]): void {
+    resultsModel.value = { results: rows };
+    loadedRows.value = JSON.stringify(rows);
+}
+
 function resetToRecord(): void {
-    resultsModel.value = {
-        results: (props.record.change?.results ?? []).map((r, i) => ({
-            row_no: r.row_no || i + 1,
-            result_summary: r.result_summary ?? null,
-            performance_information: r.performance_information ?? null,
-            result_status: r.result_status ?? null,
-        })),
-    };
+    adoptRows(resultRowsOf(props.record));
     feedbackError.value = null;
     fieldErrors.value = {};
     hasTerminalError.value = false;
 }
 
+function latchTerminal(error: RequestFeedbackError): void {
+    hasTerminalError.value = true;
+    feedbackError.value = error;
+    saveStatus.value = null;
+}
+
+/** 12 §12 codes this page can be told about through flash (12 §10). */
+function terminalFromDomainError(dError: { code?: string; message?: string } | null): RequestFeedbackError | null {
+    if (dError?.code === 'NSCMF_VERSION_CONFLICT') {
+        return { status: 409, code: dError.code, message: dError.message ?? 'A newer version of this record exists.' };
+    }
+    if (dError?.code === 'FORBIDDEN') {
+        return { status: 403, code: dError.code, message: dError.message ?? 'Access Denied' };
+    }
+    return null;
+}
+
 watch(
     () => props.record.record_version,
     () => {
-        if (!hasTerminalError.value) {
-            resetToRecord();
+        if (hasTerminalError.value) return;
+
+        // The record moved underneath the editor. Discarding the owner's typing here would lose
+        // work silently, so say so and let them choose a refresh instead (07 §23, FE-29 AC3).
+        if (hasUnsavedRows.value) {
+            latchTerminal({
+                status: 409,
+                code: 'NSCMF_VERSION_CONFLICT',
+                message: 'A newer version of this record exists.',
+            });
+            return;
         }
+
+        resetToRecord();
     },
 );
 
 watch(
-    () => (page as unknown as { flash?: unknown })?.flash,
+    () => page.flash,
     (flash) => {
-        const dError = domainError(flash);
-        if (dError?.code === 'NSCMF_VERSION_CONFLICT') {
-            hasTerminalError.value = true;
-            feedbackError.value = {
-                status: 409,
-                code: 'NSCMF_VERSION_CONFLICT',
-                message: dError.message ?? 'A newer version exists.',
-            };
-            saveStatus.value = null;
-        } else if (dError?.code === 'FORBIDDEN') {
-            hasTerminalError.value = true;
-            feedbackError.value = {
-                status: 403,
-                code: 'FORBIDDEN',
-                message: dError.message ?? 'Access Denied',
-            };
-            saveStatus.value = null;
-        }
+        const terminal = terminalFromDomainError(pageDomainError(flash));
+        if (terminal) latchTerminal(terminal);
     },
     { deep: true },
 );
@@ -273,14 +255,7 @@ function submitResults(): void {
             saveStatus.value = 'saved';
             const pageRecord = (newPage as { props?: { record?: NscmfDetailRecord } })?.props?.record;
             if (pageRecord) {
-                resultsModel.value = {
-                    results: (pageRecord.change?.results ?? []).map((r, i) => ({
-                        row_no: r.row_no || i + 1,
-                        result_summary: r.result_summary ?? null,
-                        performance_information: r.performance_information ?? null,
-                        result_status: r.result_status ?? null,
-                    })),
-                };
+                adoptRows(resultRowsOf(pageRecord));
             }
         },
         onError: (errs) => {
@@ -293,47 +268,23 @@ function submitResults(): void {
             };
         },
         onHttpException: (response) => {
-            saveStatus.value = null;
-            hasTerminalError.value = true;
-            if (response.status === 403) {
-                feedbackError.value = {
-                    status: 403,
-                    code: 'FORBIDDEN',
-                    message: 'Access Denied',
-                };
-            } else if (response.status === 409) {
-                feedbackError.value = {
-                    status: 409,
-                    code: 'NSCMF_VERSION_CONFLICT',
-                    message: 'A newer version exists.',
-                };
-            } else {
-                feedbackError.value = {
-                    status: response.status,
-                    code: 'HTTP_EXCEPTION',
-                    message: 'A server error occurred.',
-                };
-            }
+            // No code is claimed that the server did not send (12 §12); the status carries the
+            // meaning and RequestFeedback classifies on it.
+            latchTerminal(
+                response.status === 403
+                    ? { status: 403, code: 'FORBIDDEN', message: 'Access Denied' }
+                    : response.status === 409
+                      ? {
+                            status: 409,
+                            code: 'NSCMF_VERSION_CONFLICT',
+                            message: 'A newer version of this record exists.',
+                        }
+                      : { status: response.status, message: 'A server error occurred.' },
+            );
         },
         onFlash: (flash) => {
-            const dError = domainError(flash);
-            if (dError?.code === 'FORBIDDEN') {
-                hasTerminalError.value = true;
-                saveStatus.value = null;
-                feedbackError.value = {
-                    status: 403,
-                    code: 'FORBIDDEN',
-                    message: dError.message ?? 'Access Denied',
-                };
-            } else if (dError?.code === 'NSCMF_VERSION_CONFLICT') {
-                hasTerminalError.value = true;
-                saveStatus.value = null;
-                feedbackError.value = {
-                    status: 409,
-                    code: 'NSCMF_VERSION_CONFLICT',
-                    message: dError.message ?? 'A newer version exists.',
-                };
-            }
+            const terminal = terminalFromDomainError(pageDomainError(flash));
+            if (terminal) latchTerminal(terminal);
         },
         onNetworkError: () => {
             saveStatus.value = 'error';
@@ -437,12 +388,12 @@ function handleRefresh(): void {
                 <ResultsSection
                     v-model="resultsModel"
                     :errors="fieldErrors"
-                    :disabled="submitting || feedbackError?.code === 'NSCMF_VERSION_CONFLICT'"
+                    :disabled="submitting || isVersionConflict"
                 />
 
                 <RequestFeedback :error="feedbackError" :save-status="saveStatus" @refresh="handleRefresh" />
 
-                <div v-if="feedbackError?.code !== 'NSCMF_VERSION_CONFLICT'" class="flex justify-end">
+                <div v-if="!isVersionConflict" class="flex justify-end">
                     <Button
                         type="button"
                         data-testid="submit-results-btn"

@@ -754,23 +754,41 @@ describe('the record moving underneath the editor (FE-29 AC3)', () => {
     });
 });
 
-describe('terminal errors stop editing consistently (FE-29 AC2/AC3)', () => {
-    it.each([
-        [403, 'feedback-forbidden'],
-        [409, 'feedback-conflict'],
-    ])('disables the editor and hides submit after HTTP %i', async (status, feedbackTestId) => {
-        const wrapper = mountChangeResults();
+describe('a stale base version stops editing (FE-29 AC3)', () => {
+    it.each([[409, 'feedback-conflict']])(
+        'disables the editor and hides submit after HTTP %i',
+        async (status, feedbackTestId) => {
+            const wrapper = mountChangeResults();
 
-        await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
-        const request = lastRequest('/nscmf/42/change-results');
-        expect(request).toBeDefined();
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+            const request = lastRequest('/nscmf/42/change-results');
+            expect(request).toBeDefined();
 
-        await respondToRequest(request, { status, isInertia: true });
-        await nextTick();
+            await respondToRequest(request, { status, isInertia: true });
+            await nextTick();
 
-        expect(wrapper.find(`[data-testid="${feedbackTestId}"]`).exists()).toBe(true);
-        expect(wrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(false);
-        const summary = wrapper.get('#results-0-result_summary').element as HTMLTextAreaElement;
-        expect(summary.disabled).toBe(true);
+            expect(wrapper.find(`[data-testid="${feedbackTestId}"]`).exists()).toBe(true);
+            expect(wrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(false);
+            const summary = wrapper.get('#results-0-result_summary').element as HTMLTextAreaElement;
+            expect(summary.disabled).toBe(true);
+        },
+    );
+});
+
+describe('partially started result rows (06 §46)', () => {
+    it('keeps a row that has only one field filled, sending the rest as null', () => {
+        const payload = buildChangeResultsPayload(7, [
+            { row_no: 1, result_summary: 'Only the summary so far', performance_information: null, result_status: '' },
+        ]);
+
+        // A draft may hold partial rows; completeness is judged at Submit/Forward (06 §46, §48).
+        expect(payload.results).toEqual([
+            {
+                row_no: 1,
+                result_summary: 'Only the summary so far',
+                performance_information: null,
+                result_status: null,
+            },
+        ]);
     });
 });
