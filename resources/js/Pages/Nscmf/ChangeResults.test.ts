@@ -693,3 +693,84 @@ describe('ChangeResults (FE-29)', () => {
         });
     });
 });
+
+describe('the record moving underneath the editor (FE-29 AC3)', () => {
+    it('keeps unsaved rows when the record version advances from elsewhere', async () => {
+        const wrapper = mountChangeResults();
+
+        await wrapper.get('#results-0-result_summary').setValue('Typed but not saved yet');
+
+        // A reviewer acts on the record, so a partial reload advances the version underneath.
+        await wrapper.setProps({
+            record: {
+                ...BASE_RECORD,
+                record_version: 8,
+                change: {
+                    ...BASE_RECORD.change,
+                    results: [
+                        {
+                            row_no: 1,
+                            result_summary: 'Server copy',
+                            performance_information: 'Server copy',
+                            result_status: 'SUCCESS',
+                        },
+                    ],
+                },
+            },
+        });
+        await nextTick();
+
+        const summary = wrapper.get('#results-0-result_summary').element as HTMLTextAreaElement;
+        expect(summary.value).toBe('Typed but not saved yet');
+        // 07 §23: say a newer version exists and offer a refresh, never discard silently.
+        expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(true);
+    });
+
+    it('adopts the server rows when nothing was typed', async () => {
+        const wrapper = mountChangeResults();
+
+        await wrapper.setProps({
+            record: {
+                ...BASE_RECORD,
+                record_version: 8,
+                change: {
+                    ...BASE_RECORD.change,
+                    results: [
+                        {
+                            row_no: 1,
+                            result_summary: 'Server copy',
+                            performance_information: 'Server copy',
+                            result_status: 'SUCCESS',
+                        },
+                    ],
+                },
+            },
+        });
+        await nextTick();
+
+        const summary = wrapper.get('#results-0-result_summary').element as HTMLTextAreaElement;
+        expect(summary.value).toBe('Server copy');
+        expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(false);
+    });
+});
+
+describe('terminal errors stop editing consistently (FE-29 AC2/AC3)', () => {
+    it.each([
+        [403, 'feedback-forbidden'],
+        [409, 'feedback-conflict'],
+    ])('disables the editor and hides submit after HTTP %i', async (status, feedbackTestId) => {
+        const wrapper = mountChangeResults();
+
+        await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+        const request = lastRequest('/nscmf/42/change-results');
+        expect(request).toBeDefined();
+
+        await respondToRequest(request, { status, isInertia: true });
+        await nextTick();
+
+        expect(wrapper.find(`[data-testid="${feedbackTestId}"]`).exists()).toBe(true);
+        expect(wrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(false);
+        const summary = wrapper.get('#results-0-result_summary').element as HTMLTextAreaElement;
+        expect(summary.disabled).toBe(true);
+    });
+});
