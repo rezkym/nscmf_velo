@@ -190,3 +190,44 @@ describe('flashDomainError channels', () => {
         expect(pageFlash.domain_error).toBeUndefined();
     });
 });
+
+describe('useForm mirrors the real submit lifecycle', () => {
+    beforeEach(() => resetInertia());
+
+    it('populates form.errors from the response even when the caller passes no onError', async () => {
+        const form = inertiaModule.useForm({ request_no: '' });
+        form.post('/nscmf');
+
+        await respondToRequest(lastRequest('/nscmf'), {
+            status: 422,
+            errors: { request_no: 'The request number is already taken.' },
+        });
+
+        // Real useForm wires this itself (@inertiajs/vue3 submit -> onError -> setError), which is
+        // why Create.vue can read form.errors while passing no onError of its own.
+        expect(form.errors).toEqual({ request_no: 'The request number is already taken.' });
+    });
+
+    it('clears stale errors when a later submit succeeds', async () => {
+        const form = inertiaModule.useForm({ request_no: '' });
+
+        form.post('/nscmf');
+        await respondToRequest(lastRequest('/nscmf'), { status: 422, errors: { request_no: 'Taken.' } });
+        expect(form.errors).toEqual({ request_no: 'Taken.' });
+
+        form.post('/nscmf');
+        await respondToRequest(lastRequest('/nscmf'), { status: 200 });
+
+        expect(form.errors).toEqual({});
+    });
+
+    it('still hands the errors to a caller-supplied onError', async () => {
+        const form = inertiaModule.useForm({ request_no: '' });
+        const seen: unknown[] = [];
+        form.post('/nscmf', { onError: (errors) => seen.push(errors) });
+
+        await respondToRequest(lastRequest('/nscmf'), { status: 422, errors: { request_no: 'Taken.' } });
+
+        expect(seen).toEqual([{ request_no: 'Taken.' }]);
+    });
+});
