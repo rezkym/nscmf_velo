@@ -148,11 +148,10 @@ watch(
 );
 
 function resolveControlByPath(path: string): HTMLElement | null {
-    /* v8 ignore next */
-    if (!path) return null;
-
     // 1. First lookup by data-error-path attribute (explicit wire error path mapping)
-    const byDataAttr = document.querySelector<HTMLElement>(`[data-error-path="${CSS.escape(path)}"]`);
+    const byDataAttr = document.querySelector<HTMLElement>(
+        `[data-error-path="${CSS.escape(path)}"], [data-error-wire-path="${CSS.escape(path)}"]`,
+    );
     if (byDataAttr) {
         return byDataAttr.matches('input, select, textarea, button')
             ? byDataAttr

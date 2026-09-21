@@ -102,6 +102,73 @@ describe('SubmitPanel (FE-28)', () => {
     });
 
     describe('AC2: submit_maps_nested_errors', () => {
+        it('focuses the selected Other reference specification from its wire error', async () => {
+            const errors = { 'activation.references.1.specification': 'Describe the other reference' };
+            const harness = mount(
+                defineComponent({
+                    setup: () => () =>
+                        h('div', [
+                            h(GeneralServiceSection, {
+                                subtype: 'ACTIVATION',
+                                modelValue: {
+                                    references: [
+                                        { reference_type: 'IWO', specification: null },
+                                        { reference_type: 'OTHER', specification: null },
+                                    ],
+                                },
+                                errors,
+                            }),
+                            h(SubmitPanel, { recordId: 42, recordVersion: 3, businessStatus: 'DRAFT', errors }),
+                        ]),
+                }),
+                { attachTo: document.body },
+            );
+            try {
+                await harness.vm.$nextTick();
+                await harness.get('[data-testid="error-summary-item"] button').trigger('click');
+                expect(document.activeElement).toBe(harness.get('#reference-OTHER-specification').element);
+                expect(harness.get('#reference-OTHER-specification-error').text()).toBe(
+                    errors['activation.references.1.specification'],
+                );
+            } finally {
+                harness.unmount();
+            }
+        });
+
+        it('routes persisted index zero past a not-started block to the matching inline error', async () => {
+            const errors = { 'activation.service_blocks.0.service_status': 'Choose the new service status' };
+            const harness = mount(
+                defineComponent({
+                    setup: () => () =>
+                        h('div', [
+                            h(GeneralServiceSection, {
+                                subtype: 'ACTIVATION',
+                                modelValue: {
+                                    service_blocks: [
+                                        { service_context: 'EXISTING', service_id: null },
+                                        { service_context: 'NEW', service_id: 'SVC-NEW' },
+                                    ],
+                                },
+                                errors,
+                            }),
+                            h(SubmitPanel, { recordId: 42, recordVersion: 3, businessStatus: 'DRAFT', errors }),
+                        ]),
+                }),
+                { attachTo: document.body },
+            );
+            try {
+                await harness.vm.$nextTick();
+                await harness.get('[data-testid="error-summary-item"] button').trigger('click');
+                expect(document.activeElement).toBe(harness.get('#service-new-service_status').element);
+                expect(harness.get('#service-new-service_status-error').text()).toBe(
+                    errors['activation.service_blocks.0.service_status'],
+                );
+                expect(harness.find('#service-existing-service_status-error').exists()).toBe(false);
+            } finally {
+                harness.unmount();
+            }
+        });
+
         it('renders summary error list and maps nested wire paths to human-readable field labels and focuses target', () => {
             const serverErrors = {
                 'activation.service_blocks.0.service_id': 'Service ID is required for activated blocks',
@@ -146,6 +213,7 @@ describe('SubmitPanel (FE-28)', () => {
                     {
                         service_context: 'NEW',
                         service_id: null,
+                        service_description: 'Started service',
                     },
                 ],
             });
@@ -214,7 +282,7 @@ describe('SubmitPanel (FE-28)', () => {
             wrapper.unmount();
         });
 
-        it('connects to correct distinct row and control when duplicate error messages exist across reordered rows (F-28-R-1)', () => {
+        it('connects to correct distinct row and control when duplicate error messages exist across reordered rows (F-28-R-1)', async () => {
             const DUPLICATE_MSG = 'Service ID is required';
             const serverErrors = {
                 'activation.service_blocks.0.service_id': DUPLICATE_MSG,
@@ -225,8 +293,8 @@ describe('SubmitPanel (FE-28)', () => {
             // Section renders in order: EXISTING then NEW
             const generalModel = ref<GeneralFields>({
                 service_blocks: [
-                    { service_context: 'NEW', service_id: null },
-                    { service_context: 'EXISTING', service_id: null },
+                    { service_context: 'NEW', service_id: null, service_description: 'Started new service' },
+                    { service_context: 'EXISTING', service_id: null, service_description: 'Started existing service' },
                 ],
             });
 
@@ -270,6 +338,15 @@ describe('SubmitPanel (FE-28)', () => {
             btn1.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
             expect(panel.emitted('navigate-error')?.[1]).toEqual(['activation.service_blocks.1.service_id']);
             expect(document.activeElement?.id).toBe('service-existing-service_id');
+
+            generalModel.value.service_blocks?.reverse();
+            await harness.vm.$nextTick();
+            await errorButtons[0]!.trigger('click');
+            expect(document.activeElement).toBe(harness.get('#service-existing-service_id').element);
+            await errorButtons[1]!.trigger('click');
+            expect(document.activeElement).toBe(harness.get('#service-new-service_id').element);
+            expect(harness.get('#service-new-service_id-error').text()).toBe(DUPLICATE_MSG);
+            expect(harness.get('#service-existing-service_id-error').text()).toBe(DUPLICATE_MSG);
 
             harness.unmount();
         });
@@ -547,6 +624,7 @@ describe('SubmitPanel (FE-28)', () => {
 
             // Container element without child input/button
             const containerEl = document.createElement('div');
+            containerEl.tabIndex = -1;
             containerEl.setAttribute('data-error-path', 'container.only.path');
             document.body.appendChild(containerEl);
             const containerFocusSpy = vi.spyOn(containerEl, 'focus');
@@ -565,8 +643,10 @@ describe('SubmitPanel (FE-28)', () => {
             const errorLinks = inputWrapper.findAll('[data-testid="error-summary-item"] button');
             await errorLinks[0]?.trigger('click');
             expect(inputFocusSpy).toHaveBeenCalled();
+            expect(document.activeElement).toBe(inputEl);
             await errorLinks[1]?.trigger('click');
             expect(containerFocusSpy).toHaveBeenCalled();
+            expect(document.activeElement).toBe(containerEl);
 
             inputEl.remove();
             containerEl.remove();

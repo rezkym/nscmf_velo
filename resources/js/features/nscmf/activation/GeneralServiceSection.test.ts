@@ -145,7 +145,7 @@ describe('GeneralServiceSection (FE-20)', () => {
         const wrapper = mountSection(
             {
                 references: [{ reference_type: 'OTHER', specification: null }],
-                service_blocks: [{ service_context: 'NEW', service_id: null }],
+                service_blocks: [{ service_context: 'NEW', service_id: null, service_description: 'Started service' }],
             },
             {
                 errors: {
@@ -163,9 +163,9 @@ describe('GeneralServiceSection (FE-20)', () => {
             'A specification is required for Other.',
         );
         expect(wrapper.get('#service-new-service_id-error').text()).toContain('The service ID is required.');
-        expect(
-            wrapper.get('[data-error-path="activation.service_blocks.0.service_id"]').find('input').attributes('id'),
-        ).toBe('service-new-service_id');
+        expect(wrapper.get('input[data-error-path="activation.service_blocks.NEW.service_id"]').attributes('id')).toBe(
+            'service-new-service_id',
+        );
     });
 
     it('sends no request of its own and disables every control when asked', () => {

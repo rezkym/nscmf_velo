@@ -16,6 +16,8 @@ withDefaults(
         maxlength?: number;
         help?: string;
         error?: string;
+        errorPath?: string;
+        errorWirePath?: string;
         required?: boolean;
         disabled?: boolean;
     }>(),
@@ -33,6 +35,8 @@ function onInput(event: Event): void {
             <textarea
                 v-if="rows"
                 :id="controlId"
+                :data-error-path="errorPath"
+                :data-error-wire-path="errorWirePath"
                 :value="value ?? ''"
                 :rows="rows"
                 :maxlength="maxlength"
@@ -44,6 +48,8 @@ function onInput(event: Event): void {
             <input
                 v-else
                 :id="controlId"
+                :data-error-path="errorPath"
+                :data-error-wire-path="errorWirePath"
                 :type="type"
                 :value="value ?? ''"
                 :maxlength="maxlength"

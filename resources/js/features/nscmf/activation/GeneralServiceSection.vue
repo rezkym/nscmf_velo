@@ -3,8 +3,10 @@ import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import { controlClass } from '@/components/ui/control';
 import FormField from '@/components/ui/FormField.vue';
+import { computed } from 'vue';
 
 import DraftField from '../DraftField.vue';
+import { buildActivationDraftPayload } from '../draftPayload';
 import { fieldError, type FieldErrors } from '../fieldErrors';
 import type {
     ActivationDraftFields,
@@ -86,12 +88,23 @@ function block(context: ServiceContext): ServiceBlockRow | undefined {
 }
 
 function blockIndex(context: ServiceContext): number {
-    return blocks().findIndex((row) => row.service_context === context);
+    return persistedBlocks.value.findIndex((row) => row.service_context === context);
 }
+
+function blockPath(context: ServiceContext, field: string): string | undefined {
+    const index = blockIndex(context);
+    return index < 0 ? undefined : `activation.service_blocks.${index}.${field}`;
+}
+
+// Match validation indices to the exact set emitted by the draft payload builder.
+const persistedBlocks = computed(
+    () =>
+        buildActivationDraftPayload(1, { service_blocks: model.value.service_blocks }).activation.service_blocks ?? [],
+);
 
 /** The block joins the set on its first edit and leaves it only on an explicit clear. */
 function updateBlock(context: ServiceContext, patch: Partial<ServiceBlockRow>): void {
-    const index = blockIndex(context);
+    const index = blocks().findIndex((row) => row.service_context === context);
     update({
         service_blocks:
             index === -1
@@ -170,6 +183,8 @@ function onStatusChange(context: ServiceContext, event: Event): void {
                     <DraftField
                         v-if="type === 'OTHER' && isSelected(type)"
                         id="reference-OTHER-specification"
+                        error-path="activation.references.OTHER.specification"
+                        :error-wire-path="`activation.references.${referenceIndex(type)}.specification`"
                         label="Specification"
                         class="sm:max-w-md"
                         :maxlength="255"
@@ -208,7 +223,8 @@ function onStatusChange(context: ServiceContext, event: Event): void {
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <DraftField
                     :id="`service-${service.key}-service_id`"
-                    :data-error-path="`activation.service_blocks.${blockIndex(service.context)}.service_id`"
+                    :error-path="`activation.service_blocks.${service.context}.service_id`"
+                    :error-wire-path="blockPath(service.context, 'service_id')"
                     label="Service ID"
                     :maxlength="100"
                     :required="REQUIRED_BLOCKS[subtype][service.context]"
@@ -220,7 +236,6 @@ function onStatusChange(context: ServiceContext, event: Event): void {
 
                 <FormField
                     :id="`service-${service.key}-service_status`"
-                    :data-error-path="`activation.service_blocks.${blockIndex(service.context)}.service_status`"
                     label="Service status"
                     :required="REQUIRED_BLOCKS[subtype][service.context]"
                     :error="error('service_blocks', blockIndex(service.context), 'service_status')"
@@ -228,7 +243,8 @@ function onStatusChange(context: ServiceContext, event: Event): void {
                     <template #default="{ id, describedBy }">
                         <select
                             :id="id"
-                            :data-error-path="`activation.service_blocks.${blockIndex(service.context)}.service_status`"
+                            :data-error-path="`activation.service_blocks.${service.context}.service_status`"
+                            :data-error-wire-path="blockPath(service.context, 'service_status')"
                             :value="block(service.context)?.service_status ?? ''"
                             :disabled="disabled"
                             :aria-describedby="describedBy"
@@ -245,7 +261,8 @@ function onStatusChange(context: ServiceContext, event: Event): void {
 
                 <DraftField
                     :id="`service-${service.key}-service_description`"
-                    :data-error-path="`activation.service_blocks.${blockIndex(service.context)}.service_description`"
+                    :error-path="`activation.service_blocks.${service.context}.service_description`"
+                    :error-wire-path="blockPath(service.context, 'service_description')"
                     label="Service description"
                     class="sm:col-span-2"
                     :rows="3"
@@ -259,7 +276,8 @@ function onStatusChange(context: ServiceContext, event: Event): void {
 
                 <DraftField
                     :id="`service-${service.key}-service_location`"
-                    :data-error-path="`activation.service_blocks.${blockIndex(service.context)}.service_location`"
+                    :error-path="`activation.service_blocks.${service.context}.service_location`"
+                    :error-wire-path="blockPath(service.context, 'service_location')"
                     label="Service location"
                     class="sm:col-span-2"
                     :maxlength="500"
