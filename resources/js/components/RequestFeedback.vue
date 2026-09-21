@@ -68,8 +68,9 @@ const validationErrorList = computed(() => {
 });
 
 const canShowSaveStatus = computed(() => {
-    // If session is revoked/expired, NEVER claim saved or in-progress save
-    if (isSessionRevoked.value) return false;
+    // 07 §23: never claim a save alongside a failure. A stale 'saved' from a parent must not sit
+    // above the panel explaining why the save did not happen, and a revoked session least of all.
+    if (props.error) return false;
     return Boolean(props.saveStatus);
 });
 
