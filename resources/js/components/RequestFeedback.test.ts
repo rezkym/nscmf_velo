@@ -327,3 +327,27 @@ describe('RequestFeedback.vue (FE-07)', () => {
         expect(messages).toEqual(['The name is required.']);
     });
 });
+
+describe('the save indicator never contradicts an error (07 §23)', () => {
+    it.each([
+        [409, 'a version conflict'],
+        [422, 'a validation failure'],
+        [403, 'a denial'],
+        [503, 'an unavailable subsystem'],
+    ])('does not claim "Saved just now" alongside %i, %s', (status) => {
+        const wrapper = mount(RequestFeedback, {
+            props: {
+                error: { status },
+                saveStatus: 'saved',
+            },
+        });
+
+        expect(wrapper.text()).not.toContain('Saved just now');
+    });
+
+    it('still shows the save indicator when nothing failed', () => {
+        const wrapper = mount(RequestFeedback, { props: { error: null, saveStatus: 'saved' } });
+
+        expect(wrapper.text()).toContain('Saved just now');
+    });
+});
