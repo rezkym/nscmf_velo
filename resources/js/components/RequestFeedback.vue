@@ -1,16 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-export interface RequestFeedbackError {
-    status?: number;
-    code?: string;
-    message?: string;
-    errors?: Record<string, string[] | string>;
-    context?: Record<string, unknown>;
-    isNetworkError?: boolean;
-}
+import type { RequestFeedbackError, SaveStatus } from '@/types/feedback';
 
-export type SaveStatus = 'saving' | 'saved' | 'error' | null;
+export type { RequestFeedbackError, SaveStatus };
 
 export interface RequestFeedbackProps {
     error?: RequestFeedbackError | null;

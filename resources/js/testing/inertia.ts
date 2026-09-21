@@ -8,9 +8,12 @@
 import { defineComponent, h, nextTick, reactive, toRaw } from 'vue';
 import { type Mock, vi } from 'vitest';
 
-type VisitOptions = {
+export type VisitOptions = {
     onSuccess?: (page?: unknown) => void;
     onError?: (errors: Record<string, string>) => void;
+    onHttpException?: (response: unknown) => void;
+    onNetworkError?: (error: unknown) => void;
+    onFlash?: (flash: unknown) => void;
     onFinish?: () => void;
     [key: string]: unknown;
 };
@@ -101,7 +104,7 @@ export const inertiaModule = {
     }),
     router,
     useForm: (initial: Record<string, unknown>) => createForm(initial),
-    usePage: () => ({ props: pageProps }),
+    usePage: () => ({ props: pageProps, flash: (pageProps.flash ?? {}) as Record<string, unknown> }),
 };
 
 export function resetInertia(props: Record<string, unknown> = {}): void {
