@@ -238,7 +238,7 @@ describe('Review Queue — Index.vue (FE-30)', () => {
             );
         });
 
-        it('forwards filters from query emission when filters are provided', () => {
+        it('forwards only the query keys the contract names, dropping anything else', () => {
             const wrapper = mountReviewQueue();
 
             const resourceTable = wrapper.findComponent({ name: 'ResourceTable' });
@@ -248,183 +248,15 @@ describe('Review Queue — Index.vue (FE-30)', () => {
                 sort: 'request_no',
                 direction: 'desc',
                 q: 'filter-test',
-                filters: {
-                    family: 'CHANGE',
-                    team_id: 2,
-                    unsupported_object: { ignored: true },
-                },
+                filters: { team_id: 9, archived: true, page: 999 },
             });
 
+            // 12 §45 names no filter parameter for the queue and the page renders no filter
+            // control, so nothing is invented and nothing unexpected can reach the query string
+            // (gap G02). Pagination bounds belong to ResourceTable (FE-05), not to this page.
             expect(router.get).toHaveBeenCalledWith(
                 '/review',
-                expect.objectContaining({
-                    page: 2,
-                    per_page: 50,
-                    sort: 'request_no',
-                    direction: 'desc',
-                    q: 'filter-test',
-                    family: 'CHANGE',
-                    team_id: 2,
-                }),
-                expect.any(Object),
-            );
-        });
-
-        it('does not allow filters to override reserved keys (page, per_page, sort, direction, q)', () => {
-            const wrapper = mountReviewQueue();
-
-            const resourceTable = wrapper.findComponent({ name: 'ResourceTable' });
-            resourceTable.vm.$emit('update:query', {
-                page: 1,
-                per_page: 25,
-                sort: 'request_no',
-                direction: 'asc',
-                q: 'legit-search',
-                filters: {
-                    page: 99,
-                    per_page: 9999,
-                    sort: 'injected_column',
-                    direction: 'desc',
-                    q: 'injected-search',
-                    family: 'CHANGE',
-                },
-            });
-
-            expect(router.get).toHaveBeenCalledWith(
-                '/review',
-                expect.objectContaining({
-                    page: 1,
-                    per_page: 25,
-                    sort: 'request_no',
-                    direction: 'asc',
-                    q: 'legit-search',
-                    family: 'CHANGE',
-                }),
-                expect.any(Object),
-            );
-        });
-
-        it('rejects or ignores non-allowlisted filter keys from filters object', () => {
-            const wrapper = mountReviewQueue();
-
-            const resourceTable = wrapper.findComponent({ name: 'ResourceTable' });
-            resourceTable.vm.$emit('update:query', {
-                page: 1,
-                per_page: 25,
-                filters: {
-                    family: 'ACTIVATION',
-                    team_id: 5,
-                    admin_override: 1,
-                    injected_sql: 'SELECT 1',
-                    evil_param: 'malicious',
-                },
-            });
-
-            const emittedPayload = vi.mocked(router.get).mock.calls.at(-1)?.[1] as Record<string, unknown>;
-            expect(emittedPayload).toBeDefined();
-            expect(emittedPayload.family).toBe('ACTIVATION');
-            expect(emittedPayload.team_id).toBe(5);
-            expect(emittedPayload.admin_override).toBeUndefined();
-            expect(emittedPayload.injected_sql).toBeUndefined();
-            expect(emittedPayload.evil_param).toBeUndefined();
-        });
-
-        it('preserves boolean filter values such as archived and ignores non-primitive/non-supported filter values', () => {
-            const wrapper = mountReviewQueue();
-
-            const resourceTable = wrapper.findComponent({ name: 'ResourceTable' });
-            resourceTable.vm.$emit('update:query', {
-                page: 1,
-                per_page: 25,
-                filters: {
-                    archived: true,
-                    family: 'CHANGE',
-                    owner_user_id: 12,
-                    team_id: null,
-                    business_status: undefined,
-                    subtype: ['ACTIVATION'],
-                    request_date_from: { raw: '2026-01-01' },
-                },
-            });
-
-            const emittedPayload = vi.mocked(router.get).mock.calls.at(-1)?.[1] as Record<string, unknown>;
-            expect(emittedPayload).toBeDefined();
-            expect(emittedPayload.archived).toBe(true);
-            expect(emittedPayload.family).toBe('CHANGE');
-            expect(emittedPayload.owner_user_id).toBe(12);
-            expect(emittedPayload.team_id).toBeUndefined();
-            expect(emittedPayload.business_status).toBeUndefined();
-            expect(emittedPayload.subtype).toBeUndefined();
-            expect(emittedPayload.request_date_from).toBeUndefined();
-        });
-
-        it('clamps per_page and page to integers and uses fallback for non-finite values', () => {
-            const wrapper = mountReviewQueue();
-
-            const resourceTable = wrapper.findComponent({ name: 'ResourceTable' });
-
-            // Fractional per_page and page truncated to integer bounds
-            resourceTable.vm.$emit('update:query', {
-                page: 2.7,
-                per_page: 33.3,
-            });
-
-            expect(router.get).toHaveBeenCalledWith(
-                '/review',
-                expect.objectContaining({
-                    page: 2,
-                    per_page: 33,
-                }),
-                expect.any(Object),
-            );
-
-            // Non-finite values (NaN / undefined) fall back to defaults (page 1, per_page 25)
-            resourceTable.vm.$emit('update:query', {
-                page: NaN,
-                per_page: undefined as unknown as number,
-            });
-
-            expect(router.get).toHaveBeenCalledWith(
-                '/review',
-                expect.objectContaining({
-                    page: 1,
-                    per_page: 25,
-                }),
-                expect.any(Object),
-            );
-        });
-
-        it('clamps per_page between 1 and 100, and page >= 1 when emitted from parent handler', () => {
-            const wrapper = mountReviewQueue();
-
-            const resourceTable = wrapper.findComponent({ name: 'ResourceTable' });
-            // Test upper bound clamping
-            resourceTable.vm.$emit('update:query', {
-                page: 0,
-                per_page: 9999,
-            });
-
-            expect(router.get).toHaveBeenCalledWith(
-                '/review',
-                expect.objectContaining({
-                    page: 1,
-                    per_page: 100,
-                }),
-                expect.any(Object),
-            );
-
-            // Test lower bound clamping & default fallback
-            resourceTable.vm.$emit('update:query', {
-                page: -5,
-                per_page: 0,
-            });
-
-            expect(router.get).toHaveBeenCalledWith(
-                '/review',
-                expect.objectContaining({
-                    page: 1,
-                    per_page: 1,
-                }),
+                { page: 2, per_page: 50, sort: 'request_no', direction: 'desc', q: 'filter-test' },
                 expect.any(Object),
             );
         });

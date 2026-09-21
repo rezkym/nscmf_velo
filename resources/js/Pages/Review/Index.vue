@@ -3,6 +3,7 @@ import { Link, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 import Badge from '@/components/ui/Badge.vue';
+import Button from '@/components/ui/Button.vue';
 import { buttonVariants } from '@/components/ui/button';
 import ResourceTable, { type ColumnDef, type TableQuery } from '@/components/ResourceTable.vue';
 import type { BusinessStatus, PaginationMeta } from '@/features/nscmf/contracts';
@@ -95,50 +96,26 @@ function formatType(family: NscmfFamily, subtype: NscmfSubtype): string {
         : `${FAMILY_LABELS[family]} · ${SUBTYPE_LABELS[subtype]}`;
 }
 
-const ALLOWED_FILTER_KEYS = new Set([
-    'family',
-    'subtype',
-    'business_status',
-    'archived',
-    'request_date_from',
-    'request_date_to',
-    'owner_user_id',
-    'team_id',
-]);
-
-const RESERVED_QUERY_KEYS = new Set(['page', 'per_page', 'sort', 'direction', 'q']);
-
+/**
+ * The queue sends what FE-30 and the list contract name: search, sort and pagination. ResourceTable
+ * has already bounded them (FE-05), so nothing is re-clamped here.
+ *
+ * No filter parameters are forwarded. 12 §45 says the queue is permission-driven and that Team may
+ * be an informational filter, but it names no filter parameter, and the page renders no filter
+ * control. Gap G02: record the approved response before binding any, rather than inventing names.
+ */
 function onQueryChange(newQuery: TableQuery): void {
-    const payload: Record<string, string | number | boolean | undefined> = {};
-
-    if (newQuery.filters) {
-        for (const [key, value] of Object.entries(newQuery.filters)) {
-            if (ALLOWED_FILTER_KEYS.has(key) && !RESERVED_QUERY_KEYS.has(key)) {
-                if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-                    payload[key] = value;
-                }
-            }
-        }
-    }
-
-    const perPageNum = Number(newQuery.per_page);
-    const validPerPage = Number.isFinite(perPageNum) ? Math.trunc(perPageNum) : 25;
-    const clampedPerPage = Math.min(100, Math.max(1, validPerPage));
-
-    const pageNum = Number(newQuery.page);
-    const validPage = Number.isFinite(pageNum) ? Math.trunc(pageNum) : 1;
-    const clampedPage = Math.max(1, validPage);
-
-    payload.page = clampedPage;
-    payload.per_page = clampedPerPage;
-    payload.sort = newQuery.sort;
-    payload.direction = newQuery.direction;
-    payload.q = newQuery.q;
-
-    router.get('/review', payload, {
-        preserveState: true,
-        preserveScroll: true,
-    });
+    router.get(
+        '/review',
+        {
+            page: newQuery.page,
+            per_page: newQuery.per_page,
+            sort: newQuery.sort,
+            direction: newQuery.direction,
+            q: newQuery.q,
+        },
+        { preserveState: true, preserveScroll: true },
+    );
 }
 
 function reloadQueue(): void {
@@ -156,14 +133,7 @@ function reloadQueue(): void {
                         Requests waiting for review. Eligibility is permission-based and shared across teams.
                     </p>
                 </div>
-                <button
-                    type="button"
-                    data-testid="btn-refresh-queue"
-                    :class="buttonVariants({ variant: 'secondary' })"
-                    @click="reloadQueue"
-                >
-                    Refresh
-                </button>
+                <Button data-testid="btn-refresh-queue" variant="secondary" @click="reloadQueue"> Refresh </Button>
             </div>
 
             <ResourceTable
