@@ -506,7 +506,7 @@ describe('useDraftSave real wire tests (B-27-5..B-27-9)', () => {
         expect(draft.saveStatus.value).toBe('error');
 
         // Now fix version to a valid integer; next save must be able to dispatch
-        draft.currentVersion.value = 8;
+        draft.resolveConflict(8);
         const savePromise = draft.save();
         const req = await waitForRequest();
         expect(capturedRequests.length).toBe(1);

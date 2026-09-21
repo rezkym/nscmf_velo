@@ -655,7 +655,7 @@ describe('SubmitPanel (FE-28)', () => {
             inputWrapper.unmount();
         });
 
-        it('does not submit when canSubmit is false and handleSubmit is called directly', () => {
+        it('does not submit when a click reaches the button while it is not submittable', () => {
             const wrapper = mount(SubmitPanel, {
                 props: {
                     recordId: 42,
