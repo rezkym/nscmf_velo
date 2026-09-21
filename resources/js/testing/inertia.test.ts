@@ -231,3 +231,32 @@ describe('useForm mirrors the real submit lifecycle', () => {
         expect(seen).toEqual([{ request_no: 'Taken.' }]);
     });
 });
+
+describe('useForm tracks processing across the request', () => {
+    beforeEach(() => resetInertia());
+
+    it('is processing from submit until the response finishes', async () => {
+        const form = inertiaModule.useForm({ name: 'Alpha' });
+
+        expect(form.processing).toBe(false);
+        form.post('/administration/teams');
+        // Real useForm sets processing on onStart, before the response arrives.
+        expect(form.processing).toBe(true);
+
+        await respondToRequest(lastRequest('/administration/teams'), { status: 200 });
+
+        expect(form.processing).toBe(false);
+    });
+
+    it('stops processing after a failed response too', async () => {
+        const form = inertiaModule.useForm({ name: '' });
+        form.post('/administration/teams');
+
+        await respondToRequest(lastRequest('/administration/teams'), {
+            status: 422,
+            errors: { name: 'The name field is required.' },
+        });
+
+        expect(form.processing).toBe(false);
+    });
+});

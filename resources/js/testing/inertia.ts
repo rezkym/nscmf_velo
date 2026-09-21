@@ -79,9 +79,29 @@ function createForm(initial: Record<string, unknown>): MockForm {
         return Object.fromEntries(Object.keys(defaults).map((key) => [key, structuredClone(toRaw(form[key]))]));
     }
 
+    /**
+     * Real useForm wraps the caller's options and maintains the form itself before handing over:
+     * on error it does clearErrors().setError(errors), on success it clears them
+     * (@inertiajs/vue3 submit). A component can therefore read form.errors without supplying an
+     * onError of its own, and the double has to do the same or that path is never exercised.
+     */
+    function withFormLifecycle(options: VisitOptions): VisitOptions {
+        return {
+            ...options,
+            onError: (errors) => {
+                form.errors = { ...errors };
+                options.onError?.(errors);
+            },
+            onSuccess: (page) => {
+                form.errors = {};
+                options.onSuccess?.(page);
+            },
+        };
+    }
+
     for (const method of ['get', 'post', 'put', 'patch', 'delete'] as const) {
         form[method] = vi.fn((url: string, options: VisitOptions = {}) => {
-            requests.push({ method, url, data: data(), options });
+            requests.push({ method, url, data: data(), options: withFormLifecycle(options) });
         });
     }
     form.reset = vi.fn((...fields: string[]) => {
