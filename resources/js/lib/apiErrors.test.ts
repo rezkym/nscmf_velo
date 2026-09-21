@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { RECORD_CONFLICT_CODES, domainError, isRecordConflictCode, pageDomainError } from './apiErrors';
+import { RECORD_CONFLICT_CODES, domainError, firstError, isRecordConflictCode, pageDomainError } from './apiErrors';
 
 describe('firstError', () => {
     it('prefers the requested keys in order', () => {
