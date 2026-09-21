@@ -216,3 +216,40 @@ describe('draft payload (12 §129.1)', () => {
         });
     });
 });
+
+describe('results are only carried while the record is editable (12 §28.2)', () => {
+    const resultRow = {
+        row_no: 1,
+        result_summary: 'Link restored',
+        performance_information: 'Latency back to 12 ms',
+        result_status: 'Selesai dengan catatan',
+    };
+
+    it.each(['DRAFT', 'REVISION_REQUIRED'] as const)('sends results while %s', (businessStatus) => {
+        const payload = buildChangeDraftPayload(3, { results: [resultRow] }, businessStatus);
+
+        expect(payload.change.results).toEqual([resultRow]);
+    });
+
+    it.each(['PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CANCELLED'] as const)(
+        'omits the results key entirely while %s',
+        (businessStatus) => {
+            const payload = buildChangeDraftPayload(3, { results: [resultRow] }, businessStatus);
+
+            // Omitted, not empty: `[]` would delete every stored row (12 §7.4.1), and the server
+            // rejects a results key outside DRAFT/REVISION_REQUIRED with 422 (12 §28.2).
+            expect('results' in payload.change).toBe(false);
+        },
+    );
+
+    it('still carries the other change fields while PENDING_REVIEW', () => {
+        const payload = buildChangeDraftPayload(
+            3,
+            { maintenance_purpose: 'Routine check', results: [resultRow] },
+            'PENDING_REVIEW',
+        );
+
+        expect(payload.change.maintenance_purpose).toBe('Routine check');
+        expect('results' in payload.change).toBe(false);
+    });
+});

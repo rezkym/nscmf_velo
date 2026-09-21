@@ -965,3 +965,61 @@ describe('queued save settlement (FE-27 AC3 / FE-28 AC1)', () => {
         expect(queuedSettled).toBe(true);
     });
 });
+
+describe('FE-26 AC4: results_do_not_save_pending_review_via_draft', () => {
+    it('omits results from the draft PATCH while the record is in PENDING_REVIEW', async () => {
+        const fields = ref<ChangeDraftFields>({
+            maintenance_purpose: 'Routine check',
+            results: [
+                {
+                    row_no: 1,
+                    result_summary: 'Done',
+                    performance_information: 'Good',
+                    result_status: 'Selesai',
+                },
+            ],
+        });
+
+        const draft = useDraftSave({
+            recordId: 77,
+            family: 'CHANGE',
+            recordVersion: 4,
+            businessStatus: 'PENDING_REVIEW',
+            fields,
+        });
+
+        void draft.save();
+
+        const sent = lastRequest('/nscmf/77/draft')?.data as { change: Record<string, unknown> };
+        // 12 §28.2: in PENDING_REVIEW a results key sent to /draft is rejected with 422, so the
+        // client must not send one. Results travel through PATCH /change-results instead (12 §29).
+        expect('results' in sent.change).toBe(false);
+        expect(sent.change.maintenance_purpose).toBe('Routine check');
+    });
+
+    it('sends results while the record is still editable', async () => {
+        const fields = ref<ChangeDraftFields>({
+            results: [
+                {
+                    row_no: 1,
+                    result_summary: 'Done',
+                    performance_information: 'Good',
+                    result_status: 'Selesai',
+                },
+            ],
+        });
+
+        const draft = useDraftSave({
+            recordId: 77,
+            family: 'CHANGE',
+            recordVersion: 4,
+            businessStatus: 'REVISION_REQUIRED',
+            fields,
+        });
+
+        void draft.save();
+
+        const sent = lastRequest('/nscmf/77/draft')?.data as { change: { results?: unknown[] } };
+        expect(sent.change.results).toHaveLength(1);
+    });
+});
