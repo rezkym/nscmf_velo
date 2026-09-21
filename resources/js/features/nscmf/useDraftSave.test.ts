@@ -967,3 +967,35 @@ describe('useDraftSave (FE-27)', () => {
         });
     });
 });
+
+describe('queued save settlement (FE-27 AC3 / FE-28 AC1)', () => {
+    it('settles a queued save when the in-flight request ends in a conflict', async () => {
+        const fields = ref<ActivationDraftFields>({ customer_name: 'First' });
+        const draft = useDraftSave({ recordId: 42, family: 'ACTIVATION', recordVersion: 8, fields });
+
+        const firstSave = draft.save();
+
+        // A second save arrives while the first is still in flight, so it is queued.
+        fields.value = { customer_name: 'Second' };
+        const queuedSave = draft.save();
+
+        let queuedSettled = false;
+        void queuedSave.then(() => {
+            queuedSettled = true;
+        });
+
+        // The in-flight request comes back as a version conflict, which stops further saving.
+        lastRequest('/nscmf/42/draft')?.options.onHttpException?.({
+            status: 409,
+            data: { code: 'NSCMF_VERSION_CONFLICT', message: 'A newer version exists.' },
+        });
+
+        await firstSave;
+        await queuedSave;
+        await Promise.resolve();
+
+        expect(draft.isConflict.value).toBe(true);
+        // A caller awaiting the queued save - FE-28 gates submit on exactly this - must not hang.
+        expect(queuedSettled).toBe(true);
+    });
+});
