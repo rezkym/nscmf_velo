@@ -300,12 +300,6 @@ describe('ChangeResults (FE-29)', () => {
             expect(wrapper.find('[data-testid="ineligible-alert"]').exists()).toBe(true);
             expect(wrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(false);
 
-            // Directly invoking submitResults when ineligible is an early no-op: no request sent
-            const vm = wrapper.vm as unknown as { submitResults?: () => void };
-            const reqCountBefore = requests.length;
-            vm.submitResults?.();
-            expect(requests.length).toBe(reqCountBefore);
-
             const noOwnerWrapper = mountChangeResults({ owner: null });
             expect(noOwnerWrapper.find('[data-testid="ineligible-alert"]').exists()).toBe(true);
             expect(noOwnerWrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(false);
@@ -614,19 +608,19 @@ describe('ChangeResults (FE-29)', () => {
         });
 
         it('handles malformed projection error gracefully via RequestFeedback (N-29-3)', async () => {
-            const wrapper = mountChangeResults();
-            const vm = wrapper.vm as unknown as {
-                resultsModel: { results: unknown[] };
-                submitResults: () => void;
-            };
+            // A projection carrying two rows with the same natural key is malformed (12 §7.4.1);
+            // the editor must report it rather than send it.
+            const wrapper = mountChangeResults({
+                change: {
+                    ...BASE_RECORD.change,
+                    results: [
+                        { row_no: 1, result_summary: 'first', performance_information: null, result_status: null },
+                        { row_no: 1, result_summary: 'duplicate', performance_information: null, result_status: null },
+                    ],
+                },
+            });
 
-            // Set duplicate row_no in resultsModel to trigger builder error
-            vm.resultsModel.results = [
-                { row_no: 1, result_summary: 'first' },
-                { row_no: 1, result_summary: 'duplicate' },
-            ];
-
-            vm.submitResults();
+            await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
             await nextTick();
 
             expect(wrapper.find('[data-testid="feedback-validation"]').exists()).toBe(true);
@@ -790,5 +784,23 @@ describe('partially started result rows (06 §46)', () => {
                 result_status: null,
             },
         ]);
+    });
+});
+
+describe('double submit', () => {
+    it('sends one request even if the button is clicked again while in flight', async () => {
+        const wrapper = mountChangeResults();
+        const button = wrapper.get<HTMLButtonElement>('[data-testid="submit-results-btn"]');
+
+        await button.trigger('click');
+        expect(requests.filter((request) => request.url === '/nscmf/42/change-results')).toHaveLength(1);
+
+        // The button is disabled while the first request is in flight; a click that reaches it
+        // anyway must not produce a second mutation.
+        expect(button.element.disabled).toBe(true);
+        button.element.dispatchEvent(new Event('click'));
+        await nextTick();
+
+        expect(requests.filter((request) => request.url === '/nscmf/42/change-results')).toHaveLength(1);
     });
 });

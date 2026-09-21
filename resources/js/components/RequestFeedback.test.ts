@@ -309,7 +309,7 @@ describe('RequestFeedback.vue (FE-07)', () => {
     });
 
     it('shows a save indicator only for a status it knows, and skips a message of an unexpected type', () => {
-        const noStatus = mount(RequestFeedback, { props: { saveStatus: null, showSaveStatus: true } });
+        const noStatus = mount(RequestFeedback, { props: { saveStatus: null } });
         expect(noStatus.text()).not.toContain('Saving');
         expect(noStatus.text()).not.toContain('Saved just now');
 

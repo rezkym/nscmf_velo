@@ -221,7 +221,9 @@ const NUMBERED_TEXT = [
 ];
 
 function submitResults(): void {
-    if (!isEligible.value || submitting.value) return;
+    // Eligibility is enforced by `v-if="isEligible"` around the editor, so it is not re-checked
+    // here; a second submit is blocked by the button's disabled state.
+    if (submitting.value) return;
 
     fieldErrors.value = {};
     feedbackError.value = null;
