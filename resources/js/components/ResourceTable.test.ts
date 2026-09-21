@@ -109,6 +109,22 @@ describe('ResourceTable.vue', () => {
             expect(latestQuery.per_page).toBe(100);
         });
 
+        it('sends a whole number of rows per page', async () => {
+            const wrapper = mount(ResourceTable, {
+                props: {
+                    columns: sampleColumns,
+                    items: [],
+                    query: { page: 1, per_page: 25.7 } satisfies TableQuery,
+                },
+            });
+
+            await wrapper.get('[data-testid="table-search-input"]').setValue('demo');
+
+            const emitted = wrapper.emitted('update:query');
+            const latestQuery = (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
+            expect(latestQuery.per_page).toBe(25);
+        });
+
         it('rejects unknown sort field not in whitelist: sort tak dikenal ditolak', async () => {
             const wrapper = mount(ResourceTable, {
                 props: {
