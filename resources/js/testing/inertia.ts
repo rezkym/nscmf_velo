@@ -122,10 +122,25 @@ export function resetInertia(props: Record<string, unknown> = {}, flash: Record<
     vi.clearAllMocks();
 }
 
+/**
+ * Which flash channel a response arrives on. The installed @inertiajs/core carries flash at
+ * `Page.flash`, but a Laravel application may also share a `flash` prop, and no NSCMF response
+ * exists yet to settle it (gap G02). Filling both by default would hide a component that reads
+ * only one, so a test can name a single channel and prove that channel on its own.
+ */
+export type FlashChannel = 'page' | 'props' | 'both';
+
 /** Simulates the server flashing a domain error (12 §10) and the page rendering the new props. */
-export async function flashDomainError(error: { code?: string; message?: string }): Promise<void> {
-    pageProps.flash = { ...(pageProps.flash as Record<string, unknown> | undefined), domain_error: error };
-    pageFlash.domain_error = error;
+export async function flashDomainError(
+    error: { code?: string; message?: string },
+    channel: FlashChannel = 'both',
+): Promise<void> {
+    if (channel !== 'page') {
+        pageProps.flash = { ...(pageProps.flash as Record<string, unknown> | undefined), domain_error: error };
+    }
+    if (channel !== 'props') {
+        pageFlash.domain_error = error;
+    }
     await nextTick();
 }
 

@@ -35,14 +35,18 @@ export function isRecordConflictCode(code: string | undefined): boolean {
 }
 
 /**
- * Reads the flashed domain error from an Inertia page or from a bare flash bag.
- * The installed @inertiajs/core carries flash at `Page.flash`, and hands the same bag to `onFlash`.
+ * Reads the flashed domain error from an Inertia page or from a bare flash bag (12 §10).
+ *
+ * The installed @inertiajs/core carries flash at `Page.flash` and hands that bag to `onFlash`, but
+ * a Laravel application may equally share a `flash` prop, and no NSCMF response exists yet to say
+ * which this project will use (gap G02). Reading both is the one choice that cannot be wrong, and
+ * it keeps every caller on the same reader instead of each picking a channel and hoping.
  */
 export function pageDomainError(pageOrFlash: unknown): DomainError | null {
     if (typeof pageOrFlash !== 'object' || pageOrFlash === null) return null;
 
-    const { flash } = pageOrFlash as { flash?: unknown };
-    return domainError(flash ?? pageOrFlash);
+    const { flash, props } = pageOrFlash as { flash?: unknown; props?: { flash?: unknown } };
+    return domainError(flash) ?? domainError(props?.flash) ?? domainError(pageOrFlash);
 }
 
 /** Reads the flashed domain error. Local view-model over the shared flash bag (gap G02). */
