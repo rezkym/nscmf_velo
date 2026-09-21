@@ -351,3 +351,13 @@ describe('the save indicator never contradicts an error (07 §23)', () => {
         expect(wrapper.text()).toContain('Saved just now');
     });
 });
+
+describe('validation is recognised under either catalogue name (gap G07)', () => {
+    it.each(['NSCMF_VALIDATION_FAILED', 'VALIDATION_FAILED'])('renders the validation panel for code %s', (code) => {
+        const wrapper = mount(RequestFeedback, {
+            props: { error: { code, errors: { 'change.results.0.result_summary': 'Required.' } } },
+        });
+
+        expect(wrapper.find('[data-testid="feedback-validation"]').exists()).toBe(true);
+    });
+});

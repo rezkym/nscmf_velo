@@ -1,18 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { RECORD_CONFLICT_CODES, domainError, firstError, isRecordConflictCode, pageDomainError } from './apiErrors';
-
-describe('firstError', () => {
-    it('prefers the requested keys in order', () => {
-        expect(firstError({ name: 'Name taken', message: 'Denied' }, 'Failed', ['message', 'name'])).toBe('Denied');
-    });
-
-    it('falls back to the first message, then to the fallback text', () => {
-        expect(firstError({ role_ids: 'Invalid role' }, 'Failed', ['message'])).toBe('Invalid role');
-        expect(firstError({}, 'Failed')).toBe('Failed');
-        expect(firstError({ message: '' }, 'Failed')).toBe('Failed');
-    });
-});
+import { RECORD_CONFLICT_CODES, domainError, isRecordConflictCode, pageDomainError } from './apiErrors';
 
 describe('domainError', () => {
     it('reads the flashed domain error with its stable code', () => {

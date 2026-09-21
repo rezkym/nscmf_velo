@@ -29,8 +29,12 @@ const isConflict = computed(() => {
     return props.error?.status === 409 || props.error?.code === 'NSCMF_VERSION_CONFLICT';
 });
 
+// Gap G07: 12 §27 uses NSCMF_VALIDATION_FAILED while the common catalogue also carries
+// VALIDATION_FAILED. Both are accepted rather than betting on one name before the contract binds.
+const VALIDATION_CODES = ['NSCMF_VALIDATION_FAILED', 'VALIDATION_FAILED'];
+
 const isValidation = computed(() => {
-    return props.error?.status === 422 || props.error?.code === 'NSCMF_VALIDATION_FAILED';
+    return props.error?.status === 422 || VALIDATION_CODES.some((code) => code === props.error?.code);
 });
 
 const isForbidden = computed(() => {
