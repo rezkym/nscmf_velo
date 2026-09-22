@@ -68,6 +68,21 @@ final class PermissionCatalog
         ];
     }
 
+    /** Display grouping for the role-permission editor; presentation only. */
+    public static function group(string $permission): string
+    {
+        return match (true) {
+            str_starts_with($permission, 'nscmf.review') => 'Review',
+            str_starts_with($permission, 'nscmf.approv') => 'Approval',
+            in_array($permission, ['nscmf.reopen', 'nscmf.archive'], true) => 'Lifecycle',
+            str_starts_with($permission, 'nscmf.') => 'NSCMF',
+            str_starts_with($permission, 'users.') => 'Users',
+            str_starts_with($permission, 'roles.'), str_starts_with($permission, 'permissions.') => 'Roles and permissions',
+            str_starts_with($permission, 'teams.') => 'Teams',
+            default => 'Settings and audits',
+        };
+    }
+
     /**
      * @return array<string, list<string>>
      */

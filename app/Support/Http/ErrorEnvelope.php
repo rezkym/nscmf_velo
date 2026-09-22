@@ -24,7 +24,16 @@ final class ErrorEnvelope
     public static function render(Throwable $exception, Request $request): JsonResponse|RedirectResponse|null
     {
         if (! $request->expectsJson()) {
-            return $exception instanceof DomainRuleException ? self::flashBack($exception) : null;
+            if (! $exception instanceof DomainRuleException) {
+                return null;
+            }
+
+            // Forbidden/unknown resources are real HTTP outcomes, not flashed action errors (12 §102).
+            if (in_array($exception->errorCode, ['FORBIDDEN', 'RESOURCE_NOT_FOUND'], true)) {
+                abort($exception->status);
+            }
+
+            return self::flashBack($exception);
         }
 
         return match (true) {
@@ -75,6 +84,10 @@ final class ErrorEnvelope
 
     private static function flashBack(DomainRuleException $exception): RedirectResponse
     {
+        if ($exception->errors !== []) {
+            return back()->withErrors($exception->errors);
+        }
+
         Inertia::flash('domain_error', ['code' => $exception->errorCode, 'message' => $exception->getMessage()]);
 
         return back();

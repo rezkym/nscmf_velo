@@ -6,7 +6,9 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Testing\TestResponse;
 use Spatie\Permission\Models\Role;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\Actors;
 use Tests\Support\Sessions;
 use Tests\TestCase;
@@ -22,11 +24,23 @@ function reauthed(User $user): TestCase
 }
 
 /**
+ * @param  array<string, mixed>  $overrides
  * @return array<string, mixed>
  */
 function createBody(int $teamId, int $roleId, array $overrides = []): array
 {
-    return ['name' => 'Example User', 'username' => 'example.user', 'team_id' => $teamId, 'role_ids' => [$roleId], ...$overrides];
+    return array_merge(['name' => 'Example User', 'username' => 'example.user', 'team_id' => $teamId, 'role_ids' => [$roleId]], $overrides);
+}
+
+/**
+ * @param  TestResponse<Response>  $response
+ */
+function secretFrom(TestResponse $response): string
+{
+    $secret = $response->json('data.temporary_password');
+    assert(is_string($secret));
+
+    return $secret;
 }
 
 it('creates a user and reveals the generated password once, no-store, hash only', function (): void {
@@ -44,11 +58,11 @@ it('creates a user and reveals the generated password once, no-store, hash only'
         ->assertJsonPath('data.user.username', 'example.user')
         ->assertJsonPath('data.user.must_change_password', true);
 
-    $plain = $response->json('data.temporary_password');
-    expect($plain)->toBeString()->and(strlen((string) $plain))->toBeGreaterThanOrEqual(12);
+    $plain = secretFrom($response);
+    expect(strlen($plain))->toBeGreaterThanOrEqual(12);
 
     $user = User::query()->where('username', 'example.user')->sole();
-    expect(Hash::check((string) $plain, $user->password))->toBeTrue()
+    expect(Hash::check($plain, $user->password))->toBeTrue()
         ->and($user->must_change_password)->toBeTrue()
         ->and($user->team_id)->toBe($team->id)
         ->and($user->hasRole('Requester Duty'))->toBeTrue();
@@ -56,7 +70,7 @@ it('creates a user and reveals the generated password once, no-store, hash only'
     $everything = json_encode([
         DB::table('users')->get(), DB::table('security_audit_events')->get(), DB::table('sessions')->get(), DB::table('cache')->get(), session()->all(),
     ], JSON_THROW_ON_ERROR);
-    expect($everything)->not->toContain((string) $plain);
+    expect($everything)->not->toContain($plain);
     foreach (['info', 'warning', 'error', 'debug', 'notice', 'log'] as $level) {
         $log->shouldNotHaveReceived($level);
     }
@@ -95,23 +109,22 @@ it('resets a password with a new secret, revokes the target sessions and offers 
     $target = Actors::requester();
     $session = Sessions::existing($target, now()->subMinutes(5)->toDateTimeString());
 
-    $first = reauthed($admin)->postJson("/administration/users/{$target->id}/reset-password")
+    $first = secretFrom(reauthed($admin)->postJson("/administration/users/{$target->id}/reset-password")
         ->assertOk()
         ->assertHeader('Cache-Control', 'no-store, private')
         ->assertJsonPath('data.user_id', $target->id)
         ->assertJsonPath('data.must_change_password', true)
-        ->assertJsonPath('meta.temporary_password_reveal', 'ONE_TIME_ONLY')
-        ->json('data.temporary_password');
+        ->assertJsonPath('meta.temporary_password_reveal', 'ONE_TIME_ONLY'));
 
     $target->refresh();
-    expect(Hash::check((string) $first, $target->password))->toBeTrue()
+    expect(Hash::check($first, $target->password))->toBeTrue()
         ->and(Hash::check(Actors::PASSWORD, $target->password))->toBeFalse()
         ->and($target->must_change_password)->toBeTrue()
         ->and(DB::table('sessions')->where('id', $session)->exists())->toBeFalse();
 
-    $second = reauthed($admin)->postJson("/administration/users/{$target->id}/reset-password")->json('data.temporary_password');
+    $second = secretFrom(reauthed($admin)->postJson("/administration/users/{$target->id}/reset-password"));
     expect($second)->not->toBe($first)
-        ->and(Hash::check((string) $first, (string) $target->fresh()?->password))->toBeFalse();
+        ->and(Hash::check($first, (string) $target->fresh()?->password))->toBeFalse();
 
     signIn($admin)->getJson("/administration/users/{$target->id}/temporary-password")->assertNotFound();
 });

@@ -46,7 +46,7 @@ final readonly class CredentialService
             $locked = $this->users->lockForUpdate($user->id);
 
             if ($locked === null || ! $locked->must_change_password) {
-                throw DomainRuleException::forbidden('There is no pending password change for this account.');
+                throw new DomainRuleException('PASSWORD_CHANGE_NOT_PENDING', 'There is no pending password change for this account.', 409);
             }
 
             $this->users->update($locked, [

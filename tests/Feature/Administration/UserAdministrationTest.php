@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
@@ -32,7 +33,7 @@ it('lists users with a safe, paginated projection', function (): void {
             ->component('Administration/Users/Index')
             ->where('meta.per_page', 100)
             ->where('meta.total', 2)
-            ->where('users', fn ($users) => collect($users)->contains(fn ($row) => $row['id'] === $member->id
+            ->where('users', fn (Collection $users): bool => $users->contains(fn (array $row): bool => $row['id'] === $member->id
                 && $row['username'] === $member->username
                 && $row['team_id'] === $member->team_id
                 && $row['team_name'] === $member->team?->name

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Contracts\Administration;
 
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface UserRepository
 {
@@ -22,6 +23,14 @@ interface UserRepository
      * @param  array<string, mixed>  $attributes
      */
     public function update(User $user, array $attributes): void;
+
+    /**
+     * @return LengthAwarePaginator<int, User>
+     */
+    public function paginateForAdministration(int $page, int $perPage): LengthAwarePaginator;
+
+    /** Setup readiness: an active non-protected user holding at least one role. */
+    public function hasActiveNormalUserWithRole(): bool;
 
     /** Re-reads the user row under a write lock for an identity/security mutation. */
     public function lockForUpdate(int $id): ?User;

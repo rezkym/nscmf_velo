@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Administration\PermissionCatalog;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
@@ -24,8 +25,8 @@ it('lists roles with their permissions and the grouped explicit catalog', functi
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Administration/Roles/Index')
             ->has('roles', 5)
-            ->where('roles', fn ($roles) => collect($roles)->firstWhere('name', 'Superadmin')['is_protected'] === true
-                && collect($roles)->firstWhere('name', 'Requester')['is_protected'] === false)
+            ->where('roles', fn (Collection $roles): bool => $roles->contains(fn (array $role): bool => $role['name'] === 'Superadmin' && $role['is_protected'] === true)
+                && $roles->contains(fn (array $role): bool => $role['name'] === 'Requester' && $role['is_protected'] === false))
             ->has('permissionCatalog', count(PermissionCatalog::all()))
             ->where('permissionCatalog.0.name', 'nscmf.create')
             ->where('permissionCatalog.0.group', 'NSCMF'));
