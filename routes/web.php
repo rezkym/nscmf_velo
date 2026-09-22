@@ -12,6 +12,7 @@ use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\ReauthenticateController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Nscmf\CreateNscmfController;
+use App\Http\Controllers\Nscmf\SaveDraftController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -34,6 +35,7 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('/nscmf/create', [CreateNscmfController::class, 'create'])->name('nscmf.create');
     Route::post('/nscmf', [CreateNscmfController::class, 'store'])->name('nscmf.store');
+    Route::patch('/nscmf/{record}/draft', SaveDraftController::class)->whereNumber('record')->name('nscmf.draft');
 
     Route::prefix('administration')->whereNumber(['team', 'user', 'role'])->group(function (): void {
         Route::get('/setup', SetupController::class)->name('administration.setup');
