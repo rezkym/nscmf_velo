@@ -12,6 +12,7 @@ use App\Models\Audit\SecurityAuditEventRecord;
 use App\Services\Audit\AccessAuditService;
 use App\Services\Audit\BusinessAuditService;
 use App\Services\Audit\SecurityAuditService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Tests\Integration\Database\SchemaFixtures;
 
@@ -38,7 +39,7 @@ it('writes a Business Audit event with actor, versions and field changes', funct
     );
 
     $event = DB::table('business_audit_events')->sole();
-    $changes = DB::table('business_audit_changes')->orderBy('id')->get();
+    $changes = DB::table('business_audit_changes')->orderBy('id')->get()->all();
 
     expect($event->actor_type)->toBe('USER')
         ->and($event->actor_user_id)->toBe($actorId)
@@ -112,18 +113,23 @@ it('stores safe Security Audit context', function (): void {
 
     expect($row->outcome)->toBe('FAILURE')
         ->and($row->subject_username)->toBe('security.actor')
-        ->and(json_decode((string) $row->metadata_json, true))->toBe(['reason' => 'INVALID_CREDENTIALS']);
+        ->and(json_decode(is_string($row->metadata_json) ? $row->metadata_json : '', true))->toBe(['reason' => 'INVALID_CREDENTIALS']);
 });
 
-it('offers no way to edit or delete authoritative audit rows', function (string $model): void {
+it('offers no way to edit or delete authoritative audit rows', function (Closure $row): void {
     $recordId = SchemaFixtures::record();
     $actorId = SchemaFixtures::user('immutable.actor');
     app(BusinessAuditService::class)->record(recordId: $recordId, actorUserId: $actorId, event: BusinessAuditEvent::RECORD_CREATED);
     app(AccessAuditService::class)->record(actorUserId: $actorId, event: AccessAuditEvent::RECORD_VIEWED, recordId: $recordId);
     app(SecurityAuditService::class)->record(event: SecurityAuditEvent::LOGOUT, outcome: SecurityAuditOutcome::SUCCESS, actorUserId: $actorId);
 
-    $row = $model::query()->firstOrFail();
+    $model = $row();
+    assert($model instanceof Model);
 
-    expect(fn () => $row->update(['event_type' => 'TAMPERED']))->toThrow(LogicException::class)
-        ->and(fn () => $row->delete())->toThrow(LogicException::class);
-})->with([BusinessAuditEventRecord::class, AccessAuditEventRecord::class, SecurityAuditEventRecord::class]);
+    expect(fn () => $model->update(['event_type' => 'TAMPERED']))->toThrow(LogicException::class)
+        ->and(fn () => $model->delete())->toThrow(LogicException::class);
+})->with([
+    'business' => fn () => BusinessAuditEventRecord::query()->firstOrFail(),
+    'access' => fn () => AccessAuditEventRecord::query()->firstOrFail(),
+    'security' => fn () => SecurityAuditEventRecord::query()->firstOrFail(),
+]);
