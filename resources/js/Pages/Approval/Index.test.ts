@@ -1,11 +1,17 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { router as inertiaRouter } from '@inertiajs/core';
 
 import type { PaginationMeta } from '@/features/nscmf/contracts';
 import { resetInertia, router } from '@/testing/inertia';
 import Index, { type ApprovalQueueItem } from './Index.vue';
 
-vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
+vi.mock('@inertiajs/vue3', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@inertiajs/vue3')>();
+    const testing = await import('@/testing/inertia');
+
+    return { ...testing.inertiaModule, Link: actual.Link };
+});
 
 const sampleItems: ApprovalQueueItem[] = [
     {
@@ -75,6 +81,7 @@ describe('Approval Queue — Index.vue (FE-32)', () => {
         expect(wrapper.text()).toContain('NSCMF-202609-00012');
         expect(wrapper.text()).toContain('Bob Requester');
         expect(wrapper.text()).toContain('Team Beta');
+        expect(wrapper.text()).toContain('Pending Approval');
         expect(wrapper.get('[data-testid="btn-view-201"]').attributes('href')).toBe('/approval/201');
         expect(wrapper.get('[data-testid="btn-view-202"]').attributes('href')).toBe('/approval/202');
     });
@@ -93,11 +100,18 @@ describe('Approval Queue — Index.vue (FE-32)', () => {
         expect(wrapper.text()).not.toContain('Vote');
     });
 
-    it('AC2: opens a queue item through GET only', async () => {
+    it('AC2: opens a queue item through GET only', () => {
         const wrapper = mountApprovalQueue();
+        const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+        const visit = vi.spyOn(inertiaRouter, 'visit').mockImplementation(() => undefined);
 
-        await wrapper.get('[data-testid="btn-view-201"]').trigger('click');
+        wrapper.get('[data-testid="btn-view-201"]').element.dispatchEvent(event);
 
+        expect(event.defaultPrevented).toBe(true);
+        expect(visit).toHaveBeenCalledWith(
+            '/approval/201',
+            expect.objectContaining({ method: 'get', data: {}, preserveState: false }),
+        );
         expect(router.post).not.toHaveBeenCalled();
         expect(router.put).not.toHaveBeenCalled();
         expect(router.patch).not.toHaveBeenCalled();
