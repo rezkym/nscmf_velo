@@ -97,7 +97,9 @@ const submitting = ref(false);
 const hasTerminalError = ref(false);
 
 /** Only a stale base version makes further editing pointless; other errors are reported, not locked. */
-const isVersionConflict = computed(() => feedbackError.value?.code === 'NSCMF_VERSION_CONFLICT');
+const isVersionConflict = computed(
+    () => feedbackError.value?.status === 409 || feedbackError.value?.code === 'NSCMF_VERSION_CONFLICT',
+);
 
 /** The rows as last loaded from the server, so local typing can be told apart from a server change. */
 const loadedRows = ref(JSON.stringify(resultsModel.value.results));
@@ -270,19 +272,10 @@ function submitResults(): void {
             };
         },
         onHttpException: (response) => {
-            // No code is claimed that the server did not send (12 §12); the status carries the
-            // meaning and RequestFeedback classifies on it.
-            latchTerminal(
-                response.status === 403
-                    ? { status: 403, code: 'FORBIDDEN', message: 'Access Denied' }
-                    : response.status === 409
-                      ? {
-                            status: 409,
-                            code: 'NSCMF_VERSION_CONFLICT',
-                            message: 'A newer version of this record exists.',
-                        }
-                      : { status: response.status, message: 'A server error occurred.' },
-            );
+            // The status is the whole classification (12 §11); RequestFeedback renders from it.
+            // No code is invented from a status the server never named (12 §12), and no message
+            // either - a server that wants to say something flashes it.
+            latchTerminal({ status: response.status });
         },
         onFlash: (flash) => {
             const terminal = terminalFromDomainError(pageDomainError(flash));
@@ -290,11 +283,7 @@ function submitResults(): void {
         },
         onNetworkError: () => {
             saveStatus.value = 'error';
-            feedbackError.value = {
-                isNetworkError: true,
-                status: 0,
-                message: 'Network connection failed.',
-            };
+            feedbackError.value = { isNetworkError: true };
         },
         onFinish: () => {
             submitting.value = false;
@@ -303,12 +292,8 @@ function submitResults(): void {
 }
 
 function handleRefresh(): void {
-    router.reload({
-        onSuccess: () => {
-            hasTerminalError.value = false;
-            resetToRecord();
-        },
-    });
+    // resetToRecord clears the latch along with the errors.
+    router.reload({ onSuccess: resetToRecord });
 }
 </script>
 
