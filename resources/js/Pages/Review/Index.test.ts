@@ -300,9 +300,21 @@ describe('the queue table matches the columns FE-30 asks for', () => {
 
     it('names an Activation plainly and a Change by family and subtype', () => {
         const wrapper = mountReviewQueue();
+        const typeCells = wrapper.findAll('tbody tr').map((row) => row.findAll('td')[1]?.text());
 
-        expect(wrapper.text()).toContain('Activation');
-        expect(wrapper.text()).toContain('Change · Maintenance');
+        // Exact text: "Activation · Activation" would also contain "Activation".
+        expect(typeCells).toContain('Activation');
+        expect(typeCells).toContain('Change · Maintenance');
+    });
+
+    it('falls back to the contract default of 25 rows when no query is supplied', () => {
+        const wrapper = mountReviewQueue();
+        const query = wrapper.findComponent({ name: 'ResourceTable' }).props('query') as {
+            page: number;
+            per_page: number;
+        };
+
+        expect(query).toEqual({ page: 1, per_page: 25 });
     });
 
     it('keeps the page state and scroll position when the query changes', () => {
