@@ -1,4 +1,14 @@
-# Frontend handoff — after the FE-11..25 cleanup
+# Handoff proyek Alya / NSCMF
+
+Handoff terbaru: [2026-09-22 — Backlog backend NSCMF](2026-09-22-microtask-be.md).
+Paket `microtask_be` berisi 149 task; penyusunan dokumennya selesai, sedangkan
+implementasi tetap PLANNED dan pengujian aplikasi NOT RUN. Catatan tersebut memuat
+branch, file yang belum dikomit, bukti verifikasi, gap dan langkah berikutnya.
+
+Bagian berikut adalah handoff FE historis pada tanggal yang tercantum. Status
+branch, cakupan dan test di dalamnya bukan status repository terbaru.
+
+## Frontend handoff — after the FE-11..25 cleanup
 
 > **Date:** 2026-09-20
 > **Branch:** `main` (merged locally, **not pushed**, no Pull Request opened)
@@ -24,15 +34,15 @@ already merged into `main` and is history only — see
 
 ## Read in this order
 
-| File | What it answers |
-|---|---|
-| [2026-09-16-phase-0-bootstrap.md](2026-09-16-phase-0-bootstrap.md) | the earlier handoff: toolchain, versions, local infrastructure, CI, Phase 0/T04 decisions |
-| [01_repository_state.md](01_repository_state.md) | what is on `main` now, how it got there, which gates pass, how to verify it yourself |
-| [02_shared_building_blocks.md](02_shared_building_blocks.md) | the exact API of every shared component, composable and helper to reuse |
-| [03_draft_section_contract.md](03_draft_section_contract.md) | the contract the six draft sections follow: props, naming, ids, test ids, test skeleton |
-| [04_fe_26_30_readiness.md](04_fe_26_30_readiness.md) | per task FE-26..30: what exists, what is missing, which contract rules bite |
-| [05_open_items_and_boundaries.md](05_open_items_and_boundaries.md) | open gaps, deliberate removals that must not come back, honest limitations |
-| [06_fe_26_30_review.md](06_fe_26_30_review.md) | the 2026-09-21 review of FE-26..30 on `fix/fe-26-30-closure`: defects found, patches, gates, what stays open |
+| File                                                               | What it answers                                                                                                                   |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| [2026-09-16-phase-0-bootstrap.md](2026-09-16-phase-0-bootstrap.md) | the earlier handoff: toolchain, versions, local infrastructure, CI, Phase 0/T04 decisions                                         |
+| [01_repository_state.md](01_repository_state.md)                   | what is on `main` now, how it got there, which gates pass, how to verify it yourself                                              |
+| [02_shared_building_blocks.md](02_shared_building_blocks.md)       | the exact API of every shared component, composable and helper to reuse                                                           |
+| [03_draft_section_contract.md](03_draft_section_contract.md)       | the contract the six draft sections follow: props, naming, ids, test ids, test skeleton                                           |
+| [04_fe_26_30_readiness.md](04_fe_26_30_readiness.md)               | per task FE-26..30: what exists, what is missing, which contract rules bite                                                       |
+| [05_open_items_and_boundaries.md](05_open_items_and_boundaries.md) | open gaps, deliberate removals that must not come back, honest limitations                                                        |
+| [06_fe_26_30_review.md](06_fe_26_30_review.md)                     | the 2026-09-21 review of FE-26..30 on `fix/fe-26-30-closure`: defects found, patches, gates, what stays open                      |
 | [07_fe_26_30_silent_bug_audit.md](07_fe_26_30_silent_bug_audit.md) | the 2026-09-22 mutation-proved silent-bug audit: the flash-channel split, the unfaithful Inertia double, per-file mutation scores |
 
 ## The three sentences that matter most
