@@ -804,3 +804,94 @@ describe('double submit', () => {
         expect(requests.filter((request) => request.url === '/nscmf/42/change-results')).toHaveLength(1);
     });
 });
+
+describe('recovering after the record moved', () => {
+    it('re-enables the editor once the refresh brings the latest record', async () => {
+        const wrapper = mountChangeResults();
+
+        await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+        await respondToRequest(lastRequest('/nscmf/42/change-results'), { status: 409, isInertia: true });
+        await nextTick();
+        expect(wrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(false);
+
+        await wrapper.get('[data-testid="feedback-refresh-btn"]').trigger('click');
+        const reload = (router.reload as unknown as { mock: { calls: [{ onSuccess?: () => void }][] } }).mock.calls;
+        reload[0]?.[0]?.onSuccess?.();
+        await nextTick();
+
+        // FE-29 AC3 offers a refresh; after it lands the owner must be able to edit again.
+        expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(false);
+        expect(wrapper.get<HTMLButtonElement>('[data-testid="submit-results-btn"]').element.disabled).toBe(false);
+    });
+});
+
+describe('the feedback error carries the shape RequestFeedback classifies on', () => {
+    it.each([
+        [403, 'feedback-forbidden'],
+        [409, 'feedback-conflict'],
+    ])('maps HTTP %i onto the matching panel', async (status, testId) => {
+        const wrapper = mountChangeResults();
+
+        await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+        await respondToRequest(lastRequest('/nscmf/42/change-results'), { status, isInertia: true });
+        await nextTick();
+
+        expect(wrapper.find(`[data-testid="${testId}"]`).exists()).toBe(true);
+    });
+
+    it('reports a lost connection as a network failure, not a server error', async () => {
+        const wrapper = mountChangeResults();
+
+        await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+        lastRequest('/nscmf/42/change-results')?.options.onNetworkError?.(new Error('offline'));
+        await nextTick();
+
+        expect(wrapper.find('[data-testid="feedback-network-error"]').exists()).toBe(true);
+    });
+});
+
+describe('read-only context tolerates a sparse projection', () => {
+    it('shows a dash for a missing monitoring period and announcement', () => {
+        const wrapper = mountChangeResults({
+            change: {
+                ...BASE_RECORD.change,
+                monitoring_period_value: null,
+                monitoring_period_unit: null,
+                announcement_timing: null,
+            },
+        });
+
+        expect(wrapper.get('[data-testid="field-monitoring_period"]').text()).toContain('—');
+        expect(wrapper.get('[data-testid="field-announcement_timing"]').text()).toContain('—');
+    });
+
+    it('numbers result rows from one when the projection omits row_no', async () => {
+        const wrapper = mountChangeResults({
+            change: {
+                ...BASE_RECORD.change,
+                results: [{ row_no: 0, result_summary: 'First', performance_information: null, result_status: null }],
+            },
+        });
+
+        await wrapper.get('[data-testid="submit-results-btn"]').trigger('click');
+
+        // row_no is the natural key (12 §7.4.1); a projection without one must still send 1..n.
+        const sent = lastRequest('/nscmf/42/change-results')?.data as { results: { row_no: number }[] };
+        expect(sent.results[0]?.row_no).toBe(1);
+    });
+
+    it('treats an empty stored string as unchanged, not as an unsaved edit', async () => {
+        const wrapper = mountChangeResults({
+            change: {
+                ...BASE_RECORD.change,
+                results: [{ row_no: 1, result_summary: '', performance_information: '', result_status: '' }],
+            },
+        });
+
+        // Nothing was typed, so a version bump from elsewhere may resync instead of warning.
+        await wrapper.setProps({ record: { ...BASE_RECORD, record_version: 8 } });
+        await nextTick();
+
+        expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(false);
+    });
+});
