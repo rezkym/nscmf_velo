@@ -38,10 +38,7 @@ it('accepts only the disposable testing runtime', function (): void {
 });
 
 it('rejects each unsafe browser runtime', function (Closure $problems, string $problem): void {
-    $found = $problems();
-    assert(is_array($found));
-
-    expect(implode(' ', $found))->toContain($problem);
+    expect((string) json_encode($problems()))->toContain($problem);
 })->with([
     'local environment' => [fn () => guardProblems(environment: 'local'), 'APP_ENV'],
     'production environment' => [fn () => guardProblems(environment: 'production'), 'APP_ENV'],
