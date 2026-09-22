@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, ref } from 'vue';
+import { defineComponent, h, nextTick, ref } from 'vue';
 
 import SubmitPanel from './SubmitPanel.vue';
 import type { BusinessStatus } from './contracts';
@@ -757,6 +757,46 @@ describe('resolving a scalar error path against a real section', () => {
             expect(document.activeElement).toBe(harness.get('#customer_name').element);
         } finally {
             harness.unmount();
+        }
+    });
+});
+
+describe('ownership and the error summary focus', () => {
+    it('is not the owner when nobody is signed in', () => {
+        resetInertia({ auth: { user: null, permissions: ['nscmf.submit'] } });
+
+        const wrapper = mount(SubmitPanel, {
+            props: {
+                recordId: 42,
+                recordVersion: 3,
+                businessStatus: 'DRAFT' as BusinessStatus,
+                ownerId: null,
+                allowedActions: ['submit'],
+            },
+        });
+
+        // Ownership needs a signed-in user, never two absent ids comparing equal.
+        expect(wrapper.get<HTMLButtonElement>('[data-testid="submit-button"]').element.disabled).toBe(true);
+    });
+
+    it('focuses the summary for a single error, and on mount when errors are already present', async () => {
+        const wrapper = mount(SubmitPanel, {
+            props: {
+                recordId: 42,
+                recordVersion: 3,
+                businessStatus: 'DRAFT' as BusinessStatus,
+                errors: { 'activation.customer_name': 'Customer name is required.' },
+            },
+            attachTo: document.body,
+        });
+        try {
+            await nextTick();
+            await nextTick();
+
+            expect(wrapper.findAll('[data-testid="error-summary-item"]')).toHaveLength(1);
+            expect(document.activeElement).toBe(wrapper.get('[data-testid="error-summary"]').element);
+        } finally {
+            wrapper.unmount();
         }
     });
 });
