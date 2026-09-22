@@ -1162,11 +1162,22 @@ describe('state that changes while the autosave timer is pending', () => {
 
     it('skips the tick entirely while a save is running, instead of queueing another', async () => {
         const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
-        const draft = armedDraft(fields);
+        const draft = useDraftSave({
+            recordId: 42,
+            family: 'ACTIVATION',
+            recordVersion: 8,
+            businessStatus: 'DRAFT',
+            fields,
+            autosaveInterval: 1000,
+        });
 
+        // The save goes first: executeSave clears any pending timer, so the timer has to be
+        // armed afterwards for the in-flight guard to be the thing under test.
+        fields.value.customer_name = 'Manual';
         const save = draft.save();
         expect(requests.length).toBe(1);
 
+        fields.value.customer_name = 'Typed while saving';
         vi.advanceTimersByTime(2000);
         expect(requests.length).toBe(1);
 
