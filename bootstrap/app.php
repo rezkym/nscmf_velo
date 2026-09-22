@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\EnforceSessionLifetime;
+use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Support\Http\ErrorEnvelope;
 use Illuminate\Foundation\Application;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             EnforceSessionLifetime::class,
+            EnsurePasswordChanged::class,
             HandleInertiaRequests::class,
         ]);
         $middleware->redirectGuestsTo('/login');

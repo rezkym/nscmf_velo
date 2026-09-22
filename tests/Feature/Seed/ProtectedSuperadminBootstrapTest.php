@@ -7,8 +7,8 @@ use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Testing\PendingCommand;
 
-use function Pest\Laravel\artisan;
 use function Pest\Laravel\seed;
 
 /*
@@ -17,11 +17,18 @@ use function Pest\Laravel\seed;
 
 beforeEach(fn () => seed(ReferenceDataSeeder::class));
 
-it('creates the canonical protected identity and reveals a random password exactly once', function (): void {
-    Log::spy();
-    $output = '';
+function bootstrapCommand(): PendingCommand
+{
+    $command = Pest\Laravel\artisan('nscmf:bootstrap-superadmin');
+    assert($command instanceof PendingCommand);
 
-    artisan('nscmf:bootstrap-superadmin')
+    return $command;
+}
+
+it('creates the canonical protected identity and reveals a random password exactly once', function (): void {
+    $log = Log::spy();
+
+    bootstrapCommand()
         ->expectsOutputToContain('Temporary password (shown once):')
         ->assertSuccessful();
 
@@ -39,15 +46,16 @@ it('creates the canonical protected identity and reveals a random password exact
     }
 
     expect(DB::table('security_audit_events')->where('event_type', 'USER_CREATED')->where('target_user_id', $user->id)->count())->toBe(1);
-    Log::shouldNotHaveReceived('info');
-    unset($output);
+    foreach (['emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug', 'log'] as $level) {
+        $log->shouldNotHaveReceived($level);
+    }
 });
 
 it('never resets or re-reveals on rerun', function (): void {
-    artisan('nscmf:bootstrap-superadmin')->assertSuccessful();
+    bootstrapCommand()->assertSuccessful();
     $hash = User::query()->where('username', 'superadmin')->value('password');
 
-    artisan('nscmf:bootstrap-superadmin')
+    bootstrapCommand()
         ->doesntExpectOutputToContain('Temporary password')
         ->expectsOutputToContain('already exists')
         ->assertSuccessful();
@@ -59,7 +67,7 @@ it('never resets or re-reveals on rerun', function (): void {
 it('fails visibly when an incompatible superadmin username already exists', function (): void {
     User::query()->create(['name' => 'Impostor', 'username' => 'SuperAdmin', 'password' => 'whatever-1']);
 
-    artisan('nscmf:bootstrap-superadmin')
+    bootstrapCommand()
         ->expectsOutputToContain('not the protected identity')
         ->doesntExpectOutputToContain('Temporary password')
         ->assertFailed();
@@ -71,7 +79,7 @@ it('refuses to run before the reference roles exist', function (): void {
     DB::table('role_has_permissions')->delete();
     DB::table('roles')->delete();
 
-    artisan('nscmf:bootstrap-superadmin')->assertFailed();
+    bootstrapCommand()->assertFailed();
 
     expect(User::query()->count())->toBe(0);
 });

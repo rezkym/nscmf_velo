@@ -19,4 +19,19 @@ final class EloquentUserRepository implements UserRepository
     {
         return User::query()->find($id);
     }
+
+    public function create(array $attributes): User
+    {
+        return User::query()->create($attributes);
+    }
+
+    public function update(User $user, array $attributes): void
+    {
+        $user->forceFill($attributes)->save();
+    }
+
+    public function lockForUpdate(int $id): ?User
+    {
+        return User::query()->lockForUpdate()->find($id);
+    }
 }

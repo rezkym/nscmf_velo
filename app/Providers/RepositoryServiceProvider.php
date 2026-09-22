@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Repositories\Contracts\Administration\RolePermissionRepository;
 use App\Repositories\Contracts\Administration\UserRepository;
 use App\Repositories\Contracts\Audit\AccessAuditRepository;
 use App\Repositories\Contracts\Audit\BusinessAuditRepository;
 use App\Repositories\Contracts\Audit\SecurityAuditRepository;
 use App\Repositories\Contracts\Security\SessionRepository;
 use App\Repositories\Eloquent\Administration\EloquentUserRepository;
+use App\Repositories\Eloquent\Administration\SpatieRolePermissionRepository;
 use App\Repositories\Eloquent\Audit\EloquentAccessAuditRepository;
 use App\Repositories\Eloquent\Audit\EloquentBusinessAuditRepository;
 use App\Repositories\Eloquent\Audit\EloquentSecurityAuditRepository;
@@ -25,6 +27,7 @@ class RepositoryServiceProvider extends ServiceProvider
         AccessAuditRepository::class => EloquentAccessAuditRepository::class,
         SecurityAuditRepository::class => EloquentSecurityAuditRepository::class,
         UserRepository::class => EloquentUserRepository::class,
+        RolePermissionRepository::class => SpatieRolePermissionRepository::class,
         SessionRepository::class => DatabaseSessionRepository::class,
     ];
 }
