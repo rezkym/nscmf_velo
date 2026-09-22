@@ -2,7 +2,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { forms, lastRequest, requests, resetInertia } from '@/testing/inertia';
+import { forms, lastRequest, requests, resetInertia, respondToRequest } from '@/testing/inertia';
 
 import Create from './Create.vue';
 
@@ -82,6 +82,10 @@ describe('Create NSCMF (FE-17)', () => {
         await wrapper.get('#request-no').setValue('  ABC  ');
         await submit(wrapper);
         expect(lastRequest('/nscmf')?.data).toMatchObject({ numbering_mode: 'MANUAL', request_no: 'ABC' });
+
+        // The first request has to finish before another submit is possible: Create.vue refuses
+        // to submit while the form is processing, exactly as the real form does.
+        await respondToRequest(lastRequest('/nscmf'), { status: 200 });
 
         await wrapper.get('#request-no').setValue('A'.repeat(64));
         await submit(wrapper);

@@ -1,3 +1,9 @@
+/** A domain/action error flashed by the server (12 §10), carrying a stable code from the 12 §12 catalog. */
+export interface DomainError {
+    code?: string;
+    message?: string;
+}
+
 /**
  * The 12 §12 codes that mean the record moved underneath the editor. All three stop editing and
  * offer a refresh (12 §11 409, 07 §23); only NSCMF_VERSION_CONFLICT may be described as a newer

@@ -96,11 +96,17 @@ function createForm(initial: Record<string, unknown>): MockForm {
                 form.errors = {};
                 options.onSuccess?.(page);
             },
+            onFinish: () => {
+                form.processing = false;
+                options.onFinish?.();
+            },
         };
     }
 
     for (const method of ['get', 'post', 'put', 'patch', 'delete'] as const) {
         form[method] = vi.fn((url: string, options: VisitOptions = {}) => {
+            // Real useForm flips processing on onStart, which happens as the request is sent.
+            form.processing = true;
             requests.push({ method, url, data: data(), options: withFormLifecycle(options) });
         });
     }
