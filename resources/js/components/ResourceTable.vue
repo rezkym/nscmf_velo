@@ -83,14 +83,14 @@ watch(
 
 /**
  * Every emitted query goes through here, so the per_page bounds from the list contract
- * (default 25, minimum 1, maximum 100) also hold for a value the parent supplied.
+ * (default 25, minimum 1, maximum 100) also hold for a value the parent supplied, as whole rows.
  */
 function emitQuery(patch: Partial<TableQuery>) {
     const merged = { ...props.query, ...patch };
     const perPage = Number(merged.per_page);
     emit('update:query', {
         ...merged,
-        per_page: Math.min(100, Math.max(1, Number.isFinite(perPage) ? perPage : 25)),
+        per_page: Math.trunc(Math.min(100, Math.max(1, Number.isFinite(perPage) ? perPage : 25))),
     });
 }
 

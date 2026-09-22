@@ -168,6 +168,21 @@ describe('Team administration (FE-11)', () => {
         expect(wrapper.get('[data-testid="confirm-lifecycle-action"]').attributes('disabled')).toBeUndefined();
     });
 
+    it('shows the server error when the flash arrives on the page root instead of the props', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');
+        await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
+
+        const request = lastRequest('/administration/teams/1/deactivate');
+        // The installed @inertiajs/core puts flash at Page.flash; this page must not depend on the
+        // server also sharing a flash prop, because only one of the two will actually arrive.
+        await flashDomainError({ code: 'FORBIDDEN', message: 'This team cannot be deactivated.' }, 'page');
+        request?.options.onFinish?.();
+        await nextTick();
+
+        expect(wrapper.get('[role="dialog"] [role="alert"]').text()).toBe('This team cannot be deactivated.');
+    });
+
     it('keeps the lifecycle dialog open while the action is in flight', async () => {
         const wrapper = mountPage();
         await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');

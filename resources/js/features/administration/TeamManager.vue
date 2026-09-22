@@ -9,7 +9,7 @@ import Button from '@/components/ui/Button.vue';
 import FormField from '@/components/ui/FormField.vue';
 import Modal from '@/components/ui/Modal.vue';
 import { usePermissions } from '@/composables/usePermissions';
-import { domainError } from '@/lib/apiErrors';
+import { pageDomainError } from '@/lib/apiErrors';
 
 export interface Team {
     id: number;
@@ -55,15 +55,17 @@ function closeForm(): void {
 }
 
 /** Domain and action errors arrive flashed, not in the validation error bag (12 §10). */
+// Deep: the page-root bag is mutated in place, so watching its identity alone would miss it.
 watch(
-    () => page.props.flash,
-    (flash) => {
-        const error = domainError(flash);
+    [() => page.flash, () => page.props.flash],
+    () => {
+        const error = pageDomainError(page);
         if (!error) return;
 
         lifecycleError.value = error.message ?? 'The team could not be updated.';
         lifecyclePending.value = false;
     },
+    { deep: true },
 );
 
 function submitForm(): void {
@@ -102,7 +104,7 @@ function confirmLifecycle(entry: { team: Team; action: LifecycleAction }): void 
         {
             onSuccess: () => {
                 // A flashed domain error comes back on a successful redirect; the dialog stays open for it.
-                if (domainError(page.props.flash)) return;
+                if (pageDomainError(page)) return;
                 lifecycle.value = null;
             },
             onFinish: () => {

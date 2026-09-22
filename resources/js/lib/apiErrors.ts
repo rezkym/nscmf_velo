@@ -1,22 +1,37 @@
-/** Inertia error bag: field name -> message. */
-export type ErrorBag = Record<string, string | undefined>;
-
-/**
- * The message to show for a failed request: the first of `preferredKeys` that has a message,
- * otherwise the first message in the bag, otherwise `fallback`.
- */
-export function firstError(errors: ErrorBag, fallback: string, preferredKeys: readonly string[] = []): string {
-    for (const key of preferredKeys) {
-        const message = errors[key];
-        if (message) return message;
-    }
-    return Object.values(errors).find((message) => Boolean(message)) ?? fallback;
-}
-
 /** A domain/action error flashed by the server (12 §10), carrying a stable code from the 12 §12 catalog. */
 export interface DomainError {
     code?: string;
     message?: string;
+}
+
+/**
+ * The 12 §12 codes that mean the record moved underneath the editor. All three stop editing and
+ * offer a refresh (12 §11 409, 07 §23); only NSCMF_VERSION_CONFLICT may be described as a newer
+ * version. Codes are matched exactly — REQUEST_NO_CONFLICT is a request-number clash, not this.
+ */
+export const RECORD_CONFLICT_CODES = [
+    'NSCMF_VERSION_CONFLICT',
+    'NSCMF_STATE_CONFLICT',
+    'NSCMF_ARCHIVED_CONFLICT',
+] as const;
+
+export function isRecordConflictCode(code: string | undefined): boolean {
+    return RECORD_CONFLICT_CODES.some((known) => known === code);
+}
+
+/**
+ * Reads the flashed domain error from an Inertia page or from a bare flash bag (12 §10).
+ *
+ * The installed @inertiajs/core carries flash at `Page.flash` and hands that bag to `onFlash`, but
+ * a Laravel application may equally share a `flash` prop, and no NSCMF response exists yet to say
+ * which this project will use (gap G02). Reading both is the one choice that cannot be wrong, and
+ * it keeps every caller on the same reader instead of each picking a channel and hoping.
+ */
+export function pageDomainError(pageOrFlash: unknown): DomainError | null {
+    if (typeof pageOrFlash !== 'object' || pageOrFlash === null) return null;
+
+    const { flash, props } = pageOrFlash as { flash?: unknown; props?: { flash?: unknown } };
+    return domainError(flash) ?? domainError(props?.flash) ?? domainError(pageOrFlash);
 }
 
 /** Reads the flashed domain error. Local view-model over the shared flash bag (gap G02). */

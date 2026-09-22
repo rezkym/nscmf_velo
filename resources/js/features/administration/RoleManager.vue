@@ -10,7 +10,7 @@ import Button from '@/components/ui/Button.vue';
 import FormField from '@/components/ui/FormField.vue';
 import Modal from '@/components/ui/Modal.vue';
 import { usePermissions } from '@/composables/usePermissions';
-import { domainError } from '@/lib/apiErrors';
+import { pageDomainError } from '@/lib/apiErrors';
 import { groupBy, toggleItem } from '@/lib/utils';
 
 export interface PermissionCatalogItem {
@@ -90,10 +90,11 @@ function requestSavePermissions(): void {
  * Domain and action errors arrive flashed, not in the validation error bag (12 §10).
  * A re-authentication code re-opens the prompt; a rejection keeps the dialog and the selection.
  */
+// Deep: the page-root bag is mutated in place, so watching its identity alone would miss it.
 watch(
-    () => page.props.flash,
-    (flash) => {
-        const error = domainError(flash);
+    [() => page.flash, () => page.props.flash],
+    () => {
+        const error = pageDomainError(page);
         if (!error) return;
 
         if (error.code === 'REAUTH_REQUIRED' || error.code === 'REAUTH_FAILED') {
@@ -104,6 +105,7 @@ watch(
 
         permissionsError.value = error.message ?? 'The permissions could not be saved.';
     },
+    { deep: true },
 );
 
 function savePermissions(role: RoleRow): void {

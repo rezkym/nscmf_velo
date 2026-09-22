@@ -1,4 +1,5 @@
-import type { ActivationDraftFields, ChangeDraftFields } from './types';
+import type { BusinessStatus } from './contracts';
+import type { ActivationDraftFields, ChangeDraftFields, ChangeResultRow } from './types';
 
 /**
  * Builds the PATCH /nscmf/{record}/draft body (12 §26-28) from the edit form's draft fields.
@@ -102,16 +103,19 @@ const CHANGE_SCALARS = [
     'announcement_timing',
 ] as const satisfies readonly (keyof ChangeDraftFields)[];
 
+/** 06 §46-48, 12 §28.2: up to five rows keyed by row_no, carrying exactly three content fields. */
+const RESULTS_RULE: CollectionRule = {
+    key: 'row_no',
+    maxRowNo: 5,
+    fields: ['result_summary', 'performance_information', 'result_status'],
+};
+
 const CHANGE_COLLECTIONS: Record<string, CollectionRule> = {
     facing_challenges: { key: 'row_no', maxRowNo: 3, fields: ['challenge_text'] },
     identified_problems: { key: 'row_no', maxRowNo: 3, fields: ['problem_text'] },
     service_impacts: { key: 'impact_code', fields: ['other_description'], keepWithoutContent: true },
     improvement_items: { key: 'row_no', maxRowNo: 3, fields: ['plan_text', 'target_kpi'] },
-    results: {
-        key: 'row_no',
-        maxRowNo: 5,
-        fields: ['result_summary', 'performance_information', 'result_status'],
-    },
+    results: RESULTS_RULE,
 };
 
 export function buildActivationDraftPayload(
@@ -124,14 +128,50 @@ export function buildActivationDraftPayload(
     };
 }
 
-export function buildChangeDraftPayload(recordVersion: number, change: ChangeDraftFields): ChangeDraftPayload {
+/** The states in which the draft payload may carry `results` (12 §28.2). */
+const RESULTS_EDITABLE_STATUSES: readonly BusinessStatus[] = ['DRAFT', 'REVISION_REQUIRED'];
+
+/**
+ * `businessStatus` is required, not optional: outside DRAFT/REVISION_REQUIRED the server rejects a
+ * `results` key with 422 (12 §28.2), so a caller must never be able to forget to say where the
+ * record stands. Results are then edited through PATCH /nscmf/{record}/change-results (12 §29).
+ */
+export function buildChangeDraftPayload(
+    recordVersion: number,
+    change: ChangeDraftFields,
+    businessStatus: BusinessStatus,
+): ChangeDraftPayload {
+    const sendable = { ...change };
+    if (!RESULTS_EDITABLE_STATUSES.includes(businessStatus)) {
+        // Omitted, never `[]`: an empty array would delete every stored row (12 §7.4.1).
+        delete sendable.results;
+    }
+
     return {
         record_version: checkedRecordVersion(recordVersion),
-        change: pickFields(change, CHANGE_SCALARS, CHANGE_COLLECTIONS, {}),
+        change: pickFields(sendable, CHANGE_SCALARS, CHANGE_COLLECTIONS, {}),
     };
 }
 
-function checkedRecordVersion(recordVersion: number): number {
+/**
+ * Normalises Change result rows against the same whole-set rule the draft payload uses
+ * (12 §7.4.1, row_no 1..5), so the narrow /change-results endpoint (12 §29) shares one
+ * implementation with the draft path instead of hand-rolling a second copy.
+ */
+export function normalizeResultRows(rows: unknown): ChangeResultRow[] {
+    return normalizeRows('results', rows, RESULTS_RULE).map((row) => ({
+        row_no: Number(row.row_no),
+        result_summary: asNullableText(row.result_summary),
+        performance_information: asNullableText(row.performance_information),
+        result_status: asNullableText(row.result_status),
+    }));
+}
+
+function asNullableText(value: unknown): string | null {
+    return typeof value === 'string' ? value : null;
+}
+
+export function checkedRecordVersion(recordVersion: number): number {
     if (!Number.isSafeInteger(recordVersion) || recordVersion < 1) {
         throw new Error(`record_version must be a positive integer, received ${String(recordVersion)}.`);
     }

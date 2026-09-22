@@ -309,7 +309,7 @@ describe('RequestFeedback.vue (FE-07)', () => {
     });
 
     it('shows a save indicator only for a status it knows, and skips a message of an unexpected type', () => {
-        const noStatus = mount(RequestFeedback, { props: { saveStatus: null, showSaveStatus: true } });
+        const noStatus = mount(RequestFeedback, { props: { saveStatus: null } });
         expect(noStatus.text()).not.toContain('Saving');
         expect(noStatus.text()).not.toContain('Saved just now');
 
@@ -325,5 +325,53 @@ describe('RequestFeedback.vue (FE-07)', () => {
         });
         const messages = oddPayload.findAll('li').map((item) => item.text());
         expect(messages).toEqual(['The name is required.']);
+    });
+});
+
+describe('the save indicator never contradicts an error (07 §23)', () => {
+    it.each([
+        [409, 'a version conflict'],
+        [422, 'a validation failure'],
+        [403, 'a denial'],
+        [503, 'an unavailable subsystem'],
+    ])('does not claim "Saved just now" alongside %i, %s', (status) => {
+        const wrapper = mount(RequestFeedback, {
+            props: {
+                error: { status },
+                saveStatus: 'saved',
+            },
+        });
+
+        expect(wrapper.text()).not.toContain('Saved just now');
+    });
+
+    it('still shows the save indicator when nothing failed', () => {
+        const wrapper = mount(RequestFeedback, { props: { error: null, saveStatus: 'saved' } });
+
+        expect(wrapper.text()).toContain('Saved just now');
+    });
+});
+
+describe('validation is recognised under either catalogue name (gap G07)', () => {
+    it.each(['NSCMF_VALIDATION_FAILED', 'VALIDATION_FAILED'])('renders the validation panel for code %s', (code) => {
+        const wrapper = mount(RequestFeedback, {
+            props: { error: { code, errors: { 'change.results.0.result_summary': 'Required.' } } },
+        });
+
+        expect(wrapper.find('[data-testid="feedback-validation"]').exists()).toBe(true);
+    });
+});
+
+describe('each failure is recognised by status alone as well as by code', () => {
+    it.each([
+        [{ status: 401 }, 'feedback-session-revoked'],
+        [{ code: 'SESSION_EXPIRED' }, 'feedback-session-revoked'],
+        [{ status: 0 }, 'feedback-network-error'],
+        [{ isNetworkError: true }, 'feedback-network-error'],
+    ])('renders %o as %s', (error, testId) => {
+        // The server may name the failure, or only give a status; either alone must be enough.
+        const wrapper = mount(RequestFeedback, { props: { error } });
+
+        expect(wrapper.find(`[data-testid="${testId}"]`).exists()).toBe(true);
     });
 });

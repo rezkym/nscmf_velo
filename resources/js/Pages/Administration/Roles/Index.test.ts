@@ -2,7 +2,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flashDomainError, forms, lastRequest, requests, resetInertia } from '@/testing/inertia';
+import { flashDomainError, forms, lastRequest, requests, resetInertia, respondToRequest } from '@/testing/inertia';
 
 import { type PermissionCatalogItem, type RoleRow } from '@/features/administration/RoleManager.vue';
 
@@ -89,8 +89,8 @@ describe('Role administration (FE-14)', () => {
         await wrapper.get('[role="dialog"] form').trigger('submit');
         expect(lastRequest('/administration/roles')).toMatchObject({ method: 'post', data: { name: 'Auditor' } });
 
-        lastRequest('/administration/roles')?.options.onSuccess?.();
-        await nextTick();
+        // A real response always finishes, which is what releases the form again.
+        await respondToRequest(lastRequest('/administration/roles'), { status: 200 });
         await wrapper.get('[data-testid="edit-role-2"]').trigger('click');
         await wrapper.get('#role-name').setValue('Requester Plus');
         await wrapper.get('[role="dialog"] form').trigger('submit');

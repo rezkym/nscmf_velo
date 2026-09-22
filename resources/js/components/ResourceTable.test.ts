@@ -109,6 +109,22 @@ describe('ResourceTable.vue', () => {
             expect(latestQuery.per_page).toBe(100);
         });
 
+        it('sends a whole number of rows per page', async () => {
+            const wrapper = mount(ResourceTable, {
+                props: {
+                    columns: sampleColumns,
+                    items: [],
+                    query: { page: 1, per_page: 25.7 } satisfies TableQuery,
+                },
+            });
+
+            await wrapper.get('[data-testid="table-search-input"]').setValue('demo');
+
+            const emitted = wrapper.emitted('update:query');
+            const latestQuery = (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
+            expect(latestQuery.per_page).toBe(25);
+        });
+
         it('rejects unknown sort field not in whitelist: sort tak dikenal ditolak', async () => {
             const wrapper = mount(ResourceTable, {
                 props: {
@@ -404,5 +420,70 @@ describe('ResourceTable copy', () => {
             const emitted = wrapper.emitted('update:query');
             expect((emitted?.[0]?.[0] as TableQuery).direction).toBe('asc');
         });
+    });
+});
+
+describe('query bounds and pagination fallbacks', () => {
+    function emittedQuery(wrapper: ReturnType<typeof mount>): TableQuery {
+        const emitted = wrapper.emitted('update:query');
+        return (emitted && emitted[emitted.length - 1]?.[0]) as TableQuery;
+    }
+
+    it('never asks for fewer than one row per page', async () => {
+        const wrapper = mount(ResourceTable, {
+            props: { columns: sampleColumns, items: [], query: { page: 1, per_page: 0 } satisfies TableQuery },
+        });
+
+        await wrapper.get('[data-testid="table-search-input"]').setValue('demo');
+
+        expect(emittedQuery(wrapper).per_page).toBe(1);
+    });
+
+    it('returns to the first page when the sort changes', async () => {
+        const wrapper = mount(ResourceTable, {
+            props: {
+                columns: sampleColumns,
+                items: [],
+                query: { page: 4, per_page: 25 } satisfies TableQuery,
+                sortWhitelist: ['request_no'],
+            },
+        });
+
+        await wrapper.get('[data-testid="sort-button-request_no"]').trigger('click');
+
+        // A different ordering makes page 4 meaningless, so the query restarts at the top.
+        expect(emittedQuery(wrapper).page).toBe(1);
+    });
+
+    it('falls back to a single page when the server sends no pagination meta', () => {
+        const wrapper = mount(ResourceTable, {
+            props: { columns: sampleColumns, items: [], query: { page: 1, per_page: 25 }, meta: null },
+        });
+
+        expect(wrapper.get('[data-testid="pagination-next"]').attributes('disabled')).toBeDefined();
+        expect(wrapper.get('[data-testid="pagination-prev"]').attributes('disabled')).toBeDefined();
+    });
+});
+
+describe('a response that arrives out of order', () => {
+    it('keeps the newer rows when an equally numbered response repeats', async () => {
+        const wrapper = mount(ResourceTable, {
+            props: { columns: sampleColumns, items: [{ id: 1, request_no: 'NEW' }], requestId: 5 },
+        });
+
+        await wrapper.setProps({ items: [{ id: 1, request_no: 'REPLAY' }], requestId: 5 });
+
+        // Same id is not older, so the latest payload for that request still applies.
+        expect(wrapper.text()).toContain('REPLAY');
+    });
+
+    it('compares non-numeric request ids in their own order', async () => {
+        const wrapper = mount(ResourceTable, {
+            props: { columns: sampleColumns, items: [{ id: 1, request_no: 'NEW' }], requestId: 'b' },
+        });
+
+        await wrapper.setProps({ items: [{ id: 1, request_no: 'STALE' }], requestId: 'a' });
+
+        expect(wrapper.text()).toContain('NEW');
     });
 });

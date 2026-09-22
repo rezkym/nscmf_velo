@@ -12,7 +12,7 @@ import Modal from '@/components/ui/Modal.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import OneTimeCredential from '@/features/administration/OneTimeCredential.vue';
 import { type TemporaryCredential, temporaryCredentialFromFlash } from '@/features/administration/temporaryCredential';
-import { domainError } from '@/lib/apiErrors';
+import { pageDomainError } from '@/lib/apiErrors';
 import { toggleItem } from '@/lib/utils';
 
 export interface TeamOption {
@@ -184,10 +184,11 @@ function runSensitive(action: SensitiveAction): void {
  * Domain and action errors arrive flashed, not in the validation error bag (12 §10).
  * A re-authentication code re-opens the prompt; anything else is shown where the user is looking.
  */
+// Deep: the page-root bag is mutated in place, so watching its identity alone would miss it.
 watch(
-    () => page.props.flash,
-    (flash) => {
-        const error = domainError(flash);
+    [() => page.flash, () => page.props.flash],
+    () => {
+        const error = pageDomainError(page);
         if (!error) return;
 
         if (error.code === 'REAUTH_REQUIRED' || error.code === 'REAUTH_FAILED') {
@@ -204,6 +205,7 @@ watch(
             pageError.value = message;
         }
     },
+    { deep: true },
 );
 
 function revealCredential(username: string): void {

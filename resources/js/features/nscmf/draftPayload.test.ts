@@ -8,13 +8,13 @@ function activation(fields: ActivationDraftFields): ActivationDraftFields {
 }
 
 function change(fields: ChangeDraftFields): ChangeDraftFields {
-    return buildChangeDraftPayload(8, fields).change;
+    return buildChangeDraftPayload(8, fields, 'DRAFT').change;
 }
 
 describe('draft payload (12 §129.1)', () => {
     it('passes the record version through without touching it', () => {
         expect(buildActivationDraftPayload(8, {})).toEqual({ record_version: 8, activation: {} });
-        expect(buildChangeDraftPayload(1, {})).toEqual({ record_version: 1, change: {} });
+        expect(buildChangeDraftPayload(1, {}, 'DRAFT')).toEqual({ record_version: 1, change: {} });
         expect(() => buildActivationDraftPayload(0, {})).toThrow(/record_version/);
     });
 
@@ -185,19 +185,23 @@ describe('draft payload (12 §129.1)', () => {
 
     it('builds the full change payload the contract shows', () => {
         expect(
-            buildChangeDraftPayload(3, {
-                maintenance_purpose: 'Demo purpose',
-                target_execution_date: '2026-10-10',
-                monitoring_period_value: 3,
-                monitoring_period_unit: 'DAY',
-                rollback_scenario: 'Demo rollback',
-                announcement_timing: 'ONE_WEEK_BEFORE',
-                facing_challenges: [{ row_no: 1, challenge_text: 'Demo challenge' }],
-                identified_problems: [{ row_no: 1, problem_text: 'Demo problem' }],
-                service_impacts: [{ impact_code: 'OTHER', other_description: 'Demo impact' }],
-                improvement_items: [{ row_no: 1, plan_text: 'Demo plan', target_kpi: 'Error rate 0' }],
-                results: [],
-            }),
+            buildChangeDraftPayload(
+                3,
+                {
+                    maintenance_purpose: 'Demo purpose',
+                    target_execution_date: '2026-10-10',
+                    monitoring_period_value: 3,
+                    monitoring_period_unit: 'DAY',
+                    rollback_scenario: 'Demo rollback',
+                    announcement_timing: 'ONE_WEEK_BEFORE',
+                    facing_challenges: [{ row_no: 1, challenge_text: 'Demo challenge' }],
+                    identified_problems: [{ row_no: 1, problem_text: 'Demo problem' }],
+                    service_impacts: [{ impact_code: 'OTHER', other_description: 'Demo impact' }],
+                    improvement_items: [{ row_no: 1, plan_text: 'Demo plan', target_kpi: 'Error rate 0' }],
+                    results: [],
+                },
+                'DRAFT',
+            ),
         ).toEqual({
             record_version: 3,
             change: {
@@ -214,5 +218,95 @@ describe('draft payload (12 §129.1)', () => {
                 results: [],
             },
         });
+    });
+});
+
+describe('results are only carried while the record is editable (12 §28.2)', () => {
+    const resultRow = {
+        row_no: 1,
+        result_summary: 'Link restored',
+        performance_information: 'Latency back to 12 ms',
+        result_status: 'Selesai dengan catatan',
+    };
+
+    it.each(['DRAFT', 'REVISION_REQUIRED'] as const)('sends results while %s', (businessStatus) => {
+        const payload = buildChangeDraftPayload(3, { results: [resultRow] }, businessStatus);
+
+        expect(payload.change.results).toEqual([resultRow]);
+    });
+
+    it.each(['PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CANCELLED'] as const)(
+        'omits the results key entirely while %s',
+        (businessStatus) => {
+            const payload = buildChangeDraftPayload(3, { results: [resultRow] }, businessStatus);
+
+            // Omitted, not empty: `[]` would delete every stored row (12 §7.4.1), and the server
+            // rejects a results key outside DRAFT/REVISION_REQUIRED with 422 (12 §28.2).
+            expect('results' in payload.change).toBe(false);
+        },
+    );
+
+    it('still carries the other change fields while PENDING_REVIEW', () => {
+        const payload = buildChangeDraftPayload(
+            3,
+            { maintenance_purpose: 'Routine check', results: [resultRow] },
+            'PENDING_REVIEW',
+        );
+
+        expect(payload.change.maintenance_purpose).toBe('Routine check');
+        expect('results' in payload.change).toBe(false);
+    });
+});
+
+describe('row limits and natural keys are enforced for every collection', () => {
+    const ROW_COLLECTIONS: [string, number, Record<string, unknown>][] = [
+        ['sla_items', 3, { requirement_text: 'Uptime 99.5%' }],
+        ['virtual_connections', 3, { bandwidth_mbps: 10 }],
+        ['priority_destinations', 3, { destination: 'IIX' }],
+    ];
+    const CHANGE_ROW_COLLECTIONS: [string, number, Record<string, unknown>][] = [
+        ['facing_challenges', 3, { challenge_text: 'Narrow window' }],
+        ['identified_problems', 3, { problem_text: 'Memory leak' }],
+        ['improvement_items', 3, { plan_text: 'Patch', target_kpi: 'Zero drops' }],
+        ['results', 5, { result_summary: 'Done' }],
+    ];
+
+    // 12 §7.4.1: a natural key outside its schema range is rejected, never silently accepted.
+    it.each(ROW_COLLECTIONS)('rejects row_no above the maximum for activation %s', (name, max, content) => {
+        expect(() => activation({ [name]: [{ row_no: max + 1, ...content }] })).toThrow(
+            `${name}: invalid row_no ${max + 1}.`,
+        );
+        expect(() => activation({ [name]: [{ row_no: max, ...content }] })).not.toThrow();
+    });
+
+    it.each(CHANGE_ROW_COLLECTIONS)('rejects row_no above the maximum for change %s', (name, max, content) => {
+        expect(() => change({ [name]: [{ row_no: max + 1, ...content }] })).toThrow(
+            `${name}: invalid row_no ${max + 1}.`,
+        );
+        expect(() => change({ [name]: [{ row_no: max, ...content }] })).not.toThrow();
+    });
+
+    it.each([
+        ['references', 'reference_type'],
+        ['service_impacts', 'impact_code'],
+    ])('rejects a blank natural key in %s', (name, key) => {
+        const build = name === 'references' ? activation : change;
+
+        expect(() => build({ [name]: [{ [key]: '' }] })).toThrow(`${name}: invalid ${key} .`);
+        expect(() => build({ [name]: [{ [key]: 7 }] })).toThrow(`${name}: invalid ${key} 7.`);
+    });
+});
+
+describe('a stored zero is a value, not an absence', () => {
+    it('keeps bandwidth_mbps 0 instead of nulling the row away', () => {
+        // `?? null` must not become `|| null`: 0 is a real bandwidth and nulling it would drop
+        // the row as not-started (12 §7.4.1).
+        expect(activation({ virtual_connections: [{ row_no: 1, bandwidth_mbps: 0 }] }).virtual_connections).toEqual([
+            { row_no: 1, bandwidth_mbps: 0 },
+        ]);
+    });
+
+    it('keeps a false migration flag', () => {
+        expect(activation({ migrate_domain: false }).migrate_domain).toBe(false);
     });
 });

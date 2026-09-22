@@ -1,16 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-export interface RequestFeedbackError {
-    status?: number;
-    code?: string;
-    message?: string;
-    errors?: Record<string, string[] | string>;
-    context?: Record<string, unknown>;
-    isNetworkError?: boolean;
-}
+import type { RequestFeedbackError, SaveStatus } from '@/types/feedback';
 
-export type SaveStatus = 'saving' | 'saved' | 'error' | null;
+export type { RequestFeedbackError, SaveStatus };
 
 export interface RequestFeedbackProps {
     error?: RequestFeedbackError | null;
@@ -36,8 +29,12 @@ const isConflict = computed(() => {
     return props.error?.status === 409 || props.error?.code === 'NSCMF_VERSION_CONFLICT';
 });
 
+// Gap G07: 12 §27 uses NSCMF_VALIDATION_FAILED while the common catalogue also carries
+// VALIDATION_FAILED. Both are accepted rather than betting on one name before the contract binds.
+const VALIDATION_CODES = ['NSCMF_VALIDATION_FAILED', 'VALIDATION_FAILED'];
+
 const isValidation = computed(() => {
-    return props.error?.status === 422 || props.error?.code === 'NSCMF_VALIDATION_FAILED';
+    return props.error?.status === 422 || VALIDATION_CODES.some((code) => code === props.error?.code);
 });
 
 const isForbidden = computed(() => {
@@ -75,8 +72,9 @@ const validationErrorList = computed(() => {
 });
 
 const canShowSaveStatus = computed(() => {
-    // If session is revoked/expired, NEVER claim saved or in-progress save
-    if (isSessionRevoked.value) return false;
+    // 07 §23: never claim a save alongside a failure. A stale 'saved' from a parent must not sit
+    // above the panel explaining why the save did not happen, and a revoked session least of all.
+    if (props.error) return false;
     return Boolean(props.saveStatus);
 });
 
