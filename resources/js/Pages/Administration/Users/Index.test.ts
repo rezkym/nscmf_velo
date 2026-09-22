@@ -106,7 +106,9 @@ describe('User administration (FE-12)', () => {
         document.body.innerHTML = '';
         jsonReplies.clear();
         send.mockReset();
-        send.mockImplementation(async (_method, url) => jsonReplies.get(url) ?? { ok: true, status: 204, body: null });
+        send.mockImplementation((_method, url) =>
+            Promise.resolve(jsonReplies.get(url) ?? { ok: true, status: 204, body: null }),
+        );
     });
 
     it('renders inside the authenticated shell with team, roles and status per user', () => {
