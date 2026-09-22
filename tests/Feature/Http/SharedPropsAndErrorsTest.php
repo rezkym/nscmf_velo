@@ -1,0 +1,83 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Domain\Shared\DomainRuleException;
+use Illuminate\Support\Facades\Route;
+use Inertia\Testing\AssertableInertia;
+use Tests\Support\Actors;
+
+/*
+ * BE-023 / T05C — shared auth props, session transport and the error envelope
+ * (12 §8–12, §100–107).
+ */
+
+it('shares only the safe auth context and effective permissions', function (): void {
+    $user = Actors::member(['nscmf.view', 'nscmf.create']);
+
+    signIn($user)->get('/dashboard')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('auth.user.id', $user->id)
+        ->where('auth.user.username', $user->username)
+        ->where('auth.user.name', $user->name)
+        ->where('auth.user.team_id', $user->team_id)
+        ->where('auth.user.team.name', $user->team?->name)
+        ->where('auth.user.must_change_password', false)
+        ->where('auth.permissions', ['nscmf.create', 'nscmf.view'])
+        ->missing('auth.user.password')
+        ->missing('auth.user.remember_token')
+        ->missing('auth.user.is_protected_superadmin')
+        ->etc());
+});
+
+it('shares a null user and no permissions to guests', function (): void {
+    $this->get('/login')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('auth.user', null)
+        ->where('auth.permissions', []));
+});
+
+it('sends unauthenticated page requests to login and JSON requests a 401 envelope', function (): void {
+    $this->get('/dashboard')->assertRedirect('/login');
+
+    $this->getJson('/dashboard')->assertStatus(401)->assertExactJson([
+        'code' => 'AUTHENTICATION_REQUIRED',
+        'message' => 'Sign in to continue.',
+        'errors' => [],
+        'context' => [],
+    ]);
+});
+
+it('maps domain rule failures to the JSON envelope or the flashed domain_error', function (): void {
+    Route::middleware('web')->post('/__test/domain-error', fn () => throw new DomainRuleException(
+        'NSCMF_VERSION_CONFLICT', 'A newer version of this record exists.', 409, ['latest_record_version' => 4],
+    ));
+
+    $this->postJson('/__test/domain-error')->assertStatus(409)->assertExactJson([
+        'code' => 'NSCMF_VERSION_CONFLICT',
+        'message' => 'A newer version of this record exists.',
+        'errors' => [],
+        'context' => ['latest_record_version' => 4],
+    ]);
+
+    $this->from('/somewhere')->post('/__test/domain-error')
+        ->assertRedirect('/somewhere')
+        ->assertSessionHas('inertia.flash_data.domain_error', ['code' => 'NSCMF_VERSION_CONFLICT', 'message' => 'A newer version of this record exists.']);
+});
+
+it('never leaks SQL, paths or stack traces from an unexpected JSON failure', function (): void {
+    config(['app.debug' => false]);
+    Route::middleware('web')->get('/__test/boom', fn () => throw new RuntimeException('SQLSTATE[42S02] /var/secret/path.php'));
+
+    $response = $this->getJson('/__test/boom');
+
+    $response->assertStatus(500)->assertExactJson([
+        'code' => 'SERVER_ERROR',
+        'message' => 'Something went wrong. Try again later.',
+        'errors' => [],
+        'context' => [],
+    ]);
+    expect($response->getContent())->not->toContain('SQLSTATE')->not->toContain('/var/secret');
+});
+
+it('keeps permission hints as hints: a handcrafted request without permission is still refused', function (): void {
+    signIn(Actors::member(['nscmf.view']))->getJson('/review')->assertForbidden()->assertJson(['code' => 'FORBIDDEN']);
+});

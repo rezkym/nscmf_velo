@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Hash;
 it('stores passwords as hashes instead of the supplied plaintext', function (): void {
     $user = new User([
         'name' => 'Example User',
-        'email' => 'example.user@example.com',
+        'username' => 'example.user',
         'password' => 'secret-password',
     ]);
 
@@ -19,7 +19,7 @@ it('stores passwords as hashes instead of the supplied plaintext', function (): 
 it('never exposes the password hash or remember token when serialized', function (): void {
     $user = new User([
         'name' => 'Example User',
-        'email' => 'example.user@example.com',
+        'username' => 'example.user',
         'password' => 'secret-password',
     ]);
     $user->setRememberToken('remember-token-value');
