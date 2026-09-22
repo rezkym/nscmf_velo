@@ -4,13 +4,28 @@ export interface TemporaryCredential {
 }
 
 /**
- * Reads the one-time credential the server flashes after creating a user or resetting a password.
- * The flash key names are not fixed by the API contract yet (gap G09); this is the single place to
- * adjust them once the backend defines the response.
+ * Reads the one-time credential from the JSON success body of create/reset (12 §81, §85, §96.2).
+ * It is never taken from flash, page props or anything the browser keeps in history.
  */
-export function temporaryCredentialFromFlash(flash: unknown): TemporaryCredential | null {
-    if (!flash || typeof flash !== 'object') return null;
-    const { temporary_password: password, username } = flash as Record<string, unknown>;
+export function temporaryCredentialFromResponse(body: unknown): TemporaryCredential | null {
+    if (!body || typeof body !== 'object') return null;
+    const { data, meta } = body as { data?: unknown; meta?: unknown };
+    if (
+        !meta ||
+        typeof meta !== 'object' ||
+        (meta as Record<string, unknown>).temporary_password_reveal !== 'ONE_TIME_ONLY'
+    ) {
+        return null;
+    }
+    if (!data || typeof data !== 'object') return null;
+
+    const { temporary_password: password, user } = data as Record<string, unknown>;
     if (typeof password !== 'string' || password === '') return null;
-    return { password, username: typeof username === 'string' ? username : null };
+
+    const username =
+        user && typeof user === 'object' && typeof (user as Record<string, unknown>).username === 'string'
+            ? ((user as Record<string, unknown>).username as string)
+            : null;
+
+    return { password, username };
 }

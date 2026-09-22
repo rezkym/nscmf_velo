@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Pest\TestSuite;
 use Tests\TestCase;
@@ -19,7 +20,7 @@ function signIn(User $user, ?int $authenticatedAt = null): TestCase
     $test = TestSuite::getInstance()->test;
     assert($test instanceof TestCase);
 
-    $test->actingAs($user)->withSession(['nscmf' => ['authenticated_at' => $authenticatedAt ?? time()]]);
+    $test->actingAs($user)->withSession(['nscmf' => ['authenticated_at' => $authenticatedAt ?? CarbonImmutable::now()->getTimestamp()]]);
 
     return $test;
 }

@@ -35,10 +35,13 @@ const mockPageProps = ref<{
     },
 });
 
+const routerPost = vi.fn();
+
 vi.mock('@inertiajs/vue3', async () => {
     const { defineComponent } = await import('vue');
 
     return {
+        router: { post: (...args: unknown[]) => routerPost(...args) },
         Head: defineComponent({
             name: 'InertiaHead',
             props: { title: { type: String, required: false } },
@@ -162,30 +165,61 @@ describe('AppLayout.vue', () => {
         expect(navHrefs).not.toContain('/administration');
     });
 
-    // Regression: Administration nav must key off the real audit.* permission strings from 04_RBAC_Permission_Matrix.md
-    it('shows Administration navigation when the user holds an audit permission', () => {
+    // Administration links go to the real pages (12 §114); there is no /administration landing route,
+    // and audit pages are not part of FE-01..30, so an audit-only user gets no dead link.
+    it('links each administration page by its own view permission and never a dead landing page', () => {
+        const hrefsFor = (permissions: string[]) => {
+            mockPageProps.value = {
+                auth: {
+                    user: {
+                        id: 6,
+                        username: 'admin.user',
+                        name: 'Admin User',
+                        team_id: null,
+                        team: null,
+                        must_change_password: false,
+                    },
+                    permissions,
+                },
+            };
+            return mount(AppLayout, { props: { title: 'Administration' } })
+                .findAllComponents(Link)
+                .map((link) => link.props('href'));
+        };
+
+        expect(hrefsFor(['users.view'])).toContain('/administration/users');
+        expect(hrefsFor(['roles.view'])).toContain('/administration/roles');
+        expect(hrefsFor(['teams.view'])).toContain('/administration/teams');
+        expect(hrefsFor(['roles.view', 'teams.view', 'users.view'])).toContain('/administration/setup');
+        expect(hrefsFor(['roles.view', 'teams.view'])).not.toContain('/administration/setup');
+        expect(hrefsFor(['audit.access.view'])).not.toContain('/administration');
+        expect(
+            hrefsFor(['audit.access.view']).some(
+                (href) => typeof href === 'string' && href.startsWith('/administration'),
+            ),
+        ).toBe(false);
+    });
+
+    it('signs out with a POST to /logout', async () => {
+        routerPost.mockClear();
         mockPageProps.value = {
             auth: {
                 user: {
-                    id: 6,
-                    username: 'audit.viewer',
-                    name: 'Audit Viewer',
+                    id: 7,
+                    username: 'demo.user',
+                    name: 'Demo User',
                     team_id: 1,
                     team: { id: 1, name: 'Team Alpha' },
                     must_change_password: false,
                 },
-                roles: ['Auditor'],
-                permissions: ['audit.access.view'],
+                permissions: [],
             },
         };
+        const wrapper = mount(AppLayout, { props: { title: 'Dashboard' } });
 
-        const wrapper = mount(AppLayout, {
-            props: { title: 'Administration' },
-        });
+        await wrapper.get('[data-testid="btn-logout"]').trigger('click');
 
-        const navLinks = wrapper.findAllComponents(Link);
-        const navHrefs = navLinks.map((link) => link.props('href'));
-        expect(navHrefs).toContain('/administration');
+        expect(routerPost).toHaveBeenCalledWith('/logout');
     });
 
     // AC4: shell_is_keyboard_operable

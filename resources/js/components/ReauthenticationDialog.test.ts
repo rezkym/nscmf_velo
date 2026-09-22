@@ -1,335 +1,207 @@
-import { mount } from '@vue/test-utils';
-import { reactive } from 'vue';
+import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { sendJson } from '@/lib/http';
+
 import ReauthenticationDialog from './ReauthenticationDialog.vue';
 
-interface MockForm {
-    current_password: string;
-    processing: boolean;
-    errors: Record<string, string>;
-    post: ReturnType<typeof vi.fn>;
-    reset: ReturnType<typeof vi.fn>;
-    clearErrors: ReturnType<typeof vi.fn>;
+// POST /account/re-authenticate is a same-origin JSON endpoint: 204 proof, 403 REAUTH_FAILED (12 §79, §109).
+vi.mock('@/lib/http', () => ({ sendJson: vi.fn() }));
+
+const send = vi.mocked(sendJson);
+
+function mountDialog(props: Record<string, unknown> = {}) {
+    return mount(ReauthenticationDialog, { props: { open: true, ...props }, attachTo: document.body });
 }
 
-let currentForm: MockForm;
-
-vi.mock('@inertiajs/vue3', () => {
-    return {
-        useForm: vi.fn((initialData: { current_password?: string }) => {
-            currentForm = reactive({
-                current_password: initialData.current_password || '',
-                processing: false,
-                errors: {},
-                post: vi.fn(),
-                reset: vi.fn((...fields: string[]) => {
-                    if (fields.length === 0 || fields.includes('current_password')) {
-                        currentForm.current_password = '';
-                    }
-                }),
-                clearErrors: vi.fn(),
-            });
-            return currentForm;
-        }),
-    };
-});
+async function submitPassword(wrapper: ReturnType<typeof mountDialog>, password = 'MyCurrentSecret'): Promise<void> {
+    await wrapper.get('input[type="password"]').setValue(password);
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+}
 
 describe('ReauthenticationDialog.vue (FE-10)', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        send.mockReset();
+        document.body.innerHTML = '';
     });
 
-    it('AC1: reauth_posts_only_current_password — sends current_password to POST /account/re-authenticate, no reusable proof or target password', async () => {
-        const wrapper = mount(ReauthenticationDialog, {
-            props: {
-                open: true,
-                targetActionTitle: 'Reset User Password',
-                targetActionDescription: 'Reset password for user John Doe',
-            },
-        });
+    it('AC1: posts only current_password as JSON and exposes a single password input', async () => {
+        send.mockResolvedValue({ ok: true, status: 204, body: null });
+        const wrapper = mountDialog({ targetActionTitle: 'Reset User Password' });
 
-        const passwordInput = wrapper.find<HTMLInputElement>('input[type="password"]');
-        expect(passwordInput.exists()).toBe(true);
-        expect(passwordInput.attributes('name')).toBe('current_password');
-        expect(passwordInput.attributes('autocomplete')).toBe('current-password');
-
-        // Ensure no other inputs exist (no token input, no target password input, no hidden proof inputs)
         const inputs = wrapper.findAll('input');
-        expect(inputs.length).toBe(1);
+        expect(inputs).toHaveLength(1);
         expect(inputs[0]?.attributes('name')).toBe('current_password');
+        expect(inputs[0]?.attributes('autocomplete')).toBe('current-password');
 
-        await passwordInput.setValue('MyCurrentSecretPassword123');
-        await wrapper.find('form').trigger('submit.prevent');
+        await submitPassword(wrapper);
 
-        expect(currentForm.post).toHaveBeenCalledTimes(1);
-        expect(currentForm.post).toHaveBeenCalledWith('/account/re-authenticate', expect.any(Object));
-        expect(currentForm.current_password).toBe('MyCurrentSecretPassword123');
+        expect(send).toHaveBeenCalledWith('POST', '/account/re-authenticate', { current_password: 'MyCurrentSecret' });
     });
 
-    it('AC2: reauth_never_executes_mutation_automatically — success re-auth displays confirmation intent and emits success, does not trigger mutation directly', async () => {
-        const wrapper = mount(ReauthenticationDialog, {
-            props: {
-                open: true,
-                targetActionTitle: 'Change User Role',
-                targetActionDescription: 'Change role of user Alice to Approver',
-            },
-        });
+    it('AC2: emits success only after the server answers 204 and never triggers the protected mutation itself', async () => {
+        send.mockResolvedValue({ ok: true, status: 204, body: null });
+        const wrapper = mountDialog();
 
-        const passwordInput = wrapper.find<HTMLInputElement>('input[type="password"]');
-        await passwordInput.setValue('MyCurrentSecretPassword123');
+        await submitPassword(wrapper);
 
-        // Submit form
-        await wrapper.find('form').trigger('submit.prevent');
-
-        // Simulate onSuccess callback from post
-        const postOptions = (
-            currentForm.post.mock.calls[0] as [string, { onSuccess?: () => void; onFinish?: () => void }]
-        )[1];
-        postOptions.onSuccess?.();
-        postOptions.onFinish?.();
-
-        await wrapper.vm.$nextTick();
-
-        // Confirms intent: emits success event for parent to confirm intent
-        expect(wrapper.emitted('success')).toBeTruthy();
-        expect(wrapper.emitted('success')?.length).toBe(1);
-        // Reauth dialog MUST NOT emit execute or mutation payload directly
-        expect(wrapper.emitted('execute')).toBeFalsy();
-        expect(wrapper.emitted('mutate')).toBeFalsy();
-
-        // Displays intent confirmation details
-        expect(wrapper.text()).toContain('Change User Role');
-        expect(wrapper.text()).toContain('Change role of user Alice to Approver');
+        expect(wrapper.emitted('success')).toHaveLength(1);
+        expect(send).toHaveBeenCalledTimes(1);
+        expect((wrapper.get('input[type="password"]').element as HTMLInputElement).value).toBe('');
     });
 
-    it('AC3: reauth_cancel_is_safe — cancel clears password and emits cancel without altering state or mutation', async () => {
-        const wrapper = mount(ReauthenticationDialog, {
-            props: {
-                open: true,
-                targetActionTitle: 'Disable User',
-                targetActionDescription: 'Disable user account bob',
-            },
+    it('withholds success and shows the canonical message on 403 REAUTH_FAILED', async () => {
+        send.mockResolvedValue({
+            ok: false,
+            status: 403,
+            error: { code: 'REAUTH_FAILED', message: 'Re-authentication failed. Check your password.' },
         });
+        const wrapper = mountDialog();
 
-        const passwordInput = wrapper.find<HTMLInputElement>('input[type="password"]');
-        await passwordInput.setValue('EnteredPassword');
+        await submitPassword(wrapper, 'wrong');
 
-        const cancelBtn = wrapper.find('[data-test="cancel-button"]');
-        await cancelBtn.trigger('click');
-
-        expect(wrapper.emitted('cancel')).toBeTruthy();
-        expect(currentForm.reset).toHaveBeenCalledWith('current_password');
         expect(wrapper.emitted('success')).toBeFalsy();
-        expect(wrapper.emitted('execute')).toBeFalsy();
+        expect(wrapper.get('[data-testid="reauth-error"]').text()).toBe(
+            'Re-authentication failed. Check your password.',
+        );
+        expect((wrapper.get('input[type="password"]').element as HTMLInputElement).value).toBe('');
     });
 
-    it('AC4: reauth_expired_proof_is_server_driven — REAUTH_REQUIRED error triggers dialog reopen/error presentation regardless of client timer', async () => {
-        const wrapper = mount(ReauthenticationDialog, {
-            props: {
-                open: false,
-                targetActionTitle: 'Update Security Settings',
-                targetActionDescription: 'Update system authentication settings',
-                errorCode: 'REAUTH_REQUIRED',
-                serverErrorMessage: 'Re-authentication is required to perform this action.',
+    it('shows the field error from a 422 envelope', async () => {
+        send.mockResolvedValue({
+            ok: false,
+            status: 422,
+            error: {
+                code: 'VALIDATION_FAILED',
+                message: 'Some fields need to be corrected.',
+                errors: { current_password: ['The current password field is required.'] },
             },
         });
+        const wrapper = mountDialog();
 
-        // When errorCode is REAUTH_REQUIRED or server error occurs, message should be safely presented
-        // Now open the dialog as triggered by server-driven REAUTH_REQUIRED
-        await wrapper.setProps({ open: true });
+        await submitPassword(wrapper, 'x');
 
-        expect(wrapper.find('[role="alert"]').exists()).toBe(true);
-        expect(wrapper.find('[role="alert"]').text()).toContain('Re-authentication is required');
+        expect(wrapper.get('[data-testid="reauth-error"]').text()).toBe('The current password field is required.');
+    });
 
-        // Generic error on failure: when server returns 403 REAUTH_FAILED or generic error
-        await wrapper.setProps({
-            errorCode: 'REAUTH_FAILED',
-            serverErrorMessage: 'Invalid current password.',
+    it('explains an expired session and a throttle instead of claiming a wrong password', async () => {
+        send.mockResolvedValueOnce({
+            ok: false,
+            status: 401,
+            error: { code: 'SESSION_EXPIRED', message: 'Your session has expired. Sign in again.' },
         });
+        const wrapper = mountDialog();
+        await submitPassword(wrapper);
+        expect(wrapper.get('[data-testid="reauth-error"]').text()).toBe('Your session has expired. Sign in again.');
 
-        expect(wrapper.find('[role="alert"]').text()).toContain('Invalid current password.');
-
-        // When serverErrorMessage is absent, falls back to canonical REAUTH_FAILED text
-        await wrapper.setProps({
-            serverErrorMessage: undefined,
+        send.mockResolvedValueOnce({
+            ok: false,
+            status: 429,
+            error: { code: 'RATE_LIMITED', message: 'Too many attempts. Try again in a minute.' },
         });
-        expect(wrapper.find('[role="alert"]').text()).toContain(
-            'Re-authentication failed. Please check your password.',
+        await submitPassword(wrapper);
+        expect(wrapper.get('[data-testid="reauth-error"]').text()).toBe('Too many attempts. Try again in a minute.');
+
+        send.mockResolvedValueOnce({ ok: false, status: 0, error: null });
+        await submitPassword(wrapper);
+        expect(wrapper.get('[data-testid="reauth-error"]').text()).toBe(
+            'Re-authentication could not be completed. Try again.',
         );
+        expect(wrapper.emitted('success')).toBeFalsy();
+    });
 
-        // When serverErrorMessage is absent with REAUTH_REQUIRED
-        await wrapper.setProps({
-            errorCode: 'REAUTH_REQUIRED',
-        });
-        expect(wrapper.find('[role="alert"]').text()).toContain(
+    it('AC4: presents a server-driven REAUTH_REQUIRED passed by the parent', () => {
+        const wrapper = mountDialog({ errorCode: 'REAUTH_REQUIRED' });
+
+        expect(wrapper.get('[data-testid="reauth-error"]').text()).toBe(
             'Re-authentication is required to perform this action.',
         );
-
-        // Form error takes precedence
-        currentForm.errors = { current_password: 'Password must not be empty.' };
-        await wrapper.vm.$nextTick();
-        expect(wrapper.find('[role="alert"]').text()).toContain('Password must not be empty.');
     });
 
-    it('handles keyboard escape and trigger focus restoration on close', async () => {
-        const trigger = document.createElement('button');
-        document.body.appendChild(trigger);
-        const focusSpy = vi.spyOn(trigger, 'focus');
+    it('prefers an explicit server message passed by the parent', () => {
+        const wrapper = mountDialog({ errorCode: 'REAUTH_FAILED', serverErrorMessage: 'Invalid current password.' });
 
-        const wrapper = mount(ReauthenticationDialog, {
-            props: {
-                open: true,
-                triggerElement: trigger,
-            },
-            attachTo: document.body,
-        });
+        expect(wrapper.get('[data-testid="reauth-error"]').text()).toBe('Invalid current password.');
+    });
 
-        // Press Escape
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-        expect(wrapper.emitted('cancel')).toBeTruthy();
+    it('does not submit while a request is pending or when the password is empty', async () => {
+        let resolve: (value: Awaited<ReturnType<typeof sendJson>>) => void = () => {};
+        send.mockReturnValue(new Promise((done) => (resolve = done)));
+        const wrapper = mountDialog();
 
-        // While open is false, focus restores to triggerElement
+        await wrapper.get('form').trigger('submit');
+        expect(send).not.toHaveBeenCalled();
+
+        await wrapper.get('input[type="password"]').setValue('secret');
+        await wrapper.get('form').trigger('submit');
+        await wrapper.get('form').trigger('submit');
+        expect(send).toHaveBeenCalledTimes(1);
+
+        await wrapper.get('[data-test="cancel-button"]').trigger('click');
+        expect(wrapper.emitted('cancel')).toBeFalsy();
+
+        resolve({ ok: true, status: 204, body: null });
+        await flushPromises();
+        expect(wrapper.emitted('success')).toHaveLength(1);
+    });
+
+    it('AC3: cancel clears the password and emits cancel without any request', async () => {
+        const wrapper = mountDialog();
+        await wrapper.get('input[type="password"]').setValue('typed');
+
+        await wrapper.get('[data-test="cancel-button"]').trigger('click');
+
+        expect(wrapper.emitted('cancel')).toHaveLength(1);
+        expect(send).not.toHaveBeenCalled();
+        expect((wrapper.get('input[type="password"]').element as HTMLInputElement).value).toBe('');
+    });
+
+    it('clears the typed password when the dialog closes', async () => {
+        const wrapper = mountDialog();
+        await wrapper.get('input[type="password"]').setValue('typed');
+
         await wrapper.setProps({ open: false });
-        expect(focusSpy).toHaveBeenCalled();
+        await wrapper.setProps({ open: true });
 
-        // Unmount cleans up event listener
-        wrapper.unmount();
-        document.body.removeChild(trigger);
-    });
-
-    it('handles form submission error and finish callback properly', async () => {
-        const wrapper = mount(ReauthenticationDialog, {
-            props: {
-                open: true,
-            },
-        });
-
-        const passwordInput = wrapper.find<HTMLInputElement>('input[type="password"]');
-        await passwordInput.setValue('WrongPassword');
-
-        await wrapper.find('form').trigger('submit.prevent');
-
-        const postOptions = (
-            currentForm.post.mock.calls[0] as [string, { onError?: () => void; onFinish?: () => void }]
-        )[1];
-        postOptions.onError?.();
-        postOptions.onFinish?.();
-
-        expect(currentForm.reset).toHaveBeenCalledWith('current_password');
-        expect(wrapper.emitted('success')).toBeFalsy();
-    });
-
-    it('withholds success emission when reauth fails with server validation or auth error', async () => {
-        const wrapper = mount(ReauthenticationDialog, {
-            props: {
-                open: true,
-                targetActionTitle: 'Sensitive Action',
-                targetActionDescription: 'Requires password',
-            },
-        });
-
-        const passwordInput = wrapper.find<HTMLInputElement>('input[type="password"]');
-        await passwordInput.setValue('WrongPassword123');
-        await wrapper.find('form').trigger('submit.prevent');
-
-        expect(currentForm.post).toHaveBeenCalledWith('/account/re-authenticate', expect.any(Object));
-
-        const postOptions = (
-            currentForm.post.mock.calls[0] as [
-                string,
-                { onError?: (errors?: unknown) => void; onFinish?: () => void; onSuccess?: () => void },
-            ]
-        )[1];
-
-        // Trigger onError
-        postOptions.onError?.({ current_password: 'The provided password was incorrect.' });
-        postOptions.onFinish?.();
-        await wrapper.vm.$nextTick();
-
-        // Crucial security invariant: re-auth FAILURE must NOT emit success
-        expect(wrapper.emitted('success')).toBeFalsy();
-        expect(currentForm.reset).toHaveBeenCalledWith('current_password');
+        expect((wrapper.get('input[type="password"]').element as HTMLInputElement).value).toBe('');
     });
 
     it('renders the password field helper text', () => {
-        const wrapper = mount(ReauthenticationDialog, {
-            props: {
-                open: true,
-            },
-        });
-
-        expect(wrapper.text()).toContain('Enter your existing account password to confirm');
+        expect(mountDialog().text()).toContain('Enter your existing account password to confirm');
     });
 
-    it('submit guard rejects while processing or when current_password is empty', async () => {
-        const wrapper = mount(ReauthenticationDialog, {
-            props: {
-                open: true,
-            },
-        });
+    it('handles keyboard escape and restores focus to the trigger on close', async () => {
+        const trigger = document.createElement('button');
+        document.body.appendChild(trigger);
+        const focusSpy = vi.spyOn(trigger, 'focus');
+        const wrapper = mountDialog({ triggerElement: trigger });
 
-        // 1. Guard rejects when current_password is empty
-        currentForm.current_password = '';
-        await wrapper.find('form').trigger('submit.prevent');
-        expect(currentForm.post).not.toHaveBeenCalled();
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(wrapper.emitted('cancel')).toBeTruthy();
 
-        // 2. Guard rejects when processing
-        currentForm.current_password = 'ValidPassword123';
-        currentForm.processing = true;
-        await wrapper.find('form').trigger('submit.prevent');
-
-        expect(currentForm.post).not.toHaveBeenCalled();
+        await wrapper.setProps({ open: false });
+        expect(focusSpy).toHaveBeenCalled();
+        wrapper.unmount();
     });
 
-    it('cancel guard rejects while processing', async () => {
-        const wrapper = mount(ReauthenticationDialog, {
-            props: {
-                open: true,
-            },
-        });
+    it('traps Tab focus inside the dialog', async () => {
+        const wrapper = mountDialog();
+        await wrapper.get('input[type="password"]').setValue('EnteredPassword');
 
-        currentForm.processing = true;
-        const cancelBtn = wrapper.find('[data-test="cancel-button"]');
-        await cancelBtn.trigger('click');
+        const passwordInput = wrapper.get('input[type="password"]').element as HTMLInputElement;
+        const confirmBtn = wrapper.get('[data-test="confirm-button"]').element as HTMLButtonElement;
 
-        expect(wrapper.emitted('cancel')).toBeFalsy();
-    });
-
-    it('traps Tab focus inside the dialog per microtask_fe/FE-04.md ("trap fokus")', async () => {
-        const wrapper = mount(ReauthenticationDialog, {
-            attachTo: document.body,
-            props: {
-                open: true,
-            },
-        });
-
-        // Confirm button is disabled (and thus not focusable/tabbable) until a password is entered.
-        await wrapper.find('input[type="password"]').setValue('EnteredPassword');
-
-        const passwordInput = wrapper.find('input[type="password"]').element as HTMLInputElement;
-        const confirmBtn = wrapper.find('[data-test="confirm-button"]').element as HTMLButtonElement;
-
-        // Tab forward from the last focusable element wraps back to the first
         confirmBtn.focus();
-        expect(document.activeElement).toBe(confirmBtn);
-        const forwardEvent = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
-        window.dispatchEvent(forwardEvent);
+        const forward = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+        window.dispatchEvent(forward);
         expect(document.activeElement).toBe(passwordInput);
-        expect(forwardEvent.defaultPrevented).toBe(true);
+        expect(forward.defaultPrevented).toBe(true);
 
-        // Shift+Tab from the first focusable element wraps to the last
         passwordInput.focus();
-        expect(document.activeElement).toBe(passwordInput);
-        const backwardEvent = new KeyboardEvent('keydown', {
-            key: 'Tab',
-            shiftKey: true,
-            bubbles: true,
-            cancelable: true,
-        });
-        window.dispatchEvent(backwardEvent);
+        const backward = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+        window.dispatchEvent(backward);
         expect(document.activeElement).toBe(confirmBtn);
-        expect(backwardEvent.defaultPrevented).toBe(true);
-
         wrapper.unmount();
     });
 });

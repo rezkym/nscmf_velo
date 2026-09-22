@@ -102,3 +102,17 @@ describe('pageDomainError across both flash channels', () => {
         expect(pageDomainError({ flash: {}, props: { flash: flashed } })).toEqual(expected);
     });
 });
+
+describe('firstFieldError', () => {
+    it('reads the first message of an array or string field and nothing else', async () => {
+        const { firstFieldError } = await import('./apiErrors');
+        expect(
+            firstFieldError({ code: 'VALIDATION_FAILED', message: '', errors: { name: ['First', 'Second'] } }, 'name'),
+        ).toBe('First');
+        expect(firstFieldError({ code: 'VALIDATION_FAILED', message: '', errors: { name: 'Only' } }, 'name')).toBe(
+            'Only',
+        );
+        expect(firstFieldError({ code: 'VALIDATION_FAILED', message: '' }, 'name')).toBeUndefined();
+        expect(firstFieldError(null, 'name')).toBeUndefined();
+    });
+});

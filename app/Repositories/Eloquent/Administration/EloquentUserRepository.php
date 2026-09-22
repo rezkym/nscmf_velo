@@ -6,6 +6,7 @@ namespace App\Repositories\Eloquent\Administration;
 
 use App\Models\User;
 use App\Repositories\Contracts\Administration\UserRepository;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 final class EloquentUserRepository implements UserRepository
 {
@@ -28,6 +29,24 @@ final class EloquentUserRepository implements UserRepository
     public function update(User $user, array $attributes): void
     {
         $user->forceFill($attributes)->save();
+    }
+
+    public function paginateForAdministration(int $page, int $perPage): LengthAwarePaginator
+    {
+        return User::query()
+            ->with(['team', 'roles'])
+            ->orderBy('name')
+            ->orderBy('id')
+            ->paginate(perPage: $perPage, page: $page);
+    }
+
+    public function hasActiveNormalUserWithRole(): bool
+    {
+        return User::query()
+            ->where('is_active', true)
+            ->where('is_protected_superadmin', false)
+            ->whereHas('roles')
+            ->exists();
     }
 
     public function lockForUpdate(int $id): ?User

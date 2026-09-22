@@ -1,25 +1,38 @@
 import { describe, expect, it } from 'vitest';
 
-import { temporaryCredentialFromFlash } from './temporaryCredential';
+import { temporaryCredentialFromResponse } from './temporaryCredential';
 
-describe('temporaryCredentialFromFlash', () => {
-    it('reads the flashed password and username', () => {
-        expect(temporaryCredentialFromFlash({ temporary_password: 'test-secret', username: 'demo.reviewer' })).toEqual({
-            password: 'test-secret',
-            username: 'demo.reviewer',
-        });
+// The one-time password arrives only in the JSON success body (12 §81, §85, §96.2), never in flash.
+describe('temporaryCredentialFromResponse', () => {
+    it('reads a create response with the user username', () => {
+        expect(
+            temporaryCredentialFromResponse({
+                data: { user: { id: 44, username: 'demo.reviewer' }, temporary_password: 'test-secret' },
+                meta: { temporary_password_reveal: 'ONE_TIME_ONLY' },
+            }),
+        ).toEqual({ password: 'test-secret', username: 'demo.reviewer' });
     });
 
-    it('returns null when no password was flashed', () => {
-        expect(temporaryCredentialFromFlash(undefined)).toBeNull();
-        expect(temporaryCredentialFromFlash({})).toBeNull();
-        expect(temporaryCredentialFromFlash({ temporary_password: '' })).toBeNull();
+    it('reads a reset response, which carries no username', () => {
+        expect(
+            temporaryCredentialFromResponse({
+                data: { user_id: 2, temporary_password: 'test-reset' },
+                meta: { temporary_password_reveal: 'ONE_TIME_ONLY' },
+            }),
+        ).toEqual({ password: 'test-reset', username: null });
     });
 
-    it('allows a missing username', () => {
-        expect(temporaryCredentialFromFlash({ temporary_password: 'test-secret' })).toEqual({
-            password: 'test-secret',
-            username: null,
-        });
+    it('returns null without a one-time marker or password', () => {
+        expect(temporaryCredentialFromResponse(null)).toBeNull();
+        expect(temporaryCredentialFromResponse({ data: { temporary_password: 'x' }, meta: {} })).toBeNull();
+        expect(
+            temporaryCredentialFromResponse({
+                data: { temporary_password: '' },
+                meta: { temporary_password_reveal: 'ONE_TIME_ONLY' },
+            }),
+        ).toBeNull();
+        expect(
+            temporaryCredentialFromResponse({ data: 'nope', meta: { temporary_password_reveal: 'ONE_TIME_ONLY' } }),
+        ).toBeNull();
     });
 });

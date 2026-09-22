@@ -101,7 +101,7 @@ jobs:
             mysql:
                 image: mysql:8.4
                 env:
-                    MYSQL_DATABASE: nscmf
+                    MYSQL_DATABASE: nscmf_testing
                     MYSQL_USER: nscmf
                     MYSQL_PASSWORD: ci-disposable-password
                     MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
@@ -135,12 +135,13 @@ jobs:
                   composer install --no-interaction --prefer-dist --no-progress
                   npm ci
 
-            - name: Prepare environment and database
+            # The disposable runtime (nscmf_testing, APP_ENV=testing, isolated storage) is
+            # reset by Playwright's guarded global setup, never by a bare migrate (BE-005).
+            - name: Prepare environment
               run: |
                   cp .env.example .env
                   sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-disposable-password/' .env
                   php artisan key:generate --ansi
-                  php artisan migrate --force
 
             - name: Build frontend
               run: npm run build

@@ -1,3 +1,5 @@
+import type { ApiErrorEnvelope } from '@/features/nscmf/contracts';
+
 /** A domain/action error flashed by the server (12 §10), carrying a stable code from the 12 §12 catalog. */
 export interface DomainError {
     code?: string;
@@ -46,4 +48,11 @@ export function domainError(flash: unknown): DomainError | null {
         code: typeof code === 'string' ? code : undefined,
         message: typeof message === 'string' ? message : undefined,
     };
+}
+
+/** The first message of a field in a 12 §9 JSON errors bag. */
+export function firstFieldError(error: ApiErrorEnvelope | null | undefined, field: string): string | undefined {
+    const messages = error?.errors?.[field];
+    if (Array.isArray(messages)) return messages[0];
+    return typeof messages === 'string' ? messages : undefined;
 }

@@ -11,8 +11,12 @@ import FormField from '@/components/ui/FormField.vue';
 import Modal from '@/components/ui/Modal.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import OneTimeCredential from '@/features/administration/OneTimeCredential.vue';
-import { type TemporaryCredential, temporaryCredentialFromFlash } from '@/features/administration/temporaryCredential';
-import { pageDomainError } from '@/lib/apiErrors';
+import {
+    type TemporaryCredential,
+    temporaryCredentialFromResponse,
+} from '@/features/administration/temporaryCredential';
+import { firstFieldError, pageDomainError } from '@/lib/apiErrors';
+import { type JsonResult, sendJson } from '@/lib/http';
 import { toggleItem } from '@/lib/utils';
 
 export interface TeamOption {
@@ -137,17 +141,9 @@ function runSensitive(action: SensitiveAction): void {
     };
 
     switch (action.kind) {
-        case 'create': {
-            const username = createForm.username;
-            createForm.post('/administration/users', {
-                onSuccess: () => {
-                    finish();
-                    closeDialog();
-                    revealCredential(username);
-                },
-            });
+        case 'create':
+            void createUser();
             break;
-        }
         case 'roles':
             rolesForm.put(`/administration/users/${action.user.id}/roles`, {
                 onSuccess: () => {
@@ -166,17 +162,76 @@ function runSensitive(action: SensitiveAction): void {
             );
             break;
         case 'reset':
-            router.post(
-                `/administration/users/${action.user.id}/reset-password`,
-                {},
-                {
-                    onSuccess: () => {
-                        finish();
-                        revealCredential(action.user.username);
-                    },
-                },
-            );
+            void resetPassword(action.user);
             break;
+    }
+}
+
+/**
+ * Create and reset are the only JSON calls here: their success body is the single place the
+ * one-time password ever appears (12 §81, §85, §96.2). Nothing is flashed or kept in page state.
+ */
+async function createUser(): Promise<void> {
+    createForm.processing = true;
+    createForm.clearErrors();
+    const body = {
+        name: createForm.name,
+        username: createForm.username,
+        team_id: createForm.team_id,
+        role_ids: [...createForm.role_ids],
+    };
+
+    try {
+        const result = await sendJson('POST', '/administration/users', body);
+        if (result.ok) {
+            pendingAction.value = null;
+            closeDialog();
+            revealCredential(result, body.username);
+            router.reload({ only: ['users', 'meta'] });
+            return;
+        }
+
+        handleJsonFailure(result, 'create');
+    } finally {
+        createForm.processing = false;
+    }
+}
+
+async function resetPassword(user: UserRow): Promise<void> {
+    const result = await sendJson('POST', `/administration/users/${user.id}/reset-password`, {});
+    if (result.ok) {
+        pendingAction.value = null;
+        revealCredential(result, user.username);
+        return;
+    }
+
+    handleJsonFailure(result, 'reset');
+}
+
+function handleJsonFailure(result: Extract<JsonResult, { ok: false }>, kind: 'create' | 'reset'): void {
+    const code = result.error?.code;
+
+    if (code === 'REAUTH_REQUIRED' || code === 'REAUTH_FAILED') {
+        reauthErrorCode.value = code;
+        isReauthOpen.value = true;
+        return;
+    }
+
+    pendingAction.value = null;
+
+    if (kind === 'create' && result.status === 422 && result.error?.errors) {
+        for (const field of ['name', 'username', 'team_id', 'role_ids'] as const) {
+            const message = firstFieldError(result.error, field);
+            if (message) createForm.setError(field, message);
+        }
+        return;
+    }
+
+    const message = result.error?.message || 'The action could not be completed.';
+    if (kind === 'create') {
+        formError.value = message;
+    } else {
+        pageError.value = message;
     }
 }
 
@@ -208,9 +263,9 @@ watch(
     { deep: true },
 );
 
-function revealCredential(username: string): void {
-    const flashed = temporaryCredentialFromFlash(page.props.flash);
-    if (flashed) credential.value = { ...flashed, username: flashed.username ?? username };
+function revealCredential(result: Extract<JsonResult, { ok: true }>, username: string): void {
+    const revealed = temporaryCredentialFromResponse(result.body);
+    if (revealed) credential.value = { ...revealed, username: revealed.username ?? username };
 }
 </script>
 

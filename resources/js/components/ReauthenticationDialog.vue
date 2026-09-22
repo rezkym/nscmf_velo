@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 import { controlClass } from '@/components/ui/control';
@@ -7,6 +6,8 @@ import Alert from '@/components/ui/Alert.vue';
 import Button from '@/components/ui/Button.vue';
 import FormField from '@/components/ui/FormField.vue';
 import Modal from '@/components/ui/Modal.vue';
+import { firstFieldError } from '@/lib/apiErrors';
+import { sendJson } from '@/lib/http';
 
 export interface ReauthenticationDialogProps {
     open: boolean;
@@ -31,67 +32,67 @@ const emit = defineEmits<{
 }>();
 
 const passwordInputRef = ref<HTMLInputElement | null>(null);
-
-const form = useForm({
-    current_password: '',
-});
+const currentPassword = ref('');
+const processing = ref(false);
+/** The outcome of this dialog's own submission; it replaces whatever the parent passed in. */
+const submitError = ref<string | null>(null);
 
 const displayError = computed(() => {
-    const errors = form.errors as Record<string, string | undefined>;
-    if (errors.current_password) {
-        return errors.current_password;
-    }
-    if (props.serverErrorMessage) {
-        return props.serverErrorMessage;
-    }
-    if (props.errorCode === 'REAUTH_REQUIRED') {
-        return 'Re-authentication is required to perform this action.';
-    }
-    if (props.errorCode === 'REAUTH_FAILED') {
-        return 'Re-authentication failed. Please check your password.';
-    }
+    if (submitError.value) return submitError.value;
+    if (props.serverErrorMessage) return props.serverErrorMessage;
+    if (props.errorCode === 'REAUTH_REQUIRED') return 'Re-authentication is required to perform this action.';
+    if (props.errorCode === 'REAUTH_FAILED') return 'Re-authentication failed. Please check your password.';
     return null;
 });
 
-function submit(): void {
-    if (form.processing || !form.current_password.trim()) {
-        return;
-    }
+/**
+ * POST /account/re-authenticate is same-origin JSON (12 §79, §109): 204 means the server now holds a
+ * 15-minute proof in the session. Nothing reusable comes back to the browser, and the password is
+ * cleared whatever the outcome.
+ */
+async function submit(): Promise<void> {
+    if (processing.value || !currentPassword.value.trim()) return;
 
-    form.post('/account/re-authenticate', {
-        onSuccess: () => {
-            form.reset('current_password');
+    processing.value = true;
+    submitError.value = null;
+    const password = currentPassword.value;
+    currentPassword.value = '';
+
+    try {
+        const result = await sendJson('POST', '/account/re-authenticate', { current_password: password });
+
+        if (result.ok) {
             emit('success');
-        },
-        onError: () => {
-            form.reset('current_password');
-        },
-        onFinish: () => {
-            form.reset('current_password');
-        },
-    });
+            return;
+        }
+
+        submitError.value =
+            firstFieldError(result.error, 'current_password') ??
+            (result.error?.message || 'Re-authentication could not be completed. Try again.');
+    } finally {
+        processing.value = false;
+    }
 }
 
 function handleCancel(): void {
-    if (form.processing) {
-        return;
-    }
-    form.reset('current_password');
+    if (processing.value) return;
+    currentPassword.value = '';
+    submitError.value = null;
     emit('cancel');
 }
 
 watch(
     () => props.open,
     (isOpen) => {
-        if (isOpen) {
-            void nextTick(() => passwordInputRef.value?.focus());
-        } else {
-            form.reset('current_password');
-        }
+        currentPassword.value = '';
+        submitError.value = null;
+        if (isOpen) void nextTick(() => passwordInputRef.value?.focus());
     },
 );
 
-onBeforeUnmount(() => form.reset('current_password'));
+onBeforeUnmount(() => {
+    currentPassword.value = '';
+});
 </script>
 
 <template>
@@ -99,25 +100,25 @@ onBeforeUnmount(() => form.reset('current_password'));
         :open="open"
         :title="targetActionTitle"
         :description="targetActionDescription"
-        :busy="form.processing"
+        :busy="processing"
         :return-focus-to="triggerElement"
         @close="handleCancel"
     >
-        <form class="space-y-4" @submit.prevent="submit">
+        <form class="space-y-4" @submit.prevent="void submit()">
             <Alert v-if="displayError" variant="error" data-testid="reauth-error">{{ displayError }}</Alert>
 
             <FormField
                 id="current_password"
                 label="Current Password"
                 required
-                :disabled="form.processing"
+                :disabled="processing"
                 help="Enter your existing account password to confirm"
             >
                 <template #default="{ id: fieldId, describedBy, disabled }">
                     <input
                         :id="fieldId"
                         ref="passwordInputRef"
-                        v-model="form.current_password"
+                        v-model="currentPassword"
                         type="password"
                         name="current_password"
                         autocomplete="current-password"
@@ -130,11 +131,11 @@ onBeforeUnmount(() => form.reset('current_password'));
             </FormField>
 
             <div class="flex justify-end gap-2 pt-2">
-                <Button variant="secondary" data-test="cancel-button" :disabled="form.processing" @click="handleCancel">
+                <Button variant="secondary" data-test="cancel-button" :disabled="processing" @click="handleCancel">
                     Cancel
                 </Button>
-                <Button type="submit" data-test="confirm-button" :disabled="form.processing || !form.current_password">
-                    {{ form.processing ? 'Verifying…' : 'Confirm' }}
+                <Button type="submit" data-test="confirm-button" :disabled="processing || !currentPassword">
+                    {{ processing ? 'Verifying…' : 'Confirm' }}
                 </Button>
             </div>
         </form>

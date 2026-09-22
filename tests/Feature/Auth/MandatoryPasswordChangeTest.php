@@ -73,7 +73,7 @@ it('refuses the change action for an account that has no pending change', functi
         ->from('/dashboard')
         ->post('/account/temporary-password/change', ['password' => 'abcdef', 'password_confirmation' => 'abcdef'])
         ->assertRedirect('/dashboard')
-        ->assertSessionHas('inertia.flash_data.domain_error.code', 'FORBIDDEN');
+        ->assertSessionHas('inertia.flash_data.domain_error.code', 'PASSWORD_CHANGE_NOT_PENDING');
 });
 
 it('sends a freshly bootstrapped account straight to the change page after login', function (): void {

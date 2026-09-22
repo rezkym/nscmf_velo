@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Infrastructure\Session\AnchoredDatabaseSessionHandler;
+use App\Support\Runtime\DisposableRuntimeGuard;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\ServiceProvider;
@@ -18,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Runs in every process, including the served browser runtime, not only inside Pest (G08).
+        DisposableRuntimeGuard::assertBootIsSafe();
+
         // The locked "database" session driver, plus the authenticated_at anchor column (11 §50).
         Session::extend('database', function (Application $app): AnchoredDatabaseSessionHandler {
             $name = config('session.connection');
