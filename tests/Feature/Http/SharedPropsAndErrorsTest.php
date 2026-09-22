@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\Actors;
 
+use function Pest\Laravel\from;
+use function Pest\Laravel\get;
+use function Pest\Laravel\getJson;
+use function Pest\Laravel\postJson;
+
 /*
  * BE-023 / T05C — shared auth props, session transport and the error envelope
  * (12 §8–12, §100–107).
@@ -30,15 +35,15 @@ it('shares only the safe auth context and effective permissions', function (): v
 });
 
 it('shares a null user and no permissions to guests', function (): void {
-    $this->get('/login')->assertInertia(fn (AssertableInertia $page) => $page
+    get('/login')->assertInertia(fn (AssertableInertia $page) => $page
         ->where('auth.user', null)
         ->where('auth.permissions', []));
 });
 
 it('sends unauthenticated page requests to login and JSON requests a 401 envelope', function (): void {
-    $this->get('/dashboard')->assertRedirect('/login');
+    get('/dashboard')->assertRedirect('/login');
 
-    $this->getJson('/dashboard')->assertStatus(401)->assertExactJson([
+    getJson('/dashboard')->assertStatus(401)->assertExactJson([
         'code' => 'AUTHENTICATION_REQUIRED',
         'message' => 'Sign in to continue.',
         'errors' => [],
@@ -51,14 +56,14 @@ it('maps domain rule failures to the JSON envelope or the flashed domain_error',
         'NSCMF_VERSION_CONFLICT', 'A newer version of this record exists.', 409, ['latest_record_version' => 4],
     ));
 
-    $this->postJson('/__test/domain-error')->assertStatus(409)->assertExactJson([
+    postJson('/__test/domain-error')->assertStatus(409)->assertExactJson([
         'code' => 'NSCMF_VERSION_CONFLICT',
         'message' => 'A newer version of this record exists.',
         'errors' => [],
         'context' => ['latest_record_version' => 4],
     ]);
 
-    $this->from('/somewhere')->post('/__test/domain-error')
+    from('/somewhere')->post('/__test/domain-error')
         ->assertRedirect('/somewhere')
         ->assertSessionHas('inertia.flash_data.domain_error', ['code' => 'NSCMF_VERSION_CONFLICT', 'message' => 'A newer version of this record exists.']);
 });
@@ -67,7 +72,7 @@ it('never leaks SQL, paths or stack traces from an unexpected JSON failure', fun
     config(['app.debug' => false]);
     Route::middleware('web')->get('/__test/boom', fn () => throw new RuntimeException('SQLSTATE[42S02] /var/secret/path.php'));
 
-    $response = $this->getJson('/__test/boom');
+    $response = getJson('/__test/boom');
 
     $response->assertStatus(500)->assertExactJson([
         'code' => 'SERVER_ERROR',
@@ -75,9 +80,14 @@ it('never leaks SQL, paths or stack traces from an unexpected JSON failure', fun
         'errors' => [],
         'context' => [],
     ]);
-    expect($response->getContent())->not->toContain('SQLSTATE')->not->toContain('/var/secret');
+    expect((string) $response->getContent())->not->toContain('SQLSTATE')
+        ->and((string) $response->getContent())->not->toContain('/var/secret');
 });
 
 it('keeps permission hints as hints: a handcrafted request without permission is still refused', function (): void {
-    signIn(Actors::member(['nscmf.view']))->getJson('/review')->assertForbidden()->assertJson(['code' => 'FORBIDDEN']);
+    Route::middleware(['web', 'auth', 'can:nscmf.review'])->get('/__test/review-only', fn () => 'ok');
+
+    signIn(Actors::member(['nscmf.view']))->getJson('/__test/review-only')
+        ->assertForbidden()
+        ->assertExactJson(['code' => 'FORBIDDEN', 'message' => 'You are not allowed to do this.', 'errors' => [], 'context' => []]);
 });

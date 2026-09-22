@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Repositories\Contracts\Administration\UserRepository;
 use App\Repositories\Contracts\Audit\AccessAuditRepository;
 use App\Repositories\Contracts\Audit\BusinessAuditRepository;
 use App\Repositories\Contracts\Audit\SecurityAuditRepository;
+use App\Repositories\Contracts\Security\SessionRepository;
+use App\Repositories\Eloquent\Administration\EloquentUserRepository;
 use App\Repositories\Eloquent\Audit\EloquentAccessAuditRepository;
 use App\Repositories\Eloquent\Audit\EloquentBusinessAuditRepository;
 use App\Repositories\Eloquent\Audit\EloquentSecurityAuditRepository;
+use App\Repositories\Eloquent\Security\DatabaseSessionRepository;
 use Illuminate\Support\ServiceProvider;
 
 /** Explicit repository contract bindings (13 §25). */
@@ -20,5 +24,7 @@ class RepositoryServiceProvider extends ServiceProvider
         BusinessAuditRepository::class => EloquentBusinessAuditRepository::class,
         AccessAuditRepository::class => EloquentAccessAuditRepository::class,
         SecurityAuditRepository::class => EloquentSecurityAuditRepository::class,
+        UserRepository::class => EloquentUserRepository::class,
+        SessionRepository::class => DatabaseSessionRepository::class,
     ];
 }

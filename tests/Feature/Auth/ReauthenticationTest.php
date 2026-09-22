@@ -6,6 +6,9 @@ use App\Services\Security\CredentialService;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Actors;
 
+use function Pest\Laravel\postJson;
+use function Pest\Laravel\travel;
+
 /*
  * BE-031 / T09 — current-password re-authentication with a 15-minute server-side proof
  * (10 §23–26, 12 §79).
@@ -46,16 +49,16 @@ it('keeps the proof valid for less than fifteen minutes only', function (): void
 
     signIn($user)->postJson('/account/re-authenticate', ['current_password' => Actors::PASSWORD])->assertNoContent();
 
-    $this->travel(14)->minutes();
-    $this->travel(59)->seconds();
-    expect($credentials->hasFreshReauthentication(session()->driver()))->toBeTrue();
+    travel(14)->minutes();
+    travel(59)->seconds();
+    expect($credentials->hasFreshReauthentication(app('session.store')))->toBeTrue();
 
-    $this->travel(1)->seconds();
-    expect($credentials->hasFreshReauthentication(session()->driver()))->toBeFalse();
+    travel(1)->seconds();
+    expect($credentials->hasFreshReauthentication(app('session.store')))->toBeFalse();
 });
 
 it('requires authentication', function (): void {
-    $this->postJson('/account/re-authenticate', ['current_password' => 'x'])
+    postJson('/account/re-authenticate', ['current_password' => 'x'])
         ->assertStatus(401)
         ->assertJson(['code' => 'AUTHENTICATION_REQUIRED']);
 });

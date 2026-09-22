@@ -8,6 +8,9 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase;
 use Illuminate\Support\Facades\DB;
 
+use function Pest\Laravel\post;
+use function Pest\Laravel\withCookie;
+
 /**
  * Real database-session helpers. A feature test normally reuses one in-memory session
  * store; forgetting it and replaying only the cookie makes the next request read the
@@ -16,19 +19,19 @@ use Illuminate\Support\Facades\DB;
 final class Sessions
 {
     /** Signs in through the real POST /login flow and returns the stored session id. */
-    public static function login(TestCase $test, User $user, string $password = Actors::PASSWORD): string
+    public static function login(User $user, string $password = Actors::PASSWORD): string
     {
-        $test->post('/login', ['username' => $user->username, 'password' => $password])->assertRedirect('/dashboard');
+        post('/login', ['username' => $user->username, 'password' => $password])->assertRedirect('/dashboard');
 
         return session()->getId();
     }
 
     /** Starts the next request from the sessions table alone, carrying only the cookie. */
-    public static function reuse(TestCase $test, string $sessionId): TestCase
+    public static function reuse(string $sessionId): TestCase
     {
         self::forgetInMemoryState();
 
-        return $test->withCookie((string) config('session.cookie'), $sessionId);
+        return withCookie(config()->string('session.cookie'), $sessionId);
     }
 
     public static function forgetInMemoryState(): void

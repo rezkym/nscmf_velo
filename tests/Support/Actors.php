@@ -72,12 +72,19 @@ final class Actors
         return self::user($permissions, ['team_id' => self::team()->id, ...$attributes]);
     }
 
-    /** The default Requester bundle with an active Team. */
+    /**
+     * The default Requester bundle with an active Team.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
     public static function requester(array $attributes = []): User
     {
         return self::member(PermissionCatalog::defaultRoleBundles()[PermissionCatalog::ROLE_REQUESTER], $attributes);
     }
 
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
     public static function reviewer(array $attributes = []): User
     {
         return self::member(PermissionCatalog::defaultRoleBundles()[PermissionCatalog::ROLE_REVIEWER], $attributes);

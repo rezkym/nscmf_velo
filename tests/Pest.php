@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Pest\TestSuite;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
@@ -15,7 +16,7 @@ pest()->extend(TestCase::class)
  */
 function signIn(User $user, ?int $authenticatedAt = null): TestCase
 {
-    $test = test();
+    $test = TestSuite::getInstance()->test;
     assert($test instanceof TestCase);
 
     $test->actingAs($user)->withSession(['nscmf' => ['authenticated_at' => $authenticatedAt ?? time()]]);
