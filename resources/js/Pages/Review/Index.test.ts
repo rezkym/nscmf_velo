@@ -281,3 +281,39 @@ describe('Review Queue — Index.vue (FE-30)', () => {
         });
     });
 });
+
+describe('the queue table matches the columns FE-30 asks for', () => {
+    it('offers sorting on request number and date, and not on the informational columns', () => {
+        const wrapper = mountReviewQueue();
+        const table = wrapper.findComponent({ name: 'ResourceTable' });
+        const columns = table.props('columns') as { key: string; sortable?: boolean }[];
+        const sortableOf = (key: string) => columns.find((column) => column.key === key)?.sortable;
+
+        expect(sortableOf('request_no')).toBe(true);
+        expect(sortableOf('request_date')).toBe(true);
+        // Requester and Team are informational context (07 §29, 04 §2.3), not sort keys.
+        expect(sortableOf('requester')).toBe(false);
+        expect(sortableOf('team')).toBe(false);
+        expect(sortableOf('family_subtype')).toBe(false);
+        expect(sortableOf('status')).toBe(false);
+    });
+
+    it('names an Activation plainly and a Change by family and subtype', () => {
+        const wrapper = mountReviewQueue();
+
+        expect(wrapper.text()).toContain('Activation');
+        expect(wrapper.text()).toContain('Change · Maintenance');
+    });
+
+    it('keeps the page state and scroll position when the query changes', () => {
+        const wrapper = mountReviewQueue();
+
+        wrapper.findComponent({ name: 'ResourceTable' }).vm.$emit('update:query', { page: 2, per_page: 25 });
+
+        expect(router.get).toHaveBeenCalledWith(
+            '/review',
+            expect.any(Object),
+            expect.objectContaining({ preserveState: true, preserveScroll: true }),
+        );
+    });
+});
