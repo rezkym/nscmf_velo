@@ -51,7 +51,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
 
     // Snapshot tracking for dirty state & concurrency
     const lastSavedSnapshot = ref(JSON.stringify(toValue(options.fields)));
-    let inFlightCount = 0;
+    let isRequestInFlight = false;
     let pendingSavePromise: Promise<void> | null = null;
     let nextQueuedSaveResolve: (() => void) | null = null;
     let hasQueuedSave = false;
@@ -92,7 +92,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
 
         autosaveTimer = setTimeout(() => {
             // Re-checked on firing: the answer can have changed while the timer was pending.
-            if (canAutosave() && isDirty.value && inFlightCount === 0) {
+            if (canAutosave() && !isRequestInFlight) {
                 void executeSave();
             }
         }, options.autosaveInterval);
@@ -149,7 +149,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
     }
 
     async function executeSave(): Promise<void> {
-        if (inFlightCount > 0) {
+        if (isRequestInFlight) {
             hasQueuedSave = true;
             if (!pendingSavePromise) {
                 pendingSavePromise = new Promise<void>((resolve) => {
@@ -168,7 +168,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
             autosaveTimer = null;
         }
 
-        inFlightCount++;
+        isRequestInFlight = true;
         isSaving.value = true;
         saveStatus.value = 'saving';
         feedbackError.value = null;
@@ -185,7 +185,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                 const finishThisRequest = () => {
                     if (settled) return;
                     settled = true;
-                    inFlightCount = Math.max(0, inFlightCount - 1);
+                    isRequestInFlight = false;
                     isSaving.value = false;
                     resolve();
                     handleNextQueued();
@@ -322,14 +322,14 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                         finishThisRequest();
                     },
                     onFinish: () => {
-                        if (inFlightCount === 0) {
+                        if (!isRequestInFlight) {
                             isSaving.value = false;
                         }
                     },
                 });
             });
         } catch (err) {
-            inFlightCount = Math.max(0, inFlightCount - 1);
+            isRequestInFlight = false;
             isSaving.value = false;
             saveStatus.value = 'error';
             handleNextQueued();
@@ -366,9 +366,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
 
     function startAutosave(): void {
         isAutosaveRunning = true;
-        if (isDirty.value && !isConflict.value) {
-            scheduleAutosave();
-        }
+        scheduleAutosave();
     }
 
     function stopAutosave(): void {

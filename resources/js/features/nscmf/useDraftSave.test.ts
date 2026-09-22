@@ -1113,6 +1113,66 @@ describe('one response per request', () => {
     });
 });
 
+describe('state that changes while the autosave timer is pending', () => {
+    beforeEach(() => {
+        resetInertia();
+        vi.useFakeTimers();
+    });
+
+    function armedDraft(fields: Ref<ActivationDraftFields>) {
+        const draft = useDraftSave({
+            recordId: 42,
+            family: 'ACTIVATION',
+            recordVersion: 8,
+            businessStatus: 'DRAFT',
+            fields,
+            autosaveInterval: 1000,
+        });
+        fields.value.customer_name = 'Armed';
+        return draft;
+    }
+
+    it('does not fire when autosave is stopped after the timer was armed', () => {
+        const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
+        const draft = armedDraft(fields);
+
+        draft.stopAutosave();
+        vi.advanceTimersByTime(2000);
+
+        expect(requests.length).toBe(0);
+    });
+
+    it('does not fire when a conflict lands after the timer was armed', async () => {
+        const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
+        const draft = armedDraft(fields);
+
+        // A manual save conflicts while the autosave timer is still pending.
+        const save = draft.save();
+        lastRequest('/nscmf/42/draft')?.options.onHttpException?.({
+            status: 409,
+            data: { code: 'NSCMF_VERSION_CONFLICT' },
+        });
+        await save;
+        const sent = requests.length;
+
+        vi.advanceTimersByTime(2000);
+
+        expect(requests.length).toBe(sent);
+    });
+
+    it('does not fire while a save started after the timer was armed is still running', () => {
+        const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
+        const draft = armedDraft(fields);
+
+        void draft.save();
+        expect(requests.length).toBe(1);
+
+        vi.advanceTimersByTime(2000);
+
+        expect(requests.length).toBe(1);
+    });
+});
+
 describe('error messages keep the server wording', () => {
     beforeEach(() => {
         resetInertia();
