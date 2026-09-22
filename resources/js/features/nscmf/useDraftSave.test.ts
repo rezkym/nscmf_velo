@@ -1160,14 +1160,20 @@ describe('state that changes while the autosave timer is pending', () => {
         expect(requests.length).toBe(sent);
     });
 
-    it('does not fire while a save started after the timer was armed is still running', () => {
+    it('skips the tick entirely while a save is running, instead of queueing another', async () => {
         const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
         const draft = armedDraft(fields);
 
-        void draft.save();
+        const save = draft.save();
         expect(requests.length).toBe(1);
 
         vi.advanceTimersByTime(2000);
+        expect(requests.length).toBe(1);
+
+        // The tick must be dropped, not queued: once the save answers, no autosave may follow it.
+        lastRequest('/nscmf/42/draft')?.options.onSuccess?.({ props: { record: { record_version: 9 } } });
+        await save;
+        await Promise.resolve();
 
         expect(requests.length).toBe(1);
     });
