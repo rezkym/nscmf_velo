@@ -33,6 +33,7 @@ already merged into `main` and is history only — see
 | [04_fe_26_30_readiness.md](04_fe_26_30_readiness.md) | per task FE-26..30: what exists, what is missing, which contract rules bite |
 | [05_open_items_and_boundaries.md](05_open_items_and_boundaries.md) | open gaps, deliberate removals that must not come back, honest limitations |
 | [06_fe_26_30_review.md](06_fe_26_30_review.md) | the 2026-09-21 review of FE-26..30 on `fix/fe-26-30-closure`: defects found, patches, gates, what stays open |
+| [07_fe_26_30_silent_bug_audit.md](07_fe_26_30_silent_bug_audit.md) | the 2026-09-22 mutation-proved silent-bug audit: the flash-channel split, the unfaithful Inertia double, per-file mutation scores |
 
 ## The three sentences that matter most
 
