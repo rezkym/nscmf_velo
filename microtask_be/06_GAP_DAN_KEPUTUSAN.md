@@ -1,6 +1,6 @@
 # Gap dan keputusan
 
-Semua item **OPEN**, kecuali keputusan yang memang deferred/nonblocking disebut eksplisit. Status task tetap PLANNED; “gap” tidak berarti semua pekerjaan berhenti. Task owner memberi artefak reviewable lalu meminta keputusan hanya saat dibutuhkan. Penyusunan backlog tidak menyinkronkan authority atau memilih nilai secara diam-diam.
+Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik proyek 2026-09-22), serta keputusan yang memang deferred/nonblocking disebut eksplisit. Status task tetap PLANNED; “gap” tidak berarti semua pekerjaan berhenti. Task owner memberi artefak reviewable lalu meminta keputusan hanya saat dibutuhkan. Penyusunan backlog tidak menyinkronkan authority atau memilih nilai secara diam-diam.
 
 <a id="g01"></a>
 
@@ -10,7 +10,7 @@ Semua item **OPEN**, kecuali keputusan yang memang deferred/nonblocking disebut 
 - Dampak/task owner: [BE-035](BE-035.md), [BE-042](BE-042.md), [BE-075](BE-075.md).
 - Pihak berwenang: Pemilik produk/API.
 - Bukti penutupan: Exact GET/render, navigation/redirect, eligibility, fixtures; approval+synchronized12/07 jika menambah route.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Status: **CLOSED 2026-09-22** oleh pemilik proyek: `GET /account/temporary-password` (12 §78), `GET /administration/setup` (12 §96.1), editor Result-only memakai `GET /nscmf/{record}/edit` tanpa route baru (12 §29, §44).
 
 <a id="g02"></a>
 
@@ -30,7 +30,7 @@ Semua item **OPEN**, kecuali keputusan yang memang deferred/nonblocking disebut 
 - Dampak/task owner: [BE-048](BE-048.md), [BE-062](BE-062.md).
 - Pihak berwenang: Pemilik produk/API.
 - Bukti penutupan: Matrix editable headers sebelum first submit + exact action/payload/response; approval source sync. Jangan menambah key ke canonical PATCH diam-diam.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Status: **CLOSED 2026-09-22** oleh pemilik proyek: blok opsional `header` {`request_date`, `request_no`} pada `PATCH /nscmf/{record}/draft` (12 §26.1); dokumen 12 disinkronkan.
 
 <a id="g04"></a>
 
@@ -50,7 +50,7 @@ Semua item **OPEN**, kecuali keputusan yang memang deferred/nonblocking disebut 
 - Dampak/task owner: [BE-028](BE-028.md), [BE-101](BE-101.md), [BE-122](BE-122.md), [BE-148](BE-148.md).
 - Pihak berwenang: Owner security/operasional; user untuk policy approval.
 - Bukti penutupan: Controlled measurements, proposed numeric buckets, abuse/fairness test, accepted config. Test fixture rate bukan production default.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Status: OPEN untuk angka final berbasis pengukuran. **Nilai sementara login disetujui 2026-09-22:** 5 percobaan gagal per menit per username+IP, dapat diubah lewat `config/security.php`; bukan kebijakan final. Upload/validator tetap OPEN.
 
 <a id="g06"></a>
 
@@ -70,7 +70,7 @@ Semua item **OPEN**, kecuali keputusan yang memang deferred/nonblocking disebut 
 - Dampak/task owner: [BE-023](BE-023.md), [BE-064](BE-064.md), [BE-062](BE-062.md), [BE-076](BE-076.md).
 - Pihak berwenang: Pemilik API.
 - Bukti penutupan: Catalog uses VALIDATION_FAILED while example NSCMF_VALIDATION_FAILED; exact code resolution approved. FE status422+errors tetap robust tanpa menerima false success.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Status: **CLOSED 2026-09-22** oleh pemilik proyek: `VALIDATION_FAILED` di semua endpoint; 12 §7.4.1/§27 disinkronkan.
 
 <a id="g08"></a>
 
@@ -90,7 +90,7 @@ Semua item **OPEN**, kecuali keputusan yang memang deferred/nonblocking disebut 
 - Dampak/task owner: [BE-037](BE-037.md), [BE-035](BE-035.md), [BE-078](BE-078.md).
 - Pihak berwenang: Pemilik produk/API.
 - Bukti penutupan: Explicit allowlists, nested IDs, destination key, response/errors, permission+reauth fixtures; no schema-to-body mass assignment.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Status: **Sebagian CLOSED 2026-09-22**: body administrasi dan temporary-password ditetapkan (12 §78, §96.2); create/reset user memakai JSON no-store. Destination key Reopen (BE-078) tetap OPEN.
 
 <a id="g10"></a>
 
@@ -120,7 +120,7 @@ Semua item **OPEN**, kecuali keputusan yang memang deferred/nonblocking disebut 
 - Dampak/task owner: [BE-042](BE-042.md), [BE-043](BE-043.md).
 - Pihak berwenang: Pemilik produk/API/schema.
 - Bukti penutupan: Define readiness/complete/resume source without invented setup_completed DB column; signing readiness later tidak otomatis memblokir Phase2 setup tanpa authority.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Status: **CLOSED 2026-09-22** oleh pemilik proyek: readiness dihitung dari data tanpa kolom baru (12 §96.1).
 
 <a id="g13"></a>
 
@@ -140,7 +140,7 @@ Semua item **OPEN**, kecuali keputusan yang memang deferred/nonblocking disebut 
 - Dampak/task owner: [BE-037](BE-037.md), [BE-040](BE-040.md).
 - Pihak berwenang: Pemilik RBAC/API.
 - Bukti penutupan: Explicit operation mapping AND/OR serta positive/negative tests; jangan tambah persyaratan permission sendiri.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Status: **CLOSED 2026-09-22** oleh pemilik proyek: `users.assign_team` ATAU `teams.assign_users` (04 §16, 12 §87).
 
 <a id="g15"></a>
 
@@ -181,5 +181,15 @@ Semua item **OPEN**, kecuali keputusan yang memang deferred/nonblocking disebut 
 - Pihak berwenang: Pelaksana runtime + review keamanan; user bila kebijakan baru.
 - Bukti penutupan: Define lifecycle/ownership marker for active vs abandoned workspace using real jobs; no invented product retention hours; cleanup test guarantees active/final/authoritative data protected.
 - Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+
+<a id="g19"></a>
+
+## G19 — Visibilitas resource record NSCMF
+
+- Sumber: `04 §2/§21;05 §32;12 §17/§47` — "resource authorization" tidak dirinci.
+- Dampak/task owner: [BE-054](BE-054.md), [BE-060](BE-060.md), [BE-066](BE-066.md), [BE-086](BE-086.md), [BE-087](BE-087.md).
+- Pihak berwenang: Pemilik proyek.
+- Bukti penutupan: aturan tertulis di 12 §17.1 dan test visibilitas.
+- Status: **CLOSED 2026-09-22** oleh pemilik proyek: record yang belum pernah Submit (DRAFT/CANCELLED) hanya terlihat oleh pemilik; record yang sudah pernah Submit terlihat oleh semua pemegang izin baca terkait; tanpa Team, tanpa pengecualian Superadmin (12 §17.1).
 
 Removed concerns dari19A/20 tidak menjadi gap: HA/Redis/DR/backup/load/SLA architecture/automatedCD/publicCA/multi-server. Actual hostname/provider/Linux/path baru dicatat ketika deployment sungguhan diperintahkan; tidak memilih server sekarang.

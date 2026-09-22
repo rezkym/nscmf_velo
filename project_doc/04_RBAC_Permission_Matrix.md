@@ -262,6 +262,8 @@ Create/reset temporary credential behavior is server-generated + one-time reveal
 
 Team change does not change authorization merely because Team changed.
 
+Assigning/moving a user's Team (`PUT /administration/users/{user}/team`) requires **either** `users.assign_team` **or** `teams.assign_users` (confirmed 2026-09-22, gap G14).
+
 ## 17. Role / Permission Administration
 
 | Permission | Description |

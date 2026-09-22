@@ -1127,7 +1127,7 @@ collection key = [rows] → persisted set becomes exactly those rows
 Rules:
 
 - each row is identified by its stable natural key — `row_no` for ordered structures, `reference_type` for Activation references, `service_context` for service blocks, `impact_code` for Service Impact;
-- duplicate natural key inside one request → `422 NSCMF_VALIDATION_FAILED`;
+- duplicate natural key inside one request → `422 VALIDATION_FAILED`;
 - natural key outside its schema range (`11` CHECK) → `422`;
 - rows absent from a supplied set are deleted, not retained;
 - `row_no` is client-supplied ordering identity, never a database `id`; database `id` is never accepted as input;
@@ -1198,7 +1198,7 @@ Transport rules:
 - keys are exactly the `11` column names for scalar fields;
 - collections follow §7.4.1 whole-set replacement;
 - Draft `PATCH` MAY omit any key; omission is "unchanged", not "clear";
-- unknown key → `422 NSCMF_VALIDATION_FAILED`; no silent ignore, no mass assignment.
+- unknown key → `422 VALIDATION_FAILED`; no silent ignore, no mass assignment.
 
 ### 27.1 Canonical Activation payload
 
