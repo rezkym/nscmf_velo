@@ -139,6 +139,49 @@ describe('Approval Queue — Index.vue (FE-32)', () => {
         );
     });
 
+    it('uses the search control to reset to the first page and request the approval queue', async () => {
+        const wrapper = mountApprovalQueue({
+            meta: { current_page: 2, per_page: 25, total: 30, last_page: 2, from: 26, to: 30 },
+        });
+
+        await wrapper.get('[data-testid="table-search-input"]').setValue('NSCMF-202609');
+
+        expect(router.get).toHaveBeenCalledWith(
+            '/approval',
+            { page: 1, per_page: 25, sort: undefined, direction: undefined, q: 'NSCMF-202609' },
+            expect.objectContaining({ preserveState: true, preserveScroll: true }),
+        );
+    });
+
+    it('uses the documented request number sort control', async () => {
+        const wrapper = mountApprovalQueue();
+
+        await wrapper.get('[data-testid="sort-button-request_no"]').trigger('click');
+
+        expect(router.get).toHaveBeenCalledWith(
+            '/approval',
+            { page: 1, per_page: 25, sort: 'request_no', direction: 'asc', q: undefined },
+            expect.objectContaining({ preserveState: true, preserveScroll: true }),
+        );
+    });
+
+    it('uses pagination controls within the server-reported page bounds', async () => {
+        const wrapper = mountApprovalQueue({
+            meta: { current_page: 1, per_page: 25, total: 30, last_page: 2, from: 1, to: 25 },
+        });
+
+        expect(wrapper.get('[data-testid="pagination-prev"]').attributes('disabled')).toBeDefined();
+        expect(wrapper.get('[data-testid="pagination-next"]').attributes('disabled')).toBeUndefined();
+
+        await wrapper.get('[data-testid="pagination-next"]').trigger('click');
+
+        expect(router.get).toHaveBeenCalledWith(
+            '/approval',
+            { page: 2, per_page: 25, sort: undefined, direction: undefined, q: undefined },
+            expect.objectContaining({ preserveState: true, preserveScroll: true }),
+        );
+    });
+
     it('renders the loading state distinctly', () => {
         const wrapper = mountApprovalQueue({ loading: true });
 
