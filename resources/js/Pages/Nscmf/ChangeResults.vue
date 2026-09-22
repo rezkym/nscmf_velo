@@ -239,7 +239,6 @@ function submitResults(): void {
         saveStatus.value = 'error';
         feedbackError.value = {
             status: 422,
-            code: 'NSCMF_VALIDATION_FAILED',
             message: err instanceof Error ? err.message : 'Invalid change results data.',
             errors: {
                 results: [err instanceof Error ? err.message : 'Invalid change results data.'],
@@ -265,11 +264,8 @@ function submitResults(): void {
         onError: (errs) => {
             saveStatus.value = 'error';
             fieldErrors.value = errs;
-            feedbackError.value = {
-                status: 422,
-                code: 'NSCMF_VALIDATION_FAILED',
-                errors: errs,
-            };
+            // The Inertia error bag carries no code; 422 alone identifies validation (G07).
+            feedbackError.value = { status: 422, errors: errs };
         },
         onHttpException: (response) => {
             // The status is the whole classification (12 §11); RequestFeedback renders from it.
