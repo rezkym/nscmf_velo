@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\Integration\Database\SchemaFixtures;
 use Tests\Support\Schema;
 
@@ -38,12 +39,21 @@ it('rejects invalid security and upload states, empty files and duplicate chunk 
         'detected_mime_type' => 'application/pdf', 'size_bytes' => 10, 'sha256' => str_repeat('a', 64),
         'security_status' => 'PENDING', 'created_at' => now(), 'updated_at' => now(),
     ], $row));
-    $session = fn (array $row) => DB::table('nscmf_attachment_upload_sessions')->insertGetId(array_merge([
-        'public_id' => (string) \Illuminate\Support\Str::ulid(), 'nscmf_record_id' => $recordId, 'initiated_by_user_id' => $userId,
-        'original_filename' => 'a.pdf', 'normalized_extension' => 'pdf', 'expected_size_bytes' => 10,
-        'chunk_size_bytes' => 5_242_880, 'expected_chunk_count' => 1, 'upload_status' => 'UPLOADING',
-        'last_activity_at' => now(), 'expires_at' => now()->addDay(), 'created_at' => now(), 'updated_at' => now(),
-    ], $row));
+    $session = function (array $row) use ($recordId, $userId): int {
+        $publicId = (string) Str::ulid();
+        $defaults = [
+            'public_id' => $publicId, 'nscmf_record_id' => $recordId, 'initiated_by_user_id' => $userId,
+            'original_filename' => 'a.pdf', 'normalized_extension' => 'pdf', 'expected_size_bytes' => 10,
+            'chunk_size_bytes' => 5_242_880, 'expected_chunk_count' => 1, 'upload_status' => 'UPLOADING',
+            'last_activity_at' => now(), 'expires_at' => now()->addDay(), 'created_at' => now(), 'updated_at' => now(),
+        ];
+
+        DB::table('nscmf_attachment_upload_sessions')->insert(array_merge($defaults, $row));
+
+        $id = DB::table('nscmf_attachment_upload_sessions')->where('public_id', $publicId)->value('id');
+
+        return is_int($id) ? $id : throw new UnexpectedValueException('Upload session was not stored.');
+    };
 
     expect(Schema::rejects(fn () => $attachment(['security_status' => 'SAFE'])))->toBeTrue()
         ->and(Schema::rejects(fn () => $attachment(['size_bytes' => 0])))->toBeTrue()

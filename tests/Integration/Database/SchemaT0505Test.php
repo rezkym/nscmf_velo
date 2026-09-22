@@ -12,7 +12,7 @@ use Tests\Support\Schema;
 
 it('keeps Activation detail 1:1 with every Draft field nullable except the migration booleans', function (): void {
     $columns = Schema::columns('nscmf_activation_details');
-    $businessColumns = array_diff(array_keys($columns), ['nscmf_record_id', 'created_at', 'updated_at']);
+    $businessColumns = array_values(array_diff(array_keys($columns), ['nscmf_record_id', 'created_at', 'updated_at']));
 
     expect($businessColumns)->toEqualCanonicalizing([
         'customer_name', 'contact_name', 'installation_rfs_date', 'lan_ip_allocation', 'wan_ip', 'gateway', 'pop',

@@ -14,6 +14,9 @@ use stdClass;
  */
 final class Schema
 {
+    /** The message of the last write rejected by rejects(), to make failures diagnosable. */
+    public static ?string $lastRejection = null;
+
     /**
      * @return array<string, array{type: string, nullable: bool, default: string|null, extra: string}>
      */
@@ -121,7 +124,9 @@ final class Schema
 
         try {
             $write();
-        } catch (QueryException) {
+        } catch (QueryException $exception) {
+            self::$lastRejection = $exception->getMessage();
+
             return true;
         } finally {
             DB::rollBack();

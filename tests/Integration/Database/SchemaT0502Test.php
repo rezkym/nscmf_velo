@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\DB;
 use Tests\Support\Schema;
 
 /*
@@ -32,7 +33,7 @@ it('creates no duplicate RBAC tables', function (): void {
 });
 
 it('rejects a duplicate permission name on the same guard', function (): void {
-    $insert = fn () => \Illuminate\Support\Facades\DB::table('permissions')->insert([
+    $insert = fn () => DB::table('permissions')->insert([
         'name' => 'nscmf.view', 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now(),
     ]);
     $insert();

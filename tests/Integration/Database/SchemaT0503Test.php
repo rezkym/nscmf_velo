@@ -9,6 +9,10 @@ use Tests\Support\Schema;
  * BE-009 / T05-3 — typed system_settings singleton (11 §12).
  */
 
+/**
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
 function settingsRow(array $overrides = []): array
 {
     return array_merge([

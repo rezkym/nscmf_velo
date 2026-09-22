@@ -13,7 +13,7 @@ use Tests\Support\Schema;
 it('keeps Change detail 1:1 with nullable Draft fields', function (): void {
     $columns = Schema::columns('nscmf_change_details');
 
-    expect(array_diff(array_keys($columns), ['nscmf_record_id', 'created_at', 'updated_at']))->toEqualCanonicalizing([
+    expect(array_values(array_diff(array_keys($columns), ['nscmf_record_id', 'created_at', 'updated_at'])))->toEqualCanonicalizing([
         'maintenance_purpose', 'target_execution_date', 'monitoring_period_value', 'monitoring_period_unit',
         'rollback_scenario', 'announcement_timing',
     ])

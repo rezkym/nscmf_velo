@@ -14,14 +14,14 @@ it('keeps both site blocks 1:1 with typed optional columns', function (): void {
     $direct = Schema::columns('nscmf_activation_direct_site_details');
     $pop = Schema::columns('nscmf_activation_pop_site_details');
 
-    expect(array_diff(array_keys($direct), ['nscmf_record_id', 'created_at', 'updated_at']))->toEqualCanonicalizing([
+    expect(array_values(array_diff(array_keys($direct), ['nscmf_record_id', 'created_at', 'updated_at'])))->toEqualCanonicalizing([
         'local_loops', 'lastmile', 'bwa', 'antenna_tower', 'direction', 'rssi', 'latency_ms',
         'packet_loss_percent', 'routers', 'ups', 'stabilizer', 'cable',
     ])
         ->and($direct['rssi']['type'])->toBe('decimal(12,3)')
         ->and($direct['latency_ms']['type'])->toBe('decimal(14,3)')
         ->and($direct['packet_loss_percent']['type'])->toBe('decimal(5,2)')
-        ->and(array_diff(array_keys($pop), ['nscmf_record_id', 'created_at', 'updated_at']))->toEqualCanonicalizing([
+        ->and(array_values(array_diff(array_keys($pop), ['nscmf_record_id', 'created_at', 'updated_at'])))->toEqualCanonicalizing([
             'switch_distribution', 'port', 'vlan_id', 'local_loops', 'routers', 'cpe_indoor', 'cpe_outdoor',
         ])
         ->and($pop['vlan_id']['type'])->toBe('smallint unsigned')

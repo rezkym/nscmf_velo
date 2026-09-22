@@ -17,14 +17,19 @@ it('keeps database sessions with an explicit absolute-lifetime anchor', function
         ->and(Schema::indexes('sessions'))->toHaveKey('sessions_user_id_index');
 });
 
-it('keeps queue and cache runtime tables in the database without Redis', function (): void {
+it('keeps queue and cache runtime tables in the database and selects Redis nowhere', function (): void {
     foreach (['jobs', 'job_batches', 'failed_jobs', 'cache', 'cache_locks'] as $table) {
         expect(Schema::tableExists($table))->toBeTrue();
     }
 
-    expect(config('database.redis'))->toBeNull()
-        ->and(config('cache.stores'))->not->toHaveKey('redis')
-        ->and(config('queue.connections'))->not->toHaveKey('redis')
-        ->and(config('session.driver'))->toBe('database')
-        ->and(config('queue.default'))->toBe('database');
+    // Laravel 13 always merges the framework's own inert Redis defaults into config, so the
+    // contract is that no application setting selects or configures Redis (AGENTS.md).
+    $appConfig = implode("\n", array_map('file_get_contents', glob(config_path('*.php')) ?: []));
+
+    expect(config('session.driver'))->toBe('database')
+        ->and(config('cache.default'))->toBe('database')
+        ->and(config('queue.default'))->toBe('database')
+        ->and(config('queue.failed.driver'))->toBe('database-uuids')
+        ->and($appConfig)->not->toContain("'driver' => 'redis'")
+        ->and($appConfig)->not->toContain('REDIS_');
 });

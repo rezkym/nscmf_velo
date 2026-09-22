@@ -42,7 +42,7 @@ it('shapes users with username login, nullable Team and protected flags', functi
         ->and($columns['must_change_password']['nullable'])->toBeFalse()
         ->and($columns['is_protected_superadmin']['default'])->toBe('0')
         ->and(Schema::foreignKeys('users'))->toBe(['team_id' => ['teams', 'id', 'RESTRICT']])
-        ->and(Schema::indexes('users'))->toHaveKey('users_team_id_index');
+        ->and(Schema::indexes('users'))->toContain(['team_id']);
 });
 
 it('rejects duplicate usernames regardless of case and unknown Team references', function (): void {

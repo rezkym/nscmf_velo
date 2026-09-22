@@ -10,6 +10,10 @@ use Tests\Support\Schema;
  * BE-016 / T05-10 — nscmf_workflow_iterations and sign-off columns (11 §30–33).
  */
 
+/**
+ * @param  array<mixed>  $overrides
+ * @return array<mixed>
+ */
 function iterationRow(int $recordId, int $userId, array $overrides = []): array
 {
     return array_merge([
@@ -56,7 +60,7 @@ it('rejects invalid iteration numbers, start reasons and closures', function ():
         ->and(Schema::rejects(fn () => $insert(['started_via' => 'RESUBMIT'])))->toBeTrue()
         ->and(Schema::rejects(fn () => $insert(['closed_status' => 'CANCELLED', 'closed_at' => now()])))->toBeTrue()
         ->and(Schema::rejects(fn () => $insert(['approved_by_user_id' => $userId, 'approved_at' => now()])))->toBeTrue()
-        ->and(Schema::rejects(fn () => $insert(['closed_status' => 'APPROVED', 'closed_at' => now(), 'approved_by_user_id' => $userId, 'approved_at' => now()])))->toBeFalse();
+        ->and(Schema::rejects(fn () => $insert(['closed_status' => 'APPROVED', 'closed_at' => now(), 'approved_by_user_id' => $userId, 'approved_at' => now()])))->toBeFalse(Schema::$lastRejection ?? '');
 });
 
 it('allows at most one open iteration per record', function (): void {

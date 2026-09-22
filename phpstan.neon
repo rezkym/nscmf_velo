@@ -11,3 +11,7 @@ parameters:
         - database
         - routes
         - tests
+    excludePaths:
+        # Package-owned migration published verbatim from spatie/laravel-permission 8.x;
+        # 11 §10 requires the package migration, not a hand-written copy (08 §43).
+        - database/migrations/2026_09_22_000002_create_permission_tables.php
