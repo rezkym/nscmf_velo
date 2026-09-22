@@ -1062,3 +1062,114 @@ describe('FE-26 AC4: results_do_not_save_pending_review_via_draft', () => {
         expect(sent.change.results).toHaveLength(1);
     });
 });
+
+describe('one response per request', () => {
+    it('ignores a late onSuccess for a request an exception already settled', async () => {
+        const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
+        const draft = useDraftSave({
+            recordId: 42,
+            family: 'ACTIVATION',
+            recordVersion: 8,
+            businessStatus: 'DRAFT',
+            fields,
+        });
+
+        const save = draft.save();
+        const request = lastRequest('/nscmf/42/draft');
+
+        request?.options.onHttpException?.({ status: 500 });
+        await save;
+        expect(draft.saveStatus.value).toBe('error');
+
+        // A second callback for the same request must change nothing, or a failed save would
+        // end up reported as saved.
+        request?.options.onSuccess?.({ props: { record: { record_version: 9 } } });
+
+        expect(draft.saveStatus.value).toBe('error');
+        expect(draft.currentVersion.value).toBe(8);
+    });
+
+    it('does not schedule a save when an edit returns the field to its saved value', () => {
+        const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
+        useDraftSave({
+            recordId: 42,
+            family: 'ACTIVATION',
+            recordVersion: 8,
+            businessStatus: 'DRAFT',
+            fields,
+            autosaveInterval: 1000,
+        });
+
+        fields.value.customer_name = 'Changed';
+        fields.value.customer_name = 'Initial';
+        vi.advanceTimersByTime(2000);
+
+        expect(requests.length).toBe(0);
+    });
+});
+
+describe('error messages keep the server wording', () => {
+    it('prefers the envelope message over the flashed one for a conflict', async () => {
+        const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
+        const draft = useDraftSave({
+            recordId: 42,
+            family: 'ACTIVATION',
+            recordVersion: 8,
+            businessStatus: 'DRAFT',
+            fields,
+        });
+
+        const save = draft.save();
+        lastRequest('/nscmf/42/draft')?.options.onHttpException?.({
+            status: 409,
+            data: {
+                code: 'NSCMF_VERSION_CONFLICT',
+                message: 'Envelope wording',
+                flash: { domain_error: { code: 'NSCMF_VERSION_CONFLICT', message: 'Flash wording' } },
+            },
+        });
+        await save;
+
+        expect(draft.conflictError.value?.message).toBe('Envelope wording');
+    });
+
+    it('falls back to the flashed message when the envelope carries none', async () => {
+        const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
+        const draft = useDraftSave({
+            recordId: 42,
+            family: 'ACTIVATION',
+            recordVersion: 8,
+            businessStatus: 'DRAFT',
+            fields,
+        });
+
+        const save = draft.save();
+        lastRequest('/nscmf/42/draft')?.options.onHttpException?.({
+            status: 409,
+            data: { flash: { domain_error: { code: 'NSCMF_VERSION_CONFLICT', message: 'Flash wording' } } },
+        });
+        await save;
+
+        expect(draft.conflictError.value?.message).toBe('Flash wording');
+    });
+
+    it('falls back to the HTTP status text when a server error carries no envelope message', async () => {
+        const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
+        const draft = useDraftSave({
+            recordId: 42,
+            family: 'ACTIVATION',
+            recordVersion: 8,
+            businessStatus: 'DRAFT',
+            fields,
+        });
+
+        const save = draft.save();
+        lastRequest('/nscmf/42/draft')?.options.onHttpException?.({
+            status: 502,
+            statusText: 'Bad Gateway',
+        });
+        await save;
+
+        expect(draft.feedbackError.value?.message).toBe('Bad Gateway');
+    });
+});

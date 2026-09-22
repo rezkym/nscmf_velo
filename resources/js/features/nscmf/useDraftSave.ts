@@ -60,7 +60,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
         if (options.enabled === undefined) return true;
         return Boolean(toValue(options.enabled));
     });
-    let isAutosaveRunning = Boolean(options.autosaveInterval && options.autosaveInterval > 0);
+    let isAutosaveRunning = Boolean(options.autosaveInterval);
 
     // Computed dirty state so it updates synchronously on mutation
     const isDirty = computed(() => {
@@ -78,16 +78,23 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
         { flush: 'sync' },
     );
 
+    /** Autosave is allowed only while configured, running, enabled, and not blocked by a conflict. */
+    function canAutosave(): boolean {
+        return Boolean(
+            options.autosaveInterval && isAutosaveRunning && isAutosaveOptionEnabled.value && !isConflict.value,
+        );
+    }
+
     function scheduleAutosave(): void {
         if (autosaveTimer) {
             clearTimeout(autosaveTimer);
             autosaveTimer = null;
         }
-        if (!options.autosaveInterval || isConflict.value || !isAutosaveRunning || !isAutosaveOptionEnabled.value) {
-            return;
-        }
+        if (!canAutosave()) return;
+
         autosaveTimer = setTimeout(() => {
-            if (inFlightCount === 0 && !isConflict.value && isAutosaveRunning && isAutosaveOptionEnabled.value) {
+            // Re-checked on firing: the answer can have changed while the timer was pending.
+            if (canAutosave() && inFlightCount === 0) {
                 void executeSave();
             }
         }, options.autosaveInterval);
