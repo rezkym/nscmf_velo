@@ -23,15 +23,15 @@ it('makes a competing connection wait on the sequence row lock instead of readin
 
     try {
         $second->transaction(fn () => $second->statement(
-            'INSERT INTO nscmf_number_sequences (year_month, last_value, updated_at) VALUES (?, 1, NOW())
-             ON DUPLICATE KEY UPDATE last_value = last_value + 1',
+            'INSERT INTO nscmf_number_sequences (`year_month`, `last_value`, `updated_at`) VALUES (?, 1, NOW())
+             ON DUPLICATE KEY UPDATE `last_value` = `last_value` + 1',
             ['209901'],
         ));
         $blocked = false;
     } catch (QueryException $exception) {
         $blocked = str_contains($exception->getMessage(), 'Lock wait timeout');
     } finally {
-        $second->table('nscmf_number_sequences')->where('year_month', '209901')->delete();
+        // The blocked insert never ran; the first connection's row rolls back with the test.
         DB::purge('second');
     }
 

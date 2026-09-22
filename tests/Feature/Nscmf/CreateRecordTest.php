@@ -8,12 +8,14 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\Actors;
 
+use function Pest\Laravel\travelTo;
+
 /*
  * BE-045..BE-047 / T16–T17 — create an NSCMF with server numbering, owner and Team snapshot
  * (06 §15–20, 11 §13–15, 12 §25).
  */
 
-beforeEach(fn () => $this->travelTo(CarbonImmutable::parse('2026-09-22 10:00:00', 'Asia/Jakarta')));
+beforeEach(fn () => travelTo(CarbonImmutable::parse('2026-09-22 10:00:00', 'Asia/Jakarta')));
 
 it('renders the create page for nscmf.create only', function (): void {
     signIn(Actors::requester())->get('/nscmf/create')->assertOk()
@@ -27,7 +29,7 @@ it('creates a Draft with an automatic monthly number, owner, Team snapshot, vers
     $response = signIn($user)->post('/nscmf', ['family' => 'CHANGE', 'subtype' => 'MAINTENANCE', 'numbering_mode' => 'AUTOMATIC', 'request_no' => null]);
 
     $record = DB::table('nscmf_records')->sole();
-    $response->assertStatus(303)->assertRedirect("/nscmf/{$record->id}/edit");
+    $response->assertStatus(303)->assertRedirect('/nscmf/'.json_encode($record->id).'/edit');
 
     expect($record->request_no)->toBe('NSCMF-202609-00001')
         ->and($record->request_no_normalized)->toBe('nscmf-202609-00001')
@@ -54,7 +56,7 @@ it('numbers globally per month across families and Teams, never reusing a value'
 
     signIn($first)->post('/nscmf', ['family' => 'ACTIVATION', 'subtype' => 'ACTIVATION', 'numbering_mode' => 'AUTOMATIC']);
     signIn($second)->post('/nscmf', ['family' => 'CHANGE', 'subtype' => 'EMERGENCY', 'numbering_mode' => 'AUTOMATIC']);
-    $this->travelTo(CarbonImmutable::parse('2026-10-01 00:00:01', 'Asia/Jakarta'));
+    travelTo(CarbonImmutable::parse('2026-10-01 00:00:01', 'Asia/Jakarta'));
     signIn($first)->post('/nscmf', ['family' => 'CHANGE', 'subtype' => 'UPGRADE', 'numbering_mode' => 'AUTOMATIC']);
 
     expect(DB::table('nscmf_records')->orderBy('id')->pluck('request_no')->all())
