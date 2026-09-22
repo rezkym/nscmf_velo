@@ -361,3 +361,17 @@ describe('validation is recognised under either catalogue name (gap G07)', () =>
         expect(wrapper.find('[data-testid="feedback-validation"]').exists()).toBe(true);
     });
 });
+
+describe('each failure is recognised by status alone as well as by code', () => {
+    it.each([
+        [{ status: 401 }, 'feedback-session-revoked'],
+        [{ code: 'SESSION_EXPIRED' }, 'feedback-session-revoked'],
+        [{ status: 0 }, 'feedback-network-error'],
+        [{ isNetworkError: true }, 'feedback-network-error'],
+    ])('renders %o as %s', (error, testId) => {
+        // The server may name the failure, or only give a status; either alone must be enough.
+        const wrapper = mount(RequestFeedback, { props: { error } });
+
+        expect(wrapper.find(`[data-testid="${testId}"]`).exists()).toBe(true);
+    });
+});
