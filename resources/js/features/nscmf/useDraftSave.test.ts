@@ -1064,6 +1064,11 @@ describe('FE-26 AC4: results_do_not_save_pending_review_via_draft', () => {
 });
 
 describe('one response per request', () => {
+    beforeEach(() => {
+        resetInertia();
+        vi.useFakeTimers();
+    });
+
     it('ignores a late onSuccess for a request an exception already settled', async () => {
         const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
         const draft = useDraftSave({
@@ -1109,6 +1114,11 @@ describe('one response per request', () => {
 });
 
 describe('error messages keep the server wording', () => {
+    beforeEach(() => {
+        resetInertia();
+        vi.useFakeTimers();
+    });
+
     it('prefers the envelope message over the flashed one for a conflict', async () => {
         const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
         const draft = useDraftSave({
@@ -1153,7 +1163,7 @@ describe('error messages keep the server wording', () => {
         expect(draft.conflictError.value?.message).toBe('Flash wording');
     });
 
-    it('falls back to the HTTP status text when a server error carries no envelope message', async () => {
+    it('falls back to a plain server error when the body carries no message', async () => {
         const fields = ref<ActivationDraftFields>({ customer_name: 'Initial' });
         const draft = useDraftSave({
             recordId: 42,
@@ -1164,12 +1174,9 @@ describe('error messages keep the server wording', () => {
         });
 
         const save = draft.save();
-        lastRequest('/nscmf/42/draft')?.options.onHttpException?.({
-            status: 502,
-            statusText: 'Bad Gateway',
-        });
+        lastRequest('/nscmf/42/draft')?.options.onHttpException?.({ status: 502 });
         await save;
 
-        expect(draft.feedbackError.value?.message).toBe('Bad Gateway');
+        expect(draft.feedbackError.value?.message).toBe('Server error');
     });
 });

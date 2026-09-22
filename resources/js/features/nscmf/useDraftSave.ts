@@ -70,11 +70,9 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
     // Watch fields for dirty detection and autosave scheduling
     watch(
         () => JSON.stringify(options.fields.value),
-        () => {
-            if (isDirty.value && !isConflict.value) {
-                scheduleAutosave();
-            }
-        },
+        // Always reconsidered: an edit that restores the saved value must cancel the timer the
+        // previous keystroke armed, or it would PATCH data the server already has.
+        () => scheduleAutosave(),
         { flush: 'sync' },
     );
 
@@ -90,11 +88,11 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
             clearTimeout(autosaveTimer);
             autosaveTimer = null;
         }
-        if (!canAutosave()) return;
+        if (!canAutosave() || !isDirty.value) return;
 
         autosaveTimer = setTimeout(() => {
             // Re-checked on firing: the answer can have changed while the timer was pending.
-            if (canAutosave() && inFlightCount === 0) {
+            if (canAutosave() && isDirty.value && inFlightCount === 0) {
                 void executeSave();
             }
         }, options.autosaveInterval);
@@ -242,7 +240,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                     onHttpException: (response: unknown) => {
                         saveStatus.value = 'error';
 
-                        const res = response as { status?: number; statusText?: string; data?: unknown };
+                        const res = response as { status?: number; data?: unknown };
                         const status = typeof res?.status === 'number' ? res.status : 500;
 
                         let envelopeData: {
@@ -301,7 +299,7 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
                         const errObj: RequestFeedbackError = {
                             status,
                             code: envelopeData?.code,
-                            message: envelopeData?.message || res?.statusText || 'Server error',
+                            message: envelopeData?.message || 'Server error',
                             errors: envelopeData?.errors,
                             context: envelopeData?.context,
                         };
