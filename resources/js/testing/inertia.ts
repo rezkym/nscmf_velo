@@ -197,27 +197,38 @@ export async function respondToRequest(
         headers,
     };
 
-    if (status >= 400 && request.options.onHttpException?.(httpResponse) === false) {
-        request.options.onFinish?.();
-        await nextTick();
-        return;
+    // A response without the x-inertia header never becomes a page, whatever its status: real
+    // Inertia sends it to handleNonInertiaResponse, which always calls onHttpException. The
+    // expired-session redirect to a 200 login page is exactly this case.
+    if (!isInertia || status >= 400) {
+        const handled = request.options.onHttpException?.(httpResponse);
+        if (!isInertia || handled === false) {
+            request.options.onFinish?.();
+            await nextTick();
+            return;
+        }
     }
 
-    if (isInertia) {
-        if (flash) {
-            for (const key of Object.keys(pageFlash)) delete pageFlash[key];
-            Object.assign(pageFlash, flash);
-            // Delete flash from pageProps if present, to model real wire: page.flash is at page root, not in props
-            delete pageProps.flash;
-            if (Object.keys(flash).length > 0) request.options.onFlash?.(flash);
-        }
+    // Only an Inertia page reaches here; a headerless response already returned above.
+    // Real Inertia replaces the whole page on every navigation (CurrentPage.set), so flash
+    // never survives into the next response. Anything sticky here would hide a stale message.
+    for (const key of Object.keys(pageFlash)) delete pageFlash[key];
+    delete pageProps.flash;
+    if (flash) {
+        Object.assign(pageFlash, flash);
+        if (Object.keys(flash).length > 0) request.options.onFlash?.(flash);
+    }
 
-        Object.assign(pageProps, props);
-        if (errors && Object.keys(errors).length > 0) {
-            request.options.onError?.(errors);
-        } else {
-            request.options.onSuccess?.({ props: { ...pageProps, ...props }, flash });
-        }
+    // Props are merged rather than replaced. Real Inertia replaces them, but a real response
+    // also carries every shared prop, while these fixtures supply only what a test cares
+    // about. Replacing would force `auth` into every fixture and catch no frontend defect.
+    Object.assign(pageProps, props);
+    if (errors && Object.keys(errors).length > 0) {
+        request.options.onError?.(errors);
+    } else {
+        // onSuccess is handed a page, not a bag of props. `component` and `version` are not
+        // modelled because the double has no honest value for them.
+        request.options.onSuccess?.({ props: { ...pageProps, ...props }, flash, url: request.url });
     }
 
     request.options.onFinish?.();

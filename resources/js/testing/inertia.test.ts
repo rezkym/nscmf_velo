@@ -260,3 +260,60 @@ describe('useForm tracks processing across the request', () => {
         expect(form.processing).toBe(false);
     });
 });
+
+describe('flash does not survive the next response', () => {
+    beforeEach(() => resetInertia());
+
+    it('clears a previous flash even when the next response carries none', async () => {
+        await flashDomainError({ code: 'FORBIDDEN', message: 'Denied.' });
+        expect(pageFlash.domain_error).toBeDefined();
+
+        router.get('/administration/teams');
+        await respondToRequest(lastRequest('/administration/teams'), { status: 200 });
+
+        // Real Inertia replaces page.flash on every navigation (CurrentPage.set), so a stale
+        // message cannot linger into an unrelated action.
+        expect(pageFlash.domain_error).toBeUndefined();
+        expect(pageProps.flash).toBeUndefined();
+    });
+});
+
+describe('a response without the Inertia header is always an exception', () => {
+    beforeEach(() => resetInertia());
+
+    it('reports a 200 login page that carries no x-inertia header', async () => {
+        const seen: { status?: number }[] = [];
+        router.patch('/nscmf/42/draft', {}, { onHttpException: (response) => void seen.push(response) });
+
+        // The classic expired session: the server answers 200 with an HTML login page and no
+        // x-inertia header. Real Inertia routes every headerless response to onHttpException
+        // (handleNonInertiaResponse), whatever the status.
+        await respondToRequest(lastRequest('/nscmf/42/draft'), { status: 200, isInertia: false });
+
+        expect(seen).toHaveLength(1);
+        expect(seen[0]?.status).toBe(200);
+    });
+
+    it('does not touch the page when the response is not an Inertia page', async () => {
+        router.patch('/nscmf/42/draft', {}, {});
+
+        await respondToRequest(lastRequest('/nscmf/42/draft'), { status: 200, isInertia: false });
+
+        expect(pageProps.record).toBeUndefined();
+    });
+});
+
+describe('onSuccess receives a page, not just its props', () => {
+    beforeEach(() => resetInertia());
+
+    it('carries the url the visit went to', async () => {
+        const seen: { url?: string }[] = [];
+        router.patch('/nscmf/42/draft', {}, { onSuccess: (page) => void seen.push(page as { url?: string }) });
+
+        await respondToRequest(lastRequest('/nscmf/42/draft'), { status: 200 });
+
+        // Real onSuccess is handed the whole Page. Without the url, a handler that checks where
+        // it landed would pass here and behave differently in a browser.
+        expect(seen[0]?.url).toBe('/nscmf/42/draft');
+    });
+});
