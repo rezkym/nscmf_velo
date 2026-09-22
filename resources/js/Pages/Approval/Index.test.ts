@@ -46,7 +46,12 @@ function mountApprovalQueue({
 } = {}): VueWrapper {
     resetInertia({
         auth: {
-            user: { id: 5, username: 'reviewer.approver', name: 'Reviewer and Approver', team: { id: 3, name: 'Team Gamma' } },
+            user: {
+                id: 5,
+                username: 'reviewer.approver',
+                name: 'Reviewer and Approver',
+                team: { id: 3, name: 'Team Gamma' },
+            },
             permissions: ['nscmf.review', 'nscmf.approve'],
         },
     });
