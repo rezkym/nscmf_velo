@@ -2022,7 +2022,7 @@
             "app/Http/Controllers/Nscmf/Workflow/ReopenController.php"
         ],
         "test": "tests/Feature/Workflow/ReopenTest.php",
-        "contract": "APPROVED/REJECTED only, unarchived+nscmf.reopen+access+reason; destination REVISION_REQUIRED/PENDING_REVIEW. Finalize missing destination wire key G09 before implementation. Next iteration, clear current signoffs sesuai 05, preserve historical approval/issuance.",
+        "contract": "APPROVED/REJECTED only, unarchived+nscmf.reopen+access+reason; request keys exactly record_version, reason, destination_status; destination_status only REVISION_REQUIRED/PENDING_REVIEW. G09/12 §40 decision is synchronized; runtime implementation and tests remain PLANNED/NOT RUN. Next iteration, clear current signoffs sesuai 05, preserve historical approval/issuance.",
         "acceptance": [
             "Both allowed destinations create exactly one next iteration",
             "Archived/CANCELLED/other state forbidden; reason 5..2000 required",

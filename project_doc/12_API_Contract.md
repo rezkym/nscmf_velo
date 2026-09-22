@@ -1096,6 +1096,20 @@ POST /nscmf/{record}/reopen
 
 Source Approved/Rejected, not archived, `nscmf.reopen`, authorized access, mandatory reason. Destination only `REVISION_REQUIRED|PENDING_REVIEW`. Success creates next iteration. CANCELLED never reopen.
 
+Request keys exactly:
+
+```json
+{
+  "record_version": 12,
+  "reason": "Perlu perbaikan pada hasil implementasi.",
+  "destination_status": "REVISION_REQUIRED"
+}
+```
+
+`record_version` is required for optimistic concurrency. `reason` is required, trimmed, and follows §39 (5–2000 meaningful characters). `destination_status` is required and MUST be exactly `REVISION_REQUIRED` or `PENDING_REVIEW`. Any other or additional request key is rejected with `422`; the server does not mass-assign from the request body.
+
+Decision provenance: confirmed by the project owner on 2026-09-22 after the explicit approval `Setujui destination_status (disarankan)`. This closes the Reopen destination decision in G09; the administration and temporary-password decisions in §78 and §96.2 remain unchanged. Sections §41–43 and the other transition contracts are unchanged.
+
 ## 41. Archive
 
 ```http

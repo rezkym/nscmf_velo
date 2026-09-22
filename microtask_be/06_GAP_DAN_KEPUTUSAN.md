@@ -89,8 +89,8 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Sumber: `12 §40/78/80–96` (lihat [inventaris sumber](11_INVENTARIS_SUMBER.md)).
 - Dampak/task owner: [BE-037](BE-037.md), [BE-035](BE-035.md), [BE-078](BE-078.md).
 - Pihak berwenang: Pemilik produk/API.
-- Bukti penutupan: Explicit allowlists, nested IDs, destination key, response/errors, permission+reauth fixtures; no schema-to-body mass assignment.
-- Status: **Sebagian CLOSED 2026-09-22**: body administrasi dan temporary-password ditetapkan (12 §78, §96.2); create/reset user memakai JSON no-store. Destination key Reopen (BE-078) tetap OPEN.
+- Bukti penutupan keputusan: `12 §40` menetapkan exact Reopen request allowlist (`record_version`, `reason`, `destination_status`) dan destination enum `REVISION_REQUIRED|PENDING_REVIEW`; body administrasi dan temporary-password tetap ditetapkan di `12 §78` dan `§96.2`. Runtime permission/reauth/error fixtures dan implementasi tetap menjadi evidence scope task masing-masing; pembaruan authority ini tidak menutupnya.
+- Status: **CLOSED 2026-09-22 (keputusan/authority)** oleh pemilik proyek setelah persetujuan eksplisit `Setujui destination_status (disarankan)`. Reopen (BE-078) kini memiliki destination key dan payload exact; keputusan administrasi dan temporary-password tetap berlaku.
 
 <a id="g10"></a>
 
