@@ -895,3 +895,21 @@ describe('read-only context tolerates a sparse projection', () => {
         expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(false);
     });
 });
+
+describe('read-only context renders the labels, not the raw codes', () => {
+    it('shows the monitoring period and announcement in words', () => {
+        const wrapper = mountChangeResults();
+
+        expect(wrapper.get('[data-testid="field-monitoring_period"]').text()).toContain('2 Hours');
+        expect(wrapper.get('[data-testid="field-announcement_timing"]').text()).toContain('2 weeks before');
+    });
+
+    it('renders an empty change projection without inventing rows', () => {
+        const wrapper = mountChangeResults({ change: {} });
+
+        for (const table of ['facing_challenges', 'identified_problems', 'service_impacts', 'improvement_items']) {
+            expect(wrapper.find(`[data-testid="table-${table}"]`).exists()).toBe(true);
+        }
+        expect(wrapper.findAll('tbody tr')).toHaveLength(0);
+    });
+});
