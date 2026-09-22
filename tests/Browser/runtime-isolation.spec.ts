@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { createBrowserUser } from './support/runtime';
+import { createBrowserUser, startUnsafeServer } from './support/runtime';
 
 /*
  * BE-005 AC-01..03 — the browser journeys run against the disposable testing runtime only,
@@ -36,4 +36,22 @@ test('the suite never retries and never records traces, screenshots or video', (
     expect(use.trace ?? 'off').toBe('off');
     expect(use.screenshot ?? 'off').toBe('off');
     expect(use.video ?? 'off').toBe('off');
+});
+
+test('a served process pointed at the development database refuses every request', async ({ request }) => {
+    const server = startUnsafeServer(8011, { DB_DATABASE: 'nscmf' });
+    try {
+        let status = 0;
+        for (let attempt = 0; attempt < 50 && status === 0; attempt++) {
+            status = await request
+                .get('http://127.0.0.1:8011/login')
+                .then((response) => response.status())
+                .catch(() => 0);
+            if (status === 0) await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
+        expect(status).toBe(500);
+    } finally {
+        server.kill();
+    }
 });

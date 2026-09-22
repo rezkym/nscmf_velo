@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import path from 'node:path';
 
 /**
@@ -69,4 +69,20 @@ export function createBrowserUser(options: BrowserUserOptions = {}): BrowserUser
 
     const output = runArtisan(args).trim().split('\n').at(-1) ?? '';
     return JSON.parse(output) as BrowserUser;
+}
+
+/**
+ * Starts a second served process with one unsafe override (for example the development database)
+ * to prove the boot guard runs inside the served application itself, not only inside Pest.
+ */
+export function startUnsafeServer(port: number, overrides: Record<string, string>): ChildProcess {
+    return spawn(
+        'php',
+        ['-S', `127.0.0.1:${port}`, '../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'],
+        {
+            cwd: path.join(root, 'public'),
+            env: { ...process.env, ...browserRuntimeEnv, ...overrides },
+            stdio: 'ignore',
+        },
+    );
 }

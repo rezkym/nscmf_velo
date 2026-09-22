@@ -12,46 +12,48 @@ use Illuminate\Testing\PendingCommand;
  */
 
 /**
- * @param  array<string, mixed>  $overrides
+ * @param  list<string>  $storageRoots  relative roots resolve under storage_path()
  * @return list<string>
  */
-function guardProblems(array $overrides = []): array
-{
-    $values = array_merge([
-        'environment' => 'testing',
-        'driver' => 'mysql',
-        'database' => 'nscmf_testing',
-        'host' => '127.0.0.1',
-        'storageRoots' => [storage_path('framework/testing/browser/private'), storage_path('framework/testing/browser/tmp')],
-        'browser' => true,
-    ], $overrides);
-    // Relative roots in datasets resolve here, once the application (and storage_path) exists.
-    $values['storageRoots'] = array_map(
-        fn (string $root): string => str_starts_with($root, '/') ? $root : storage_path($root),
-        $values['storageRoots'],
+function guardProblems(
+    string $environment = 'testing',
+    string $driver = 'mysql',
+    string $database = 'nscmf_testing',
+    string $host = '127.0.0.1',
+    array $storageRoots = ['framework/testing/browser/private', 'framework/testing/browser/tmp'],
+    bool $browser = true,
+): array {
+    return DisposableRuntimeGuard::problems(
+        $environment,
+        $driver,
+        $database,
+        $host,
+        array_map(fn (string $root): string => storage_path($root), $storageRoots),
+        $browser,
     );
-
-    return DisposableRuntimeGuard::problems(...$values);
 }
 
 it('accepts only the disposable testing runtime', function (): void {
     expect(guardProblems())->toBe([]);
 });
 
-it('rejects each unsafe browser runtime', function (array $overrides, string $problem): void {
-    expect(implode(' ', guardProblems($overrides)))->toContain($problem);
+it('rejects each unsafe browser runtime', function (Closure $problems, string $problem): void {
+    $found = $problems();
+    assert(is_array($found));
+
+    expect(implode(' ', $found))->toContain($problem);
 })->with([
-    'local environment' => [['environment' => 'local'], 'APP_ENV'],
-    'production environment' => [['environment' => 'production'], 'APP_ENV'],
-    'development database' => [['database' => 'nscmf'], 'database'],
-    'suffix lookalike' => [['database' => 'nscmf_testing_copy'], 'database'],
-    'remote host' => [['host' => 'db.example.com'], 'host'],
-    'sqlite driver' => [['driver' => 'sqlite'], 'MySQL'],
-    'shared storage' => [['storageRoots' => ['app/private/nscmf']], 'storage'],
+    'local environment' => [fn () => guardProblems(environment: 'local'), 'APP_ENV'],
+    'production environment' => [fn () => guardProblems(environment: 'production'), 'APP_ENV'],
+    'development database' => [fn () => guardProblems(database: 'nscmf'), 'database'],
+    'suffix lookalike' => [fn () => guardProblems(database: 'nscmf_testing_copy'), 'database'],
+    'remote host' => [fn () => guardProblems(host: 'db.example.com'), 'host'],
+    'sqlite driver' => [fn () => guardProblems(driver: 'sqlite'), 'MySQL'],
+    'shared storage' => [fn () => guardProblems(storageRoots: ['app/private/nscmf']), 'storage'],
 ]);
 
 it('does not require isolated storage roots for ordinary Pest runs', function (): void {
-    expect(guardProblems(['browser' => false, 'storageRoots' => [storage_path('app/private/nscmf')]]))->toBe([]);
+    expect(guardProblems(browser: false, storageRoots: ['app/private/nscmf']))->toBe([]);
 });
 
 function prepareCommand(): PendingCommand
