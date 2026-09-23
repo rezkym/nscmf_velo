@@ -13,6 +13,8 @@ export interface ActionDialogProps {
     consequence?: string;
     destination?: string;
     confirmLabel?: string;
+    /** Label of the optional text when no reason is required. */
+    optionalLabel?: string;
     triggerElement?: HTMLElement | null;
 }
 
@@ -24,6 +26,7 @@ const props = withDefaults(defineProps<ActionDialogProps>(), {
     consequence: undefined,
     destination: undefined,
     confirmLabel: 'Confirm',
+    optionalLabel: 'Comment',
     triggerElement: null,
 });
 
@@ -55,7 +58,7 @@ function validate(): boolean {
         }
     } else {
         if (reason.value.length > 2000) {
-            validationError.value = 'Comment cannot exceed 2000 characters';
+            validationError.value = `${props.optionalLabel} cannot exceed 2000 characters`;
             return false;
         }
     }
@@ -127,7 +130,7 @@ watch(
 
             <div class="space-y-2">
                 <label for="dialog-reason" class="block text-sm font-medium text-foreground">
-                    {{ reasonRequired ? 'Reason' : 'Comment (optional)' }}
+                    {{ reasonRequired ? 'Reason' : `${optionalLabel} (optional)` }}
                     <span v-if="reasonRequired" class="text-destructive">*</span>
                 </label>
                 <textarea
@@ -136,7 +139,9 @@ watch(
                     v-model="reason"
                     class="w-full min-h-[100px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     :disabled="pending"
-                    :placeholder="reasonRequired ? 'Enter reason...' : 'Enter optional comment...'"
+                    :placeholder="
+                        reasonRequired ? 'Enter reason...' : `Enter optional ${optionalLabel.toLowerCase()}...`
+                    "
                 ></textarea>
                 <p v-if="validationError" class="text-xs text-destructive">
                     {{ validationError }}
