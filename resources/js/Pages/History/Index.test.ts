@@ -94,7 +94,7 @@ describe('History (FE-37)', () => {
         });
     });
 
-    it('AC2: offers only the subtypes of the chosen family and every canonical status', async () => {
+    it('AC2: offers only the subtypes of the chosen family and every canonical status', () => {
         const wrapper = mountHistory({ family: 'CHANGE' });
         const subtypes = wrapper.findAll('[data-testid="filter-subtype"] option').map((option) => option.text());
         expect(subtypes).toEqual(['All subtypes', 'Maintenance', 'Upgrade', 'Emergency']);
@@ -104,8 +104,10 @@ describe('History (FE-37)', () => {
     it('AC2: a date range and a search are sent as they are', async () => {
         const wrapper = mountHistory();
         await wrapper.get('[data-testid="filter-date-from"]').setValue('2026-09-01');
-        await wrapper.get('[data-testid="filter-date-to"]').setValue('2026-09-30');
+        expect(lastRequest('/history')?.data).toMatchObject({ request_date_from: '2026-09-01', page: 1 });
 
+        await wrapper.setProps({ query: { ...QUERY, request_date_from: '2026-09-01' } });
+        await wrapper.get('[data-testid="filter-date-to"]').setValue('2026-09-30');
         expect(lastRequest('/history')?.data).toMatchObject({
             request_date_from: '2026-09-01',
             request_date_to: '2026-09-30',
