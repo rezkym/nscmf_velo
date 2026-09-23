@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Nscmf\Workflow;
 
 use App\Http\Requests\AllowlistedRequest;
+use Closure;
 
 /** Reviewer Return accepts only its optimistic version and mandatory reason (12 §33, §39). */
 final class ReviewReturnRequest extends AllowlistedRequest
@@ -14,11 +15,20 @@ final class ReviewReturnRequest extends AllowlistedRequest
         return ['record_version', 'reason'];
     }
 
-    /** @return array<string, list<string>> */
+    /** @return array<string, list<string|Closure>> */
     public function rules(): array
     {
         return [
-            'record_version' => ['required', 'integer', 'min:1'],
+            'record_version' => [
+                'required',
+                'integer',
+                'min:1',
+                static function (string $attribute, mixed $value, Closure $fail): void {
+                    if (! is_int($value) && ! is_string($value)) {
+                        $fail('The record version must be an integer.');
+                    }
+                },
+            ],
             'reason' => ['required', 'string', 'min:5', 'max:2000'],
         ];
     }
