@@ -7,6 +7,7 @@ namespace App\Services\Nscmf;
 use App\Domain\Audit\Enums\BusinessAuditEvent;
 use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Domain\Nscmf\RecordAccess;
+use App\Domain\Nscmf\ReviewForwardRules;
 use App\Domain\Nscmf\SubmissionRules;
 use App\Domain\Shared\DomainRuleException;
 use App\Models\Nscmf\NscmfRecord;
@@ -151,6 +152,40 @@ final readonly class NscmfWorkflowService
                 fromStatus: NscmfStatus::PENDING_REVIEW->value,
                 toStatus: NscmfStatus::REJECTED->value,
                 reason: trim($reason),
+                workflowIterationId: $iteration->id,
+            );
+        });
+    }
+
+    /** Forward establishes the effective reviewer only after the persisted Result gate passes. */
+    public function forward(User $actor, int $recordId, int $expectedVersion, ?string $comment): void
+    {
+        $this->database->connection()->transaction(function () use ($actor, $recordId, $expectedVersion, $comment): void {
+            $record = $this->lockPendingReview($actor, $recordId, $expectedVersion, 'nscmf.review.forward');
+            $errors = ReviewForwardRules::errors($record->family, $this->records->familyState($record));
+            if ($errors !== []) {
+                throw new DomainRuleException('VALIDATION_FAILED', 'Complete the Results before forwarding.', 422, errors: $errors);
+            }
+            $iteration = $this->workflow->currentIteration($record);
+            if ($iteration === null) {
+                throw new \LogicException('Submitted record has no current workflow iteration.');
+            }
+
+            $versionBefore = $record->record_version;
+            $this->workflow->updateIteration($iteration, [
+                'reviewed_by_user_id' => $actor->id,
+                'reviewed_at' => CarbonImmutable::now(),
+            ]);
+            $this->records->updateAndIncrementVersion($record, ['business_status' => NscmfStatus::PENDING_APPROVAL->value]);
+            $this->businessAudit->record(
+                recordId: $record->id,
+                actorUserId: $actor->id,
+                event: BusinessAuditEvent::REVIEW_FORWARDED,
+                versionBefore: $versionBefore,
+                versionAfter: $record->record_version,
+                fromStatus: NscmfStatus::PENDING_REVIEW->value,
+                toStatus: NscmfStatus::PENDING_APPROVAL->value,
+                comment: $comment === null || trim($comment) === '' ? null : trim($comment),
                 workflowIterationId: $iteration->id,
             );
         });

@@ -8,6 +8,7 @@ use App\Domain\Audit\Enums\AccessAuditEvent;
 use App\Domain\Nscmf\Enums\NscmfFamily;
 use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Domain\Nscmf\RecordAccess;
+use App\Domain\Nscmf\ReviewForwardRules;
 use App\Domain\Nscmf\SubmissionWarnings;
 use App\Domain\Shared\DomainRuleException;
 use App\Models\Nscmf\NscmfRecord;
@@ -48,6 +49,30 @@ final readonly class NscmfQueryService
         $this->accessAudit->record(actorUserId: $actor->id, event: AccessAuditEvent::RECORD_VIEWED, recordId: $record->id);
 
         return $this->project($actor, $record, $this->records->familyState($record));
+    }
+
+    /**
+     * Queue membership changes after an action; the authorized detail remains readable.
+     *
+     * @return array<string, mixed>
+     */
+    public function reviewDetail(User $actor, int $recordId): array
+    {
+        $record = $this->visibleRecord($actor, $recordId);
+        if (! $actor->can('nscmf.review')) {
+            throw DomainRuleException::forbidden();
+        }
+        $this->accessAudit->record(actorUserId: $actor->id, event: AccessAuditEvent::RECORD_VIEWED, recordId: $record->id);
+        $state = $this->records->familyState($record);
+        $errors = ReviewForwardRules::errors($record->family, $state);
+
+        return [
+            ...$this->project($actor, $record, $state),
+            'forward_readiness' => [
+                'ready' => $errors === [],
+                'reason' => $errors === [] ? null : array_values($errors)[0][0],
+            ],
+        ];
     }
 
     /**
@@ -102,6 +127,14 @@ final readonly class NscmfQueryService
         if ($owner && ! $record->is_archived && $record->family === NscmfFamily::CHANGE
             && $record->business_status === NscmfStatus::PENDING_REVIEW && $actor->can('nscmf.change.result.edit')) {
             $actions[] = self::EDIT_RESULTS;
+        }
+
+        if (! $record->is_archived && $record->business_status === NscmfStatus::PENDING_REVIEW) {
+            foreach (['nscmf.review.return', 'nscmf.review.reject', 'nscmf.review.forward'] as $permission) {
+                if ($actor->can($permission)) {
+                    $actions[] = $permission;
+                }
+            }
         }
 
         return $actions;

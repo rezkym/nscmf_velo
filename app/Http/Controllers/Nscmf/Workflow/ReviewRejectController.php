@@ -27,6 +27,6 @@ final class ReviewRejectController extends Controller
 
         $workflow->reject($user, $record, (int) $version, $reason);
 
-        return redirect("/nscmf/{$record}", 303);
+        return redirect($user->can('nscmf.review') ? "/review/{$record}" : ($user->can('nscmf.view') ? "/nscmf/{$record}" : '/dashboard'), 303);
     }
 }
