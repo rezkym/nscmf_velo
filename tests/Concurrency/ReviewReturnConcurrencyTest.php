@@ -10,7 +10,7 @@ use Tests\Support\Records;
 /**
  * @return array{process: resource, pipes: array<int, resource>, output: string, connection_id?: int}
  */
-function startReviewReturnWorker(int $actorId, int $recordId, string $reason): array
+function startReviewReturnWorker(int $actorId, int $recordId, string $reason, string $action = 'return'): array
 {
     $environment = array_merge(getenv() ?: [], [
         'APP_ENV' => 'testing',
@@ -24,7 +24,7 @@ function startReviewReturnWorker(int $actorId, int $recordId, string $reason): a
     ]);
     $pipes = [];
     $process = proc_open(
-        [PHP_BINARY, base_path('tests/Support/Concurrency/review-return-worker.php'), (string) $actorId, (string) $recordId, '1', $reason],
+        [PHP_BINARY, base_path('tests/Support/Concurrency/review-return-worker.php'), (string) $actorId, (string) $recordId, '1', $reason, $action],
         [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
         $pipes,
         base_path(),
@@ -256,6 +256,112 @@ it('lets exactly one of two contending eligible Reviewer Returns commit', functi
         // Remove this case's users first so DatabaseMigrations can reverse it safely.
         Schema::withoutForeignKeyConstraints(function () use ($owner, $reviewers): void {
             DB::table('users')->whereIn('id', [$owner->id, ...array_map(fn ($reviewer): int => $reviewer->id, $reviewers)])->delete();
+        });
+    }
+});
+
+it('lets exactly one of competing Reviewer Reject and Return commit', function (): void {
+    $owner = Actors::requester();
+    $recordId = Records::create($owner);
+    Records::submitted($recordId, $owner);
+    $rejecter = Actors::reviewer();
+    $returner = Actors::reviewer();
+    $reasons = [$rejecter->id => 'Terminal reviewer rejection.', $returner->id => 'Return for further revision.'];
+    $before = DB::table('nscmf_records')->where('id', $recordId)->sole();
+    $iterationBefore = (array) DB::table('nscmf_workflow_iterations')->where('id', $before->current_workflow_iteration_id)->sole();
+    $workers = [];
+    $coordinatorLocked = false;
+
+    try {
+        DB::beginTransaction();
+        $coordinatorLocked = true;
+        DB::table('nscmf_records')->where('id', $recordId)->lockForUpdate()->sole();
+
+        $workers[$rejecter->id] = startReviewReturnWorker($rejecter->id, $recordId, $reasons[$rejecter->id], 'reject');
+        $workers[$returner->id] = startReviewReturnWorker($returner->id, $recordId, $reasons[$returner->id]);
+        $deadline = microtime(true) + 10;
+        foreach ($workers as &$worker) {
+            $worker['connection_id'] = readReviewReturnReady($worker, $deadline);
+        }
+        unset($worker);
+        $connectionIds = array_column($workers, 'connection_id');
+        expect(count(array_unique($connectionIds)))->toBe(2);
+        foreach ($workers as $worker) {
+            fwrite($worker['pipes'][0], "GO\n");
+            fflush($worker['pipes'][0]);
+        }
+
+        $overlapping = [];
+        $deadline = microtime(true) + 10;
+        do {
+            $processes = DB::table('information_schema.PROCESSLIST')->whereIn('ID', $connectionIds)->get(['ID', 'INFO']);
+            $overlapping = [];
+            foreach ($processes as $process) {
+                $query = is_string($process->INFO) ? strtolower($process->INFO) : '';
+                if (str_contains($query, 'nscmf_records') && str_contains($query, 'for update')
+                    && (is_int($process->ID) || (is_string($process->ID) && ctype_digit($process->ID)))) {
+                    $overlapping[] = (int) $process->ID;
+                }
+            }
+            if (count($overlapping) === 2) {
+                break;
+            }
+            usleep(50_000);
+        } while (microtime(true) < $deadline);
+        expect($overlapping)->toHaveCount(2);
+        DB::rollBack();
+        $coordinatorLocked = false;
+
+        $results = [];
+        $deadline = microtime(true) + 15;
+        foreach ($workers as $actorId => &$worker) {
+            $results[$actorId] = readReviewReturnResult($worker, $deadline);
+            expect($results[$actorId]['actor_id'])->toBe($actorId);
+        }
+        unset($worker);
+        $winners = array_filter($results, fn (array $result): bool => $result['outcome'] === 'committed');
+        $losers = array_filter($results, fn (array $result): bool => $result['outcome'] === 'conflict');
+        expect($winners)->toHaveCount(1)->and($losers)->toHaveCount(1);
+        $winnerId = array_key_first($winners);
+        $loser = current($losers);
+        if (! is_int($winnerId) || ! is_array($loser)) {
+            throw new RuntimeException('Reviewer action contention did not yield one winner and one loser.');
+        }
+        expect($loser['code'])->toBeIn(['NSCMF_STATE_CONFLICT', 'NSCMF_VERSION_CONFLICT']);
+
+        $after = DB::table('nscmf_records')->where('id', $recordId)->sole();
+        $iterationAfter = (array) DB::table('nscmf_workflow_iterations')->where('id', $before->current_workflow_iteration_id)->sole();
+        $audit = DB::table('business_audit_events')->where('nscmf_record_id', $recordId)->sole();
+        $rejectWon = $winnerId === $rejecter->id;
+        expect($after->business_status)->toBe($rejectWon ? 'REJECTED' : 'REVISION_REQUIRED')
+            ->and($after->record_version)->toBe($before->record_version + 1)
+            ->and($after->current_workflow_iteration_id)->toBe($before->current_workflow_iteration_id)
+            ->and($iterationAfter['id'])->toBe($iterationBefore['id'])
+            ->and($iterationAfter['iteration_no'])->toBe($iterationBefore['iteration_no'])
+            ->and($iterationAfter['closed_status'])->toBe($rejectWon ? 'REJECTED' : null)
+            ->and($iterationAfter['closed_at'] === null)->toBe(! $rejectWon)
+            ->and($audit->event_type)->toBe($rejectWon ? 'REVIEW_REJECTED' : 'REVIEW_RETURNED')
+            ->and($audit->actor_user_id)->toBe($winnerId)
+            ->and($audit->reason)->toBe($reasons[$winnerId])
+            ->and($audit->from_status)->toBe('PENDING_REVIEW')
+            ->and($audit->to_status)->toBe($after->business_status)
+            ->and($audit->record_version_before)->toBe($before->record_version)
+            ->and($audit->record_version_after)->toBe($after->record_version)
+            ->and($audit->workflow_iteration_id)->toBe($before->current_workflow_iteration_id)
+            ->and(DB::table('business_audit_events')->where('nscmf_record_id', $recordId)->count())->toBe(1);
+        fwrite(STDOUT, sprintf(
+            "MySQL Reviewer Reject/Return contention: connections %d,%d; winner %s actor %d; loser %s; version %d→%d; one audit.\n",
+            $connectionIds[0], $connectionIds[1], $rejectWon ? 'Reject' : 'Return', $winnerId, $loser['code'], $before->record_version, $after->record_version,
+        ));
+    } finally {
+        if ($coordinatorLocked) {
+            DB::rollBack();
+        }
+        foreach ($workers as $worker) {
+            closeReviewReturnWorker($worker);
+        }
+        Schema::withoutForeignKeyConstraints(function () use ($owner, $rejecter, $returner): void {
+            DB::table('users')->whereIn('id', [$owner->id, $rejecter->id, $returner->id])->delete();
         });
     }
 });
