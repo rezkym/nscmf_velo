@@ -146,15 +146,21 @@ function completeSnapshot(string $family): array
 {
     $mapping = new ReflectionClass(NscmfFormMappingV1::class);
     $constant = fn (string $name): array => (array) $mapping->getConstant($name);
-    $numbered = fn (array $layout): array => array_map(
-        fn (array $columns): array => array_map(fn (int $no): array => ['row_no' => $no, ...array_fill_keys(array_keys($columns), 'x')], range(1, count((array) reset($columns)))),
-        $layout,
-    );
+    $numbered = function (array $layout): array {
+        $collections = [];
+        foreach ($layout as $collection => $columns) {
+            $columns = (array) $columns;
+            $rowCount = count((array) (array_values($columns)[0] ?? []));
+            $collections[$collection] = array_map(fn (int $no): array => ['row_no' => $no, ...array_fill_keys(array_keys($columns), 'x')], range(1, $rowCount));
+        }
+
+        return $collections;
+    };
 
     $form = $family === 'ACTIVATION' ? [
         ...array_fill_keys(array_keys($constant('ACTIVATION_SCALARS')), 'x'),
         ...$numbered($constant('ACTIVATION_ROWS')),
-        ...array_map(fn (array $fields): array => array_fill_keys(array_keys($fields), 'x'), $constant('SITES')),
+        ...array_map(fn (mixed $fields): array => array_fill_keys(array_keys((array) $fields), 'x'), $constant('SITES')),
         'wan_ip' => '192.0.2.1/30',
         'references' => array_map(fn (string $type): array => ['reference_type' => $type, 'specification' => 'x'], array_keys($constant('REFERENCES'))),
         'service_blocks' => array_map(fn (string $context): array => ['service_context' => $context, 'service_id' => 'x', 'service_description' => 'x', 'service_location' => 'x'], array_keys($constant('SERVICE_BLOCKS'))),
