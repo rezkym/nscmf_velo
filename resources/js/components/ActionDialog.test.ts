@@ -4,7 +4,9 @@ import ActionDialog from './ActionDialog.vue';
 
 describe('ActionDialog (FE-04)', () => {
     it('uses an explicit confirmation label when supplied and keeps Confirm as the default', () => {
-        const named = mount(ActionDialog, { props: { open: true, title: 'Forward', confirmLabel: 'Forward to Approval' } });
+        const named = mount(ActionDialog, {
+            props: { open: true, title: 'Forward', confirmLabel: 'Forward to Approval' },
+        });
         expect(named.get('[data-test="confirm-button"]').text()).toBe('Forward to Approval');
         named.unmount();
         const defaultDialog = mount(ActionDialog, { props: { open: true, title: 'Forward' } });

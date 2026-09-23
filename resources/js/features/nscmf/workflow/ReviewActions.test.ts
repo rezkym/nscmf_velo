@@ -4,21 +4,22 @@ import { nextTick } from 'vue';
 
 import { lastRequest, requests, resetInertia, respondToRequest, router } from '@/testing/inertia';
 import ReviewActions from './ReviewActions.vue';
+import type { ReviewActionsProps } from './ReviewActions.vue';
 
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
 
 const permissions = ['nscmf.review.return', 'nscmf.review.reject', 'nscmf.review.forward'];
-const baseProps = {
+const baseProps: ReviewActionsProps = {
     recordId: 42,
     requestNo: 'NSCMF-2026-042',
     recordVersion: 7,
-    businessStatus: 'PENDING_REVIEW' as const,
+    businessStatus: 'PENDING_REVIEW',
     archived: false,
-    family: 'ACTIVATION' as const,
+    family: 'ACTIVATION',
     allowedActions: permissions,
 };
 
-function mountActions(overrides: Partial<typeof baseProps> = {}) {
+function mountActions(overrides: Partial<ReviewActionsProps> = {}) {
     return mount(ReviewActions, { props: { ...baseProps, ...overrides }, attachTo: document.body });
 }
 
@@ -54,8 +55,8 @@ describe('ReviewActions (FE-31)', () => {
     });
 
     it.each([
-        ['return', 'Return for Revision', 'REVISION_REQUIRED'],
-        ['reject', 'Reject NSCMF', 'REJECTED'],
+        ['return', 'Return for Revision', 'Revision Required'],
+        ['reject', 'Reject NSCMF', 'Rejected'],
     ] as const)('posts %s with only record version and trimmed required reason', async (action, label, destination) => {
         const wrapper = mountActions();
         const dialog = await openAction(wrapper, action);
@@ -83,7 +84,10 @@ describe('ReviewActions (FE-31)', () => {
         await dialog.get('textarea').setValue('abcde');
         await dialog.get('[data-test="confirm-button"]').trigger('click');
         expect(requests).toHaveLength(1);
-        await respondToRequest(lastRequest('/nscmf/42/review/reject'), { status: 422, errors: { reason: 'Try again' } });
+        await respondToRequest(lastRequest('/nscmf/42/review/reject'), {
+            status: 200,
+            errors: { reason: 'Try again' },
+        });
         await dialog.get('textarea').setValue('a'.repeat(2000));
         await dialog.get('[data-test="confirm-button"]').trigger('click');
         expect(requests).toHaveLength(2);
@@ -99,11 +103,19 @@ describe('ReviewActions (FE-31)', () => {
         await dialog.get('textarea').setValue('  Ready  ');
         await dialog.get('[data-test="confirm-button"]').trigger('click');
         expect(lastRequest('/nscmf/42/review/forward')?.data).toEqual({ record_version: 7, comment: 'Ready' });
+        await respondToRequest(lastRequest('/nscmf/42/review/forward'), { status: 200, errors: { comment: 'Retry' } });
+        await dialog.get('textarea').setValue('');
+        await dialog.get('[data-test="confirm-button"]').trigger('click');
+        expect(lastRequest('/nscmf/42/review/forward')?.data).toEqual({ record_version: 7, comment: '' });
         wrapper.unmount();
     });
 
     it('uses parent Change readiness only for Forward while Activation can forward', () => {
-        const change = mountActions({ family: 'CHANGE', changeForwardReady: false, changeForwardReason: 'Complete a Result row first.' });
+        const change = mountActions({
+            family: 'CHANGE',
+            changeForwardReady: false,
+            changeForwardReason: 'Complete a Result row first.',
+        });
         expect(change.get<HTMLButtonElement>('[data-testid="review-forward"]').element.disabled).toBe(true);
         expect(change.text()).toContain('Complete a Result row first.');
         expect(change.get<HTMLButtonElement>('[data-testid="review-return"]').element.disabled).toBe(false);
@@ -149,14 +161,17 @@ describe('ReviewActions (FE-31)', () => {
         second.unmount();
     });
 
-    it('permits one pending mutation and retains text plus safe field error after 422', async () => {
+    it('permits one pending mutation and retains text plus safe field error after validation redirect', async () => {
         const wrapper = mountActions();
         const dialog = await openAction(wrapper, 'return');
         await dialog.get('textarea').setValue('valid reason');
         await dialog.get('[data-test="confirm-button"]').trigger('click');
         expect(wrapper.get<HTMLButtonElement>('[data-testid="review-reject"]').element.disabled).toBe(true);
         expect(dialog.get<HTMLButtonElement>('[data-test="confirm-button"]').element.disabled).toBe(true);
-        await respondToRequest(lastRequest('/nscmf/42/review/return'), { status: 422, errors: { reason: '<script>alert(1)</script>' } });
+        await respondToRequest(lastRequest('/nscmf/42/review/return'), {
+            status: 200,
+            errors: { reason: '<script>alert(1)</script>' },
+        });
         expect((dialog.get('textarea').element as HTMLTextAreaElement).value).toBe('valid reason');
         expect(dialog.text()).toContain('<script>alert(1)</script>');
         expect(dialog.find('script').exists()).toBe(false);
@@ -164,20 +179,26 @@ describe('ReviewActions (FE-31)', () => {
         wrapper.unmount();
     });
 
-    it.each(['NSCMF_VERSION_CONFLICT', 'NSCMF_STATE_CONFLICT', 'NSCMF_ARCHIVED_CONFLICT'])('latches %s and refreshes without replay', async (code) => {
-        const wrapper = mountActions();
-        const dialog = await openAction(wrapper, 'forward');
-        await dialog.get('[data-test="confirm-button"]').trigger('click');
-        await respondToRequest(lastRequest('/nscmf/42/review/forward'), {
-            status: 200,
-            flash: { domain_error: { code, message: 'Record changed. Refresh it.' } },
-        });
-        expect(wrapper.text()).toContain('Record changed. Refresh it.');
-        await wrapper.get('[data-testid="review-refresh"]').trigger('click');
-        expect(router.reload).toHaveBeenCalledTimes(1);
-        expect(requests).toHaveLength(1);
-        wrapper.unmount();
-    });
+    it.each(['NSCMF_VERSION_CONFLICT', 'NSCMF_STATE_CONFLICT', 'NSCMF_ARCHIVED_CONFLICT'])(
+        'latches %s and refreshes without replay',
+        async (code) => {
+            const wrapper = mountActions();
+            const dialog = await openAction(wrapper, 'forward');
+            await dialog.get('[data-test="confirm-button"]').trigger('click');
+            await respondToRequest(lastRequest('/nscmf/42/review/forward'), {
+                status: 200,
+                flash: { domain_error: { code, message: 'Record changed. Refresh it.' } },
+            });
+            expect(wrapper.text()).toContain('Record changed. Refresh it.');
+            await wrapper.get('[data-testid="review-refresh"]').trigger('click');
+            expect(router.reload).toHaveBeenCalledTimes(1);
+            const reloadOptions = router.reload.mock.calls[0]?.[0];
+            reloadOptions?.onSuccess?.();
+            await nextTick();
+            expect(requests).toHaveLength(1);
+            wrapper.unmount();
+        },
+    );
 
     it('handles a real HTTP exception and network failure without claiming success', async () => {
         const wrapper = mountActions();
