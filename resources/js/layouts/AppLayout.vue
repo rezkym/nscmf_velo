@@ -40,6 +40,8 @@ const navItems = computed(() =>
             href: '/administration/setup',
             visible: can('roles.view') && can('teams.view') && can('users.view'),
         },
+        { label: 'Access Audit', href: '/administration/audits/access', visible: can('audit.access.view') },
+        { label: 'Security Audit', href: '/administration/audits/security', visible: can('audit.security.view') },
     ].filter((item) => item.visible),
 );
 

@@ -194,10 +194,10 @@ describe('AppLayout.vue', () => {
         expect(hrefsFor(['roles.view', 'teams.view'])).not.toContain('/administration/setup');
         expect(hrefsFor(['audit.access.view'])).not.toContain('/administration');
         expect(
-            hrefsFor(['audit.access.view']).some(
+            hrefsFor(['audit.access.view']).filter(
                 (href) => typeof href === 'string' && href.startsWith('/administration'),
             ),
-        ).toBe(false);
+        ).toEqual(['/administration/audits/access']);
     });
 
     it('signs out with a POST to /logout', async () => {
