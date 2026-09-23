@@ -59,6 +59,29 @@ final class Records
         ]);
     }
 
+    /** Moves a submitted record to PENDING_APPROVAL with $reviewer as the effective Reviewed By. */
+    public static function forwarded(int $recordId, User $submitter, User $reviewer): void
+    {
+        self::submitted($recordId, $submitter, 'PENDING_APPROVAL');
+        DB::table('nscmf_workflow_iterations')
+            ->where('id', DB::table('nscmf_records')->where('id', $recordId)->value('current_workflow_iteration_id'))
+            ->update(['reviewed_by_user_id' => $reviewer->id, 'reviewed_at' => now()]);
+    }
+
+    /** Closes the current iteration as $status (APPROVED/REJECTED), as a final workflow action would. */
+    public static function closed(int $recordId, User $submitter, User $closer, string $status = 'APPROVED'): void
+    {
+        self::forwarded($recordId, $submitter, $closer);
+        DB::table('nscmf_records')->where('id', $recordId)->update(['business_status' => $status]);
+        DB::table('nscmf_workflow_iterations')
+            ->where('id', DB::table('nscmf_records')->where('id', $recordId)->value('current_workflow_iteration_id'))
+            ->update([
+                'closed_status' => $status, 'closed_at' => now(),
+                'approved_by_user_id' => $status === 'APPROVED' ? $closer->id : null,
+                'approved_at' => $status === 'APPROVED' ? now() : null,
+            ]);
+    }
+
     public static function version(int $recordId): int
     {
         $version = DB::table('nscmf_records')->where('id', $recordId)->value('record_version');

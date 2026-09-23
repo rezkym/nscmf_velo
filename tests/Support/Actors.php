@@ -90,6 +90,14 @@ final class Actors
         return self::member(PermissionCatalog::defaultRoleBundles()[PermissionCatalog::ROLE_REVIEWER], $attributes);
     }
 
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public static function approver(array $attributes = []): User
+    {
+        return self::member(PermissionCatalog::defaultRoleBundles()[PermissionCatalog::ROLE_APPROVER], $attributes);
+    }
+
     public static function superadmin(): User
     {
         self::catalog();
