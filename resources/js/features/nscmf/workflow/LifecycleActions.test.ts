@@ -114,7 +114,7 @@ describe('Reopen (FE-35)', () => {
         const wrapper = mountActions();
         expect(offered(wrapper)).toEqual(['lifecycle-reopen-revision', 'lifecycle-reopen-review', 'lifecycle-archive']);
 
-        await confirm(wrapper, 'reopen-review', 'Scope');
+        await confirm(wrapper, 'reopen-review', 'Scop');
         expect(wrapper.get('[role="dialog"]').text()).toContain('Reason must be at least 5 characters');
         await wrapper.get('[role="dialog"] textarea').setValue('Customer changed the scope.');
         await wrapper.get('[data-test="confirm-button"]').trigger('click');

@@ -15,6 +15,8 @@ import { isRecordConflictCode, pageDomainError } from '@/lib/apiErrors';
 export interface RecordActionSpec {
     key: string;
     permission: string;
+    /** The allowed_actions entry, when it differs from the permission (unarchive). */
+    hint?: string;
     label: string;
     path: string;
     consequence: string;
@@ -54,7 +56,11 @@ function current(action: RecordActionSpec): RecordActionSpec | undefined {
 }
 
 function eligible(action: RecordActionSpec): boolean {
-    return current(action) !== undefined && can(action.permission) && props.allowedActions.includes(action.permission);
+    return (
+        current(action) !== undefined &&
+        can(action.permission) &&
+        props.allowedActions.includes(action.hint ?? action.permission)
+    );
 }
 
 function available(action: RecordActionSpec): boolean {
