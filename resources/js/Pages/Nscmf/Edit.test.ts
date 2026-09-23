@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type JsonResult, sendJson } from '@/lib/http';
 import { flashDomainError, pageProps, resetInertia, router } from '@/testing/inertia';
 
+import AttachmentPanel from '@/features/attachments/AttachmentPanel.vue';
+
 import Edit from './Edit.vue';
 import type { NscmfDetailRecord } from '@/features/nscmf/types';
 
@@ -235,5 +237,59 @@ describe('Nscmf/Edit.vue — the Draft editor page (FE-27 composition, BE-062)',
         await flashDomainError({ code: 'NSCMF_STATE_CONFLICT', message: 'This record changed.' });
 
         expect(wrapper.get('[data-testid="domain-error-alert"]').text()).toBe('This record changed.');
+    });
+});
+
+describe('Nscmf/Edit.vue — attachments (FE-40, FE-43)', () => {
+    const policy = { max_files: 10, max_bytes: 20_000_000, chunk_bytes: 5_242_880, extensions: ['pdf'] };
+
+    function mountWithAttachments(permissions: string[], record: NscmfDetailRecord = changeRecord()): VueWrapper {
+        resetInertia({ auth: { user: { id: 9, username: 'owner', name: 'Owner' }, permissions }, errors: {} });
+        return mount(Edit, {
+            props: { record, warnings: [], attachments: [], attachment_policy: policy },
+            attachTo: document.body,
+        });
+    }
+
+    beforeEach(() => {
+        document.body.innerHTML = '';
+        send.mockReset();
+    });
+
+    it('lets the owner with attachment permission add files to an editable record', () => {
+        const wrapper = mountWithAttachments(['nscmf.draft.edit', 'nscmf.attachment.manage']);
+
+        expect(wrapper.get<HTMLInputElement>('[data-testid="attachment-input"]').element.disabled).toBe(false);
+    });
+
+    it('offers no upload without the permission or to someone other than the owner', () => {
+        expect(mountWithAttachments(['nscmf.draft.edit']).find('[data-testid="attachment-input"]').exists()).toBe(
+            false,
+        );
+        expect(
+            mountWithAttachments(
+                ['nscmf.draft.edit', 'nscmf.attachment.manage'],
+                changeRecord({ owner: { id: 2, name: 'Someone else' } }),
+            )
+                .find('[data-testid="attachment-input"]')
+                .exists(),
+        ).toBe(false);
+    });
+
+    it('asks to save unsaved form changes before changing attachments', async () => {
+        const wrapper = mountWithAttachments(['nscmf.draft.edit', 'nscmf.attachment.manage']);
+        await wrapper.get('#rollback_scenario').setValue('Restore the old module');
+
+        expect(wrapper.get<HTMLInputElement>('[data-testid="attachment-input"]').element.disabled).toBe(true);
+        expect(wrapper.text()).toContain('Save your changes before adding or removing attachments.');
+    });
+
+    it('reloads the record after an attachment change, since it moves the record version', async () => {
+        const wrapper = mountWithAttachments(['nscmf.draft.edit', 'nscmf.attachment.manage']);
+        router.reload.mockClear();
+        wrapper.getComponent(AttachmentPanel).vm.$emit('changed');
+        await nextTick();
+
+        expect(router.reload).toHaveBeenCalledWith();
     });
 });
