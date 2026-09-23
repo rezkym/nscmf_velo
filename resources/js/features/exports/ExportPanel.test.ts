@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils';
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetInertia } from '@/testing/inertia';
@@ -55,6 +55,7 @@ beforeEach(() => {
     vi.stubGlobal('fetch', fetchMock);
     resetInertia({ auth: { permissions: ['nscmf.view', 'nscmf.export'] } });
 });
+enableAutoUnmount(afterEach);
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Export request (FE-44)', () => {
@@ -67,7 +68,7 @@ describe('Export request (FE-44)', () => {
 
         const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
         expect(url).toBe('/nscmf/5/exports');
-        expect(JSON.parse(String(init.body))).toEqual({ format: 'XLSX' });
+        expect(JSON.parse(init.body as string)).toEqual({ format: 'XLSX' });
         expect(wrapper.get('[data-testid="export-job-31"]').text()).toContain('Queued');
         expect(wrapper.find('[data-testid="export-download-31"]').exists()).toBe(false);
         expect(wrapper.text()).not.toMatch(/CSV|HTML/);

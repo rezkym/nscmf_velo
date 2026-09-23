@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AttachmentItem } from '@/features/attachments/AttachmentList.vue';
 import AttachmentPanel from '@/features/attachments/AttachmentPanel.vue';
+import ExportPanel from '@/features/exports/ExportPanel.vue';
 import RecordDetail from '@/features/nscmf/RecordDetail.vue';
 import type { NscmfDetailRecord } from '@/features/nscmf/types';
 import LifecycleActions from '@/features/nscmf/workflow/LifecycleActions.vue';
@@ -16,6 +17,11 @@ defineProps<{ record: NscmfDetailRecord; attachments: AttachmentItem[] }>();
         <RecordDetail :record="record">
             <template #actions>
                 <LifecycleActions :record="record" />
+                <ExportPanel
+                    :record-id="record.id"
+                    :business-status="record.business_status"
+                    :approved-by="record.approved_by?.name ?? null"
+                />
             </template>
             <template #timeline>
                 <BusinessTimeline :key="`${record.id}-${record.record_version}`" :record-id="record.id" />
