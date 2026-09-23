@@ -63,7 +63,7 @@ None of the planned primary files for FE-31..57 exists. Ownership below follows 
 | 32  | Approval queue (`Pages/Approval/Index.vue`)                     | FE-05/06/18; T26 permissions/read projection (G02).                                               |
 | 33  | Approval detail/four decisions (`Pages/Approval/Show.vue`)      | FE-04/18/31/32; T27 and T31 competing action proof.                                               |
 | 34  | Cancel action                                                   | FE-04/18/27; T28 state/ownership/concurrency.                                                     |
-| 35  | Reopen action                                                   | FE-04/18/33; T29 iteration and currentness; destination wire key unresolved G09.                  |
+| 35  | Reopen action                                                   | FE-04/18/33; T29 iteration/currentness; approved G09/12 §40 uses `destination_status` (`REVISION_REQUIRED` atau `PENDING_REVIEW`); runtime proof pending.                  |
 | 36  | Archive/unarchive                                               | FE-04/18/35; T30 lifecycle, status must remain separate.                                          |
 | 37  | History page                                                    | FE-05/06/18/36; T37 search/filter/projection and visibility.                                      |
 | 38  | Business Timeline                                               | FE-05/18; T33 timeline projection/diff semantics.                                                 |

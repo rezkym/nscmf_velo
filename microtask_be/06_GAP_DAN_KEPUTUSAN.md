@@ -56,11 +56,11 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 
 ## G06 — 20 MB exact bytes
 
-- Sumber: `06 §50;12 §51/73` (lihat [inventaris sumber](11_INVENTARIS_SUMBER.md)).
-- Dampak/task owner: [BE-091](BE-091.md), [BE-092](BE-092.md), [BE-121](BE-121.md).
+- Sumber: `06 §50;10 §73;11A §2/12/25;12 §51/73` (lihat [inventaris sumber](11_INVENTARIS_SUMBER.md)).
+- Dampak/task owner: [BE-091](BE-091.md), [BE-092](BE-092.md), [BE-121](BE-121.md), FE-40/41/48.
 - Pihak berwenang: Pemilik API/security.
-- Bukti penutupan: Approved byte limit shared attachment/validator/proxy/FE, limit-1/limit/limit+1+zero tests; fixed5MiB tidak berubah.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Keputusan disetujui pemilik proyek pada 2026-09-23: batas file attachment dan PDF validator **20,000,000 bytes inclusive** (decimal 20 MB); zero-byte tetap ditolak; chunk tetap 5 MiB = 5,242,880 bytes. Batas menghitung file bytes saja, bukan keseluruhan multipart HTTP request body.
+- Status keputusan: **CLOSED 2026-09-23**; authorities disinkronkan pada `06 §50`, `10 §73`, `11A`, dan `12 §51/73`. Boundary tests limit-1/limit/limit+1 dan zero tetap wajib untuk implementasi dan **NOT RUN**; G06 closure bukan bukti runtime implementation. Proxy/request-body limits tidak diputuskan oleh G06.
 
 <a id="g07"></a>
 
@@ -89,8 +89,8 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Sumber: `12 §40/78/80–96` (lihat [inventaris sumber](11_INVENTARIS_SUMBER.md)).
 - Dampak/task owner: [BE-037](BE-037.md), [BE-035](BE-035.md), [BE-078](BE-078.md).
 - Pihak berwenang: Pemilik produk/API.
-- Bukti penutupan: Explicit allowlists, nested IDs, destination key, response/errors, permission+reauth fixtures; no schema-to-body mass assignment.
-- Status: **Sebagian CLOSED 2026-09-22**: body administrasi dan temporary-password ditetapkan (12 §78, §96.2); create/reset user memakai JSON no-store. Destination key Reopen (BE-078) tetap OPEN.
+- Bukti penutupan keputusan: `12 §40` menetapkan exact Reopen request allowlist (`record_version`, `reason`, `destination_status`) dan destination enum `REVISION_REQUIRED|PENDING_REVIEW`; body administrasi dan temporary-password tetap ditetapkan di `12 §78` dan `§96.2`. Runtime permission/reauth/error fixtures dan implementasi tetap menjadi evidence scope task masing-masing; pembaruan authority ini tidak menutupnya.
+- Status: **CLOSED 2026-09-22 (keputusan/authority)** oleh pemilik proyek setelah persetujuan eksplisit `Setujui destination_status (disarankan)`. Reopen (BE-078) kini memiliki destination key dan payload exact; keputusan administrasi dan temporary-password tetap berlaku.
 
 <a id="g10"></a>
 

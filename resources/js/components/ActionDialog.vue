@@ -12,6 +12,7 @@ export interface ActionDialogProps {
     error?: string;
     consequence?: string;
     destination?: string;
+    confirmLabel?: string;
     triggerElement?: HTMLElement | null;
 }
 
@@ -22,6 +23,7 @@ const props = withDefaults(defineProps<ActionDialogProps>(), {
     error: undefined,
     consequence: undefined,
     destination: undefined,
+    confirmLabel: 'Confirm',
     triggerElement: null,
 });
 
@@ -158,7 +160,7 @@ watch(
                     :disabled="pending"
                     @click="handleConfirm"
                 >
-                    {{ pending ? 'Submitting...' : 'Confirm' }}
+                    {{ pending ? 'Submitting...' : confirmLabel }}
                 </button>
             </div>
         </div>

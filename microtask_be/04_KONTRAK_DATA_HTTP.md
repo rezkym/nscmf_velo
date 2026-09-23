@@ -207,8 +207,10 @@ file = PDF binary
 Maximum accepted uploaded PDF size:
 
 ```text
-20 MB
+20,000,000 bytes inclusive (decimal 20 MB)
 ```
+
+This cap counts the uploaded PDF file bytes, not the complete multipart HTTP request body. Zero-byte files are invalid. The public-validator cap is independently confirmed by `10 §73` and equals the attachment cap in `06 §50`. Proxy/request-body limits were not decided by G06.
 
 ### Downloads
 
@@ -762,13 +764,15 @@ Read-only; no secrets.
 
 ## 12 §51 — Attachment Eligibility / Limits
 
-Owner: [BE-092](BE-092.md). Source [12](../project_doc/12_API_Contract.md), baris 1111.
+Owner: [BE-092](BE-092.md). Source [12](../project_doc/12_API_Contract.md), baris 1195.
 
-Editable context only according to `06`; optional; max10; max20MB; zero-byte reject; locked allowlist.
+Editable context only according to `06`; optional; max10; file size 1..20,000,000 bytes inclusive (decimal 20 MB); zero-byte reject; locked allowlist. This limit counts file bytes, not the complete multipart HTTP request body; proxy/request-body limits were not decided by G06.
+
+G06 value decision is approved and closed; implementation and runtime boundary evidence remain NOT RUN.
 
 ## 12 §52 — Initiate / Resume
 
-Owner: [BE-092](BE-092.md). Source [12](../project_doc/12_API_Contract.md), baris 1115.
+Owner: [BE-092](BE-092.md). Source [12](../project_doc/12_API_Contract.md), baris 1199.
 
 ```http
 POST /nscmf/{record}/attachment-uploads
@@ -991,7 +995,7 @@ No login. Narrow verification utility only.
 
 ## 12 §73 — Verify PDF
 
-Owner: [BE-121](BE-121.md), [BE-120](BE-120.md). Source [12](../project_doc/12_API_Contract.md), baris 1304.
+Owner: [BE-121](BE-121.md), [BE-120](BE-120.md). Source [12](../project_doc/12_API_Contract.md), baris 1388.
 
 ```http
 POST /ispdfvalid/verify
@@ -1002,14 +1006,17 @@ Input exactly one PDF:
 
 ```text
 file = PDF binary
-maximum file size = 20 MB
+maximum file size = 20,000,000 bytes inclusive (decimal 20 MB; file bytes only; zero-byte rejected)
 ```
+
+The validator cap is independently confirmed by `10 §73`; equality with the attachment cap is coincidental. G06 did not decide a multipart request-body or proxy limit.
+G06 value decision is approved and closed; implementation and runtime boundary evidence remain NOT RUN.
 
 Flow:
 
 ```text
 rate limit / hardening
-→ enforce PDF + 20 MB max
+→ enforce PDF + 20,000,000-byte inclusive file max
 → private temp storage
 → ClamAV CLEAN
 → signature/recognized issuer verification

@@ -187,7 +187,7 @@ function reloadQueue(): void {
                      with its actions is FE-31. -->
                 <template #actions="{ item }">
                     <Link
-                        :href="`/nscmf/${(item as ReviewQueueItem).id}`"
+                        :href="`/review/${(item as ReviewQueueItem).id}`"
                         :data-testid="`btn-view-${(item as ReviewQueueItem).id}`"
                         :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
                     >

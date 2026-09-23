@@ -3,6 +3,16 @@ import { describe, expect, it } from 'vitest';
 import ActionDialog from './ActionDialog.vue';
 
 describe('ActionDialog (FE-04)', () => {
+    it('uses an explicit confirmation label when supplied and keeps Confirm as the default', () => {
+        const named = mount(ActionDialog, {
+            props: { open: true, title: 'Forward', confirmLabel: 'Forward to Approval' },
+        });
+        expect(named.get('[data-test="confirm-button"]').text()).toBe('Forward to Approval');
+        named.unmount();
+        const defaultDialog = mount(ActionDialog, { props: { open: true, title: 'Forward' } });
+        expect(defaultDialog.get('[data-test="confirm-button"]').text()).toBe('Confirm');
+        defaultDialog.unmount();
+    });
     it('AC1: dialog_requires_reason_when_required — reason " " dan 4 chars tidak confirm; 5 meaningful diterima; 2001 ditolak', async () => {
         const wrapper = mount(ActionDialog, {
             props: {
