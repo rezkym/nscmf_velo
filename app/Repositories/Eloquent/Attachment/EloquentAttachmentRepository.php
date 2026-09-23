@@ -104,6 +104,22 @@ final class EloquentAttachmentRepository implements AttachmentRepository
         return array_values(Attachment::query()->where('nscmf_record_id', $recordId)->whereNull('removed_at')->orderBy('id')->get()->all());
     }
 
+    public function abandonedPending(CarbonImmutable $before, int $limit): array
+    {
+        return array_values(Attachment::query()
+            ->where('security_status', SecurityStatus::PENDING->value)
+            ->where('updated_at', '<', $before)
+            ->orderBy('id')->limit($limit)->get()->all());
+    }
+
+    public function abandonedAssembling(CarbonImmutable $before, int $limit): array
+    {
+        return array_values(UploadSession::query()
+            ->where('upload_status', UploadStatus::ASSEMBLING->value)
+            ->where('updated_at', '<', $before)
+            ->orderBy('id')->limit($limit)->get()->all());
+    }
+
     public function expiredSessions(CarbonImmutable $now, int $limit): array
     {
         return array_values(UploadSession::query()

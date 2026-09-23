@@ -44,3 +44,11 @@ function asGuest(): TestCase
 
     return $test;
 }
+
+/** Signs in with a fresh <=15-minute current-password re-authentication proof (10 §26). */
+function reauthenticated(User $user): TestCase
+{
+    return signIn($user)->withSession([
+        'nscmf' => ['authenticated_at' => time(), 'reauthenticated_at' => time()],
+    ]);
+}

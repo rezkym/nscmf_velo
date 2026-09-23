@@ -9,19 +9,11 @@ use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\Support\Actors;
 use Tests\Support\Sessions;
-use Tests\TestCase;
 
 /*
  * BE-039 / BE-040 / T13 — user list/profile, enable/disable, role and Team assignment
  * (04 §16, 10 §22, 12 §80–87, §96.2).
  */
-
-function reauthenticated(User $user): TestCase
-{
-    return signIn($user)->withSession([
-        'nscmf' => ['authenticated_at' => time(), 'reauthenticated_at' => time()],
-    ]);
-}
 
 it('lists users with a safe, paginated projection', function (): void {
     $admin = Actors::user(['users.view']);

@@ -48,6 +48,16 @@ return [
             'report' => false,
         ],
 
+        // Technical Logs (14 §91): the only files the Technical Log cleanup may delete.
+        'nscmf_logs' => [
+            'driver' => 'local',
+            'root' => storage_path('logs'),
+            'visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         // Short-lived private workspace (validator uploads, renderer scratch); may be ephemeral (§52).
         'nscmf_runtime_tmp' => [
             'driver' => 'local',

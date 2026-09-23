@@ -18,6 +18,7 @@ use App\Repositories\Contracts\Nscmf\NumberSequenceRepository;
 use App\Repositories\Contracts\Nscmf\RecordEvidenceRepository;
 use App\Repositories\Contracts\Nscmf\WorkflowRepository;
 use App\Repositories\Contracts\Security\SessionRepository;
+use App\Repositories\Contracts\Settings\SystemSettingsRepository;
 use App\Repositories\Eloquent\Administration\EloquentTeamRepository;
 use App\Repositories\Eloquent\Administration\EloquentUserRepository;
 use App\Repositories\Eloquent\Administration\SpatieRolePermissionRepository;
@@ -32,6 +33,7 @@ use App\Repositories\Eloquent\Nscmf\EloquentRecordEvidenceRepository;
 use App\Repositories\Eloquent\Nscmf\EloquentWorkflowRepository;
 use App\Repositories\Eloquent\Nscmf\MySqlNumberSequenceRepository;
 use App\Repositories\Eloquent\Security\DatabaseSessionRepository;
+use App\Repositories\Eloquent\Settings\EloquentSystemSettingsRepository;
 use Illuminate\Support\ServiceProvider;
 
 /** Explicit repository contract bindings (13 §25). */
@@ -53,5 +55,6 @@ class RepositoryServiceProvider extends ServiceProvider
         WorkflowRepository::class => EloquentWorkflowRepository::class,
         AttachmentRepository::class => EloquentAttachmentRepository::class,
         ExportRepository::class => EloquentExportRepository::class,
+        SystemSettingsRepository::class => EloquentSystemSettingsRepository::class,
     ];
 }

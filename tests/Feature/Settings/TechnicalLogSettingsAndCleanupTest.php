@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Attachment\SecurityStatus;
 use App\Domain\Attachment\UploadStatus;
-use App\Models\User;
+use App\Repositories\Contracts\Settings\SystemSettingsRepository;
 use App\Services\Maintenance\CleanupService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Artisan;
@@ -20,11 +20,6 @@ use function Pest\Laravel\travelTo;
  * BE-125–131 / T62–T65 — protected Technical Log setting and the scheduled cleanups
  * (12 §97–99; 14 §27, §94–100; 11A §22). Authoritative audits are never touched.
  */
-
-function reauthenticated(User $actor): Tests\TestCase
-{
-    return signIn($actor)->withSession(['nscmf' => ['authenticated_at' => time(), 'reauthenticated_at' => time()]]);
-}
 
 it('initializes a missing singleton with the locked defaults and serves it to the Protected Superadmin', function (): void {
     DB::table('system_settings')->delete();
@@ -62,11 +57,12 @@ it('cleans technical logs by calendar DAY or MONTH in Asia/Jakarta, never when O
     travelTo(CarbonImmutable::parse('2026-09-23 10:00:00', 'Asia/Jakarta'));
     Storage::fake('nscmf_logs');
     $disk = Storage::disk('nscmf_logs');
-    foreach (['old.log' => '2026-08-23 09:59:00', 'edge.log' => '2026-08-23 10:01:00', 'recent.log' => '2026-09-22 00:00:00'] as $file => $time) {
+    foreach (['old.log' => '2026-08-23 09:59:00', 'edge.log' => '2026-08-23 10:01:00', 'recent.log' => '2026-09-23 08:00:00'] as $file => $time) {
         $disk->put($file, 'log');
         touch($disk->path($file), CarbonImmutable::parse($time, 'Asia/Jakarta')->getTimestamp());
     }
     DB::table('security_audit_events')->insert(['event_type' => 'LOGIN_FAILED', 'outcome' => 'FAILURE', 'occurred_at' => '2020-01-01 00:00:00']);
+    app(SystemSettingsRepository::class)->current();
 
     DB::table('system_settings')->update(['technical_log_auto_cleanup_enabled' => false, 'technical_log_retention_value' => 1, 'technical_log_retention_unit' => 'MONTH']);
     expect(app(CleanupService::class)->technicalLogs())->toBe(0);

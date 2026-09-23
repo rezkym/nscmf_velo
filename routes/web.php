@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Account\TemporaryPasswordController;
 use App\Http\Controllers\Administration\Audits\AuditController;
 use App\Http\Controllers\Administration\Roles\RoleController;
+use App\Http\Controllers\Administration\Settings\TechnicalLogSettingsController;
 use App\Http\Controllers\Administration\SetupController;
 use App\Http\Controllers\Administration\Teams\TeamController;
 use App\Http\Controllers\Administration\Users\UserController;
@@ -132,6 +133,9 @@ Route::middleware('auth')->group(function (): void {
         Route::patch('/roles/{role}', [RoleController::class, 'update'])->name('administration.roles.update');
         Route::put('/roles/{role}/permissions', [RoleController::class, 'permissions'])->name('administration.roles.permissions');
         Route::get('/permissions', [RoleController::class, 'catalog'])->name('administration.permissions.index');
+
+        Route::get('/settings/technical-logs', [TechnicalLogSettingsController::class, 'show'])->name('administration.settings.technical-logs');
+        Route::patch('/settings/technical-logs', [TechnicalLogSettingsController::class, 'update'])->name('administration.settings.technical-logs.update');
 
         Route::get('/audits/access', [AuditController::class, 'access'])->name('administration.audits.access');
         Route::get('/audits/security', [AuditController::class, 'security'])->name('administration.audits.security');

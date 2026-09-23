@@ -52,6 +52,20 @@ interface AttachmentRepository
     public function listForRecord(int $recordId): array;
 
     /**
+     * PENDING attachments still in quarantine since before $before: their scan never finished.
+     *
+     * @return list<Attachment>
+     */
+    public function abandonedPending(CarbonImmutable $before, int $limit): array;
+
+    /**
+     * ASSEMBLING sessions untouched since before $before: their finalization job died.
+     *
+     * @return list<UploadSession>
+     */
+    public function abandonedAssembling(CarbonImmutable $before, int $limit): array;
+
+    /**
      * Unfinished sessions whose inactivity window has passed.
      *
      * @return list<UploadSession>
