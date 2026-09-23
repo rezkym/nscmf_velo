@@ -15,7 +15,7 @@ use App\Infrastructure\Malware\ScannerUnavailable;
 use App\Infrastructure\Storage\PrivateStorage;
 use App\Models\Attachment\Attachment;
 use App\Models\Attachment\UploadSession;
-use App\Models\User;
+use App\Repositories\Contracts\Administration\UserRepository;
 use App\Repositories\Contracts\Attachment\AttachmentRepository;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Services\Audit\BusinessAuditService;
@@ -46,6 +46,7 @@ final readonly class AttachmentFinalizationService
 
     public function __construct(
         private AttachmentRepository $attachments,
+        private UserRepository $users,
         private NscmfRepository $records,
         private PrivateStorage $storage,
         private MalwareScanner $scanner,
@@ -168,7 +169,7 @@ final readonly class AttachmentFinalizationService
     {
         $promoted = $this->database->connection()->transaction(function () use ($session, $attachment, $quarantineKey): bool {
             $record = $this->records->lockForUpdate($attachment->nscmf_record_id) ?? throw new \LogicException('Attachment parent vanished.');
-            $owner = User::query()->find($session->initiated_by_user_id);
+            $owner = $this->users->findById($session->initiated_by_user_id);
             $eligible = $owner !== null && $owner->is_active && $owner->can('nscmf.attachment.manage')
                 && $record->owner_user_id === $owner->id && ! $record->is_archived && $record->business_status->allowsDraftEdit()
                 && $this->attachments->cleanCount($record->id) < config()->integer('nscmf.attachments.max_active');

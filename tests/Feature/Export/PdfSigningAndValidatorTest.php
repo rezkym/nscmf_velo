@@ -23,11 +23,15 @@ use Tests\Support\Records;
  * LibreOffice renderer and real OpenSSL signing; skips when either is not provisioned.
  */
 
-const SOFFICE = '/opt/homebrew/bin/soffice';
+/** LibreOffice from the PATH (Homebrew, apt, …); empty when not installed. */
+function soffice(): string
+{
+    return trim((string) shell_exec('command -v soffice 2>/dev/null'));
+}
 
 function signingReady(): bool
 {
-    return is_file(base_path('NSCMF-Form-3.0.xlsx')) && is_executable(SOFFICE);
+    return is_file(base_path('NSCMF-Form-3.0.xlsx')) && soffice() !== '';
 }
 
 function activateSigner(string $label = 'NSCMF Organization Test'): void
@@ -66,7 +70,7 @@ beforeEach(function (): void {
     Queue::fake();
     app()->instance(MalwareScanner::class, new FakeScanner);
     config([
-        'nscmf.renderer.executable' => SOFFICE,
+        'nscmf.renderer.executable' => soffice(),
         'nscmf.signing.p12_path' => storage_path('framework/testing/signing-'.getmypid().'.p12'),
         'nscmf.signing.p12_passphrase' => 'test-only-passphrase',
     ]);
