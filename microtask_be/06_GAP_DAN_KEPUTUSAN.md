@@ -192,4 +192,14 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Bukti penutupan: aturan tertulis di 12 §17.1 dan test visibilitas.
 - Status: **CLOSED 2026-09-22** oleh pemilik proyek: record yang belum pernah Submit (DRAFT/CANCELLED) hanya terlihat oleh pemilik; record yang sudah pernah Submit terlihat oleh semua pemegang izin baca terkait; tanpa Team, tanpa pengecualian Superadmin (12 §17.1).
 
+<a id="g20"></a>
+
+## G20 — Arsip Cancelled vs visibilitas record never-submitted
+
+- Sumber: `17 §36, §49` (DEMO-CHG-008 Cancelled + archived, actor "normally Protected Superadmin") vs `12 §17.1`/G19 (record DRAFT/CANCELLED hanya terlihat pemilik, tanpa pengecualian Superadmin) dan `05 §22` (archive butuh `nscmf.archive` + akses record).
+- Dampak/task owner: [BE-079](BE-079.md), [BE-136](BE-137.md), [BE-137](BE-137.md).
+- Temuan 2026-09-23: record CANCELLED hanya bisa diarsipkan oleh pemiliknya sendiri, dan bundle Requester tidak memiliki `nscmf.archive`; di data demo tidak ada aktor sah yang bisa mengarsipkan DEMO-CHG-008. Implementasi mengikuti 12 §17.1 (aturan keamanan) sehingga DEMO-CHG-008 tetap CANCELLED tanpa arsip; arsip Approved (ACT-008, CHG-009) tetap ada.
+- Pilihan untuk pemilik: (a) terima deviasi data demo; (b) izinkan pemegang `nscmf.archive` melihat record CANCELLED untuk keperluan arsip (perubahan 12 §17.1); (c) beri pemilik demo peran tambahan yang memuat `nscmf.archive`.
+- Status: **OPEN — menunggu keputusan pemilik**.
+
 Removed concerns dari19A/20 tidak menjadi gap: HA/Redis/DR/backup/load/SLA architecture/automatedCD/publicCA/multi-server. Actual hostname/provider/Linux/path baru dicatat ketika deployment sungguhan diperintahkan; tidak memilih server sekarang.

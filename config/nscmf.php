@@ -9,6 +9,9 @@ return [
      */
     'browser_testing' => (bool) env('NSCMF_BROWSER_TESTING', false),
 
+    /* Explicit opt-in for the synthetic demo dataset on staging (17 §9); production is always refused. */
+    'demo_seed_staging' => (bool) env('NSCMF_DEMO_SEED_STAGING', false),
+
     /*
      * Hostname of the public validator ingress (20 §19–21). Requests for it reach only
      * /ispdfvalid; empty means no separate public hostname is configured.

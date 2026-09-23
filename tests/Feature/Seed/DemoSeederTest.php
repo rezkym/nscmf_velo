@@ -25,7 +25,12 @@ function seedDemo(): void
 /** @return array<string, stdClass> request_no => record row */
 function demoRecords(): array
 {
-    return DB::table('nscmf_records')->where('request_no', 'like', 'DEMO-%')->get()->keyBy('request_no')->all();
+    $records = [];
+    foreach (DB::table('nscmf_records')->where('request_no', 'like', 'DEMO-%')->get() as $record) {
+        $records[is_string($record->request_no) ? $record->request_no : ''] = $record;
+    }
+
+    return $records;
 }
 
 function iterationOf(stdClass $record): ?stdClass
@@ -55,7 +60,7 @@ it('creates the three demo Teams and the six canonical demo accounts', function 
     expect(DB::table('teams')->whereIn('name', ['Demo Team Alpha', 'Demo Team Beta', 'Demo Team Gamma'])->where('is_active', true)->count())->toBe(3);
     $users = DB::table('users')->where('username', 'like', 'demo.%')->get()->keyBy('username');
     expect($users->keys()->sort()->values()->all())->toBe(['demo.approver', 'demo.disabled', 'demo.multi', 'demo.requester.a', 'demo.requester.b', 'demo.reviewer'])
-        ->and($users['demo.disabled']->is_active)->toBe(0)
+        ->and($users->get('demo.disabled')?->is_active)->toBe(0)
         ->and($users->every(fn (stdClass $user): bool => $user->must_change_password === 0 && is_string($user->password) && Hash::check('password', $user->password)))->toBeTrue()
         ->and(User::query()->where('username', 'demo.multi')->sole()->getRoleNames()->sort()->values()->all())->toBe(['Approver', 'Reviewer']);
 });
@@ -70,7 +75,7 @@ it('seeds the twenty coherent DEMO scenarios with every state, subtype and archi
         'DEMO-ACT-007' => ['CANCELLED', 0], 'DEMO-ACT-008' => ['APPROVED', 1], 'DEMO-ACT-009' => ['REVISION_REQUIRED', 0],
         'DEMO-ACT-010' => ['PENDING_REVIEW', 0], 'DEMO-CHG-001' => ['DRAFT', 0], 'DEMO-CHG-002' => ['PENDING_REVIEW', 0],
         'DEMO-CHG-003' => ['PENDING_REVIEW', 0], 'DEMO-CHG-004' => ['REVISION_REQUIRED', 0], 'DEMO-CHG-005' => ['PENDING_APPROVAL', 0],
-        'DEMO-CHG-006' => ['APPROVED', 0], 'DEMO-CHG-007' => ['REJECTED', 0], 'DEMO-CHG-008' => ['CANCELLED', 1],
+        'DEMO-CHG-006' => ['APPROVED', 0], 'DEMO-CHG-007' => ['REJECTED', 0], 'DEMO-CHG-008' => ['CANCELLED', 0], // G20: 17 §49 asks archived, 12 §17.1 lets no demo actor see it
         'DEMO-CHG-009' => ['APPROVED', 1], 'DEMO-CHG-010' => ['PENDING_REVIEW', 0],
     ];
     expect(array_map(fn (stdClass $r): array => [$r->business_status, $r->is_archived], $records))->toEqualCanonicalizing($expected)
@@ -90,9 +95,9 @@ it('seeds the twenty coherent DEMO scenarios with every state, subtype and archi
     $act009 = $records['DEMO-ACT-009'];
     $iterations = DB::table('nscmf_workflow_iterations')->where('nscmf_record_id', $act009->id)->orderBy('iteration_no')->get();
     expect($iterations)->toHaveCount(2)
-        ->and($iterations[0]->closed_status)->toBe('APPROVED')->and($iterations[0]->superseded_at)->not->toBeNull()
-        ->and($iterations[1]->started_via)->toBe('REOPEN')
-        ->and($act009->requested_by_user_id)->toBe(DB::table('nscmf_workflow_iterations')->where('id', $iterations[0]->id)->value('started_by_user_id'));
+        ->and($iterations->first()?->closed_status)->toBe('APPROVED')->and($iterations->first()?->superseded_at)->not->toBeNull()
+        ->and($iterations->last()?->started_via)->toBe('REOPEN')
+        ->and($act009->requested_by_user_id)->toBe($iterations->first()?->started_by_user_id);
     expect(iterationOf($records['DEMO-ACT-010'])?->iteration_no)->toBe(2);
 
     // Approver Return Reviewer cleared the effective review; Reviewer vs Approver reject are distinct.
