@@ -245,7 +245,7 @@ describe('AC3: failures never claim success', () => {
             },
         });
 
-        expect(wrapper.get('[data-testid="feedback-conflict"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(true);
         expect(wrapper.find('[data-testid="submit-results-btn"]').exists()).toBe(false);
         expect(send).toHaveBeenCalledTimes(1);
         expect((wrapper.get('#results-0-result_summary').element as HTMLTextAreaElement).value).toBe('Mine');
@@ -268,7 +268,7 @@ describe('AC3: failures never claim success', () => {
         await flushPromises();
 
         expect(send).not.toHaveBeenCalled();
-        expect(wrapper.get('[data-testid="feedback-validation"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="feedback-validation"]').exists()).toBe(true);
     });
 
     it('allows a retry after a denial and then reports saved', async () => {
@@ -278,8 +278,7 @@ describe('AC3: failures never claim success', () => {
             status: 403,
             error: { code: 'FORBIDDEN', message: 'You are not allowed to do this.' },
         });
-        await wrapper.get('[data-testid="feedback-refresh-btn"]').trigger('click');
-        await flushPromises();
+        // A denial does not remove the editor (only a version conflict does), so a retry is possible.
         await save(wrapper, okBody(8, BASE_RECORD.change?.results ?? []));
 
         expect(wrapper.text()).toContain('Saved');
@@ -297,7 +296,7 @@ describe('the record moving underneath the editor (FE-29 AC3)', () => {
         expect((wrapper.get('#results-0-result_summary').element as HTMLTextAreaElement).value).toBe(
             'Typed but not saved yet',
         );
-        expect(wrapper.get('[data-testid="feedback-conflict"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="feedback-conflict"]').exists()).toBe(true);
     });
 
     it('adopts the server rows when nothing was typed', async () => {
