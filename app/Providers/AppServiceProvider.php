@@ -41,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(SpreadsheetRenderer::class, fn (): SpreadsheetRenderer => new LibreOfficeRenderer(
             config()->string('nscmf.renderer.executable'),
             config()->integer('nscmf.renderer.timeout_seconds'),
+            config()->string('nscmf.renderer.fonts_path'),
         ));
 
         $this->app->singleton(PdfSigner::class, fn (Application $app): PdfSigner => new SappPdfSigner(

@@ -8,13 +8,16 @@ use Illuminate\Support\Facades\Process;
 
 /**
  * LibreOffice Headless, the first renderer candidate (14 §73, DG-01). Each run gets its own
- * throw-away user profile inside the private workspace and a finite timeout.
+ * throw-away user profile inside the private workspace and a finite timeout. The template's
+ * fonts (Calibri, Aptos) are handed to that profile from $fontsPath, because LibreOffice
+ * silently substitutes metric look-alikes for fonts it cannot see (G16).
  */
 final readonly class LibreOfficeRenderer implements SpreadsheetRenderer
 {
     public function __construct(
         private string $executable,
         private int $timeoutSeconds,
+        private string $fontsPath = '',
     ) {}
 
     public function isAvailable(): bool
@@ -46,6 +49,12 @@ final readonly class LibreOfficeRenderer implements SpreadsheetRenderer
 
     private function convert(string $xlsxPath, string $workspace, string $target): string
     {
+        $profileFonts = $workspace.'/profile/user/fonts';
+        if ($this->fontsPath !== '' && ! file_exists($profileFonts)) {
+            @mkdir(dirname($profileFonts), 0700, true);
+            symlink($this->fontsPath, $profileFonts);
+        }
+
         $result = Process::timeout($this->timeoutSeconds)->path($workspace)->run([
             $this->executable,
             '-env:UserInstallation=file://'.$workspace.'/profile',
