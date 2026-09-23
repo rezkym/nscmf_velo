@@ -13,6 +13,7 @@ use App\Repositories\Contracts\Audit\SecurityAuditRepository;
 use App\Repositories\Contracts\Export\SigningCertificateRepository;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Repositories\Contracts\Nscmf\NumberSequenceRepository;
+use App\Repositories\Contracts\Nscmf\WorkflowRepository;
 use App\Repositories\Contracts\Security\SessionRepository;
 use App\Repositories\Eloquent\Administration\EloquentTeamRepository;
 use App\Repositories\Eloquent\Administration\EloquentUserRepository;
@@ -22,6 +23,7 @@ use App\Repositories\Eloquent\Audit\EloquentBusinessAuditRepository;
 use App\Repositories\Eloquent\Audit\EloquentSecurityAuditRepository;
 use App\Repositories\Eloquent\Export\EloquentSigningCertificateRepository;
 use App\Repositories\Eloquent\Nscmf\EloquentNscmfRepository;
+use App\Repositories\Eloquent\Nscmf\EloquentWorkflowRepository;
 use App\Repositories\Eloquent\Nscmf\MySqlNumberSequenceRepository;
 use App\Repositories\Eloquent\Security\DatabaseSessionRepository;
 use Illuminate\Support\ServiceProvider;
@@ -41,5 +43,6 @@ class RepositoryServiceProvider extends ServiceProvider
         SigningCertificateRepository::class => EloquentSigningCertificateRepository::class,
         NscmfRepository::class => EloquentNscmfRepository::class,
         NumberSequenceRepository::class => MySqlNumberSequenceRepository::class,
+        WorkflowRepository::class => EloquentWorkflowRepository::class,
     ];
 }

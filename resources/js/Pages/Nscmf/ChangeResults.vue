@@ -60,14 +60,15 @@ import DetailTable from '@/features/nscmf/DetailTable.vue';
 import {
     ANNOUNCEMENT_TIMING_LABELS,
     FAMILY_LABELS,
+    type NscmfDetailRecord,
     MONITORING_UNIT_LABELS,
     SERVICE_IMPACT_LABELS,
     STATUS_LABELS,
     SUBTYPE_LABELS,
 } from '@/features/nscmf/types';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { pageDomainError } from '@/lib/apiErrors';
-import type { NscmfDetailRecord } from '@/Pages/Nscmf/Show.vue';
+import { isRecordConflictCode, pageDomainError } from '@/lib/apiErrors';
+import { sendJson } from '@/lib/http';
 
 const props = defineProps<{ record: NscmfDetailRecord }>();
 const page = usePage();
@@ -103,6 +104,8 @@ const isVersionConflict = computed(
 
 /** The rows as last loaded from the server, so local typing can be told apart from a server change. */
 const loadedRows = ref(JSON.stringify(resultsModel.value.results));
+/** The version the server last acknowledged; the next save sends this, never a local increment. */
+const currentVersion = ref(props.record.record_version);
 const hasUnsavedRows = computed(() => JSON.stringify(resultsModel.value.results) !== loadedRows.value);
 
 function adoptRows(rows: ChangeResultRow[]): void {
@@ -150,6 +153,7 @@ watch(
             return;
         }
 
+        currentVersion.value = props.record.record_version;
         resetToRecord();
     },
 );
@@ -222,7 +226,7 @@ const NUMBERED_TEXT = [
     { key: 'text', label: 'Description' },
 ];
 
-function submitResults(): void {
+async function submitResults(): Promise<void> {
     // Eligibility is enforced by `v-if="isEligible"` around the editor, so it is not re-checked
     // here; a second submit is blocked by the button's disabled state.
     if (submitting.value) return;
@@ -234,7 +238,7 @@ function submitResults(): void {
 
     let payload: ReturnType<typeof buildChangeResultsPayload>;
     try {
-        payload = buildChangeResultsPayload(props.record.record_version, resultsModel.value.results);
+        payload = buildChangeResultsPayload(currentVersion.value, resultsModel.value.results);
     } catch (err: unknown) {
         saveStatus.value = 'error';
         feedbackError.value = {
@@ -248,43 +252,62 @@ function submitResults(): void {
     }
 
     submitting.value = true;
+    saveStatus.value = 'saving';
+    fieldErrors.value = {};
 
-    router.patch(`/nscmf/${props.record.id}/change-results`, payload as unknown as Parameters<typeof router.patch>[1], {
-        preserveScroll: true,
-        onSuccess: (newPage) => {
-            if (hasTerminalError.value) {
-                return;
-            }
+    try {
+        const result = await sendJson<{ data?: { record_version?: number; results?: ChangeResultRow[] } }>(
+            'PATCH',
+            `/nscmf/${props.record.id}/change-results`,
+            payload,
+        );
+
+        if (result.ok) {
             saveStatus.value = 'saved';
-            const pageRecord = (newPage as { props?: { record?: NscmfDetailRecord } })?.props?.record;
-            if (pageRecord) {
-                adoptRows(resultRowsOf(pageRecord));
-            }
-        },
-        onError: (errs) => {
-            saveStatus.value = 'error';
-            fieldErrors.value = errs;
-            // The Inertia error bag carries no code; 422 alone identifies validation (G07).
-            feedbackError.value = { status: 422, errors: errs };
-        },
-        onHttpException: (response) => {
-            // The status is the whole classification (12 §11); RequestFeedback renders from it.
-            // No code is invented from a status the server never named (12 §12), and no message
-            // either - a server that wants to say something flashes it.
-            latchTerminal({ status: response.status });
-        },
-        onFlash: (flash) => {
-            const terminal = terminalFromDomainError(pageDomainError(flash));
-            if (terminal) latchTerminal(terminal);
-        },
-        onNetworkError: () => {
-            saveStatus.value = 'error';
-            feedbackError.value = { isNetworkError: true };
-        },
-        onFinish: () => {
-            submitting.value = false;
-        },
-    });
+            feedbackError.value = null;
+            const acknowledged = result.body?.data?.record_version;
+            if (typeof acknowledged === 'number') currentVersion.value = acknowledged;
+            adoptRows(normalizeResultRows(result.body?.data?.results ?? []));
+            return;
+        }
+
+        const { status, error } = result;
+
+        if (status === 409 || isRecordConflictCode(error?.code)) {
+            latchTerminal({
+                status: 409,
+                code: error?.code,
+                message: error?.message || 'A newer version of this record exists.',
+                context: error?.context,
+            });
+            return;
+        }
+
+        if (status === 403 || status === 404) {
+            latchTerminal({ status, code: error?.code, message: error?.message });
+            return;
+        }
+
+        saveStatus.value = 'error';
+
+        if (status === 422) {
+            fieldErrors.value = Object.fromEntries(
+                Object.entries(error?.errors ?? {}).map(([path, message]) => [
+                    path,
+                    Array.isArray(message) ? (message[0] ?? '') : message,
+                ]),
+            );
+            feedbackError.value = { status, code: error?.code, message: error?.message, errors: error?.errors };
+            return;
+        }
+
+        feedbackError.value =
+            status === 0
+                ? { status: 0, isNetworkError: true, message: 'Network connection lost' }
+                : { status, code: error?.code, message: error?.message };
+    } finally {
+        submitting.value = false;
+    }
 }
 
 function handleRefresh(): void {

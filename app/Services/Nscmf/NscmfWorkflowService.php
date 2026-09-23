@@ -1,0 +1,112 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Nscmf;
+
+use App\Domain\Audit\Enums\BusinessAuditEvent;
+use App\Domain\Nscmf\Enums\NscmfStatus;
+use App\Domain\Nscmf\RecordAccess;
+use App\Domain\Nscmf\SubmissionRules;
+use App\Domain\Shared\DomainRuleException;
+use App\Models\Nscmf\NscmfRecord;
+use App\Models\User;
+use App\Repositories\Contracts\Nscmf\NscmfRepository;
+use App\Repositories\Contracts\Nscmf\WorkflowRepository;
+use App\Services\Audit\BusinessAuditService;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\DatabaseManager;
+
+/**
+ * Workflow transitions (05 §14, 11 §56, 12 §30): row-locked, current-state revalidated, one
+ * version increment and one Business Audit event per successful action.
+ */
+final readonly class NscmfWorkflowService
+{
+    public function __construct(
+        private NscmfRepository $records,
+        private WorkflowRepository $workflow,
+        private BusinessAuditService $businessAudit,
+        private DatabaseManager $database,
+    ) {}
+
+    /** First Submit establishes iteration 1 and Requested By; a Resubmit keeps both (05 §16). */
+    public function submit(User $actor, int $recordId, int $expectedVersion): void
+    {
+        $this->database->connection()->transaction(function () use ($actor, $recordId, $expectedVersion): void {
+            $record = $this->records->lockForUpdate($recordId);
+
+            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+                throw DomainRuleException::notFound();
+            }
+
+            if (! $actor->can('nscmf.submit') || ! RecordAccess::isOwnedBy($record, $actor->id)) {
+                throw DomainRuleException::forbidden();
+            }
+
+            if ($record->is_archived) {
+                throw new DomainRuleException('NSCMF_ARCHIVED_CONFLICT', 'This record is archived.', 409, self::context($record));
+            }
+
+            if (! $record->business_status->allowsDraftEdit()) {
+                throw new DomainRuleException('NSCMF_STATE_CONFLICT', 'This record is not in a state that can be submitted.', 409, self::context($record));
+            }
+
+            if ($expectedVersion !== $record->record_version) {
+                throw new DomainRuleException('NSCMF_VERSION_CONFLICT', 'A newer version of this record exists. Refresh the record before submitting.', 409, self::context($record));
+            }
+
+            $isFirstSubmit = $record->requested_by_user_id === null;
+            $errors = SubmissionRules::errors(
+                $record->family,
+                $record->subtype,
+                $this->records->familyState($record),
+                $record->request_date?->toDateString(),
+                $isFirstSubmit,
+            );
+
+            if ($errors !== []) {
+                throw new DomainRuleException('VALIDATION_FAILED', 'Some fields need to be corrected before submitting.', 422, errors: $errors);
+            }
+
+            $now = CarbonImmutable::now();
+            $iteration = $this->workflow->currentIteration($record);
+            $attributes = ['business_status' => NscmfStatus::PENDING_REVIEW->value];
+
+            if ($isFirstSubmit) {
+                $iteration = $this->workflow->createIteration($record, [
+                    'iteration_no' => 1,
+                    'started_via' => 'FIRST_SUBMIT',
+                    'started_by_user_id' => $actor->id,
+                    'started_at' => $now,
+                ]);
+                $attributes['requested_by_user_id'] = $actor->id;
+                $attributes['first_submitted_at'] = $now;
+                $attributes['current_workflow_iteration_id'] = $iteration->id;
+            }
+
+            $versionBefore = $record->record_version;
+            $this->records->updateAndIncrementVersion($record, $attributes);
+
+            $this->businessAudit->record(
+                recordId: $record->id,
+                actorUserId: $actor->id,
+                event: BusinessAuditEvent::SUBMITTED,
+                versionBefore: $versionBefore,
+                versionAfter: $record->record_version,
+                fromStatus: $isFirstSubmit ? NscmfStatus::DRAFT->value : NscmfStatus::REVISION_REQUIRED->value,
+                toStatus: NscmfStatus::PENDING_REVIEW->value,
+                workflowIterationId: $iteration?->id,
+                metadata: ['first_submit' => $isFirstSubmit],
+            );
+        });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function context(NscmfRecord $record): array
+    {
+        return ['latest_record_version' => $record->record_version, 'current_business_status' => $record->business_status->value];
+    }
+}

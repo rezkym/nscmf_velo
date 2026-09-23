@@ -12,7 +12,11 @@ use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\ReauthenticateController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Nscmf\CreateNscmfController;
+use App\Http\Controllers\Nscmf\RecordController;
+use App\Http\Controllers\Nscmf\SaveChangeResultsController;
 use App\Http\Controllers\Nscmf\SaveDraftController;
+use App\Http\Controllers\Nscmf\Workflow\SubmitRecordController;
+use App\Http\Controllers\Review\ReviewQueueController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -33,9 +37,15 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
+    Route::get('/review', ReviewQueueController::class)->name('review.index');
+
     Route::get('/nscmf/create', [CreateNscmfController::class, 'create'])->name('nscmf.create');
     Route::post('/nscmf', [CreateNscmfController::class, 'store'])->name('nscmf.store');
+    Route::get('/nscmf/{record}', [RecordController::class, 'show'])->whereNumber('record')->name('nscmf.show');
+    Route::get('/nscmf/{record}/edit', [RecordController::class, 'edit'])->whereNumber('record')->name('nscmf.edit');
     Route::patch('/nscmf/{record}/draft', SaveDraftController::class)->whereNumber('record')->name('nscmf.draft');
+    Route::patch('/nscmf/{record}/change-results', SaveChangeResultsController::class)->whereNumber('record')->name('nscmf.change-results');
+    Route::post('/nscmf/{record}/submit', SubmitRecordController::class)->whereNumber('record')->name('nscmf.submit');
 
     Route::prefix('administration')->whereNumber(['team', 'user', 'role'])->group(function (): void {
         Route::get('/setup', SetupController::class)->name('administration.setup');

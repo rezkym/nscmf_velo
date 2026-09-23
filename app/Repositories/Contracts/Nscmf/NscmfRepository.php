@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Repositories\Contracts\Nscmf;
 
 use App\Domain\Nscmf\Enums\NscmfFamily;
+use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Models\Nscmf\NscmfRecord;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface NscmfRepository
 {
@@ -20,6 +22,35 @@ interface NscmfRepository
     public function createWithDetail(array $attributes, NscmfFamily $family): NscmfRecord;
 
     public function find(int $id): ?NscmfRecord;
+
+    /**
+     * Records in one business state, newest-relevant order by the whitelisted sort, with the owner
+     * and Team loaded. Archived records are excluded; Team is never a filter here.
+     *
+     * @param  array{page: int, per_page: int, sort: string, direction: string, q: string|null}  $query
+     * @return LengthAwarePaginator<int, NscmfRecord>
+     */
+    public function paginateByStatus(NscmfStatus $status, array $query): LengthAwarePaginator;
+
+    /**
+     * @return array<string, int> status value => count of the actor's own records
+     */
+    public function countOwnByStatus(int $ownerUserId, NscmfStatus ...$statuses): array;
+
+    public function countByStatus(NscmfStatus $status): int;
+
+    /**
+     * @return list<NscmfRecord>
+     */
+    public function recentOwnByStatus(int $ownerUserId, NscmfStatus $status, int $limit): array;
+
+    /**
+     * @return list<NscmfRecord>
+     */
+    public function recentByStatus(NscmfStatus $status, int $limit): array;
+
+    /** The record with owner, Team, requester and current-iteration sign-off actors loaded. */
+    public function findForProjection(int $id): ?NscmfRecord;
 
     /** Row-locks the record for a mutation (SELECT ... FOR UPDATE). */
     public function lockForUpdate(int $id): ?NscmfRecord;

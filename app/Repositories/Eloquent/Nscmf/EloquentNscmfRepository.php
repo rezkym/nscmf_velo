@@ -6,10 +6,13 @@ namespace App\Repositories\Eloquent\Nscmf;
 
 use App\Domain\Nscmf\DraftStructure;
 use App\Domain\Nscmf\Enums\NscmfFamily;
+use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Models\Nscmf\NscmfRecord;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Repositories\Exceptions\RequestNoTakenException;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -65,6 +68,69 @@ final class EloquentNscmfRepository implements NscmfRepository
     public function find(int $id): ?NscmfRecord
     {
         return NscmfRecord::query()->find($id);
+    }
+
+    public function paginateByStatus(NscmfStatus $status, array $query): LengthAwarePaginator
+    {
+        return $this->inStatus($status)
+            ->with(['requestedBy', 'team', 'owner'])
+            ->orderBy($query['sort'], $query['direction'] === 'desc' ? 'desc' : 'asc')
+            ->orderBy('id')
+            ->when($query['q'] !== null, fn (Builder $builder) => $builder->where('request_no_normalized', 'like', '%'.mb_strtolower($query['q'] ?? '').'%'))
+            ->paginate(perPage: $query['per_page'], page: $query['page']);
+    }
+
+    public function countOwnByStatus(int $ownerUserId, NscmfStatus ...$statuses): array
+    {
+        $counts = [];
+
+        foreach ($statuses as $status) {
+            $counts[$status->value] = $this->inStatus($status)->where('owner_user_id', $ownerUserId)->count();
+        }
+
+        return $counts;
+    }
+
+    public function countByStatus(NscmfStatus $status): int
+    {
+        return $this->inStatus($status)->count();
+    }
+
+    public function recentOwnByStatus(int $ownerUserId, NscmfStatus $status, int $limit): array
+    {
+        /** @var list<NscmfRecord> $records */
+        $records = $this->inStatus($status)
+            ->where('owner_user_id', $ownerUserId)
+            ->with('team')
+            ->orderBy('id')
+            ->limit($limit)
+            ->get()
+            ->all();
+
+        return $records;
+    }
+
+    public function recentByStatus(NscmfStatus $status, int $limit): array
+    {
+        /** @var list<NscmfRecord> $records */
+        $records = $this->inStatus($status)->with('team')->orderBy('id')->limit($limit)->get()->all();
+
+        return $records;
+    }
+
+    /**
+     * @return Builder<NscmfRecord>
+     */
+    private function inStatus(NscmfStatus $status): Builder
+    {
+        return NscmfRecord::query()->where('business_status', $status->value)->where('is_archived', false);
+    }
+
+    public function findForProjection(int $id): ?NscmfRecord
+    {
+        return NscmfRecord::query()
+            ->with(['owner', 'team', 'requestedBy', 'currentIteration.reviewedBy', 'currentIteration.approvedBy'])
+            ->find($id);
     }
 
     public function lockForUpdate(int $id): ?NscmfRecord

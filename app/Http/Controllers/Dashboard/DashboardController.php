@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Administration\SetupService;
+use App\Services\Nscmf\NscmfQueryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,7 +15,7 @@ use Inertia\Response;
 
 final class DashboardController extends Controller
 {
-    public function __invoke(Request $request, SetupService $setup): Response|RedirectResponse
+    public function __invoke(Request $request, SetupService $setup, NscmfQueryService $queries): Response|RedirectResponse
     {
         $user = $request->user();
         assert($user instanceof User);
@@ -23,6 +24,6 @@ final class DashboardController extends Controller
             return redirect('/administration/setup');
         }
 
-        return Inertia::render('Dashboard/Index');
+        return Inertia::render('Dashboard/Index', $queries->dashboard($user));
     }
 }

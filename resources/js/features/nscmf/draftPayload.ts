@@ -16,14 +16,36 @@ import type { ActivationDraftFields, ChangeDraftFields, ChangeResultRow } from '
  * Requiredness and value ranges are validated by the server at the action stage (06), not here.
  */
 
+/**
+ * The optional record header of the Draft save (12 §26.1, confirmed 2026-09-22): the Submit-required
+ * request date, and the request number only for a never-submitted Manual record.
+ */
+export interface DraftHeader {
+    request_date?: string | null;
+    request_no?: string;
+}
+
 export interface ActivationDraftPayload {
     record_version: number;
+    header?: DraftHeader;
     activation: ActivationDraftFields;
 }
 
 export interface ChangeDraftPayload {
     record_version: number;
+    header?: DraftHeader;
     change: ChangeDraftFields;
+}
+
+/** Normalises the header: a blank date clears it (null); the number is trimmed and never blanked. */
+export function normalizeHeader(header: DraftHeader): DraftHeader {
+    const out: DraftHeader = {};
+    if (Object.hasOwn(header, 'request_date')) {
+        const date = header.request_date;
+        out.request_date = typeof date === 'string' && date.trim() !== '' ? date.trim() : null;
+    }
+    if (typeof header.request_no === 'string') out.request_no = header.request_no.trim();
+    return out;
 }
 
 interface CollectionRule {
