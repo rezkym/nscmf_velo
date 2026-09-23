@@ -17,6 +17,9 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
+/**
+ * @phpstan-import-type ListQuery from \App\Http\Requests\Nscmf\ListRecordsRequest
+ */
 final class EloquentNscmfRepository implements NscmfRepository
 {
     private const array DETAIL_TABLES = [
@@ -70,13 +73,25 @@ final class EloquentNscmfRepository implements NscmfRepository
         return NscmfRecord::query()->find($id);
     }
 
-    public function paginateByStatus(NscmfStatus $status, array $query): LengthAwarePaginator
+    public function paginateVisible(int $viewerId, array $query): LengthAwarePaginator
     {
-        return $this->inStatus($status)
+        return NscmfRecord::query()
+            // 12 §17.1: a never-submitted record is visible to its owner only.
+            ->where(fn (Builder $builder) => $builder
+                ->where('owner_user_id', $viewerId)
+                ->orWhereNotIn('business_status', [NscmfStatus::DRAFT->value, NscmfStatus::CANCELLED->value]))
             ->with(['requestedBy', 'team', 'owner'])
+            ->when($query['q'] !== null, fn (Builder $builder) => $builder->where('request_no_normalized', 'like', '%'.mb_strtolower($query['q'] ?? '').'%'))
+            ->when($query['family'] !== null, fn (Builder $builder) => $builder->where('family', $query['family']))
+            ->when($query['subtype'] !== null, fn (Builder $builder) => $builder->where('subtype', $query['subtype']))
+            ->when($query['business_status'] !== null, fn (Builder $builder) => $builder->where('business_status', $query['business_status']))
+            ->when($query['archived'] !== null, fn (Builder $builder) => $builder->where('is_archived', $query['archived']))
+            ->when($query['request_date_from'] !== null, fn (Builder $builder) => $builder->where('request_date', '>=', $query['request_date_from']))
+            ->when($query['request_date_to'] !== null, fn (Builder $builder) => $builder->where('request_date', '<=', $query['request_date_to']))
+            ->when($query['owner_user_id'] !== null, fn (Builder $builder) => $builder->where('owner_user_id', $query['owner_user_id']))
+            ->when($query['team_id'] !== null, fn (Builder $builder) => $builder->where('team_id', $query['team_id']))
             ->orderBy($query['sort'], $query['direction'] === 'desc' ? 'desc' : 'asc')
             ->orderBy('id')
-            ->when($query['q'] !== null, fn (Builder $builder) => $builder->where('request_no_normalized', 'like', '%'.mb_strtolower($query['q'] ?? '').'%'))
             ->paginate(perPage: $query['per_page'], page: $query['page']);
     }
 

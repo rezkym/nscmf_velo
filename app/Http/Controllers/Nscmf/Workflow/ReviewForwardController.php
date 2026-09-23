@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Nscmf\Workflow;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Nscmf\Workflow\ReviewForwardRequest;
+use App\Http\Requests\Nscmf\Workflow\WorkflowCommentRequest;
 use App\Models\User;
 use App\Services\Nscmf\NscmfWorkflowService;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +13,7 @@ use LogicException;
 
 final class ReviewForwardController extends Controller
 {
-    public function __invoke(ReviewForwardRequest $request, int $record, NscmfWorkflowService $workflow): RedirectResponse
+    public function __invoke(WorkflowCommentRequest $request, int $record, NscmfWorkflowService $workflow): RedirectResponse
     {
         $user = $request->user();
         assert($user instanceof User);

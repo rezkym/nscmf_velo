@@ -56,7 +56,7 @@ it('filters by Team as metadata only and keeps pagination bounded', function ():
     signIn($approver)->get('/approval?team_id='.$other->team_id)
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('items', 1)
-            ->where('items', fn (Collection $items): bool => $items->every(fn (array $item): bool => $item['team']['id'] === $other->team_id)));
+            ->where('items', fn (Collection $items): bool => $items->every(fn (mixed $item): bool => data_get($item, 'team.id') === $other->team_id)));
 });
 
 it('opens the detail with approval action hints and claims nothing', function (): void {
@@ -67,7 +67,7 @@ it('opens the detail with approval action hints and claims nothing', function ()
     signIn(Actors::approver())->get("/approval/{$recordId}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('Approval/Show')
+            ->component('Approval/Show', false) // page owned by FE-33
             ->where('record.id', $recordId)
             ->where('record.business_status', 'PENDING_APPROVAL')
             ->where('record.allowed_actions', ['nscmf.approve', 'nscmf.approval.return_reviewer', 'nscmf.approval.return_requester', 'nscmf.approval.reject'])

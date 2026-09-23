@@ -9,6 +9,9 @@ use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Models\Nscmf\NscmfRecord;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
+/**
+ * @phpstan-import-type ListQuery from \App\Http\Requests\Nscmf\ListRecordsRequest
+ */
 interface NscmfRepository
 {
     public function requestNoExists(string $normalized, ?int $exceptRecordId = null): bool;
@@ -24,13 +27,13 @@ interface NscmfRepository
     public function find(int $id): ?NscmfRecord;
 
     /**
-     * Records in one business state, newest-relevant order by the whitelisted sort, with the owner
-     * and Team loaded. Archived records are excluded; Team is never a filter here.
+     * Records visible to the viewer (12 §17.1) narrowed by the validated common filters, with the
+     * requester, owner and Team loaded. Filters narrow only; Team never grants visibility.
      *
-     * @param  array{page: int, per_page: int, sort: string, direction: string, q: string|null}  $query
+     * @param  ListQuery  $query
      * @return LengthAwarePaginator<int, NscmfRecord>
      */
-    public function paginateByStatus(NscmfStatus $status, array $query): LengthAwarePaginator;
+    public function paginateVisible(int $viewerId, array $query): LengthAwarePaginator;
 
     /**
      * @return array<string, int> status value => count of the actor's own records

@@ -21,6 +21,8 @@ use App\Services\Audit\AccessAuditService;
  * Authorized record read projections (12 §23–24): the family form data in the same canonical shape
  * the Draft save accepts, current sign-offs, and server-derived action hints that never replace
  * the authorization every action repeats.
+ *
+ * @phpstan-import-type ListQuery from \App\Http\Requests\Nscmf\ListRecordsRequest
  */
 final readonly class NscmfQueryService
 {
@@ -29,6 +31,10 @@ final readonly class NscmfQueryService
     public const string EDIT_RESULTS = 'edit_results';
 
     private const int DASHBOARD_ITEMS = 5;
+
+    private const array REVIEW_ACTIONS = ['nscmf.review.return', 'nscmf.review.reject', 'nscmf.review.forward'];
+
+    private const array APPROVAL_ACTIONS = ['nscmf.approve', 'nscmf.approval.return_reviewer', 'nscmf.approval.return_requester', 'nscmf.approval.reject'];
 
     public function __construct(
         private NscmfRepository $records,
@@ -129,11 +135,15 @@ final readonly class NscmfQueryService
             $actions[] = self::EDIT_RESULTS;
         }
 
-        if (! $record->is_archived && $record->business_status === NscmfStatus::PENDING_REVIEW) {
-            foreach (['nscmf.review.return', 'nscmf.review.reject', 'nscmf.review.forward'] as $permission) {
-                if ($actor->can($permission)) {
-                    $actions[] = $permission;
-                }
+        $stagePermissions = match (true) {
+            $record->is_archived => [],
+            $record->business_status === NscmfStatus::PENDING_REVIEW => self::REVIEW_ACTIONS,
+            $record->business_status === NscmfStatus::PENDING_APPROVAL => self::APPROVAL_ACTIONS,
+            default => [],
+        };
+        foreach ($stagePermissions as $permission) {
+            if ($actor->can($permission)) {
+                $actions[] = $permission;
             }
         }
 
@@ -144,29 +154,37 @@ final readonly class NscmfQueryService
      * The Team-neutral Review queue (12 §45): every permitted reviewer sees the same candidates,
      * and opening the queue claims nothing.
      *
-     * @param  array{page: int, per_page: int, sort: string, direction: string, q: string|null}  $query
+     * @param  ListQuery  $query
      * @return array<string, mixed>
      */
     public function reviewQueue(User $actor, array $query): array
     {
-        if (! $actor->can('nscmf.review')) {
+        return $this->queue($actor, 'nscmf.review', NscmfStatus::PENDING_REVIEW, $query);
+    }
+
+    /**
+     * The shared, non-exclusive Approval queue (12 §46).
+     *
+     * @param  ListQuery  $query
+     * @return array<string, mixed>
+     */
+    public function approvalQueue(User $actor, array $query): array
+    {
+        return $this->queue($actor, 'nscmf.approve', NscmfStatus::PENDING_APPROVAL, $query);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function approvalDetail(User $actor, int $recordId): array
+    {
+        $record = $this->visibleRecord($actor, $recordId);
+        if (! $actor->can('nscmf.approve')) {
             throw DomainRuleException::forbidden();
         }
+        $this->accessAudit->record(actorUserId: $actor->id, event: AccessAuditEvent::RECORD_VIEWED, recordId: $record->id);
 
-        $paginator = $this->records->paginateByStatus(NscmfStatus::PENDING_REVIEW, $query);
-
-        return [
-            'items' => array_map(fn (NscmfRecord $record): array => self::queueRow($record), $paginator->items()),
-            'meta' => [
-                'current_page' => $paginator->currentPage(),
-                'from' => $paginator->firstItem(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'to' => $paginator->lastItem(),
-                'total' => $paginator->total(),
-            ],
-            'query' => $query,
-        ];
+        return $this->project($actor, $record, $this->records->familyState($record));
     }
 
     /**
@@ -199,6 +217,42 @@ final readonly class NscmfQueryService
         }
 
         return ['counts' => $counts, 'items' => $items];
+    }
+
+    /**
+     * @param  ListQuery  $query
+     * @return array<string, mixed>
+     */
+    private function queue(User $actor, string $permission, NscmfStatus $status, array $query): array
+    {
+        if (! $actor->can($permission)) {
+            throw DomainRuleException::forbidden();
+        }
+
+        return $this->paginated($actor, [...$query, 'business_status' => $status->value, 'archived' => false], $query);
+    }
+
+    /**
+     * @param  ListQuery  $filters
+     * @param  ListQuery  $query  the query echoed back to the page
+     * @return array<string, mixed>
+     */
+    private function paginated(User $actor, array $filters, array $query): array
+    {
+        $paginator = $this->records->paginateVisible($actor->id, $filters);
+
+        return [
+            'items' => array_map(fn (NscmfRecord $record): array => self::queueRow($record), $paginator->items()),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'from' => $paginator->firstItem(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'to' => $paginator->lastItem(),
+                'total' => $paginator->total(),
+            ],
+            'query' => $query,
+        ];
     }
 
     /**

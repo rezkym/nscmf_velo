@@ -57,7 +57,7 @@ it('returns a submitted record for revision without changing its iteration or si
     $reason = '  Need revised details.  ';
 
     signIn($actor)->post(reviewReturnUrl($recordId), ['record_version' => 1, 'reason' => $reason])
-        ->assertStatus(303)->assertRedirect("/nscmf/{$recordId}");
+        ->assertStatus(303)->assertRedirect(reviewActionDestination($actor, $recordId));
 
     $after = DB::table('nscmf_records')->where('id', $recordId)->sole();
     $iterationAfter = DB::table('nscmf_workflow_iterations')->where('id', $before->current_workflow_iteration_id)->sole();
@@ -205,7 +205,7 @@ it('accepts a valid form-encoded integer version string', function (): void {
     [$recordId] = pendingReviewRecord();
 
     signIn(Actors::reviewer())->post(reviewReturnUrl($recordId), ['record_version' => '1', 'reason' => 'Needs revision'])
-        ->assertStatus(303)->assertRedirect("/nscmf/{$recordId}");
+        ->assertStatus(303)->assertRedirect("/review/{$recordId}");
 
     expect(Records::version($recordId))->toBe(2)
         ->and(DB::table('business_audit_events')->where('event_type', 'REVIEW_RETURNED')->count())->toBe(1);
@@ -216,7 +216,7 @@ it('accepts five and 2000 Unicode characters after trimming', function (int $len
     $reason = str_repeat('é', $length);
 
     signIn(Actors::reviewer())->postJson(reviewReturnUrl($recordId), ['record_version' => 1, 'reason' => "  {$reason}  "])
-        ->assertStatus(303)->assertRedirect("/nscmf/{$recordId}");
+        ->assertStatus(303)->assertRedirect("/review/{$recordId}");
 
     expect(DB::table('business_audit_events')->where('nscmf_record_id', $recordId)->value('reason'))->toBe($reason);
 })->with([5, 2000]);

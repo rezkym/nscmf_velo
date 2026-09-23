@@ -11,6 +11,7 @@ use App\Domain\Nscmf\ReviewForwardRules;
 use App\Domain\Nscmf\SubmissionRules;
 use App\Domain\Shared\DomainRuleException;
 use App\Models\Nscmf\NscmfRecord;
+use App\Models\Nscmf\WorkflowIteration;
 use App\Models\User;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Repositories\Contracts\Nscmf\WorkflowRepository;
@@ -131,10 +132,7 @@ final readonly class NscmfWorkflowService
     {
         $this->database->connection()->transaction(function () use ($actor, $recordId, $expectedVersion, $reason): void {
             $record = $this->lockPendingReview($actor, $recordId, $expectedVersion, 'nscmf.review.reject');
-            $iteration = $this->workflow->currentIteration($record);
-            if ($iteration === null) {
-                throw new \LogicException('Submitted record has no current workflow iteration.');
-            }
+            $iteration = $this->requireCurrentIteration($record);
 
             $versionBefore = $record->record_version;
             $this->workflow->updateIteration($iteration, [
@@ -166,10 +164,7 @@ final readonly class NscmfWorkflowService
             if ($errors !== []) {
                 throw new DomainRuleException('VALIDATION_FAILED', 'Complete the Results before forwarding.', 422, errors: $errors);
             }
-            $iteration = $this->workflow->currentIteration($record);
-            if ($iteration === null) {
-                throw new \LogicException('Submitted record has no current workflow iteration.');
-            }
+            $iteration = $this->requireCurrentIteration($record);
 
             $versionBefore = $record->record_version;
             $this->workflow->updateIteration($iteration, [
@@ -185,13 +180,93 @@ final readonly class NscmfWorkflowService
                 versionAfter: $record->record_version,
                 fromStatus: NscmfStatus::PENDING_REVIEW->value,
                 toStatus: NscmfStatus::PENDING_APPROVAL->value,
-                comment: $comment === null || trim($comment) === '' ? null : trim($comment),
+                comment: self::optionalText($comment),
+                workflowIterationId: $iteration->id,
+            );
+        });
+    }
+
+    /** One successful Approve is final for the iteration; it needs a current effective Review (12 §35). */
+    public function approve(User $actor, int $recordId, int $expectedVersion, ?string $comment): void
+    {
+        $this->database->connection()->transaction(function () use ($actor, $recordId, $expectedVersion, $comment): void {
+            $record = $this->lockPendingApproval($actor, $recordId, $expectedVersion, 'nscmf.approve');
+            $iteration = $this->requireCurrentIteration($record);
+            if ($iteration->reviewed_by_user_id === null) {
+                throw new DomainRuleException('NSCMF_STATE_CONFLICT', 'This record has no current review sign-off.', 409, self::context($record));
+            }
+
+            $now = CarbonImmutable::now();
+            $versionBefore = $record->record_version;
+            $this->workflow->updateIteration($iteration, [
+                'approved_by_user_id' => $actor->id,
+                'approved_at' => $now,
+                'closed_status' => NscmfStatus::APPROVED->value,
+                'closed_at' => $now,
+            ]);
+            $this->records->updateAndIncrementVersion($record, ['business_status' => NscmfStatus::APPROVED->value]);
+            $this->businessAudit->record(
+                recordId: $record->id,
+                actorUserId: $actor->id,
+                event: BusinessAuditEvent::APPROVED,
+                versionBefore: $versionBefore,
+                versionAfter: $record->record_version,
+                fromStatus: NscmfStatus::PENDING_APPROVAL->value,
+                toStatus: NscmfStatus::APPROVED->value,
+                comment: self::optionalText($comment),
+                workflowIterationId: $iteration->id,
+            );
+        });
+    }
+
+    public function returnToReviewer(User $actor, int $recordId, int $expectedVersion, string $reason): void
+    {
+        $this->approverReturn($actor, $recordId, $expectedVersion, $reason, 'nscmf.approval.return_reviewer', NscmfStatus::PENDING_REVIEW, BusinessAuditEvent::APPROVAL_RETURNED_REVIEWER);
+    }
+
+    public function returnToRequester(User $actor, int $recordId, int $expectedVersion, string $reason): void
+    {
+        $this->approverReturn($actor, $recordId, $expectedVersion, $reason, 'nscmf.approval.return_requester', NscmfStatus::REVISION_REQUIRED, BusinessAuditEvent::APPROVAL_RETURNED_REQUESTER);
+    }
+
+    /** Approver Reject closes the iteration; the review sign-off stays as evidence (05 §14). */
+    public function rejectApproval(User $actor, int $recordId, int $expectedVersion, string $reason): void
+    {
+        $this->database->connection()->transaction(function () use ($actor, $recordId, $expectedVersion, $reason): void {
+            $record = $this->lockPendingApproval($actor, $recordId, $expectedVersion, 'nscmf.approval.reject');
+            $iteration = $this->requireCurrentIteration($record);
+
+            $versionBefore = $record->record_version;
+            $this->workflow->updateIteration($iteration, [
+                'closed_status' => NscmfStatus::REJECTED->value,
+                'closed_at' => CarbonImmutable::now(),
+            ]);
+            $this->records->updateAndIncrementVersion($record, ['business_status' => NscmfStatus::REJECTED->value]);
+            $this->businessAudit->record(
+                recordId: $record->id,
+                actorUserId: $actor->id,
+                event: BusinessAuditEvent::APPROVAL_REJECTED,
+                versionBefore: $versionBefore,
+                versionAfter: $record->record_version,
+                fromStatus: NscmfStatus::PENDING_APPROVAL->value,
+                toStatus: NscmfStatus::REJECTED->value,
+                reason: trim($reason),
                 workflowIterationId: $iteration->id,
             );
         });
     }
 
     private function lockPendingReview(User $actor, int $recordId, int $expectedVersion, string $permission): NscmfRecord
+    {
+        return $this->lockInState($actor, $recordId, $expectedVersion, $permission, NscmfStatus::PENDING_REVIEW, 'review');
+    }
+
+    private function lockPendingApproval(User $actor, int $recordId, int $expectedVersion, string $permission): NscmfRecord
+    {
+        return $this->lockInState($actor, $recordId, $expectedVersion, $permission, NscmfStatus::PENDING_APPROVAL, 'approval');
+    }
+
+    private function lockInState(User $actor, int $recordId, int $expectedVersion, string $permission, NscmfStatus $status, string $stage): NscmfRecord
     {
         $record = $this->records->lockForUpdate($recordId);
         if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
@@ -203,14 +278,49 @@ final readonly class NscmfWorkflowService
         if ($record->is_archived) {
             throw new DomainRuleException('NSCMF_ARCHIVED_CONFLICT', 'This record is archived.', 409, self::context($record));
         }
-        if ($record->business_status !== NscmfStatus::PENDING_REVIEW) {
-            throw new DomainRuleException('NSCMF_STATE_CONFLICT', 'This record is not pending review.', 409, self::context($record));
+        if ($record->business_status !== $status) {
+            throw new DomainRuleException('NSCMF_STATE_CONFLICT', "This record is not pending {$stage}.", 409, self::context($record));
         }
         if ($expectedVersion !== $record->record_version) {
-            throw new DomainRuleException('NSCMF_VERSION_CONFLICT', 'A newer version of this record exists. Refresh the record before taking this review action.', 409, self::context($record));
+            throw new DomainRuleException('NSCMF_VERSION_CONFLICT', "A newer version of this record exists. Refresh the record before taking this {$stage} action.", 409, self::context($record));
         }
 
         return $record;
+    }
+
+    private function requireCurrentIteration(NscmfRecord $record): WorkflowIteration
+    {
+        return $this->workflow->currentIteration($record)
+            ?? throw new \LogicException('Submitted record has no current workflow iteration.');
+    }
+
+    /** Both Approver returns clear the effective review sign-off; the Forward stays in the audit (11 §32). */
+    private function approverReturn(User $actor, int $recordId, int $expectedVersion, string $reason, string $permission, NscmfStatus $destination, BusinessAuditEvent $event): void
+    {
+        $this->database->connection()->transaction(function () use ($actor, $recordId, $expectedVersion, $reason, $permission, $destination, $event): void {
+            $record = $this->lockPendingApproval($actor, $recordId, $expectedVersion, $permission);
+            $iteration = $this->requireCurrentIteration($record);
+
+            $versionBefore = $record->record_version;
+            $this->workflow->updateIteration($iteration, ['reviewed_by_user_id' => null, 'reviewed_at' => null]);
+            $this->records->updateAndIncrementVersion($record, ['business_status' => $destination->value]);
+            $this->businessAudit->record(
+                recordId: $record->id,
+                actorUserId: $actor->id,
+                event: $event,
+                versionBefore: $versionBefore,
+                versionAfter: $record->record_version,
+                fromStatus: NscmfStatus::PENDING_APPROVAL->value,
+                toStatus: $destination->value,
+                reason: trim($reason),
+                workflowIterationId: $iteration->id,
+            );
+        });
+    }
+
+    private static function optionalText(?string $text): ?string
+    {
+        return $text === null || trim($text) === '' ? null : trim($text);
     }
 
     /**

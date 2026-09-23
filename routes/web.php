@@ -7,6 +7,8 @@ use App\Http\Controllers\Administration\Roles\RoleController;
 use App\Http\Controllers\Administration\SetupController;
 use App\Http\Controllers\Administration\Teams\TeamController;
 use App\Http\Controllers\Administration\Users\UserController;
+use App\Http\Controllers\Approval\ApprovalDetailController;
+use App\Http\Controllers\Approval\ApprovalQueueController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\ReauthenticateController;
@@ -17,6 +19,7 @@ use App\Http\Controllers\Nscmf\RecordController;
 use App\Http\Controllers\Nscmf\RecordTimelineController;
 use App\Http\Controllers\Nscmf\SaveChangeResultsController;
 use App\Http\Controllers\Nscmf\SaveDraftController;
+use App\Http\Controllers\Nscmf\Workflow\ApprovalActionController;
 use App\Http\Controllers\Nscmf\Workflow\ReviewForwardController;
 use App\Http\Controllers\Nscmf\Workflow\ReviewRejectController;
 use App\Http\Controllers\Nscmf\Workflow\ReviewReturnController;
@@ -46,6 +49,9 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/review', ReviewQueueController::class)->name('review.index');
     Route::get('/review/{record}', ReviewDetailController::class)->whereNumber('record')->name('review.show');
 
+    Route::get('/approval', ApprovalQueueController::class)->name('approval.index');
+    Route::get('/approval/{record}', ApprovalDetailController::class)->whereNumber('record')->name('approval.show');
+
     Route::get('/nscmf/create', [CreateNscmfController::class, 'create'])->name('nscmf.create');
     Route::post('/nscmf', [CreateNscmfController::class, 'store'])->name('nscmf.store');
     Route::get('/nscmf/{record}', [RecordController::class, 'show'])->whereNumber('record')->name('nscmf.show');
@@ -58,6 +64,12 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/nscmf/{record}/review/return', ReviewReturnController::class)->whereNumber('record')->name('nscmf.review.return');
     Route::post('/nscmf/{record}/review/forward', ReviewForwardController::class)->whereNumber('record')->name('nscmf.review.forward');
     Route::post('/nscmf/{record}/review/reject', ReviewRejectController::class)->whereNumber('record')->name('nscmf.review.reject');
+    Route::controller(ApprovalActionController::class)->prefix('/nscmf/{record}/approval')->whereNumber('record')->group(function (): void {
+        Route::post('/approve', 'approve')->name('nscmf.approval.approve');
+        Route::post('/return-reviewer', 'returnToReviewer')->name('nscmf.approval.return-reviewer');
+        Route::post('/return-requester', 'returnToRequester')->name('nscmf.approval.return-requester');
+        Route::post('/reject', 'reject')->name('nscmf.approval.reject');
+    });
 
     Route::prefix('administration')->whereNumber(['team', 'user', 'role'])->group(function (): void {
         Route::get('/setup', SetupController::class)->name('administration.setup');

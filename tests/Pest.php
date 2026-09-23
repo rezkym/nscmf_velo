@@ -29,3 +29,9 @@ function signIn(User $user, ?int $authenticatedAt = null): TestCase
 
     return $test;
 }
+
+/** Where a successful Reviewer action lands: the review detail, else the record, else the Dashboard. */
+function reviewActionDestination(User $actor, int $recordId): string
+{
+    return $actor->can('nscmf.review') ? "/review/{$recordId}" : ($actor->can('nscmf.view') ? "/nscmf/{$recordId}" : '/dashboard');
+}

@@ -49,7 +49,7 @@ it('closes the current iteration and records exactly one rejection without rewri
     );
 
     signIn($actor)->post(reviewRejectUrl($recordId), ['record_version' => 1, 'reason' => '  Insufficient evidence.  '])
-        ->assertStatus(303)->assertRedirect("/nscmf/{$recordId}");
+        ->assertStatus(303)->assertRedirect(reviewActionDestination($actor, $recordId));
 
     $after = DB::table('nscmf_records')->where('id', $recordId)->sole();
     $iteration = DB::table('nscmf_workflow_iterations')->where('id', $iterationBefore->id)->sole();
@@ -209,7 +209,7 @@ it('accepts form integer strings and both Unicode reason boundaries', function (
     [$recordId] = rejectableRecord();
     $reason = str_repeat('é', $length);
     signIn(Actors::reviewer())->post(reviewRejectUrl($recordId), ['record_version' => '1', 'reason' => "  {$reason}  "])
-        ->assertStatus(303)->assertRedirect("/nscmf/{$recordId}");
+        ->assertStatus(303)->assertRedirect("/review/{$recordId}");
     expect(DB::table('business_audit_events')->where('nscmf_record_id', $recordId)->value('reason'))->toBe($reason);
 })->with([5, 2000]);
 
