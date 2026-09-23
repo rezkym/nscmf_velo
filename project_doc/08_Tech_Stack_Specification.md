@@ -1029,6 +1029,14 @@ Laravel Pint / Laravel-provided tooling --dev
 
 ClamAV client and PDF signing library may be chosen only after compatibility review **and explicit user approval** because adapters/security semantics are authoritative.
 
+Approved by the project owner on 2026-09-23:
+
+```text
+ddn/sapp ^1.5            → PDF signing (LGPL-3.0-or-later, no transitive dependencies)
+ClamAV client            → no library; native clamd INSTREAM socket adapter
+Signature verification   → PHP ext-openssl (openssl_cms_verify), no library
+```
+
 No DTO framework is required for current MVP.
 
 ## 70. npm

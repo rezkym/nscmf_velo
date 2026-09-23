@@ -43,7 +43,7 @@ return [
      * only once qualified (BE-114). An empty executable means PDF export is not ready.
      */
     'renderer' => [
-        'driver' => env('NSCMF_RENDERER_DRIVER', 'libreoffice'),
+        'driver' => env('NSCMF_RENDERER_DRIVER') ?: 'libreoffice',
         'executable' => (string) env('NSCMF_RENDERER_EXECUTABLE', ''),
         'timeout_seconds' => (int) env('NSCMF_RENDERER_TIMEOUT_SECONDS') ?: 60,
     ],

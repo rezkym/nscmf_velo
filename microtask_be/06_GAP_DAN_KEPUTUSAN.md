@@ -50,7 +50,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Dampak/task owner: [BE-028](BE-028.md), [BE-101](BE-101.md), [BE-122](BE-122.md), [BE-148](BE-148.md).
 - Pihak berwenang: Owner security/operasional; user untuk policy approval.
 - Bukti penutupan: Controlled measurements, proposed numeric buckets, abuse/fairness test, accepted config. Test fixture rate bukan production default.
-- Status: OPEN untuk angka final berbasis pengukuran. **Nilai sementara login disetujui 2026-09-22:** 5 percobaan gagal per menit per username+IP, dapat diubah lewat `config/security.php`; bukan kebijakan final. Upload/validator tetap OPEN.
+- Status: OPEN untuk angka final berbasis pengukuran. **Nilai sementara login disetujui 2026-09-22:** 5 percobaan gagal per menit per username+IP, dapat diubah lewat `config/security.php`; bukan kebijakan final. **Nilai sementara upload/validator disetujui 2026-09-23** (lewat `.env`): upload 120/menit per user, finalize 20/menit per user, validator publik 10/menit per IP; 12 §133 disinkronkan.
 
 <a id="g06"></a>
 
@@ -100,7 +100,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Dampak/task owner: [BE-104](BE-104.md), [BE-105](BE-105.md), [BE-106](BE-106.md).
 - Pihak berwenang: Pemilik workbook/produk dan reviewer mapping.
 - Bukti penutupan: Actual private official NSCMF-Form-3.0.xlsx, provenance/hash/version/mapping; all field/control inspection. Tidak mengarang registry/hash/cells.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Status: **SEBAGIAN CLOSED 2026-09-23**: workbook resmi diberikan pemilik proyek (SHA-256 `731e1fa0…8a45`), inventaris dan mapping `nscmf-form-3.0/v1` di `docs/template-mapping.md`. Empat keputusan mapping di dokumen itu menunggu review pemilik.
 
 <a id="g11"></a>
 
@@ -150,7 +150,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Dampak/task owner: [BE-090](BE-090.md), [BE-101](BE-101.md), [BE-148](BE-148.md).
 - Pihak berwenang: Pelaksana integration + reviewer security/owner operasional.
 - Bukti penutupan: Real clamd readiness/definitions, measured finite timeout, job timeout/retry_after consistency and failure evidence. Existing90 scaffold bukan measured policy.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Status: OPEN untuk angka final. Bukti lokal 2026-09-23: clamd nyata (`clamav/clamav-debian:1.4`, loopback) CLEAN/EICAR ≈1 s; timeout scan sementara 30 s (`NSCMF_CLAMAV_TIMEOUT_SECONDS`), job timeout 75 s < `retry_after` 90 s.
 
 <a id="g16"></a>
 
@@ -160,7 +160,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Dampak/task owner: [BE-114](BE-114.md), [BE-115](BE-115.md).
 - Pihak berwenang: Pemilik output + reviewer fidelity.
 - Bukti penutupan: Real official-workbook output all pages/fonts/native controls; approved visual tolerance + finite timeout. Material fail→user decision next renderer, no weakened fidelity/prebuilt alternatives.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Status: OPEN — bukti tersedia 2026-09-23: LibreOffice 26.8 merender kedua form tepat 1 halaman A4, checkbox native tampil, ±2 s (timeout 60 s). Temuan: Calibri → Carlito (setara metrik), Aptos Display/Narrow tidak terpasang sehingga tersubstitusi. Menunggu keputusan pemilik: pasang font Aptos atau terima substitusi.
 
 <a id="g17"></a>
 
@@ -170,7 +170,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Dampak/task owner: [BE-116](BE-116.md), [BE-117](BE-117.md), [BE-118](BE-118.md).
 - Pihak berwenang: User dependency approval + human security reviewer/operator.
 - Bukti penutupan: Concrete library/key-container/passphrase injection/rotation/nonprod real sign+verify; public cert retention. No public CA/Adobe/TSA requirement.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Status: **CLOSED 2026-09-23** oleh pemilik proyek: `ddn/sapp` (LGPL, tanpa dependency), PKCS#12 di disk privat, passphrase dari env, rotasi via `nscmf:signing:activate`; sign+verify nyata non-prod lulus. Penyimpanan kunci produksi tetap keputusan operator saat rilis. 08 §69, 12 §133, 14 disinkronkan.
 
 <a id="g18"></a>
 

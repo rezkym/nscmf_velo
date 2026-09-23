@@ -1648,7 +1648,7 @@ NSCMF_RENDERER_ENDPOINT=
 NSCMF_RENDERER_TIMEOUT_SECONDS=
 ```
 
-Signing-adapter secrets are intentionally not standardized into plaintext `.env.example` fields until the signer/provider mechanism is approved.
+Signing-adapter secrets were intentionally not standardized until the signer mechanism was approved. Since the 2026-09-23 approval (`ddn/sapp`, PKCS#12), `.env.example` names `NSCMF_SIGNING_P12_PATH`, `NSCMF_SIGNING_P12_PASSPHRASE` and `NSCMF_SIGNING_ORGANIZATION` with empty values; real values never enter version control.
 
 ## 119. Locked Values Should Not Be `.env` Toggles
 

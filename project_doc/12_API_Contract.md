@@ -2278,10 +2278,10 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 The HTTP contract is approved. The following remain implementation-time/future values rather than missing API semantics:
 
 1. optional bulk export packaging (ZIP/combined packaging) if later approved;
-2. exact operational numeric rate-limit buckets for login/upload/public-validator controls;
+2. exact operational numeric rate-limit buckets for login/upload/public-validator controls — **provisional values approved 2026-09-23**, tunable in `.env`: upload 120 requests/minute per user, upload finalize 20/minute per user, public validator 10/minute per IP (login stays 5 failures/minute per username+IP); final values remain measurement-based;
 3. official numbering SOP beyond current provisional automatic/manual rules;
 4. exact production Team master data;
-5. concrete signing library/key-container/path/passphrase/rotation mechanics;
+5. concrete signing library/key-container/path/passphrase/rotation mechanics — **decided 2026-09-23**: `ddn/sapp`, PKCS#12 container on private disk (`NSCMF_SIGNING_P12_PATH`), passphrase only from the environment (`NSCMF_SIGNING_P12_PASSPHRASE`), rotation via `php artisan nscmf:signing:activate` (previous certificate retired, never deleted); production key custody remains an operator decision;
 6. notification endpoints/providers if notification is later implemented;
 7. host-specific private storage paths plus measured scanner/renderer timeout and LibreOffice qualification details.
 
