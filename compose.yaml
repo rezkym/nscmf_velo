@@ -25,5 +25,22 @@ services:
             timeout: 5s
             retries: 30
 
+    # Phase 6 attachment malware gate (14 §60–65). Private: bound to loopback only.
+    clamav:
+        image: clamav/clamav-debian:1.4
+        container_name: nscmf_clamav
+        restart: unless-stopped
+        ports:
+            - '127.0.0.1:${NSCMF_CLAMAV_PORT:-3310}:3310'
+        volumes:
+            - nscmf_clamav_db:/var/lib/clamav
+        healthcheck:
+            test: ['CMD-SHELL', 'clamdcheck.sh']
+            interval: 30s
+            timeout: 10s
+            start_period: 180s
+            retries: 10
+
 volumes:
     nscmf_mysql_data:
+    nscmf_clamav_db:
