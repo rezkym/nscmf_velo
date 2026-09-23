@@ -37,11 +37,11 @@ return [
      * status polls; the validator is public, so it is keyed by client IP and kept tight.
      */
     'upload_throttle' => [
-        'per_minute' => (int) env('UPLOAD_RATE_PER_MINUTE', 120),
-        'finalize_per_minute' => (int) env('UPLOAD_FINALIZE_PER_MINUTE', 20),
+        'per_minute' => (int) env('UPLOAD_RATE_PER_MINUTE') ?: 120,
+        'finalize_per_minute' => (int) env('UPLOAD_FINALIZE_PER_MINUTE') ?: 20,
     ],
 
     'pdf_validator_throttle' => [
-        'per_minute' => (int) env('PDF_VALIDATOR_RATE_PER_MINUTE', 10),
+        'per_minute' => (int) env('PDF_VALIDATOR_RATE_PER_MINUTE') ?: 10,
     ],
 ];

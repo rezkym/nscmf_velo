@@ -31,11 +31,11 @@ return [
      * an unreachable, slow or erroring scanner fails closed.
      */
     'clamav' => [
-        'transport' => env('NSCMF_CLAMAV_TRANSPORT', 'tcp'),
+        'transport' => env('NSCMF_CLAMAV_TRANSPORT') ?: 'tcp',
         'socket' => env('NSCMF_CLAMAV_SOCKET'),
-        'host' => env('NSCMF_CLAMAV_HOST', '127.0.0.1'),
-        'port' => (int) env('NSCMF_CLAMAV_PORT', 3310),
-        'timeout_seconds' => (int) env('NSCMF_CLAMAV_TIMEOUT_SECONDS', 30),
+        'host' => env('NSCMF_CLAMAV_HOST') ?: '127.0.0.1',
+        'port' => (int) env('NSCMF_CLAMAV_PORT') ?: 3310,
+        'timeout_seconds' => (int) env('NSCMF_CLAMAV_TIMEOUT_SECONDS') ?: 30,
     ],
 
     /*
@@ -45,7 +45,7 @@ return [
     'renderer' => [
         'driver' => env('NSCMF_RENDERER_DRIVER', 'libreoffice'),
         'executable' => (string) env('NSCMF_RENDERER_EXECUTABLE', ''),
-        'timeout_seconds' => (int) env('NSCMF_RENDERER_TIMEOUT_SECONDS', 60),
+        'timeout_seconds' => (int) env('NSCMF_RENDERER_TIMEOUT_SECONDS') ?: 60,
     ],
 
     /*
