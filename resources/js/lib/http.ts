@@ -36,17 +36,41 @@ export async function sendJson<TBody = unknown>(
     body?: unknown,
     init: { signal?: AbortSignal } = {},
 ): Promise<JsonResult<TBody>> {
+    return send<TBody>(
+        method,
+        url,
+        body === undefined ? undefined : { payload: JSON.stringify(body), type: 'application/json' },
+        init,
+    );
+}
+
+/** Raw bytes (an upload chunk) as application/octet-stream, same session, CSRF and envelope rules. */
+export async function sendBytes<TBody = unknown>(
+    method: HttpMethod,
+    url: string,
+    bytes: Blob,
+    init: { signal?: AbortSignal } = {},
+): Promise<JsonResult<TBody>> {
+    return send<TBody>(method, url, { payload: bytes, type: 'application/octet-stream' }, init);
+}
+
+async function send<TBody>(
+    method: HttpMethod,
+    url: string,
+    body: { payload: BodyInit; type: string } | undefined,
+    init: { signal?: AbortSignal },
+): Promise<JsonResult<TBody>> {
     const headers = new Headers({ Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' });
     const token = xsrfToken();
     if (token) headers.set('X-XSRF-TOKEN', token);
-    if (body !== undefined) headers.set('Content-Type', 'application/json');
+    if (body !== undefined) headers.set('Content-Type', body.type);
 
     let response: Response;
     try {
         response = await fetch(url, {
             method,
             headers,
-            body: body === undefined ? undefined : JSON.stringify(body),
+            body: body?.payload,
             credentials: 'same-origin',
             cache: 'no-store',
             signal: init.signal,

@@ -46,7 +46,12 @@ beforeEach(() => {
             const call = {
                 method: init.method ?? 'GET',
                 url,
-                body: init.body instanceof Blob ? init.body : init.body ? JSON.parse(String(init.body)) : undefined,
+                body:
+                    init.body instanceof Blob
+                        ? init.body
+                        : typeof init.body === 'string'
+                          ? JSON.parse(init.body)
+                          : undefined,
                 contentType: headers.get('Content-Type'),
             };
             calls.push(call);
@@ -133,13 +138,13 @@ describe('Chunk upload (FE-41)', () => {
 
     it('AC4: completed transport is scanning, and only an explicit CLEAN is ready', async () => {
         handler = happyServer('INFECTED');
-        const infected = useChunkUpload(7, fileOf(10), { pollMs: 0 });
+        const infected = useChunkUpload(7, fileOf(CHUNK + 1), { pollMs: 0 });
         await infected.start();
         expect(infected.state.phase).toBe('done');
         expect(infected.state.securityStatus).toBe('INFECTED');
 
         handler = happyServer('CLEAN');
-        const clean = useChunkUpload(7, fileOf(10), { pollMs: 0 });
+        const clean = useChunkUpload(7, fileOf(CHUNK + 1), { pollMs: 0 });
         await clean.start();
         expect(clean.state.securityStatus).toBe('CLEAN');
     });
@@ -159,7 +164,7 @@ describe('Chunk upload (FE-41)', () => {
             }
             return server(call);
         };
-        const upload = useChunkUpload(7, fileOf(10), { pollMs: 0 });
+        const upload = useChunkUpload(7, fileOf(CHUNK + 1), { pollMs: 0 });
         await upload.start();
 
         expect(polls).toBe(3);
@@ -216,7 +221,7 @@ describe('Resume, expiry and cancel (FE-42)', () => {
 
     it('AC3: shows the server expiry and never extends it locally', async () => {
         handler = happyServer();
-        const upload = useChunkUpload(7, fileOf(10), { pollMs: 0 });
+        const upload = useChunkUpload(7, fileOf(CHUNK + 1), { pollMs: 0 });
         await upload.start();
 
         expect(upload.state.expiresAt).toBe('2026-09-25T08:00:00+07:00');
@@ -270,7 +275,7 @@ describe('Resume, expiry and cancel (FE-42)', () => {
                       }),
                   })
                 : happyServer()(call);
-        const upload = useChunkUpload(7, fileOf(10), { pollMs: 5 });
+        const upload = useChunkUpload(7, fileOf(CHUNK + 1), { pollMs: 5 });
         const running = upload.start();
         await vi.waitFor(() => expect(calls.some((call) => call.method === 'GET')).toBe(true));
         upload.stop();
