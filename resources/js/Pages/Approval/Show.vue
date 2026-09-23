@@ -9,7 +9,7 @@ import type { NscmfDetailRecord } from '@/features/nscmf/types';
 import { APPROVAL_ACTIONS } from '@/features/nscmf/workflow/approvalActions';
 import RecordActions from '@/features/nscmf/workflow/RecordActions.vue';
 import ReviewAttachments, { type ReviewAttachment } from '@/features/nscmf/workflow/ReviewAttachments.vue';
-import ReviewTimeline from '@/features/nscmf/workflow/ReviewTimeline.vue';
+import BusinessTimeline from '@/features/nscmf/BusinessTimeline.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const props = defineProps<{ record: NscmfDetailRecord; attachments: ReviewAttachment[] }>();
@@ -46,7 +46,7 @@ const permitted = computed(() => APPROVAL_ACTIONS.some((action) => can(action.pe
                 </section>
             </template>
             <template #timeline>
-                <ReviewTimeline
+                <BusinessTimeline
                     v-if="can('nscmf.timeline.view')"
                     :key="`${record.id}-${record.record_version}`"
                     :record-id="record.id"

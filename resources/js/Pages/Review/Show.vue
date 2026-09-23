@@ -6,7 +6,7 @@ import { usePermissions } from '@/composables/usePermissions';
 import RecordDetail from '@/features/nscmf/RecordDetail.vue';
 import ReviewAttachments, { type ReviewAttachment } from '@/features/nscmf/workflow/ReviewAttachments.vue';
 import ReviewActions from '@/features/nscmf/workflow/ReviewActions.vue';
-import ReviewTimeline from '@/features/nscmf/workflow/ReviewTimeline.vue';
+import BusinessTimeline from '@/features/nscmf/BusinessTimeline.vue';
 import type { NscmfDetailRecord } from '@/features/nscmf/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 
@@ -56,7 +56,7 @@ const { can } = usePermissions();
                 </section>
             </template>
             <template #timeline>
-                <ReviewTimeline
+                <BusinessTimeline
                     v-if="can('nscmf.timeline.view')"
                     :key="`${record.id}-${record.record_version}`"
                     :record-id="record.id"

@@ -4,7 +4,7 @@ import RecordDetail from '@/features/nscmf/RecordDetail.vue';
 import type { NscmfDetailRecord } from '@/features/nscmf/types';
 import LifecycleActions from '@/features/nscmf/workflow/LifecycleActions.vue';
 import ReviewAttachments, { type ReviewAttachment } from '@/features/nscmf/workflow/ReviewAttachments.vue';
-import ReviewTimeline from '@/features/nscmf/workflow/ReviewTimeline.vue';
+import BusinessTimeline from '@/features/nscmf/BusinessTimeline.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 export type { NscmfDetailRecord };
@@ -19,7 +19,7 @@ const { can } = usePermissions();
                 <LifecycleActions :record="record" />
             </template>
             <template #timeline>
-                <ReviewTimeline
+                <BusinessTimeline
                     v-if="can('nscmf.timeline.view')"
                     :key="`${record.id}-${record.record_version}`"
                     :record-id="record.id"
