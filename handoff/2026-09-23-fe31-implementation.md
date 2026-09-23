@@ -1,5 +1,7 @@
 # Handoff FE-31 dan backend Review — 2026-09-23
 
+> Catatan historis sebelum merge. Implementasi kini berada di `/Users/rezky/Documents/Alya`; worktree sementara sudah dihapus. Gunakan [handoff merge terbaru](2026-09-23-merge-fe31-status.md) untuk lokasi, status dan pemulihan file lokal. Perintah worktree di bawah adalah catatan historis.
+
 ## Scope dan keputusan eksekusi
 
 Instruksi terakhir pengguna membatasi pekerjaan pada **FE-31 beserta backend**, melarang subagent, dan menunda pengujian kode hingga akhir. Implementasi tambahan ini dikerjakan langsung oleh root, tanpa tes baru. FE-32–40 tidak dilanjutkan. Aturan produk, permission, transaksi, audit dan arsitektur tetap berlaku. Ini penyerahan implementasi untuk dicoba manual, bukan klaim Feature/Module Done atau Production Ready.

@@ -1,10 +1,9 @@
 # Handoff proyek Alya / NSCMF
 
-Handoff terbaru: [2026-09-23 — Backend NSCMF untuk slice FE-01–30](2026-09-23-backend-fe01-30.md).
-Slice FE-01–30 sudah diimplementasikan dan dibuktikan lokal (Pest 289, Vitest 524,
-Chromium 14, PHPStan max 0); human review, CI dan Pull Request belum ada. Handoff
-sebelumnya: [2026-09-22 — Backlog backend NSCMF](2026-09-22-microtask-be.md), berisi
-penyusunan 149 task `microtask_be`; task di luar slice FE-01–30 tetap PLANNED.
+Handoff terbaru: [2026-09-23 — Merge FE-31, cleanup dan posisi microtask](2026-09-23-merge-fe31-status.md).
+Implementasi FE-31 dan backend Review sudah digabung ke checkout utama. FE-32 baru UI parsial; FE-33–40 belum diimplementasikan. Tes integrasi terbaru ditunda sesuai instruksi pengguna; tidak ada klaim Feature Done atau human review selesai.
+
+Bukti historis FE-01–30 tersedia di [handoff backend](2026-09-23-backend-fe01-30.md); detail perubahan FE-31 di [handoff implementasi](2026-09-23-fe31-implementation.md). Angka tes historis tidak membuktikan hasil merge terbaru.
 
 Bagian berikut adalah handoff FE historis pada tanggal yang tercantum. Status
 branch, cakupan dan test di dalamnya bukan status repository terbaru.
