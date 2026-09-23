@@ -5,8 +5,9 @@ BE-104 / T47–T48 (gap G10). Source: `NSCMF-Form-3.0.xlsx` supplied by the proj
 67,465 bytes. The binary is private: it is registered with `php artisan nscmf:template:register`
 into `nscmf_private/templates/` and is never committed.
 
-Status: **mapping implemented, owner review pending.** Rows marked *decision* are choices the
-workbook does not settle by itself; they are listed at the end for review.
+Status: **mapping implemented; owner decision 2026-09-24 (G10): every value is written into the
+template's own input cell** — the top-left cell of a merged range, or the first cell of an
+underlined run. `ExportTest` checks every mapped cell against the workbook itself.
 
 ## Package inventory
 
@@ -32,16 +33,16 @@ verifies that every other member is byte-identical and that the member list is u
 | Field | Cell / control |
 | --- | --- |
 | Request No / request date | `AP4` / `AP5` |
-| Subtype ACTIVATION / UPGRADE_DOWNGRADE / DEACTIVATION | shapes `8194` / `8216` / `8193`+`8195` (*decision*: both overlapping row-3 boxes) |
+| Subtype ACTIVATION / UPGRADE_DOWNGRADE / DEACTIVATION | shapes `8194` / `8216` / `8193`+`8195` (the template draws two overlapping boxes; both are set) |
 | references IWO / VELOSHIP / TICKET / OTHER (checkbox, specification) | `8205`,`C12` / `8196`,`O12` / `8197`,`AA12` / `8198`,`AM12` |
 | customer_name / contact_name | `B15` / `Z15` |
 | EXISTING service: id, status ACTIVATED/DEACTIVATED, description, location | `B18`, `8199`/`8200`, `B20`, `B22` |
 | NEW service: id, status, description, location | `Z18`, `8201`/`8202`, `Z20`, `Z22` |
 | installation_rfs_date | `B24` |
 | sla_items 1..3 | `R24`, `R25`, `R26` |
-| lan_ip_allocation / wan_ip (address / prefix) / gateway | `D32` / `M32` + `W32` / `AG32` (*decision*: `A32` is a two-column merge too narrow for a prefix list) |
+| lan_ip_allocation / wan_ip (address / prefix) / gateway | `A32` / `M32` + `W32` / `AG32` |
 | pop / regional / preferred_upstream / secondary_upstream | `A34` / `M34` / `Y34` / `AK34` |
-| primary_noc_link / downlink_router / secondary_noc_link | `A36` / `M36` / `Y36` (*decision*: one `downlink_router` value goes to the primary column) |
+| primary_noc_link / downlink_router / secondary_noc_link | `A36` / `M36` / `Y36` (the model has one `downlink_router`; the secondary `AK36` stays empty) |
 | bandwidth international / domestic IIX / mixed (Mbps) | `H40` / `H41` / `H42` |
 | virtual_connections 1..3 (Mbps) | `Z40`, `Z41`, `Z42` |
 | priority_destinations 1..3 | `AE40`, `AE41`, `AE42` |
@@ -49,8 +50,8 @@ verifies that every other member is byte-identical and that the member list is u
 | mx_primary / mx_secondary | `W47` / `W48` |
 | hosting_platform / hosting_capacity_gb | `AJ47` / `AJ48` |
 | migrate_domain / migrate_hosting | shapes `8203` / `8204` |
-| direct_site local_loops / lastmile | `I55` / `AM55` (*decision*: single `local_loops` in the primary column) |
-| direct_site bwa / antenna_tower | `I56` / `AM56` (*decision*: the separate "Antenna" cell `W56` stays empty) |
+| direct_site local_loops / lastmile | `I55` / `AM55` (the model has one `local_loops`; the secondary `W55` stays empty) |
+| direct_site bwa / antenna_tower | `I56` / `AM56` (the "Antenna" cell `W56` has no model field and stays empty) |
 | direct_site direction / rssi / latency_ms / packet_loss_percent | `I57` / `W57` / `AM57` / `AR57` |
 | direct_site routers / ups / stabilizer / cable | `I59` / `AC59` / `AC60` / `I61` |
 | pop_site switch_distribution / port / vlan_id | `I64` / `AB64` / `AM64` |
@@ -62,13 +63,13 @@ verifies that every other member is byte-identical and that the member list is u
 | Field | Cell / control |
 | --- | --- |
 | Request No / request date | `AQ4` / `AQ5` |
-| Subtype MAINTENANCE / UPGRADE / EMERGENCY | shapes `7269` / `7317` / `7268`+`7270` (*decision* as above) |
+| Subtype MAINTENANCE / UPGRADE / EMERGENCY | shapes `7269` / `7317` / `7268`+`7270` (two overlapping boxes, both set) |
 | facing_challenges 1..3 / maintenance_purpose | `C14`, `C15`, `C16` / `Z14` |
 | identified_problems 1..3 | `C20`, `C21`, `C22` |
 | service_impacts NOC15 / NOC23 / NOC361 / REGIONAL / POP / CUSTOMER / OTHER | shapes `7306` / `7308` / `7309` / `7307` / `7313` / `7318` / `7310` |
-| OTHER description | `H31` (the underlined line; `H30` overlaps the label) |
+| OTHER description | `H31` |
 | improvement_items 1..3 plan / target_kpi | `C34`, `C35`, `C36` / `Z34`, `Z35`, `Z36` |
-| target_execution_date / monitoring period (value + unit) | `L39` / `AF39` (clear of the long labels) |
+| target_execution_date / monitoring period (value + unit) | `J39` / `AE39` |
 | rollback_scenario | `J40` |
 | announcement ONE_WEEK / TWO_WEEKS / TWO_DAYS_EMERGENCY | shapes `7314` / `7315` / `7316` |
 | results 1..5 summary / performance / status | `B50..B54` / `V50..V54` / `AH50..AH54` |
@@ -85,12 +86,11 @@ verifies that every other member is byte-identical and that the member list is u
   the PDF keeps only the family's pages (the blank other sheet is exactly one page).
 - Cells keep the template's own font and colour; some input styles are light grey by design.
 
-## Decisions for owner review
+## Cells without a model field
 
-1. Deactivation/Emergency are each drawn with two overlapping checkboxes; v1 checks both.
-2. Single-value model fields placed in the primary column: `downlink_router`, `local_loops`,
-   `routers`; the "Antenna" cell `W56` has no model field and stays empty.
-3. Date format `YYYY-MM-DD`; "Page" left empty; the other sheet hidden.
-4. WAN IP `a.b.c.d/nn` is split into the address cell `M32` and the prefix cell `W32`.
+The model has no field for the secondary Downlink Router (`AK36`), the secondary Local Loop
+(`W55`) or the "Antenna" cell (`W56`); they stay empty. The template itself is never moved,
+restyled or rewritten.
 
-A change to any of these is a new `mapping_version`, never an edit of v1.
+Mapping v1 was corrected in place on 2026-09-24 before any export had been issued; once an
+export exists, a change is a new `mapping_version`.

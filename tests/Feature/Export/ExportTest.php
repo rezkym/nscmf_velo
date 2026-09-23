@@ -203,7 +203,7 @@ it('generates the XLSX from the snapshot only, patching cells and controls and n
     expect(hash_file('sha256', $xlsx))->toBe($artifact->artifact_sha256)
         ->and(sheetCells($xlsx, 'sheet2'))->toMatchArray([
             'AQ4' => 'CHG-2026-001', 'AQ5' => '2026-09-22', 'Z14' => 'Replace optics & clean <patch>',
-            'AF39' => '3 DAY', 'J40' => 'Restore', 'H31' => 'East enterprise', 'A67' => 'Rina Requester',
+            'AE39' => '3 DAY', 'J40' => 'Restore', 'H31' => 'East enterprise', 'A67' => 'Rina Requester',
         ])
         ->and(zipMember($xlsx, 'xl/ctrlProps/ctrlProp18.xml'))->toContain('checked="Checked"')
         ->and(zipMember($xlsx, 'xl/ctrlProps/ctrlProp22.xml'))->toContain('checked="Checked"')

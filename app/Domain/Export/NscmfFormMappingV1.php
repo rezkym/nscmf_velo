@@ -7,7 +7,9 @@ namespace App\Domain\Export;
 /**
  * Mapping `nscmf-form-3.0/v1` from an export snapshot to the official workbook's cells and
  * native checkboxes (docs/template-mapping.md, BE-106). Pure data: which sheet, which cell, which
- * control. Any change to a cell or control choice is a new mapping version, never an edit here.
+ * control. Every value goes into the template's own input cell: the top-left cell of a merged
+ * range or the first cell of an underlined run. Once an export has been issued, any change is a
+ * new mapping version.
  *
  * @phpstan-type Control array{ctrl_prop: int, shape: int}
  * @phpstan-type WorkbookFill array{sheet: string, hidden_sheet: string, cells: array<string, string>, controls: list<Control>, skip_pages: array{int, int}}
@@ -21,7 +23,7 @@ final class NscmfFormMappingV1
         'CHANGE' => ['sheet' => 'sheet2', 'name' => 'NSCMF - Change'],
     ];
 
-    /** Checkbox → [ctrlProp number, VML shape id]; the duplicated boxes are both set (decision 1). */
+    /** Checkbox → [ctrlProp number, VML shape id]; the template draws two overlapping boxes for some subtypes; both are set. */
     private const array ACTIVATION_SUBTYPES = [
         'ACTIVATION' => [[2, 8194]],
         'UPGRADE_DOWNGRADE' => [[14, 8216]],
@@ -48,7 +50,7 @@ final class NscmfFormMappingV1
 
     private const array ACTIVATION_SCALARS = [
         'customer_name' => 'B15', 'contact_name' => 'Z15', 'installation_rfs_date' => 'B24',
-        'lan_ip_allocation' => 'D32', 'gateway' => 'AG32',
+        'lan_ip_allocation' => 'A32', 'gateway' => 'AG32',
         'pop' => 'A34', 'regional' => 'M34', 'preferred_upstream' => 'Y34', 'secondary_upstream' => 'AK34',
         'primary_noc_link' => 'A36', 'downlink_router' => 'M36', 'secondary_noc_link' => 'Y36',
         'bandwidth_international_mbps' => 'H40', 'bandwidth_domestic_iix_mbps' => 'H41', 'bandwidth_mixed_mbps' => 'H42',
@@ -141,7 +143,7 @@ final class NscmfFormMappingV1
     {
         $cells = [];
         $controls = self::ACTIVATION_SUBTYPES[$subtype ?? ''] ?? [];
-        // WAN IP has its own "/" prefix-length cell (decision 4).
+        // WAN IP: the template has an address cell and a prefix-length cell after its "/".
         $wan = explode('/', self::text($form['wan_ip'] ?? null) ?? '', 2);
         $cells['M32'] = $wan[0];
         $cells['W32'] = $wan[1] ?? null;
@@ -195,8 +197,8 @@ final class NscmfFormMappingV1
         $unit = self::string($form['monitoring_period_unit'] ?? null);
         $cells = [
             'Z14' => self::text($form['maintenance_purpose'] ?? null),
-            'L39' => self::text($form['target_execution_date'] ?? null),
-            'AF39' => $unit === null ? null : self::text($form['monitoring_period_value'] ?? null).' '.$unit,
+            'J39' => self::text($form['target_execution_date'] ?? null),
+            'AE39' => $unit === null ? null : self::text($form['monitoring_period_value'] ?? null).' '.$unit,
             'J40' => self::text($form['rollback_scenario'] ?? null),
             ...self::numberedRows($form, self::CHANGE_ROWS),
         ];
@@ -259,7 +261,7 @@ final class NscmfFormMappingV1
         return is_string($value) ? $value : null;
     }
 
-    /** Numbers without trailing zeros; booleans have no cell text (decision 3). */
+    /** Numbers without trailing zeros; booleans have no cell text. */
     private static function text(mixed $value): ?string
     {
         return match (true) {
