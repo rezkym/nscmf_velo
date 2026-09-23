@@ -33,6 +33,8 @@ final readonly class SecurityAuditService
         ?string $ipAddress = null,
         ?int $recordId = null,
         array $metadata = [],
+        ?int $attachmentId = null,
+        ?int $exportRequestId = null,
     ): int {
         foreach (array_keys($metadata) as $key) {
             foreach (self::FORBIDDEN_METADATA_FRAGMENTS as $fragment) {
@@ -51,6 +53,8 @@ final readonly class SecurityAuditService
             'session_id' => $sessionId,
             'ip_address' => $ipAddress,
             'nscmf_record_id' => $recordId,
+            'attachment_id' => $attachmentId,
+            'export_request_id' => $exportRequestId,
             'metadata_json' => $metadata === [] ? null : $metadata,
             'occurred_at' => CarbonImmutable::now(),
         ]);

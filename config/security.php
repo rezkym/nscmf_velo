@@ -30,4 +30,18 @@ return [
         'max_attempts' => 5,
         'decay_seconds' => 60,
     ],
+
+    /*
+     * PROVISIONAL (gap G05, approved 2026-09-23): per-minute buckets, tunable through .env. A
+     * 20 MB file is four chunks, so a full 10-file record needs about 40 chunk requests plus
+     * status polls; the validator is public, so it is keyed by client IP and kept tight.
+     */
+    'upload_throttle' => [
+        'per_minute' => (int) env('UPLOAD_RATE_PER_MINUTE', 120),
+        'finalize_per_minute' => (int) env('UPLOAD_FINALIZE_PER_MINUTE', 20),
+    ],
+
+    'pdf_validator_throttle' => [
+        'per_minute' => (int) env('PDF_VALIDATOR_RATE_PER_MINUTE', 10),
+    ],
 ];

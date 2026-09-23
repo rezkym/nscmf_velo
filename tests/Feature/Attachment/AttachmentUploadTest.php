@@ -11,9 +11,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\Actors;
 use Tests\Support\FakeScanner;
 use Tests\Support\Records;
+
+use function Pest\Laravel\travel;
 
 /*
  * BE-089–100 / T38–T45 — resumable upload, whole-file scan, CLEAN promotion, download and
@@ -37,6 +40,7 @@ function editableRecord(): array
     return [Records::create($owner), $owner];
 }
 
+/** @return TestResponse<Response> */
 function initiateUpload(User $owner, int $recordId, string $filename, int $size, ?string $fingerprint = null): TestResponse
 {
     return signIn($owner)->postJson("/nscmf/{$recordId}/attachment-uploads", array_filter([
@@ -44,6 +48,7 @@ function initiateUpload(User $owner, int $recordId, string $filename, int $size,
     ], fn ($value) => $value !== null));
 }
 
+/** @return TestResponse<Response> */
 function putChunk(User $owner, int $recordId, string $uploadId, int $index, string $bytes): TestResponse
 {
     return signIn($owner)->call('PUT', "/nscmf/{$recordId}/attachment-uploads/{$uploadId}/chunks/{$index}", [], [], [], [
@@ -51,15 +56,30 @@ function putChunk(User $owner, int $recordId, string $uploadId, int $index, stri
     ], $bytes);
 }
 
+/** @param TestResponse<Response> $response */
+function uploadIdOf(TestResponse $response): string
+{
+    $id = $response->json('data.upload_id');
+
+    return is_string($id) ? $id : throw new RuntimeException('No upload id in the response.');
+}
+
+function soleId(string $table): int
+{
+    $id = DB::table($table)->value('id');
+
+    return is_int($id) ? $id : throw new RuntimeException("No row in {$table}.");
+}
+
 /** Uploads and completes one file, then runs the queued finalization inline. */
 function uploadFile(User $owner, int $recordId, string $filename = 'evidence.pdf', string $bytes = PDF_BYTES): int
 {
-    $uploadId = initiateUpload($owner, $recordId, $filename, strlen($bytes))->assertCreated()->json('data.upload_id');
+    $uploadId = uploadIdOf(initiateUpload($owner, $recordId, $filename, strlen($bytes))->assertCreated());
     foreach (str_split($bytes, 5_242_880) as $offset => $chunk) {
         putChunk($owner, $recordId, $uploadId, $offset + 1, $chunk)->assertOk();
     }
     signIn($owner)->postJson("/nscmf/{$recordId}/attachment-uploads/{$uploadId}/complete")->assertStatus(202);
-    $sessionId = (int) DB::table('nscmf_attachment_upload_sessions')->where('public_id', $uploadId)->value('id');
+    $sessionId = soleId('nscmf_attachment_upload_sessions');
     app(AttachmentFinalizationService::class)->finalize($sessionId);
 
     return $sessionId;
@@ -103,7 +123,7 @@ it('refuses disallowed types, empty or oversized files, a full record and inelig
 
 it('accepts chunks idempotently, rejects bad geometry and conflicting bytes', function (): void {
     [$recordId, $owner] = editableRecord();
-    $uploadId = initiateUpload($owner, $recordId, 'notes.txt', 5_242_890)->json('data.upload_id');
+    $uploadId = uploadIdOf(initiateUpload($owner, $recordId, 'notes.txt', 5_242_890));
     $first = str_repeat('a', 5_242_880);
 
     putChunk($owner, $recordId, $uploadId, 1, 'short')->assertUnprocessable()->assertJsonPath('code', 'UPLOAD_CHUNK_INVALID');
@@ -111,7 +131,7 @@ it('accepts chunks idempotently, rejects bad geometry and conflicting bytes', fu
     $accepted = putChunk($owner, $recordId, $uploadId, 1, $first)->assertOk()
         ->assertJsonPath('data.duplicate', false)->assertJsonPath('data.missing_chunks', [2]);
 
-    $this->travel(5)->minutes();
+    travel(5)->minutes();
     putChunk($owner, $recordId, $uploadId, 1, $first)->assertOk()
         ->assertJsonPath('data.duplicate', true)
         ->assertJsonPath('data.expires_at', $accepted->json('data.expires_at'));
@@ -124,17 +144,17 @@ it('accepts chunks idempotently, rejects bad geometry and conflicting bytes', fu
 
 it('expires an upload 24 hours after the last new progress', function (): void {
     [$recordId, $owner] = editableRecord();
-    $uploadId = initiateUpload($owner, $recordId, 'notes.txt', 10)->json('data.upload_id');
+    $uploadId = uploadIdOf(initiateUpload($owner, $recordId, 'notes.txt', 10));
 
-    $this->travel(24)->hours();
-    $this->travel(1)->seconds();
+    travel(24)->hours();
+    travel(1)->seconds();
 
     putChunk($owner, $recordId, $uploadId, 1, '0123456789')->assertStatus(410)->assertJsonPath('code', 'UPLOAD_SESSION_EXPIRED');
 });
 
 it('completes only a full chunk set and queues finalization', function (): void {
     [$recordId, $owner] = editableRecord();
-    $uploadId = initiateUpload($owner, $recordId, 'notes.txt', 10)->json('data.upload_id');
+    $uploadId = uploadIdOf(initiateUpload($owner, $recordId, 'notes.txt', 10));
 
     signIn($owner)->postJson("/nscmf/{$recordId}/attachment-uploads/{$uploadId}/complete")
         ->assertConflict()->assertJsonPath('code', 'UPLOAD_INCOMPLETE')->assertJsonPath('context.missing_chunks', [1]);
@@ -150,6 +170,7 @@ it('promotes an explicitly CLEAN whole file, audits it and serves it only throug
     uploadFile($owner, $recordId);
 
     $attachment = DB::table('nscmf_attachments')->sole();
+    $attachmentId = soleId('nscmf_attachments');
     expect($attachment->security_status)->toBe('CLEAN')
         ->and($attachment->sha256)->toBe(hash('sha256', PDF_BYTES))
         ->and($attachment->detected_mime_type)->toBe('application/pdf')
@@ -158,11 +179,11 @@ it('promotes an explicitly CLEAN whole file, audits it and serves it only throug
         ->and(DB::table('business_audit_events')->where('event_type', 'ATTACHMENT_ADDED')->count())->toBe(1)
         ->and(DB::table('nscmf_attachment_upload_sessions')->value('upload_status'))->toBe('COMPLETED');
 
-    signIn($owner)->getJson("/nscmf/{$recordId}/attachments/{$attachment->id}")->assertOk()
+    signIn($owner)->getJson("/nscmf/{$recordId}/attachments/{$attachmentId}")->assertOk()
         ->assertJsonPath('data.security_status', 'CLEAN')
         ->assertJsonMissingPath('data.private_object_key');
-    expect(signIn($owner)->get("/nscmf/{$recordId}/attachments/{$attachment->id}/download")->assertOk()->streamedContent())->toBe(PDF_BYTES);
-    signIn(Actors::requester())->get("/nscmf/{$recordId}/attachments/{$attachment->id}/download")->assertNotFound();
+    expect(signIn($owner)->get("/nscmf/{$recordId}/attachments/{$attachmentId}/download")->assertOk()->streamedContent())->toBe(PDF_BYTES);
+    signIn(Actors::requester())->get("/nscmf/{$recordId}/attachments/{$attachmentId}/download")->assertNotFound();
     expect(DB::table('access_audit_events')->where('event_type', 'ATTACHMENT_DOWNLOADED')->count())->toBe(1);
 });
 
@@ -172,12 +193,13 @@ it('keeps infected or unscanned files unusable and records the security outcome'
     uploadFile($owner, $recordId);
 
     $attachment = DB::table('nscmf_attachments')->sole();
+    $attachmentId = soleId('nscmf_attachments');
     expect($attachment->security_status)->toBe($status)
         ->and($attachment->private_object_key)->toBeNull()
         ->and(Storage::disk('nscmf_private')->allFiles('quarantine'))->toBe([])
-        ->and(DB::table('security_audit_events')->where('event_type', $event)->where('attachment_id', $attachment->id)->count())->toBe(1)
+        ->and(DB::table('security_audit_events')->where('event_type', $event)->where('attachment_id', $attachmentId)->count())->toBe(1)
         ->and(Records::version($recordId))->toBe(1);
-    signIn($owner)->getJson("/nscmf/{$recordId}/attachments/{$attachment->id}/download")->assertConflict()->assertJsonPath('code', 'ATTACHMENT_NOT_CLEAN');
+    signIn($owner)->getJson("/nscmf/{$recordId}/attachments/{$attachmentId}/download")->assertConflict()->assertJsonPath('code', 'ATTACHMENT_NOT_CLEAN');
 })->with([
     'infected' => [ScanVerdict::INFECTED, 'INFECTED', 'MALWARE_DETECTED'],
     'scanner unavailable' => [null, 'FAILED', 'MALWARE_SCAN_FAILED'],
@@ -185,12 +207,12 @@ it('keeps infected or unscanned files unusable and records the security outcome'
 
 it('never attaches a file whose record left the editable state during the scan', function (): void {
     [$recordId, $owner] = editableRecord();
-    $uploadId = initiateUpload($owner, $recordId, 'evidence.pdf', strlen(PDF_BYTES))->json('data.upload_id');
+    $uploadId = uploadIdOf(initiateUpload($owner, $recordId, 'evidence.pdf', strlen(PDF_BYTES)));
     putChunk($owner, $recordId, $uploadId, 1, PDF_BYTES)->assertOk();
     signIn($owner)->postJson("/nscmf/{$recordId}/attachment-uploads/{$uploadId}/complete")->assertStatus(202);
     Records::submitted($recordId, $owner);
 
-    app(AttachmentFinalizationService::class)->finalize((int) DB::table('nscmf_attachment_upload_sessions')->value('id'));
+    app(AttachmentFinalizationService::class)->finalize(soleId('nscmf_attachment_upload_sessions'));
 
     expect(DB::table('nscmf_attachments')->value('security_status'))->toBe('FAILED')
         ->and(DB::table('business_audit_events')->where('event_type', 'ATTACHMENT_ADDED')->count())->toBe(0);
@@ -208,7 +230,7 @@ it('fails an upload whose content does not match its extension', function (): vo
 it('removes a final attachment logically in an editable record only', function (): void {
     [$recordId, $owner] = editableRecord();
     uploadFile($owner, $recordId);
-    $attachmentId = (int) DB::table('nscmf_attachments')->value('id');
+    $attachmentId = soleId('nscmf_attachments');
 
     signIn(Actors::requester())->deleteJson("/nscmf/{$recordId}/attachments/{$attachmentId}")->assertNotFound();
     signIn($owner)->deleteJson("/nscmf/{$recordId}/attachments/{$attachmentId}")->assertOk();
@@ -223,7 +245,7 @@ it('removes a final attachment logically in an editable record only', function (
 
 it('cancels an unfinished upload and discards its chunk bytes', function (): void {
     [$recordId, $owner] = editableRecord();
-    $uploadId = initiateUpload($owner, $recordId, 'notes.txt', 10)->json('data.upload_id');
+    $uploadId = uploadIdOf(initiateUpload($owner, $recordId, 'notes.txt', 10));
     putChunk($owner, $recordId, $uploadId, 1, '0123456789')->assertOk();
 
     signIn($owner)->deleteJson("/nscmf/{$recordId}/attachment-uploads/{$uploadId}")->assertOk()->assertJsonPath('data.status', 'CANCELLED');

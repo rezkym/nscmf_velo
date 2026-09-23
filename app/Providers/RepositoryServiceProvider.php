@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Repositories\Contracts\Administration\RolePermissionRepository;
 use App\Repositories\Contracts\Administration\TeamRepository;
 use App\Repositories\Contracts\Administration\UserRepository;
+use App\Repositories\Contracts\Attachment\AttachmentRepository;
 use App\Repositories\Contracts\Audit\AccessAuditRepository;
 use App\Repositories\Contracts\Audit\BusinessAuditRepository;
 use App\Repositories\Contracts\Audit\SecurityAuditRepository;
@@ -19,6 +20,7 @@ use App\Repositories\Contracts\Security\SessionRepository;
 use App\Repositories\Eloquent\Administration\EloquentTeamRepository;
 use App\Repositories\Eloquent\Administration\EloquentUserRepository;
 use App\Repositories\Eloquent\Administration\SpatieRolePermissionRepository;
+use App\Repositories\Eloquent\Attachment\EloquentAttachmentRepository;
 use App\Repositories\Eloquent\Audit\EloquentAccessAuditRepository;
 use App\Repositories\Eloquent\Audit\EloquentBusinessAuditRepository;
 use App\Repositories\Eloquent\Audit\EloquentSecurityAuditRepository;
@@ -47,5 +49,6 @@ class RepositoryServiceProvider extends ServiceProvider
         RecordEvidenceRepository::class => EloquentRecordEvidenceRepository::class,
         NumberSequenceRepository::class => MySqlNumberSequenceRepository::class,
         WorkflowRepository::class => EloquentWorkflowRepository::class,
+        AttachmentRepository::class => EloquentAttachmentRepository::class,
     ];
 }

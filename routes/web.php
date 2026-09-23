@@ -15,6 +15,8 @@ use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\ReauthenticateController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\History\HistoryController;
+use App\Http\Controllers\Nscmf\AttachmentController;
+use App\Http\Controllers\Nscmf\AttachmentUploadController;
 use App\Http\Controllers\Nscmf\CreateNscmfController;
 use App\Http\Controllers\Nscmf\DownloadAttachmentController;
 use App\Http\Controllers\Nscmf\RecordController;
@@ -61,6 +63,18 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/nscmf', [CreateNscmfController::class, 'store'])->name('nscmf.store');
     Route::get('/nscmf/{record}', [RecordController::class, 'show'])->whereNumber('record')->name('nscmf.show');
     Route::get('/nscmf/{record}/timeline', RecordTimelineController::class)->whereNumber('record')->name('nscmf.timeline');
+    Route::controller(AttachmentUploadController::class)->prefix('/nscmf/{record}/attachment-uploads')
+        ->whereNumber('record')->where(['upload' => '[0-9a-z]{26}'])->group(function (): void {
+            Route::middleware('throttle:nscmf-uploads')->group(function (): void {
+                Route::post('/', 'store')->name('nscmf.uploads.store');
+                Route::get('/{upload}', 'show')->name('nscmf.uploads.show');
+                Route::put('/{upload}/chunks/{chunk}', 'chunk')->whereNumber('chunk')->name('nscmf.uploads.chunk');
+                Route::delete('/{upload}', 'destroy')->name('nscmf.uploads.destroy');
+            });
+            Route::post('/{upload}/complete', 'complete')->middleware('throttle:nscmf-upload-finalize')->name('nscmf.uploads.complete');
+        });
+    Route::get('/nscmf/{record}/attachments/{attachment}', [AttachmentController::class, 'show'])->whereNumber(['record', 'attachment'])->name('nscmf.attachments.show');
+    Route::delete('/nscmf/{record}/attachments/{attachment}', [AttachmentController::class, 'destroy'])->whereNumber(['record', 'attachment'])->name('nscmf.attachments.destroy');
     Route::get('/nscmf/{record}/attachments/{attachment}/download', DownloadAttachmentController::class)->whereNumber(['record', 'attachment'])->name('nscmf.attachments.download');
     Route::get('/nscmf/{record}/edit', [RecordController::class, 'edit'])->whereNumber('record')->name('nscmf.edit');
     Route::patch('/nscmf/{record}/draft', SaveDraftController::class)->whereNumber('record')->name('nscmf.draft');
