@@ -147,4 +147,16 @@ describe('History (FE-37)', () => {
         await wrapper.vm.$nextTick();
         expect(wrapper.find('[data-testid="table-loading-state"]').exists()).toBe(false);
     });
+
+    it('AC5: bulk selection is offered only with the bulk permission and is cleared when the rows change', async () => {
+        expect(mountHistory().find('[data-testid="select-5"]').exists()).toBe(false);
+
+        resetInertia({ auth: { permissions: ['nscmf.view.history', 'nscmf.export', 'nscmf.export.bulk'] } });
+        const wrapper = mountHistory();
+        await wrapper.get('[data-testid="select-5"]').setValue(true);
+        expect(wrapper.get('[data-testid="bulk-export"]').text()).toContain('1 selected');
+
+        await wrapper.setProps({ items: [ITEMS[1]!] });
+        expect(wrapper.get('[data-testid="bulk-export"]').text()).toContain('0 selected');
+    });
 });
