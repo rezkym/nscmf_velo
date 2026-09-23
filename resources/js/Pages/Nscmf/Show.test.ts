@@ -271,4 +271,12 @@ describe('Record detail (FE-18)', () => {
         expect(wrapper.text()).toContain('No attachments on this record.');
         vi.unstubAllGlobals();
     });
+
+    it('FE-44: offers exports on the record page to actors holding the export permission', () => {
+        resetInertia({ auth: { permissions: ['nscmf.view', 'nscmf.export'] } });
+        const wrapper = mountShow({ ...BASE, family: 'ACTIVATION', subtype: 'ACTIVATION', activation: {} });
+
+        expect(wrapper.get('[data-testid="export-PDF"]').text()).toBe('Export PDF');
+        expect(wrapper.text()).toContain('Approved by Demo Approver.');
+    });
 });
