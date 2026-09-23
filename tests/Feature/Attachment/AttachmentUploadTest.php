@@ -253,3 +253,18 @@ it('cancels an unfinished upload and discards its chunk bytes', function (): voi
     expect(Storage::disk('nscmf_private')->allFiles('chunks'))->toBe([]);
     putChunk($owner, $recordId, $uploadId, 1, '0123456789')->assertConflict()->assertJsonPath('code', 'UPLOAD_SESSION_STATE_CONFLICT');
 });
+
+it('treats a duplicate complete and a retried finalization as no-ops', function (): void {
+    [$recordId, $owner] = editableRecord();
+    $sessionId = uploadFile($owner, $recordId);
+    $uploadId = DB::table('nscmf_attachment_upload_sessions')->value('public_id');
+    assert(is_string($uploadId));
+
+    signIn($owner)->postJson("/nscmf/{$recordId}/attachment-uploads/{$uploadId}/complete")
+        ->assertConflict()->assertJsonPath('code', 'UPLOAD_SESSION_STATE_CONFLICT');
+    app(AttachmentFinalizationService::class)->finalize($sessionId);
+
+    expect(DB::table('nscmf_attachments')->count())->toBe(1)
+        ->and(DB::table('business_audit_events')->where('event_type', 'ATTACHMENT_ADDED')->count())->toBe(1)
+        ->and(Records::version($recordId))->toBe(2);
+});
