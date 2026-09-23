@@ -139,6 +139,99 @@ describe('ReviewActions (FE-31)', () => {
         wrapper.unmount();
     });
 
+    it.each(['Cancel', 'Escape'] as const)('traps keyboard focus and returns it to the trigger after %s', async (closeWith) => {
+        const wrapper = mountActions();
+        const trigger = wrapper.get<HTMLButtonElement>('[data-testid="review-return"]').element;
+        trigger.focus();
+        const dialog = await openAction(wrapper, 'return');
+        await nextTick();
+        const textarea = dialog.get<HTMLTextAreaElement>('textarea').element;
+        const confirm = dialog.get<HTMLButtonElement>('[data-test="confirm-button"]').element;
+        expect(document.activeElement).toBe(textarea);
+
+        confirm.focus();
+        const forwardTab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+        window.dispatchEvent(forwardTab);
+        expect(forwardTab.defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(textarea);
+        const backwardTab = new KeyboardEvent('keydown', {
+            key: 'Tab',
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true,
+        });
+        window.dispatchEvent(backwardTab);
+        expect(backwardTab.defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(confirm);
+
+        if (closeWith === 'Cancel') {
+            await dialog.get('[data-test="cancel-button"]').trigger('click');
+        } else {
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+            await nextTick();
+        }
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+        expect(document.activeElement).toBe(trigger);
+        expect(requests).toHaveLength(0);
+        wrapper.unmount();
+    });
+
+    it('ignores Escape while a mutation is pending', async () => {
+        const wrapper = mountActions();
+        const dialog = await openAction(wrapper, 'forward');
+        await dialog.get('[data-test="confirm-button"]').trigger('click');
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        await nextTick();
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(true);
+        expect(requests).toHaveLength(1);
+        wrapper.unmount();
+    });
+
+    it('focuses Refresh record after a conflict closes the dialog', async () => {
+        const wrapper = mountActions();
+        const trigger = wrapper.get<HTMLButtonElement>('[data-testid="review-forward"]').element;
+        trigger.focus();
+        const dialog = await openAction(wrapper, 'forward');
+        await dialog.get('[data-test="confirm-button"]').trigger('click');
+        await respondToRequest(lastRequest('/nscmf/42/review/forward'), {
+            status: 200,
+            flash: { domain_error: { code: 'NSCMF_VERSION_CONFLICT', message: 'Record changed.' } },
+        });
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+        expect(trigger.disabled).toBe(true);
+        expect(document.activeElement).toBe(wrapper.get('[data-testid="review-refresh"]').element);
+        wrapper.unmount();
+    });
+
+    it('focuses the Review actions region when eligibility removes the trigger', async () => {
+        const wrapper = mountActions();
+        const trigger = wrapper.get<HTMLButtonElement>('[data-testid="review-return"]').element;
+        trigger.focus();
+        await openAction(wrapper, 'return');
+        resetInertia({ auth: { permissions: [] } });
+        await nextTick();
+        await nextTick();
+        const region = wrapper.get('[data-testid="review-actions"]').element;
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+        expect(trigger.isConnected).toBe(false);
+        expect(document.activeElement).toBe(region);
+        expect(requests).toHaveLength(0);
+        wrapper.unmount();
+    });
+
+    it('returns focus to an available action after a successful response closes the dialog', async () => {
+        const wrapper = mountActions();
+        const trigger = wrapper.get<HTMLButtonElement>('[data-testid="review-return"]').element;
+        trigger.focus();
+        const dialog = await openAction(wrapper, 'return');
+        await dialog.get('textarea').setValue('valid reason');
+        await dialog.get('[data-test="confirm-button"]').trigger('click');
+        await respondToRequest(lastRequest('/nscmf/42/review/return'), { status: 200 });
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+        expect(document.activeElement).toBe(trigger);
+        wrapper.unmount();
+    });
+
     it('guards stale permission and state while a dialog is open', async () => {
         const wrapper = mountActions();
         const dialog = await openAction(wrapper, 'return');
