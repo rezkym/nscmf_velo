@@ -32,3 +32,6 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Private official workbook: register it with nscmf:template:register, never commit it.
+/NSCMF-Form-3.0.xlsx
