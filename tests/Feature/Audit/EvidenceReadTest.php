@@ -68,8 +68,9 @@ it('lists History for the visible records only, with filters that never widen vi
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('History/Index', false)
-            ->where('meta.total', 3)
-            ->where('items', fn (Collection $items): bool => ! $items->pluck('id')->contains($othersDraft)));
+            ->where('meta.total', 2) // archived records stay out of the default view (07 §451)
+            ->where('query.archived', false)
+            ->where('items', fn (Collection $items): bool => ! $items->pluck('id')->contains($othersDraft) && ! $items->pluck('id')->contains($archived)));
 
     signIn($owner)->get('/history?archived=0&family=ACTIVATION')
         ->assertInertia(fn (AssertableInertia $page) => $page->has('items', 1)->where('items.0.id', $approved));
