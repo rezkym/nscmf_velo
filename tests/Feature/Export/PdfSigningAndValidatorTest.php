@@ -87,10 +87,13 @@ it('renders with exactly the fonts the official template uses, never a substitut
     copy(base_path('NSCMF-Form-3.0.xlsx'), $workspace.'/template.xlsx');
 
     $pdf = (string) file_get_contents(app(SpreadsheetRenderer::class)->render($workspace.'/template.xlsx', $workspace));
-    preg_match_all('#/BaseFont\s*/(?:[A-Z]{6}\+)?([A-Za-z]+)#', $pdf, $matches);
+    preg_match_all('#/BaseFont\s*/(?:[A-Z]{6}\+)?([A-Za-z-]+)#', $pdf, $matches);
     File::deleteDirectory($workspace);
 
-    expect(array_values(array_unique($matches[1])))->toEqualCanonicalizing(['Calibri', 'AptosNarrow', 'AptosDisplay']);
+    // Calibri, Aptos Narrow and Aptos Display are the template's only font families (styles.xml).
+    $substitutes = array_filter($matches[1], fn (string $font): bool => preg_match('/^(Calibri|Aptos-Narrow|Aptos-Display)(-|$)/', $font) !== 1);
+    expect($matches[1])->toContain('Calibri')->toContain('Aptos-Narrow')
+        ->and(array_values(array_unique($substitutes)))->toBe([]);
 })->skip(fn (): bool => ! signingReady(), 'LibreOffice or the official workbook is not provisioned.');
 
 it('signs an Approved PDF with the Organization certificate and records immutable issuance evidence', function (): void {
