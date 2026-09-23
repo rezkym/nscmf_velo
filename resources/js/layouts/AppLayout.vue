@@ -131,13 +131,13 @@ function signOut(): void {
             </div>
         </header>
 
-        <div class="flex flex-1">
-            <!-- Collapsible Sidebar -->
+        <div class="flex flex-1 flex-col md:flex-row">
+            <!-- Collapsible Sidebar: stacked above the content on narrow screens -->
             <aside
                 v-show="isSidebarOpen"
                 id="sidebar-navigation"
                 data-testid="sidebar"
-                class="w-64 flex-shrink-0 border-r border-border bg-card p-4 transition-all"
+                class="w-full flex-shrink-0 border-b border-border bg-card p-4 transition-all md:w-64 md:border-b-0 md:border-r"
                 aria-label="Main Navigation"
             >
                 <nav class="space-y-1" aria-label="Sidebar Menu">
@@ -153,7 +153,7 @@ function signOut(): void {
             </aside>
 
             <!-- Main Content Landmark -->
-            <main id="main-content" class="flex-1 p-6 focus:outline-none" tabindex="-1">
+            <main id="main-content" class="min-w-0 flex-1 p-4 focus:outline-none sm:p-6" tabindex="-1">
                 <slot />
             </main>
         </div>
