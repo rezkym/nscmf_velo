@@ -1,9 +1,10 @@
 # Handoff proyek Alya / NSCMF
 
-Handoff terbaru: [2026-09-22 — Backlog backend NSCMF](2026-09-22-microtask-be.md).
-Paket `microtask_be` berisi 149 task; penyusunan dokumennya selesai, sedangkan
-implementasi tetap PLANNED dan pengujian aplikasi NOT RUN. Catatan tersebut memuat
-branch, file yang belum dikomit, bukti verifikasi, gap dan langkah berikutnya.
+Handoff terbaru: [2026-09-23 — Backend NSCMF untuk slice FE-01–30](2026-09-23-backend-fe01-30.md).
+Slice FE-01–30 sudah diimplementasikan dan dibuktikan lokal (Pest 289, Vitest 524,
+Chromium 14, PHPStan max 0); human review, CI dan Pull Request belum ada. Handoff
+sebelumnya: [2026-09-22 — Backlog backend NSCMF](2026-09-22-microtask-be.md), berisi
+penyusunan 149 task `microtask_be`; task di luar slice FE-01–30 tetap PLANNED.
 
 Bagian berikut adalah handoff FE historis pada tanggal yang tercantum. Status
 branch, cakupan dan test di dalamnya bukan status repository terbaru.

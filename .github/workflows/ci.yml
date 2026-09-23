@@ -60,8 +60,9 @@ jobs:
             - name: PHPStan / Larastan (level max)
               run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 
+            # pcov coverage of this codebase needs more than the default CLI memory limit.
             - name: Pest with coverage (minimum 80%)
-              run: vendor/bin/pest --coverage --min=80
+              run: php -d memory_limit=1G vendor/bin/pest --coverage --min=80
 
     frontend:
         name: Frontend (ESLint, Prettier, vue-tsc, Vitest + coverage, build)
