@@ -8,6 +8,10 @@ import Button from '@/components/ui/Button.vue';
 import { buttonVariants } from '@/components/ui/button';
 import { controlClass } from '@/components/ui/control';
 import FormField from '@/components/ui/FormField.vue';
+import { usePermissions } from '@/composables/usePermissions';
+import type { AttachmentItem } from '@/features/attachments/AttachmentList.vue';
+import AttachmentPanel from '@/features/attachments/AttachmentPanel.vue';
+import type { AttachmentPolicy } from '@/features/attachments/attachmentPolicy';
 import BandwidthSection from '@/features/nscmf/activation/BandwidthSection.vue';
 import GeneralServiceSection from '@/features/nscmf/activation/GeneralServiceSection.vue';
 import NetworkHostingSection from '@/features/nscmf/activation/NetworkHostingSection.vue';
@@ -37,7 +41,15 @@ import { pageDomainError } from '@/lib/apiErrors';
  * components, saves through the JSON Draft endpoint (12 §26) and hands submission to SubmitPanel,
  * which posts the Inertia submit action (12 §30).
  */
-const props = withDefaults(defineProps<{ record: NscmfDetailRecord; warnings?: string[] }>(), { warnings: () => [] });
+const props = withDefaults(
+    defineProps<{
+        record: NscmfDetailRecord;
+        warnings?: string[];
+        attachments?: AttachmentItem[];
+        attachment_policy?: AttachmentPolicy | null;
+    }>(),
+    { warnings: () => [], attachments: () => [], attachment_policy: null },
+);
 
 const AUTOSAVE_DEBOUNCE_MS = 2000;
 
@@ -116,6 +128,27 @@ const saveState = computed<SaveState>(() => {
 });
 
 const warnings = computed(() => (draft.saveStatus.value === 'saved' ? draft.warnings.value : props.warnings));
+
+// Attachments belong to the owner's editable record (12 §52, §58). Adding or removing one moves the
+// record version, so unsaved form changes are saved first and the record is reloaded afterwards.
+const { can, user } = usePermissions();
+const attachmentsEditable = computed(
+    () =>
+        can('nscmf.attachment.manage') &&
+        props.record.owner?.id === user.value?.id &&
+        ['DRAFT', 'REVISION_REQUIRED'].includes(props.record.business_status) &&
+        !props.record.is_archived,
+);
+const attachmentsLocked = computed(() =>
+    saveState.value === 'clean' || saveState.value === 'saved'
+        ? null
+        : 'Save your changes before adding or removing attachments.',
+);
+
+function attachmentsChanged(): void {
+    if (attachmentsLocked.value === null) router.reload();
+    else router.reload({ only: ['attachments'] });
+}
 const domainError = computed(() => pageDomainError(page));
 
 function saveNow(): void {
@@ -225,6 +258,15 @@ function signIn(): void {
                     :errors="fieldErrors"
                 />
             </template>
+
+            <AttachmentPanel
+                :record-id="record.id"
+                :attachments="attachments"
+                :policy="attachment_policy"
+                :editable="attachmentsEditable"
+                :locked-reason="attachmentsLocked"
+                @changed="attachmentsChanged"
+            />
 
             <section class="rounded-lg border border-border bg-card p-6">
                 <SubmitPanel

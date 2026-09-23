@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import type { AttachmentItem } from '@/features/attachments/AttachmentList.vue';
+import AttachmentPanel from '@/features/attachments/AttachmentPanel.vue';
 import { router } from '@inertiajs/vue3';
 
 import Button from '@/components/ui/Button.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import RecordDetail from '@/features/nscmf/RecordDetail.vue';
-import ReviewAttachments, { type ReviewAttachment } from '@/features/nscmf/workflow/ReviewAttachments.vue';
 import ReviewActions from '@/features/nscmf/workflow/ReviewActions.vue';
 import BusinessTimeline from '@/features/nscmf/BusinessTimeline.vue';
 import type { NscmfDetailRecord } from '@/features/nscmf/types';
@@ -12,7 +13,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
 defineProps<{
     record: NscmfDetailRecord & { forward_readiness: { ready: boolean; reason: string | null } };
-    attachments: ReviewAttachment[];
+    attachments: AttachmentItem[];
 }>();
 const { can } = usePermissions();
 </script>
@@ -59,7 +60,13 @@ const { can } = usePermissions();
                 <BusinessTimeline :key="`${record.id}-${record.record_version}`" :record-id="record.id" />
             </template>
             <template #attachments>
-                <ReviewAttachments :attachments="attachments" />
+                <AttachmentPanel
+                    :record-id="record.id"
+                    :attachments="attachments"
+                    :policy="null"
+                    :editable="false"
+                    :locked-reason="null"
+                />
             </template>
         </RecordDetail>
     </AppLayout>

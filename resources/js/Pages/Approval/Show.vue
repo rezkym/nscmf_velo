@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { AttachmentItem } from '@/features/attachments/AttachmentList.vue';
+import AttachmentPanel from '@/features/attachments/AttachmentPanel.vue';
 import { router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
@@ -8,11 +10,10 @@ import RecordDetail from '@/features/nscmf/RecordDetail.vue';
 import type { NscmfDetailRecord } from '@/features/nscmf/types';
 import { APPROVAL_ACTIONS } from '@/features/nscmf/workflow/approvalActions';
 import RecordActions from '@/features/nscmf/workflow/RecordActions.vue';
-import ReviewAttachments, { type ReviewAttachment } from '@/features/nscmf/workflow/ReviewAttachments.vue';
 import BusinessTimeline from '@/features/nscmf/BusinessTimeline.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
-const props = defineProps<{ record: NscmfDetailRecord; attachments: ReviewAttachment[] }>();
+const props = defineProps<{ record: NscmfDetailRecord; attachments: AttachmentItem[] }>();
 const { can } = usePermissions();
 
 const approvable = computed(() => props.record.business_status === 'PENDING_APPROVAL' && !props.record.is_archived);
@@ -49,7 +50,13 @@ const permitted = computed(() => APPROVAL_ACTIONS.some((action) => can(action.pe
                 <BusinessTimeline :key="`${record.id}-${record.record_version}`" :record-id="record.id" />
             </template>
             <template #attachments>
-                <ReviewAttachments :attachments="attachments" />
+                <AttachmentPanel
+                    :record-id="record.id"
+                    :attachments="attachments"
+                    :policy="null"
+                    :editable="false"
+                    :locked-reason="null"
+                />
             </template>
         </RecordDetail>
     </AppLayout>
