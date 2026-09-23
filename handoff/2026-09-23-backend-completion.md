@@ -26,9 +26,9 @@ Test ekspor/PDF membutuhkan workbook resmi privat dan `soffice`; tanpa itu (mis.
 | Audit, Timeline, History (BE-081–088) | Terimplementasi | Halaman `History/Index`, `Administration/Audits/*` belum ada (FE) |
 | Lampiran resumable + ClamAV (BE-089–103) | Terimplementasi, clamd nyata | UI FE-41/42/43 |
 | Ekspor XLSX (BE-104–113) | Terimplementasi dengan workbook resmi | Review mapping v1 oleh pemilik |
-| PDF, signing, validator publik (BE-114–124) | Terimplementasi, signer `ddn/sapp` | Kualifikasi font (G16); halaman `Public/PdfValidator` (FE-48) |
+| PDF, signing, validator publik (BE-114–124) | Terimplementasi, signer `ddn/sapp` | Halaman `Public/PdfValidator` (FE-48) |
 | Setting log teknis & scheduler (BE-125–131) | Terimplementasi | Halaman FE-50 `Administration/Settings/TechnicalLogs` |
-| Data demo (BE-134–138) | Terimplementasi via service asli | DEMO-CHG-008 tidak diarsip (G20) |
+| Data demo (BE-134–138) | Terimplementasi via service asli | — |
 | Hardening (BE-140–144) | Arsitektur, negatif keamanan, coverage, CI clamd | Chromium journey (FE-53/54) |
 
 Tidak ada modul yang diklaim **Feature Done**: DoD (18) mensyaratkan human review, security review untuk perubahan sensitif, dan bukti Chromium.
@@ -47,13 +47,12 @@ HTTPS/sesi, MySQL 8.4 persisten, storage privat persisten, clamd privat, worker+
 
 ## Keputusan yang masih terbuka (BE-148)
 
-1. **G16 — font renderer:** Calibri tergantikan Carlito (setara metrik). Aptos Display/Narrow tidak terpasang sehingga judul tercetak dengan font pengganti. Pilihannya: pasang font Aptos di host renderer, atau terima substitusi.
-2. **G10 — mapping v1:** empat keputusan penempatan di `docs/template-mapping.md` menunggu review pemilik.
-3. **G20 — arsip Cancelled:** 17 §49 meminta DEMO-CHG-008 diarsip, tetapi 12 §17.1 membuat record Cancelled hanya terlihat oleh pemiliknya.
-4. **G04 — kemasan bulk export:** saat ini satu request per record; ZIP/gabungan belum diputuskan.
-5. **G05/G15 — angka final** rate limit dan timeout scan/render (nilai sementara sudah aktif).
-6. **Kustodi kunci signing produksi** dan hostname publik validator: keputusan operator saat rilis.
-7. G11 (notifikasi) dan G13 (data Team produksi) tetap deferred.
+G10, G16 dan G20 ditutup 2026-09-24 oleh keputusan pemilik (lihat register gap).
+
+1. **G04 — kemasan bulk export:** saat ini satu request per record; ZIP/gabungan belum diputuskan.
+2. **G05/G15 — angka final** rate limit dan timeout scan/render (nilai sementara sudah aktif).
+3. **Kustodi kunci signing produksi** dan hostname publik validator: keputusan operator saat rilis.
+4. G11 (notifikasi) dan G13 (data Team produksi) tetap deferred.
 
 ## Batas klaim (BE-149)
 

@@ -1090,6 +1090,7 @@ NSCMF_RENDERER_DRIVER=
 NSCMF_RENDERER_EXECUTABLE=
 NSCMF_RENDERER_ENDPOINT=
 NSCMF_RENDERER_TIMEOUT_SECONDS=
+NSCMF_RENDERER_FONTS_PATH=
 ```
 
 Only values relevant to the selected adapter are used.
@@ -1109,6 +1110,8 @@ The runtime MUST provide the fonts required by the official workbook for faithfu
 Exact font inventory MUST be derived from the approved workbook/template qualification process.
 
 Missing font/substitution that changes output fidelity is a readiness failure.
+
+Qualified inventory — confirmed by the project owner 2026-09-24 (gap G16): the official workbook `NSCMF-Form-3.0.xlsx` uses exactly **Calibri**, **Aptos Narrow** and **Aptos Display**, and the PDF MUST embed those fonts, with no substitute (for example Carlito). Aptos comes from Microsoft's official Aptos download; Calibri from a licensed Microsoft Office/Windows installation. Font files are licensed and are never committed. `NSCMF_RENDERER_FONTS_PATH` points LibreOffice at the directory holding them, because LibreOffice otherwise may not see user-installed fonts.
 
 ## 75. Renderer Workspace
 
@@ -1646,6 +1649,7 @@ NSCMF_RENDERER_DRIVER=
 NSCMF_RENDERER_EXECUTABLE=
 NSCMF_RENDERER_ENDPOINT=
 NSCMF_RENDERER_TIMEOUT_SECONDS=
+NSCMF_RENDERER_FONTS_PATH=
 ```
 
 Signing-adapter secrets were intentionally not standardized until the signer mechanism was approved. Since the 2026-09-23 approval (`ddn/sapp`, PKCS#12), `.env.example` names `NSCMF_SIGNING_P12_PATH`, `NSCMF_SIGNING_P12_PASSPHRASE` and `NSCMF_SIGNING_ORGANIZATION` with empty values; real values never enter version control.

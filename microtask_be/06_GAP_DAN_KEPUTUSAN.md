@@ -100,7 +100,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Dampak/task owner: [BE-104](BE-104.md), [BE-105](BE-105.md), [BE-106](BE-106.md).
 - Pihak berwenang: Pemilik workbook/produk dan reviewer mapping.
 - Bukti penutupan: Actual private official NSCMF-Form-3.0.xlsx, provenance/hash/version/mapping; all field/control inspection. Tidak mengarang registry/hash/cells.
-- Status: **SEBAGIAN CLOSED 2026-09-23**: workbook resmi diberikan pemilik proyek (SHA-256 `731e1fa0…8a45`), inventaris dan mapping `nscmf-form-3.0/v1` di `docs/template-mapping.md`. Empat keputusan mapping di dokumen itu menunggu review pemilik.
+- Status: **CLOSED 2026-09-24**: workbook resmi diberikan pemilik proyek (SHA-256 `731e1fa0…8a45`), inventaris dan mapping `nscmf-form-3.0/v1` di `docs/template-mapping.md`. Keputusan pemilik: setiap nilai ditulis tepat di sel isian bawaan template (sel kiri-atas merge atau sel pertama garis isian); diuji otomatis terhadap workbook di `tests/Feature/Export/ExportTest.php`.
 
 <a id="g11"></a>
 
@@ -160,7 +160,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Dampak/task owner: [BE-114](BE-114.md), [BE-115](BE-115.md).
 - Pihak berwenang: Pemilik output + reviewer fidelity.
 - Bukti penutupan: Real official-workbook output all pages/fonts/native controls; approved visual tolerance + finite timeout. Material fail→user decision next renderer, no weakened fidelity/prebuilt alternatives.
-- Status: OPEN — bukti tersedia 2026-09-23: LibreOffice 26.8 merender kedua form tepat 1 halaman A4, checkbox native tampil, ±2 s (timeout 60 s). Temuan: Calibri → Carlito (setara metrik), Aptos Display/Narrow tidak terpasang sehingga tersubstitusi. Menunggu keputusan pemilik: pasang font Aptos atau terima substitusi.
+- Status: **CLOSED 2026-09-24**: LibreOffice 26.8 merender kedua form tepat 1 halaman A4, checkbox native tampil, ±2 s (timeout 60 s). Keputusan pemilik: font harus sama persis dengan template. Calibri (salinan berlisensi Microsoft Office) dan Aptos (unduhan resmi Microsoft) disediakan lewat `NSCMF_RENDERER_FONTS_PATH`; test render memastikan PDF hanya memuat Calibri/Aptos Narrow/Aptos Display, tanpa substitusi. File font tidak masuk repo. Menunggu keputusan pemilik: pasang font Aptos atau terima substitusi.
 
 <a id="g17"></a>
 
@@ -196,10 +196,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 
 ## G20 — Arsip Cancelled vs visibilitas record never-submitted
 
-- Sumber: `17 §36, §49` (DEMO-CHG-008 Cancelled + archived, actor "normally Protected Superadmin") vs `12 §17.1`/G19 (record DRAFT/CANCELLED hanya terlihat pemilik, tanpa pengecualian Superadmin) dan `05 §22` (archive butuh `nscmf.archive` + akses record).
-- Dampak/task owner: [BE-079](BE-079.md), [BE-136](BE-137.md), [BE-137](BE-137.md).
-- Temuan 2026-09-23: record CANCELLED hanya bisa diarsipkan oleh pemiliknya sendiri, dan bundle Requester tidak memiliki `nscmf.archive`; di data demo tidak ada aktor sah yang bisa mengarsipkan DEMO-CHG-008. Implementasi mengikuti 12 §17.1 (aturan keamanan) sehingga DEMO-CHG-008 tetap CANCELLED tanpa arsip; arsip Approved (ACT-008, CHG-009) tetap ada.
-- Pilihan untuk pemilik: (a) terima deviasi data demo; (b) izinkan pemegang `nscmf.archive` melihat record CANCELLED untuk keperluan arsip (perubahan 12 §17.1); (c) beri pemilik demo peran tambahan yang memuat `nscmf.archive`.
-- Status: **OPEN — menunggu keputusan pemilik**.
+- Sumber: `17 §36, §49, §981` vs `12 §17.1` (record DRAFT/CANCELLED hanya terlihat pemilik).
+- Status: **CLOSED 2026-09-24** — keputusan pemilik: DEMO-CHG-008 dibuat, dibatalkan dan diarsipkan oleh Protected Superadmin sebagai pemiliknya. Karena pembuatan record butuh Team aktif (17 §18), data demo memberi Superadmin Demo Team Gamma (hanya di data demo lokal).
 
 Removed concerns dari19A/20 tidak menjadi gap: HA/Redis/DR/backup/load/SLA architecture/automatedCD/publicCA/multi-server. Actual hostname/provider/Linux/path baru dicatat ketika deployment sungguhan diperintahkan; tidak memilih server sekarang.
