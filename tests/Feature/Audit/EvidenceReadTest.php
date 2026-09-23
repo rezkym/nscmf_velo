@@ -99,7 +99,8 @@ it('shows the privileged Access and Security Audit read-only, filtered, and reco
             ->has('items', 1)
             ->where('items.0.event_type', 'RECORD_VIEWED')
             ->where('items.0.actor.id', $subject->id)
-            ->where('items.0.record.id', $recordId));
+            ->where('items.0.record.id', $recordId)
+            ->where('items.0.occurred_at', fn (string $at): bool => preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+07:00$/', $at) === 1));
 
     signIn($superadmin)->get('/administration/audits/security?outcome=FAILURE')
         ->assertOk()
@@ -108,6 +109,7 @@ it('shows the privileged Access and Security Audit read-only, filtered, and reco
             ->has('items', 1)
             ->where('items.0.event_type', 'LOGIN_FAILED')
             ->where('items.0.subject_username', 'someone')
+            ->where('items.0.occurred_at', fn (string $at): bool => str_ends_with($at, '+07:00'))
             ->missing('items.0.metadata_json'));
 
     expect(DB::table('access_audit_events')->where('event_type', 'PRIVILEGED_AUDIT_VIEWED')->where('actor_user_id', $superadmin->id)->count())->toBe(2);
