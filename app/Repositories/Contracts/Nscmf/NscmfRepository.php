@@ -21,6 +21,9 @@ interface NscmfRepository
 
     public function find(int $id): ?NscmfRecord;
 
+    /** The record with owner, Team, requester and current-iteration sign-off actors loaded. */
+    public function findForProjection(int $id): ?NscmfRecord;
+
     /** Row-locks the record for a mutation (SELECT ... FOR UPDATE). */
     public function lockForUpdate(int $id): ?NscmfRecord;
 

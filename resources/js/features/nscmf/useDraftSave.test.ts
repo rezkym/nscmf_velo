@@ -230,7 +230,7 @@ describe('AC3: draft_conflict_preserves_unsaved_input', () => {
 });
 
 describe('AC4: draft_failure_is_not_success', () => {
-    it.each([
+    it.each<[number, string | undefined, string]>([
         [0, undefined, 'network'],
         [401, 'AUTHENTICATION_REQUIRED', 'session'],
         [419, 'SESSION_EXPIRED', 'csrf'],
@@ -239,6 +239,7 @@ describe('AC4: draft_failure_is_not_success', () => {
         [503, undefined, 'unavailable'],
     ])('status %s never counts as saved', async (status, code) => {
         const { fields, hook } = changeHook();
+        fields.value = { rollback_scenario: 'edited' };
         const saving = hook.save();
         await settle(0, failure(status, code));
         await saving;
@@ -247,7 +248,7 @@ describe('AC4: draft_failure_is_not_success', () => {
         expect(hook.isDirty.value).toBe(true);
         expect(hook.isConflict.value).toBe(false);
         expect(hook.feedbackError.value?.status).toBe(status);
-        expect(fields.value).toEqual({ rollback_scenario: 'A' });
+        expect(fields.value).toEqual({ rollback_scenario: 'edited' });
         if (status === 0) expect(hook.feedbackError.value?.isNetworkError).toBe(true);
     });
 

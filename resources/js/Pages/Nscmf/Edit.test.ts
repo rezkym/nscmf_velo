@@ -6,14 +6,14 @@ import { type JsonResult, sendJson } from '@/lib/http';
 import { flashDomainError, pageProps, resetInertia, router } from '@/testing/inertia';
 
 import Edit from './Edit.vue';
-import type { NscmfDetailRecord } from './Show.vue';
+import type { NscmfDetailRecord } from '@/features/nscmf/types';
 
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
 vi.mock('@/lib/http', () => ({ sendJson: vi.fn() }));
 
 const send = vi.mocked(sendJson);
 
-function changeRecord(overrides: Partial<NscmfDetailRecord> & Record<string, unknown> = {}): NscmfDetailRecord {
+function changeRecord(overrides: Partial<NscmfDetailRecord> = {}): NscmfDetailRecord {
     return {
         id: 7,
         request_no: 'OPS-001',
@@ -42,7 +42,7 @@ function changeRecord(overrides: Partial<NscmfDetailRecord> & Record<string, unk
             results: [],
         },
         ...overrides,
-    } as NscmfDetailRecord;
+    };
 }
 
 function mountEdit(record: NscmfDetailRecord = changeRecord(), warnings: string[] = []): VueWrapper {
@@ -179,7 +179,7 @@ describe('Nscmf/Edit.vue — the Draft editor page (FE-27 composition, BE-062)',
         await wrapper.get('[data-testid="btn-save-draft"]').trigger('click');
         await flushPromises();
 
-        expect(wrapper.text()).toContain('A newer version of this record exists.');
+        expect(wrapper.get('[data-testid="feedback-conflict"]').text()).toContain('A newer version exists');
         expect((wrapper.get('#rollback_scenario').element as HTMLTextAreaElement).value).toBe('Mine');
         expect(wrapper.get('[data-testid="submit-button"]').attributes('disabled')).toBeDefined();
 
@@ -187,7 +187,7 @@ describe('Nscmf/Edit.vue — the Draft editor page (FE-27 composition, BE-062)',
         await flushPromises();
         expect(send).toHaveBeenCalledTimes(1);
 
-        await wrapper.get('[data-testid="btn-refresh-record"]').trigger('click');
+        await wrapper.get('[data-testid="feedback-refresh-btn"]').trigger('click');
         expect(router.reload).toHaveBeenCalled();
     });
 

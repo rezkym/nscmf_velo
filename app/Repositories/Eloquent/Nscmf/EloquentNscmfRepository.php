@@ -67,6 +67,13 @@ final class EloquentNscmfRepository implements NscmfRepository
         return NscmfRecord::query()->find($id);
     }
 
+    public function findForProjection(int $id): ?NscmfRecord
+    {
+        return NscmfRecord::query()
+            ->with(['owner', 'team', 'requestedBy', 'currentIteration.reviewedBy', 'currentIteration.approvedBy'])
+            ->find($id);
+    }
+
     public function lockForUpdate(int $id): ?NscmfRecord
     {
         return NscmfRecord::query()->lockForUpdate()->find($id);

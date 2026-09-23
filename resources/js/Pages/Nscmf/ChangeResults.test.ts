@@ -2,7 +2,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { NscmfDetailRecord } from '@/Pages/Nscmf/Show.vue';
+import type { NscmfDetailRecord } from '@/features/nscmf/types';
 import { lastRequest, pageFlash, pageProps, requests, resetInertia, respondToRequest, router } from '@/testing/inertia';
 
 import ChangeResults, { buildChangeResultsPayload, displayValue } from './ChangeResults.vue';

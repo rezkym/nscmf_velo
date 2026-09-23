@@ -4,17 +4,13 @@ import { computed, ref } from 'vue';
 
 import Badge from '@/components/ui/Badge.vue';
 import { buttonVariants } from '@/components/ui/button';
-import type { BusinessStatus } from '@/features/nscmf/contracts';
 import DetailList, { type DetailItem } from '@/features/nscmf/DetailList.vue';
 import DetailTable from '@/features/nscmf/DetailTable.vue';
 import {
-    type ActivationDraftFields,
+    type NscmfDetailRecord,
     ANNOUNCEMENT_TIMING_LABELS,
-    type ChangeDraftFields,
     FAMILY_LABELS,
     MONITORING_UNIT_LABELS,
-    type NscmfFamily,
-    type NscmfSubtype,
     REFERENCE_TYPE_LABELS,
     SERVICE_IMPACT_LABELS,
     SERVICE_STATUS_LABELS,
@@ -23,32 +19,7 @@ import {
 } from '@/features/nscmf/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 
-interface PersonRef {
-    id: number;
-    name: string;
-}
-
-/** Record detail projection (12 §24). Sign-offs are the current effective ones from the server. */
-export interface NscmfDetailRecord {
-    id: number;
-    request_no: string;
-    family: NscmfFamily;
-    subtype: NscmfSubtype;
-    request_date?: string | null;
-    business_status: BusinessStatus;
-    record_version: number;
-    is_archived: boolean;
-    owner?: PersonRef | null;
-    team?: PersonRef | null;
-    requested_by?: PersonRef | null;
-    first_submitted_at?: string | null;
-    reviewed_by?: PersonRef | null;
-    reviewed_at?: string | null;
-    approved_by?: PersonRef | null;
-    approved_at?: string | null;
-    activation?: ActivationDraftFields;
-    change?: ChangeDraftFields;
-}
+export type { NscmfDetailRecord };
 
 type Value = string | number | boolean | null | undefined;
 

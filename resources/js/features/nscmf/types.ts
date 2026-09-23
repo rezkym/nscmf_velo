@@ -223,3 +223,35 @@ export interface ChangeDraftFields {
     improvement_items?: ImprovementItemRow[];
     results?: ChangeResultRow[];
 }
+
+interface PersonRef {
+    id: number;
+    name: string;
+}
+
+/** Record detail projection (12 §24). Sign-offs are the current effective ones from the server. */
+export interface NscmfDetailRecord {
+    id: number;
+    request_no: string;
+    numbering_mode?: 'AUTOMATIC' | 'MANUAL';
+    family: NscmfFamily;
+    subtype: NscmfSubtype;
+    request_date?: string | null;
+    business_status: BusinessStatus;
+    record_version: number;
+    is_archived: boolean;
+    owner?: PersonRef | null;
+    team?: PersonRef | null;
+    requested_by?: PersonRef | null;
+    first_submitted_at?: string | null;
+    reviewed_by?: PersonRef | null;
+    reviewed_at?: string | null;
+    approved_by?: PersonRef | null;
+    approved_at?: string | null;
+    /** Current workflow iteration number; null before the first submission. */
+    iteration_no?: number | null;
+    /** Server-derived presentation hints (12 §24, §101); never authorization. */
+    allowed_actions?: string[];
+    activation?: ActivationDraftFields;
+    change?: ChangeDraftFields;
+}

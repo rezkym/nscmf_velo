@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetInertia } from '@/testing/inertia';
 
-import Show, { type NscmfDetailRecord } from './Show.vue';
+import type { NscmfDetailRecord } from '@/features/nscmf/types';
+
+import Show from './Show.vue';
 
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
 

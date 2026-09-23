@@ -60,6 +60,7 @@ import DetailTable from '@/features/nscmf/DetailTable.vue';
 import {
     ANNOUNCEMENT_TIMING_LABELS,
     FAMILY_LABELS,
+    type NscmfDetailRecord,
     MONITORING_UNIT_LABELS,
     SERVICE_IMPACT_LABELS,
     STATUS_LABELS,
@@ -67,7 +68,6 @@ import {
 } from '@/features/nscmf/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { pageDomainError } from '@/lib/apiErrors';
-import type { NscmfDetailRecord } from '@/Pages/Nscmf/Show.vue';
 
 const props = defineProps<{ record: NscmfDetailRecord }>();
 const page = usePage();
