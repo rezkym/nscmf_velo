@@ -42,6 +42,11 @@ const navItems = computed(() =>
         },
         { label: 'Access Audit', href: '/administration/audits/access', visible: can('audit.access.view') },
         { label: 'Security Audit', href: '/administration/audits/security', visible: can('audit.security.view') },
+        {
+            label: 'Technical Logs',
+            href: '/administration/settings/technical-logs',
+            visible: can('system.settings.manage'),
+        },
     ].filter((item) => item.visible),
 );
 

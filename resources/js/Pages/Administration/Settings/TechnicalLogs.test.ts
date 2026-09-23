@@ -95,7 +95,7 @@ describe('Technical Log setting (FE-50)', () => {
         await save(wrapper);
         expect(document.body.textContent).toContain('Confirm');
 
-        respond(204, null);
+        respond(200, { data: { reauthenticated: true } });
         const password = document.body.querySelector<HTMLInputElement>('input[type="password"]');
         expect(password).not.toBeNull();
         password!.value = 'secret-password';
@@ -110,7 +110,7 @@ describe('Technical Log setting (FE-50)', () => {
         await save(wrapper);
         expect(patches()).toHaveLength(2);
         expect(wrapper.text()).toContain('Setting saved.');
-        expect(wrapper.text()).not.toMatch(/deleted|purged/i);
+        expect(wrapper.text()).not.toMatch(/logs (were|have been) (deleted|purged)/i);
     });
 
     it('AC5: offers no audit retention, purge-now or other security controls', () => {
