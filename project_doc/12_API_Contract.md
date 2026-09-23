@@ -10,7 +10,7 @@
 > **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `14_Environment_Specification.md`  
 > **Application Style:** Laravel 13 modular monolith + Inertia 3 + Vue 3 + session authentication  
 > **Canonical Application Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-22 (G01/G03/G07/G09/G12/G14/G19 decisions)  
+> **Last Updated:** 2026-09-23 (G06 byte-limit decision; G01/G03/G07/G09/G12/G14/G19 decisions)
 
 ---
 
@@ -211,8 +211,10 @@ file = PDF binary
 Maximum accepted uploaded PDF size:
 
 ```text
-20 MB
+20,000,000 bytes inclusive (decimal 20 MB)
 ```
+
+This cap counts the uploaded PDF file bytes, not the complete multipart HTTP request body. Zero-byte files are invalid. The public-validator cap is independently confirmed by `10 §73` and equals the attachment cap in `06 §50`.
 
 ### Downloads
 
@@ -1192,7 +1194,7 @@ Read-only; no secrets.
 
 ## 51. Attachment Eligibility / Limits
 
-Editable context only according to `06`; optional; max10; max20MB; zero-byte reject; locked allowlist.
+Editable context only according to `06`; optional; max10; max20,000,000 bytes/file inclusive; zero-byte reject; locked allowlist.
 
 ## 52. Initiate / Resume
 
@@ -1394,14 +1396,14 @@ Input exactly one PDF:
 
 ```text
 file = PDF binary
-maximum file size = 20 MB
+maximum file size = 20,000,000 bytes inclusive (decimal 20 MB; file bytes only; zero-byte rejected)
 ```
 
 Flow:
 
 ```text
 rate limit / hardening
-→ enforce PDF + 20 MB max
+→ enforce PDF + 20,000,000-byte inclusive file max
 → private temp storage
 → ClamAV CLEAN
 → signature/recognized issuer verification
@@ -2153,7 +2155,7 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 - never infer authorization from Team;
 - show one-time temporary password only in immediate success context and never offer later retrieval;
 - treat re-auth proof as 15-minute server truth;
-- enforce/display public validator 20 MB max but rely on server as authority;
+- enforce/display public validator 20,000,000-byte inclusive file max but rely on server as authority;
 - display Technical Log setting separately from authoritative audits;
 - never expose absolute local storage path.
 
@@ -2172,7 +2174,7 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 - public minimum disclosure;
 - server-generate temporary password and one-time reveal only;
 - enforce 15-minute re-auth proof;
-- enforce public validator 20 MB max;
+- enforce public validator 20,000,000-byte inclusive file max;
 - protect Technical Log setting and keep audit permanence independent.
 
 ---
@@ -2252,7 +2254,7 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 - [ ] immutable snapshot;
 - [ ] no unsigned Approved PDF;
 - [ ] 168h binary expiry;
-- [ ] public no-login max20MB;
+- [ ] public no-login max20,000,000-byte inclusive PDF file size; zero-byte rejected;
 - [ ] CLEAN before verification;
 - [ ] exact final signed-byte hash;
 - [ ] current/superseded/modified/unknown semantics;
@@ -2290,7 +2292,7 @@ No longer TBD:
 ```text
 temporary credential direction = server-generated + one-time admin reveal
 sensitive re-auth proof lifetime = 15 minutes
-public validator maximum upload = 20 MB
+public validator maximum PDF file = 20,000,000 bytes inclusive (decimal 20 MB; not multipart request-body size)
 canonical application timezone = Asia/Jakarta
 initial production storage backend class = persistent Laravel local private storage
 Technical Log cleanup policy/default = Protected-Superadmin setting, ON + 30 DAY by default

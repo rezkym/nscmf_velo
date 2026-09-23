@@ -2362,13 +2362,13 @@
         "phase": 6,
         "parents": ["T39", "T59"],
         "title": "Tetapkan batas 20 MB dalam byte secara tersinkronisasi",
-        "refs": ["06 §50", "12 §51", "12 §73", "19 §28"],
+        "refs": ["06 §50", "10 §73", "11A §2/12/25", "12 §51", "12 §73", "19 §28"],
         "deps": ["private_storage"],
-        "contract": "G06: sumber menyebut 20 MB, sementara 5 MiB chunk sudah tepat 5,242,880 bytes. Minta owner kontrak/security memilih batas final byte, sinkronkan attachment+validator+proxy+FE; jangan memilih 20,000,000/20,971,520 sendiri.",
+        "contract": "Owner approved 2026-09-23: attachment and public PDF-validator file size is 20,000,000 bytes inclusive (decimal 20 MB); zero-byte remains invalid; chunk remains 5 MiB = 5,242,880 bytes. This limit counts file bytes, not the full multipart request body. Proxy/request-body limits were not decided. Decision is closed; implementation and runtime tests remain NOT RUN.",
         "acceptance": [
             "Approval menyebut exact byte integer serta sumber yang disinkronkan",
-            "Test vector limit-1/limit/limit+1 dan zero direncanakan untuk attachment dan validator sama",
-            "Chunk geometry tetap 5 MiB dan final remainder dihitung dari byte approved"
+            "Planned attachment and validator vectors: 19,999,999 bytes accepted, 20,000,000 bytes accepted, 20,000,001 bytes rejected, and 0 bytes rejected; runtime tests NOT RUN",
+            "Planned 20,000,000-byte chunk geometry: four chunks, first three 5,242,880 bytes each and final chunk 4,271,360 bytes; runtime tests NOT RUN"
         ],
         "fe": ["FE-40", "FE-41", "FE-48"],
         "gaps": ["G06"],
@@ -2393,7 +2393,7 @@
             "app/Repositories/Contracts/AttachmentUploadRepository.php"
         ],
         "test": "tests/Feature/Attachment/InitiateUploadTest.php",
-        "contract": "POST attachment-uploads; validasi nama<=255, allowlist, >0 <=20MB dan max10 aktif; owner+permission+DRAFT/REVISION_REQUIRED; fingerprint hanya hint; sesi server menentukan geometry/expiry. Permission nscmf.attachment.manage dan parent resource/actor binding diperiksa server; max10 final active diperiksa ulang saat promote.",
+        "contract": "POST attachment-uploads; validasi nama<=255, allowlist, file size 1..20,000,000 bytes inclusive (06 §50), and max10 aktif; owner+permission+DRAFT/REVISION_REQUIRED; fingerprint hanya hint; sesi server menentukan geometry/expiry. Permission nscmf.attachment.manage dan parent resource/actor binding diperiksa server; max10 final active diperiksa ulang saat promote. File byte limit does not define multipart request-body size.",
         "acceptance": [
             "Given owner editable When initiate Then sesi 5MiB dan missing indexes dikembalikan",
             "Given fingerprint sama tetapi konteks tidak cocok When resume Then sesi tidak dibajak",
@@ -3112,7 +3112,7 @@
             "app/Services/Export/PdfVerificationService.php"
         ],
         "test": "tests/Feature/PublicVerification/PublicPdfValidatorTest.php",
-        "contract": "GET /ispdfvalid dan POST /ispdfvalid/verify public; exactly one PDF<=20MB; private temp→CLEAN→deep verifier; success/failure cleanup; safe min RequestNo/family/issued_at/Organization only for recognized results.",
+        "contract": "GET /ispdfvalid dan POST /ispdfvalid/verify public; exactly one nonzero PDF file <=20,000,000 bytes inclusive (10 §73, 12 §73); cap counts file bytes, not complete multipart request-body bytes; private temp→CLEAN→deep verifier; success/failure cleanup; safe min RequestNo/family/issued_at/Organization only for recognized results. Runtime boundary tests NOT RUN.",
         "acceptance": [
             "Given oversize/nonPDF When POST Then validation before deep verification",
             "Given real scan not CLEAN When POST Then no verification success",

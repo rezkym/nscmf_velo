@@ -29,7 +29,7 @@ Attachment tetap:
 
 - optional;
 - maksimum 10 active attachments per NSCMF record;
-- maksimum 20 MB per file;
+- maksimum **20,000,000 bytes per file (inclusive; decimal 20 MB)**, as defined in `06 §50`;
 - zero-byte rejected;
 - extension/type allowlist tetap mengikuti `06_Validation_Rules.md` dan `10_Security_Rules.md`;
 - private storage only;
@@ -51,7 +51,7 @@ Default attachment chunk size:
 
 Final chunk MAY lebih kecil.
 
-Karena current maximum file size adalah 20 MB, desain ini sengaja tetap sederhana dan tidak menjadi alasan untuk memperkenalkan upload microservice, Redis, Kafka, atau distributed orchestration tambahan pada MVP.
+Karena current maximum file size adalah 20,000,000 bytes, desain ini sengaja tetap sederhana dan tidak menjadi alasan untuk memperkenalkan upload microservice, Redis, Kafka, atau distributed orchestration tambahan pada MVP.
 
 ## 4. Incomplete Upload Retention
 
@@ -225,7 +225,7 @@ At minimum server validates:
 - valid chunk index/range;
 - expected chunk geometry;
 - chunk byte length (final chunk exception allowed);
-- declared file size does not exceed 20 MB;
+- declared file size is greater than zero and does not exceed 20,000,000 bytes (inclusive; see `06 §50`);
 - storage write success before acknowledging acceptance.
 
 ## 13. Idempotent Retry
@@ -447,7 +447,7 @@ Existing final attachment validation remains unchanged:
 
 ```text
 max active attachments / record = 10
-max final file size             = 20 MB
+max final file size             = 20,000,000 bytes (inclusive; decimal 20 MB; see `06 §50`)
 zero byte                       = rejected
 allowed extensions              = .pdf .xls .xlsx .doc .docx .png .jpg .jpeg .txt .csv
 ```
