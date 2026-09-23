@@ -89,7 +89,8 @@ it('seeds the twenty coherent DEMO scenarios with every state, subtype and archi
     // Cancelled + archived by the Protected Superadmin, who owns it: a never-submitted record is
     // visible to its owner only (12 §17.1), and the archive actor is the Superadmin (17 §49, §981).
     expect($records['DEMO-CHG-008']->owner_user_id)->toBe(userId('superadmin'))
-        ->and($records['DEMO-CHG-008']->archived_by_user_id)->toBe(userId('superadmin'));
+        ->and($records['DEMO-CHG-008']->archived_by_user_id)->toBe(userId('superadmin'))
+        ->and($records['DEMO-CHG-008']->team_id)->toBe(DB::table('teams')->where('name', 'Demo Team Gamma')->value('id'));
 
     // Reviewer collaboration: an earlier Return by demo.reviewer, the effective Forward by demo.multi.
     $act004 = $records['DEMO-ACT-004'];
@@ -130,7 +131,7 @@ it('covers every reference type, service impact and Result scenario with synthet
     foreach (['nscmf_attachments', 'nscmf_attachment_upload_sessions', 'nscmf_export_requests', 'nscmf_pdf_issuances', 'nscmf_template_versions', 'nscmf_number_sequences'] as $table) {
         expect(DB::table($table)->count())->toBe(0);
     }
-    expect(collect($records)->pluck('team_id')->filter()->unique()->count())->toBe(2);
+    expect(collect($records)->pluck('team_id')->unique()->count())->toBe(3);
 });
 
 it('reruns safely: no duplicates and intentional changes are preserved', function (): void {

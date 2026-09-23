@@ -68,6 +68,10 @@ final class DemoSeeder extends Seeder
 
         DB::transaction(function () use ($superadmin): void {
             $this->teamsAndUsers();
+            // Creating a record needs an active Team (17 §18); the demo gives the Superadmin a demo one.
+            if ($superadmin->team_id === null) {
+                $superadmin->update(['team_id' => Team::query()->where('name', 'Demo Team Gamma')->value('id')]);
+            }
             $this->actors['superadmin'] = $superadmin;
             try {
                 foreach ($this->scenarios() as $requestNo => [$day, $scenario]) {
@@ -187,10 +191,11 @@ final class DemoSeeder extends Seeder
                 $this->act('forward', 'demo.reviewer', $id);
                 $this->act('rejectApproval', 'demo.approver', $id, 'Demo: the risk is not acceptable this quarter.');
             }],
-            'DEMO-CHG-008' => ['18', function (string $no) use ($b): void {
-                $id = $this->create($b, $no, 'MAINTENANCE');
-                $this->act('cancel', $b, $id);
-                // G20: a never-submitted record is visible to its owner only (12 §17.1); no demo actor may archive it.
+            'DEMO-CHG-008' => ['18', function (string $no): void {
+                // Owned by the Superadmin: a never-submitted record is visible to its owner only (12 §17.1).
+                $id = $this->create('superadmin', $no, 'MAINTENANCE');
+                $this->act('cancel', 'superadmin', $id);
+                $this->act('archive', 'superadmin', $id, 'Demo: cancelled request filed.');
             }],
             'DEMO-CHG-009' => ['19', function (string $no) use ($a): void {
                 $id = $this->submitted($a, $no, 'EMERGENCY', 19, ['NOC23', 'CUSTOMER']);
