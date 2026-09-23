@@ -11,8 +11,8 @@ use App\Services\Nscmf\NscmfWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use LogicException;
 
-/** POST /nscmf/{record}/review/return (12 §33). */
-final class ReviewReturnController extends Controller
+/** POST /nscmf/{record}/review/reject (12 §34). */
+final class ReviewRejectController extends Controller
 {
     public function __invoke(ReviewReasonRequest $request, int $record, NscmfWorkflowService $workflow): RedirectResponse
     {
@@ -22,10 +22,10 @@ final class ReviewReturnController extends Controller
         $version = $input['record_version'];
         $reason = $input['reason'];
         if ((! is_int($version) && ! is_string($version)) || ! is_string($reason)) {
-            throw new LogicException('Validated reviewer return input has an unexpected type.');
+            throw new LogicException('Validated reviewer rejection input has an unexpected type.');
         }
 
-        $workflow->returnForRevision($user, $record, (int) $version, $reason);
+        $workflow->reject($user, $record, (int) $version, $reason);
 
         return redirect("/nscmf/{$record}", 303);
     }

@@ -7,8 +7,8 @@ namespace App\Http\Requests\Nscmf\Workflow;
 use App\Http\Requests\AllowlistedRequest;
 use Closure;
 
-/** Reviewer Return accepts only its optimistic version and mandatory reason (12 §33, §39). */
-final class ReviewReturnRequest extends AllowlistedRequest
+/** Shared exact input for Reviewer Return and Reject (12 §33–34, §39). */
+final class ReviewReasonRequest extends AllowlistedRequest
 {
     protected function allowedKeys(): array
     {

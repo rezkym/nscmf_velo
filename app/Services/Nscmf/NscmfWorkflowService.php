@@ -106,27 +106,7 @@ final readonly class NscmfWorkflowService
     public function returnForRevision(User $actor, int $recordId, int $expectedVersion, string $reason): void
     {
         $this->database->connection()->transaction(function () use ($actor, $recordId, $expectedVersion, $reason): void {
-            $record = $this->records->lockForUpdate($recordId);
-
-            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
-                throw DomainRuleException::notFound();
-            }
-
-            if (! $actor->can('nscmf.review.return')) {
-                throw DomainRuleException::forbidden();
-            }
-
-            if ($record->is_archived) {
-                throw new DomainRuleException('NSCMF_ARCHIVED_CONFLICT', 'This record is archived.', 409, self::context($record));
-            }
-
-            if ($record->business_status !== NscmfStatus::PENDING_REVIEW) {
-                throw new DomainRuleException('NSCMF_STATE_CONFLICT', 'This record is not pending review.', 409, self::context($record));
-            }
-
-            if ($expectedVersion !== $record->record_version) {
-                throw new DomainRuleException('NSCMF_VERSION_CONFLICT', 'A newer version of this record exists. Refresh the record before returning it.', 409, self::context($record));
-            }
+            $record = $this->lockPendingReview($actor, $recordId, $expectedVersion, 'nscmf.review.return');
 
             $versionBefore = $record->record_version;
             $this->records->updateAndIncrementVersion($record, ['business_status' => NscmfStatus::REVISION_REQUIRED->value]);
@@ -143,6 +123,59 @@ final readonly class NscmfWorkflowService
                 workflowIterationId: $record->current_workflow_iteration_id,
             );
         });
+    }
+
+    /** Reviewer Reject closes the current iteration without creating a successor (05 §16, 11 §31). */
+    public function reject(User $actor, int $recordId, int $expectedVersion, string $reason): void
+    {
+        $this->database->connection()->transaction(function () use ($actor, $recordId, $expectedVersion, $reason): void {
+            $record = $this->lockPendingReview($actor, $recordId, $expectedVersion, 'nscmf.review.reject');
+            $iteration = $this->workflow->currentIteration($record);
+            if ($iteration === null) {
+                throw new \LogicException('Submitted record has no current workflow iteration.');
+            }
+
+            $versionBefore = $record->record_version;
+            $this->workflow->updateIteration($iteration, [
+                'closed_status' => NscmfStatus::REJECTED->value,
+                'closed_at' => CarbonImmutable::now(),
+            ]);
+            $this->records->updateAndIncrementVersion($record, ['business_status' => NscmfStatus::REJECTED->value]);
+
+            $this->businessAudit->record(
+                recordId: $record->id,
+                actorUserId: $actor->id,
+                event: BusinessAuditEvent::REVIEW_REJECTED,
+                versionBefore: $versionBefore,
+                versionAfter: $record->record_version,
+                fromStatus: NscmfStatus::PENDING_REVIEW->value,
+                toStatus: NscmfStatus::REJECTED->value,
+                reason: trim($reason),
+                workflowIterationId: $iteration->id,
+            );
+        });
+    }
+
+    private function lockPendingReview(User $actor, int $recordId, int $expectedVersion, string $permission): NscmfRecord
+    {
+        $record = $this->records->lockForUpdate($recordId);
+        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+            throw DomainRuleException::notFound();
+        }
+        if (! $actor->can($permission)) {
+            throw DomainRuleException::forbidden();
+        }
+        if ($record->is_archived) {
+            throw new DomainRuleException('NSCMF_ARCHIVED_CONFLICT', 'This record is archived.', 409, self::context($record));
+        }
+        if ($record->business_status !== NscmfStatus::PENDING_REVIEW) {
+            throw new DomainRuleException('NSCMF_STATE_CONFLICT', 'This record is not pending review.', 409, self::context($record));
+        }
+        if ($expectedVersion !== $record->record_version) {
+            throw new DomainRuleException('NSCMF_VERSION_CONFLICT', 'A newer version of this record exists. Refresh the record before taking this review action.', 409, self::context($record));
+        }
+
+        return $record;
     }
 
     /**

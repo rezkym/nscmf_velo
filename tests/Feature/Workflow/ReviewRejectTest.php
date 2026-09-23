@@ -31,6 +31,7 @@ it('closes the current iteration and records exactly one rejection without rewri
         'owner' => $owner,
         'other team' => Actors::reviewer(),
         'no team' => Actors::user(['nscmf.review.reject'], ['team_id' => null]),
+        default => throw new InvalidArgumentException('Unknown actor kind.'),
     };
     if ($actorKind === 'owner') {
         $owner->givePermissionTo('nscmf.review.reject');
@@ -38,6 +39,9 @@ it('closes the current iteration and records exactly one rejection without rewri
 
     $before = DB::table('nscmf_records')->where('id', $recordId)->sole();
     $iterationBefore = DB::table('nscmf_workflow_iterations')->where('id', $before->current_workflow_iteration_id)->sole();
+    if (! is_int($iterationBefore->id)) {
+        throw new RuntimeException('Submitted fixture has no workflow iteration.');
+    }
     $historyId = app(BusinessAuditService::class)->record(
         recordId: $recordId, actorUserId: $owner->id, event: BusinessAuditEvent::SUBMITTED,
         versionBefore: 0, versionAfter: 1, fromStatus: 'DRAFT', toStatus: 'PENDING_REVIEW',
@@ -79,6 +83,32 @@ it('closes the current iteration and records exactly one rejection without rewri
     'null-team' => ['no team', 'CHANGE'],
     'Activation' => ['other team', 'ACTIVATION'],
 ]);
+
+it('leaves a prior closed iteration intact when rejecting a reopened record', function (): void {
+    [$recordId, $owner] = rejectableRecord();
+    $previous = DB::table('nscmf_workflow_iterations')->where('nscmf_record_id', $recordId)->sole();
+    DB::table('nscmf_workflow_iterations')->where('id', $previous->id)->update([
+        'closed_status' => 'REJECTED', 'closed_at' => now(), 'superseded_at' => now(),
+    ]);
+    $previous = DB::table('nscmf_workflow_iterations')->where('id', $previous->id)->sole();
+    $currentId = DB::table('nscmf_workflow_iterations')->insertGetId([
+        'nscmf_record_id' => $recordId, 'iteration_no' => 2, 'predecessor_iteration_id' => $previous->id,
+        'started_via' => 'REOPEN', 'started_by_user_id' => $owner->id, 'started_at' => now(),
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+    DB::table('nscmf_records')->where('id', $recordId)->update(['current_workflow_iteration_id' => $currentId]);
+
+    signIn(Actors::reviewer())->postJson(reviewRejectUrl($recordId), ['record_version' => 1, 'reason' => 'Repeat rejection'])
+        ->assertStatus(303);
+
+    $current = DB::table('nscmf_workflow_iterations')->where('id', $currentId)->sole();
+    expect((array) DB::table('nscmf_workflow_iterations')->where('id', $previous->id)->sole())->toBe((array) $previous)
+        ->and($current->iteration_no)->toBe(2)
+        ->and($current->predecessor_iteration_id)->toBe($previous->id)
+        ->and($current->closed_status)->toBe('REJECTED')
+        ->and($current->closed_at)->not->toBeNull()
+        ->and(DB::table('business_audit_events')->where('nscmf_record_id', $recordId)->sole()->workflow_iteration_id)->toBe($currentId);
+});
 
 it('requires the reject permission even for protected Superadmin', function (bool $protected): void {
     [$recordId] = rejectableRecord();
@@ -127,13 +157,13 @@ it('rejects ineligible states with safe conflict context', function (string $sta
 it('rejects archive and stale version without changing the iteration', function (): void {
     [$archivedId] = rejectableRecord();
     [$staleId] = rejectableRecord();
-    DB::table('nscmf_records')->where('id', $archivedId)->update(['is_archived' => true]);
+    DB::table('nscmf_records')->where('id', $archivedId)->update(['business_status' => 'REJECTED', 'is_archived' => true]);
     $actor = Actors::reviewer();
 
     signIn($actor)->postJson(reviewRejectUrl($archivedId), ['record_version' => 1, 'reason' => 'Valid reason'])
         ->assertStatus(409)->assertJsonPath('code', 'NSCMF_ARCHIVED_CONFLICT')
         ->assertJsonPath('context.latest_record_version', 1)
-        ->assertJsonPath('context.current_business_status', 'PENDING_REVIEW');
+        ->assertJsonPath('context.current_business_status', 'REJECTED');
     signIn($actor)->postJson(reviewRejectUrl($staleId), ['record_version' => 2, 'reason' => 'Valid reason'])
         ->assertStatus(409)->assertJsonPath('code', 'NSCMF_VERSION_CONFLICT')
         ->assertJsonPath('context.latest_record_version', 1)

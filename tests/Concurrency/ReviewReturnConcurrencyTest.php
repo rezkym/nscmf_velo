@@ -330,6 +330,9 @@ it('lets exactly one of competing Reviewer Reject and Return commit', function (
         expect($loser['code'])->toBeIn(['NSCMF_STATE_CONFLICT', 'NSCMF_VERSION_CONFLICT']);
 
         $after = DB::table('nscmf_records')->where('id', $recordId)->sole();
+        if (! is_int($before->record_version) || ! is_int($after->record_version)) {
+            throw new RuntimeException('Reviewer action record version was not an integer.');
+        }
         $iterationAfter = (array) DB::table('nscmf_workflow_iterations')->where('id', $before->current_workflow_iteration_id)->sole();
         $audit = DB::table('business_audit_events')->where('nscmf_record_id', $recordId)->sole();
         $rejectWon = $winnerId === $rejecter->id;
