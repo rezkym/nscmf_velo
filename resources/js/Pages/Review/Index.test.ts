@@ -174,12 +174,12 @@ describe('Review Queue — Index.vue (FE-30)', () => {
     });
 
     describe('AC2: review_queue_open_has_no_mutation', () => {
-        it('renders View as a Link / anchor pointing to /review/{record}, performing no mutation request', async () => {
+        it('renders View as a Link / anchor pointing to the record detail page, performing no mutation request', async () => {
             const wrapper = mountReviewQueue();
 
             const viewLink = wrapper.get('[data-testid="btn-view-101"]');
             expect(viewLink.element.tagName.toLowerCase()).toBe('a');
-            expect(viewLink.attributes('href')).toBe('/review/101');
+            expect(viewLink.attributes('href')).toBe('/nscmf/101');
 
             // Clicking does not trigger any router post/put/patch
             await viewLink.trigger('click');

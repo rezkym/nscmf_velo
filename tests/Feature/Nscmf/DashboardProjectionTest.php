@@ -27,8 +27,8 @@ it('counts the actor\'s own drafts and revisions and lists a few of each', funct
             ->component('Dashboard/Index')
             ->where('counts.drafts.count', 2)
             ->where('counts.revisions.count', 1)
-            ->where('counts.reviews', null)
-            ->where('counts.approvals', null)
+            ->missing('counts.reviews')
+            ->missing('counts.approvals')
             ->has('items.drafts', 2)
             ->where('items.drafts.0.id', $draftA)
             ->has('items.drafts.0.request_no')
@@ -54,7 +54,7 @@ it('shows the shared pools only to actors who hold their permission', function (
     signIn(Actors::reviewer())->get('/dashboard')
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('counts.reviews.count', 1)
-            ->where('counts.approvals', null)
+            ->missing('counts.approvals')
             ->where('counts.drafts.count', 0)
             ->where('items.reviews.0.id', $waiting));
 
@@ -62,7 +62,7 @@ it('shows the shared pools only to actors who hold their permission', function (
     signIn($approver)->get('/dashboard')
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('counts.approvals.count', 1)
-            ->where('counts.reviews', null)
+            ->missing('counts.reviews')
             ->where('items.approvals.0.id', $approving));
 });
 
