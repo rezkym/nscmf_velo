@@ -52,9 +52,11 @@ const props = withDefaults(defineProps<ReviewActionsProps>(), {
 const { can } = usePermissions();
 const selected = ref<ReviewAction | null>(null);
 const trigger = ref<HTMLElement | null>(null);
+const actionsRegion = ref<HTMLElement | null>(null);
 const pending = ref(false);
 const error = ref<string | null>(null);
 const conflict = ref(false);
+let focusReturnPending = false;
 
 const reviewable = computed(() => props.businessStatus === 'PENDING_REVIEW' && !props.archived);
 const forwardReady = computed(() => props.family !== 'CHANGE' || props.changeForwardReady);
@@ -79,6 +81,24 @@ watch(
     (invalid) => {
         if (invalid && !pending.value) selected.value = null;
     },
+);
+
+watch(
+    [selected, pending],
+    ([action, isPending], [previousAction]) => {
+        if (previousAction && !action) focusReturnPending = true;
+        if (action || isPending || !focusReturnPending) return;
+
+        focusReturnPending = false;
+        const refreshButton = actionsRegion.value?.querySelector<HTMLButtonElement>('[data-testid="review-refresh"]');
+        const target = conflict.value ? refreshButton : trigger.value;
+        if (target?.isConnected && !target.hasAttribute('disabled')) {
+            target.focus();
+        } else {
+            actionsRegion.value?.focus();
+        }
+    },
+    { flush: 'post' },
 );
 
 function open(action: ReviewAction, event: Event): void {
@@ -182,7 +202,7 @@ function refresh(): void {
 </script>
 
 <template>
-    <div data-testid="review-actions" class="space-y-3">
+    <div ref="actionsRegion" data-testid="review-actions" class="space-y-3" tabindex="-1">
         <div v-if="reviewable" class="flex flex-wrap gap-3">
             <Button
                 v-if="eligible('return')"

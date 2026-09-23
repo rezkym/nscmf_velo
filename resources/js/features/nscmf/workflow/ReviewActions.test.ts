@@ -139,42 +139,45 @@ describe('ReviewActions (FE-31)', () => {
         wrapper.unmount();
     });
 
-    it.each(['Cancel', 'Escape'] as const)('traps keyboard focus and returns it to the trigger after %s', async (closeWith) => {
-        const wrapper = mountActions();
-        const trigger = wrapper.get<HTMLButtonElement>('[data-testid="review-return"]').element;
-        trigger.focus();
-        const dialog = await openAction(wrapper, 'return');
-        await nextTick();
-        const textarea = dialog.get<HTMLTextAreaElement>('textarea').element;
-        const confirm = dialog.get<HTMLButtonElement>('[data-test="confirm-button"]').element;
-        expect(document.activeElement).toBe(textarea);
-
-        confirm.focus();
-        const forwardTab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
-        window.dispatchEvent(forwardTab);
-        expect(forwardTab.defaultPrevented).toBe(true);
-        expect(document.activeElement).toBe(textarea);
-        const backwardTab = new KeyboardEvent('keydown', {
-            key: 'Tab',
-            shiftKey: true,
-            bubbles: true,
-            cancelable: true,
-        });
-        window.dispatchEvent(backwardTab);
-        expect(backwardTab.defaultPrevented).toBe(true);
-        expect(document.activeElement).toBe(confirm);
-
-        if (closeWith === 'Cancel') {
-            await dialog.get('[data-test="cancel-button"]').trigger('click');
-        } else {
-            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    it.each(['Cancel', 'Escape'] as const)(
+        'traps keyboard focus and returns it to the trigger after %s',
+        async (closeWith) => {
+            const wrapper = mountActions();
+            const trigger = wrapper.get<HTMLButtonElement>('[data-testid="review-return"]').element;
+            trigger.focus();
+            const dialog = await openAction(wrapper, 'return');
             await nextTick();
-        }
-        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
-        expect(document.activeElement).toBe(trigger);
-        expect(requests).toHaveLength(0);
-        wrapper.unmount();
-    });
+            const textarea = dialog.get<HTMLTextAreaElement>('textarea').element;
+            const confirm = dialog.get<HTMLButtonElement>('[data-test="confirm-button"]').element;
+            expect(document.activeElement).toBe(textarea);
+
+            confirm.focus();
+            const forwardTab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+            window.dispatchEvent(forwardTab);
+            expect(forwardTab.defaultPrevented).toBe(true);
+            expect(document.activeElement).toBe(textarea);
+            const backwardTab = new KeyboardEvent('keydown', {
+                key: 'Tab',
+                shiftKey: true,
+                bubbles: true,
+                cancelable: true,
+            });
+            window.dispatchEvent(backwardTab);
+            expect(backwardTab.defaultPrevented).toBe(true);
+            expect(document.activeElement).toBe(confirm);
+
+            if (closeWith === 'Cancel') {
+                await dialog.get('[data-test="cancel-button"]').trigger('click');
+            } else {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+                await nextTick();
+            }
+            expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+            expect(document.activeElement).toBe(trigger);
+            expect(requests).toHaveLength(0);
+            wrapper.unmount();
+        },
+    );
 
     it('ignores Escape while a mutation is pending', async () => {
         const wrapper = mountActions();
