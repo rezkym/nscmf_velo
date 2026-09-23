@@ -20,6 +20,7 @@ use App\Http\Controllers\Nscmf\RecordTimelineController;
 use App\Http\Controllers\Nscmf\SaveChangeResultsController;
 use App\Http\Controllers\Nscmf\SaveDraftController;
 use App\Http\Controllers\Nscmf\Workflow\ApprovalActionController;
+use App\Http\Controllers\Nscmf\Workflow\LifecycleActionController;
 use App\Http\Controllers\Nscmf\Workflow\ReviewForwardController;
 use App\Http\Controllers\Nscmf\Workflow\ReviewRejectController;
 use App\Http\Controllers\Nscmf\Workflow\ReviewReturnController;
@@ -69,6 +70,12 @@ Route::middleware('auth')->group(function (): void {
         Route::post('/return-reviewer', 'returnToReviewer')->name('nscmf.approval.return-reviewer');
         Route::post('/return-requester', 'returnToRequester')->name('nscmf.approval.return-requester');
         Route::post('/reject', 'reject')->name('nscmf.approval.reject');
+    });
+    Route::controller(LifecycleActionController::class)->prefix('/nscmf/{record}')->whereNumber('record')->group(function (): void {
+        Route::post('/cancel', 'cancel')->name('nscmf.cancel');
+        Route::post('/reopen', 'reopen')->name('nscmf.reopen');
+        Route::post('/archive', 'archive')->name('nscmf.archive');
+        Route::post('/unarchive', 'unarchive')->name('nscmf.unarchive');
     });
 
     Route::prefix('administration')->whereNumber(['team', 'user', 'role'])->group(function (): void {

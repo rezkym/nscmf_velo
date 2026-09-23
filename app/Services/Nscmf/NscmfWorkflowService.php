@@ -7,6 +7,7 @@ namespace App\Services\Nscmf;
 use App\Domain\Audit\Enums\BusinessAuditEvent;
 use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Domain\Nscmf\RecordAccess;
+use App\Domain\Nscmf\RecordConflict;
 use App\Domain\Nscmf\ReviewForwardRules;
 use App\Domain\Nscmf\SubmissionRules;
 use App\Domain\Shared\DomainRuleException;
@@ -47,15 +48,15 @@ final readonly class NscmfWorkflowService
             }
 
             if ($record->is_archived) {
-                throw new DomainRuleException('NSCMF_ARCHIVED_CONFLICT', 'This record is archived.', 409, self::context($record));
+                throw RecordConflict::archived($record);
             }
 
             if (! $record->business_status->allowsDraftEdit()) {
-                throw new DomainRuleException('NSCMF_STATE_CONFLICT', 'This record is not in a state that can be submitted.', 409, self::context($record));
+                throw RecordConflict::state($record, 'This record is not in a state that can be submitted.');
             }
 
             if ($expectedVersion !== $record->record_version) {
-                throw new DomainRuleException('NSCMF_VERSION_CONFLICT', 'A newer version of this record exists. Refresh the record before submitting.', 409, self::context($record));
+                throw RecordConflict::version($record, 'A newer version of this record exists. Refresh the record before submitting.');
             }
 
             $isFirstSubmit = $record->requested_by_user_id === null;
@@ -193,7 +194,7 @@ final readonly class NscmfWorkflowService
             $record = $this->lockPendingApproval($actor, $recordId, $expectedVersion, 'nscmf.approve');
             $iteration = $this->requireCurrentIteration($record);
             if ($iteration->reviewed_by_user_id === null) {
-                throw new DomainRuleException('NSCMF_STATE_CONFLICT', 'This record has no current review sign-off.', 409, self::context($record));
+                throw RecordConflict::state($record, 'This record has no current review sign-off.');
             }
 
             $now = CarbonImmutable::now();
@@ -276,13 +277,13 @@ final readonly class NscmfWorkflowService
             throw DomainRuleException::forbidden();
         }
         if ($record->is_archived) {
-            throw new DomainRuleException('NSCMF_ARCHIVED_CONFLICT', 'This record is archived.', 409, self::context($record));
+            throw RecordConflict::archived($record);
         }
         if ($record->business_status !== $status) {
-            throw new DomainRuleException('NSCMF_STATE_CONFLICT', "This record is not pending {$stage}.", 409, self::context($record));
+            throw RecordConflict::state($record, "This record is not pending {$stage}.");
         }
         if ($expectedVersion !== $record->record_version) {
-            throw new DomainRuleException('NSCMF_VERSION_CONFLICT', "A newer version of this record exists. Refresh the record before taking this {$stage} action.", 409, self::context($record));
+            throw RecordConflict::version($record, "A newer version of this record exists. Refresh the record before taking this {$stage} action.");
         }
 
         return $record;
@@ -321,13 +322,5 @@ final readonly class NscmfWorkflowService
     private static function optionalText(?string $text): ?string
     {
         return $text === null || trim($text) === '' ? null : trim($text);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private static function context(NscmfRecord $record): array
-    {
-        return ['latest_record_version' => $record->record_version, 'current_business_status' => $record->business_status->value];
     }
 }

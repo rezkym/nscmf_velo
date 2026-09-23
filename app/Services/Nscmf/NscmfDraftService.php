@@ -10,6 +10,7 @@ use App\Domain\Nscmf\Enums\NscmfFamily;
 use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Domain\Nscmf\Enums\NumberingMode;
 use App\Domain\Nscmf\RecordAccess;
+use App\Domain\Nscmf\RecordConflict;
 use App\Domain\Nscmf\SubmissionWarnings;
 use App\Domain\Shared\DomainRuleException;
 use App\Models\Nscmf\NscmfRecord;
@@ -64,15 +65,15 @@ final readonly class NscmfDraftService
             }
 
             if ($record->is_archived) {
-                throw new DomainRuleException('NSCMF_ARCHIVED_CONFLICT', 'This record is archived.', 409, self::context($record));
+                throw RecordConflict::archived($record);
             }
 
             if (! $record->business_status->allowsDraftEdit()) {
-                throw new DomainRuleException('NSCMF_STATE_CONFLICT', 'This record can no longer be edited as a Draft.', 409, self::context($record));
+                throw RecordConflict::state($record, 'This record can no longer be edited as a Draft.');
             }
 
             if ($payload['record_version'] !== $record->record_version) {
-                throw new DomainRuleException('NSCMF_VERSION_CONFLICT', 'A newer version of this record exists. Refresh the record before saving again.', 409, self::context($record));
+                throw RecordConflict::version($record, 'A newer version of this record exists. Refresh the record before saving again.');
             }
 
             $before = $this->records->familyState($record);
@@ -251,14 +252,6 @@ final readonly class NscmfDraftService
         }
 
         return $out;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private static function context(NscmfRecord $record): array
-    {
-        return ['latest_record_version' => $record->record_version, 'current_business_status' => $record->business_status->value];
     }
 
     /**

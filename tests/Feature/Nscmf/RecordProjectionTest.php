@@ -36,7 +36,7 @@ it('renders the detail projection with sign-offs, form data and server action hi
             ->where('record.team.id', $owner->team_id)
             ->where('record.requested_by', null)
             ->where('record.iteration_no', null)
-            ->where('record.allowed_actions', ['edit_draft', 'submit'])
+            ->where('record.allowed_actions', ['edit_draft', 'submit', 'nscmf.cancel'])
             ->where('record.activation.customer_name', 'PT Uji')
             ->where('record.activation.bandwidth_international_mbps', 100)
             ->where('record.activation.migrate_domain', false)
@@ -66,7 +66,7 @@ it('conceals another user\'s never-submitted Draft and shows submitted records t
 
     signIn($reviewer)->get("/nscmf/{$draftId}")->assertNotFound();
     signIn($reviewer)->get("/nscmf/{$submittedId}")->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('record.allowed_actions', [])->where('record.iteration_no', 1)->where('record.requested_by.id', $owner->id));
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('record.allowed_actions', ['nscmf.review.return', 'nscmf.review.reject', 'nscmf.review.forward'])->where('record.iteration_no', 1)->where('record.requested_by.id', $owner->id));
     signIn(Actors::superadmin())->get("/nscmf/{$draftId}")->assertNotFound();
     signIn(Actors::member(['nscmf.create']))->get("/nscmf/{$submittedId}")->assertForbidden();
     signIn($owner)->get('/nscmf/999999')->assertNotFound();

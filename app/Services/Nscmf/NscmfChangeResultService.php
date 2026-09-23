@@ -9,8 +9,8 @@ use App\Domain\Nscmf\DraftStructure;
 use App\Domain\Nscmf\Enums\NscmfFamily;
 use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Domain\Nscmf\RecordAccess;
+use App\Domain\Nscmf\RecordConflict;
 use App\Domain\Shared\DomainRuleException;
-use App\Models\Nscmf\NscmfRecord;
 use App\Models\User;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Services\Audit\BusinessAuditService;
@@ -46,15 +46,15 @@ final readonly class NscmfChangeResultService
             }
 
             if ($record->is_archived) {
-                throw new DomainRuleException('NSCMF_ARCHIVED_CONFLICT', 'This record is archived.', 409, self::context($record));
+                throw RecordConflict::archived($record);
             }
 
             if ($record->family !== NscmfFamily::CHANGE || $record->business_status !== NscmfStatus::PENDING_REVIEW) {
-                throw new DomainRuleException('NSCMF_STATE_CONFLICT', 'Results can only be captured on a Change in review.', 409, self::context($record));
+                throw RecordConflict::state($record, 'Results can only be captured on a Change in review.');
             }
 
             if ($expectedVersion !== $record->record_version) {
-                throw new DomainRuleException('NSCMF_VERSION_CONFLICT', 'A newer version of this record exists. Refresh the record before saving again.', 409, self::context($record));
+                throw RecordConflict::version($record, 'A newer version of this record exists. Refresh the record before saving again.');
             }
 
             $definition = DraftStructure::collections(NscmfFamily::CHANGE)['results'];
@@ -90,13 +90,5 @@ final readonly class NscmfChangeResultService
                 'results' => $after,
             ];
         });
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private static function context(NscmfRecord $record): array
-    {
-        return ['latest_record_version' => $record->record_version, 'current_business_status' => $record->business_status->value];
     }
 }

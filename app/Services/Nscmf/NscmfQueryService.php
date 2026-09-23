@@ -147,6 +147,17 @@ final readonly class NscmfQueryService
             }
         }
 
+        $status = $record->business_status;
+        if ($owner && $status === NscmfStatus::DRAFT && $record->requested_by_user_id === null && $actor->can('nscmf.cancel')) {
+            $actions[] = 'nscmf.cancel';
+        }
+        if (! $record->is_archived && in_array($status, [NscmfStatus::APPROVED, NscmfStatus::REJECTED], true) && $actor->can('nscmf.reopen')) {
+            $actions[] = 'nscmf.reopen';
+        }
+        if ($actor->can('nscmf.archive') && in_array($status, [NscmfStatus::APPROVED, NscmfStatus::REJECTED, NscmfStatus::CANCELLED], true)) {
+            $actions[] = $record->is_archived ? 'nscmf.unarchive' : 'nscmf.archive';
+        }
+
         return $actions;
     }
 
