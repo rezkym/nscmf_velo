@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import ResourceTable, { type ColumnDef, type TableQuery } from '@/components/ResourceTable.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
+import { usePermissions } from '@/composables/usePermissions';
+import BulkExportPanel from '@/features/exports/BulkExportPanel.vue';
 import type { BusinessStatus, PaginationMeta } from '@/features/nscmf/contracts';
 import {
     FAMILY_LABELS,
@@ -48,7 +50,10 @@ export interface HistoryQuery {
 const props = defineProps<{ items: HistoryItem[]; meta: PaginationMeta; query: HistoryQuery }>();
 
 const SORTS = ['request_no', 'request_date', 'created_at', 'updated_at', 'business_status', 'family', 'subtype'];
+const { can } = usePermissions();
+const selectable = can('nscmf.export.bulk');
 const columns: ColumnDef[] = [
+    ...(selectable ? [{ key: 'select', label: 'Select' }] : []),
     { key: 'request_no', label: 'Request No', sortable: true },
     { key: 'subtype', label: 'Type', sortable: true },
     { key: 'request_date', label: 'Request date', sortable: true },
@@ -58,6 +63,17 @@ const columns: ColumnDef[] = [
 ];
 
 const loading = ref(false);
+/** Only rows on screen can be selected; a new result drops any selection it no longer shows. */
+const selectedIds = ref<number[]>([]);
+watch(
+    () => props.items,
+    (items) => {
+        selectedIds.value = selectedIds.value.filter((id) => items.some((item) => item.id === id));
+    },
+);
+const selected = computed(() =>
+    props.items.filter((item) => selectedIds.value.includes(item.id)).map(({ id, request_no }) => ({ id, request_no })),
+);
 const subtypes = computed(() => (props.query.family ? SUBTYPES_BY_FAMILY[props.query.family] : []));
 const informational = computed(() =>
     [
@@ -249,6 +265,8 @@ const control =
                 >
             </p>
 
+            <BulkExportPanel v-if="selectable" :selected="selected" />
+
             <ResourceTable
                 :columns="columns"
                 :items="items"
@@ -260,6 +278,15 @@ const control =
                 caption="NSCMF history"
                 @update:query="onTableQuery"
             >
+                <template #cell-select="{ item }">
+                    <input
+                        v-model="selectedIds"
+                        type="checkbox"
+                        :value="row(item).id"
+                        :data-testid="`select-${row(item).id}`"
+                        :aria-label="`Select ${row(item).request_no}`"
+                    />
+                </template>
                 <template #cell-request_no="{ item }">
                     <Link :href="`/nscmf/${row(item).id}`" class="font-medium text-primary hover:underline">{{
                         row(item).request_no
