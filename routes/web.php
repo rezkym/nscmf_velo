@@ -19,6 +19,7 @@ use App\Http\Controllers\Nscmf\AttachmentController;
 use App\Http\Controllers\Nscmf\AttachmentUploadController;
 use App\Http\Controllers\Nscmf\CreateNscmfController;
 use App\Http\Controllers\Nscmf\DownloadAttachmentController;
+use App\Http\Controllers\Nscmf\ExportController;
 use App\Http\Controllers\Nscmf\RecordController;
 use App\Http\Controllers\Nscmf\RecordTimelineController;
 use App\Http\Controllers\Nscmf\SaveChangeResultsController;
@@ -75,6 +76,13 @@ Route::middleware('auth')->group(function (): void {
         });
     Route::get('/nscmf/{record}/attachments/{attachment}', [AttachmentController::class, 'show'])->whereNumber(['record', 'attachment'])->name('nscmf.attachments.show');
     Route::delete('/nscmf/{record}/attachments/{attachment}', [AttachmentController::class, 'destroy'])->whereNumber(['record', 'attachment'])->name('nscmf.attachments.destroy');
+    Route::controller(ExportController::class)->group(function (): void {
+        Route::post('/nscmf/{record}/exports', 'store')->whereNumber('record')->name('nscmf.exports.store');
+        Route::post('/nscmf/exports/bulk', 'bulk')->name('nscmf.exports.bulk');
+        Route::get('/nscmf/exports/{export}', 'show')->whereNumber('export')->name('nscmf.exports.show');
+        Route::get('/nscmf/exports/{export}/download', 'download')->whereNumber('export')->name('nscmf.exports.download');
+        Route::get('/nscmf/export-batches/{batch}', 'batch')->whereNumber('batch')->name('nscmf.export-batches.show');
+    });
     Route::get('/nscmf/{record}/attachments/{attachment}/download', DownloadAttachmentController::class)->whereNumber(['record', 'attachment'])->name('nscmf.attachments.download');
     Route::get('/nscmf/{record}/edit', [RecordController::class, 'edit'])->whereNumber('record')->name('nscmf.edit');
     Route::patch('/nscmf/{record}/draft', SaveDraftController::class)->whereNumber('record')->name('nscmf.draft');

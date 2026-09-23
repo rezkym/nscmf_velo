@@ -6,9 +6,17 @@ namespace App\Providers;
 
 use App\Infrastructure\Malware\ClamdScanner;
 use App\Infrastructure\Malware\MalwareScanner;
+use App\Infrastructure\Pdf\LibreOfficeRenderer;
+use App\Infrastructure\Pdf\PdfSigner;
+use App\Infrastructure\Pdf\SappPdfSigner;
+use App\Infrastructure\Pdf\SpreadsheetRenderer;
 use App\Infrastructure\Session\AnchoredDatabaseSessionHandler;
 use App\Infrastructure\Storage\LocalPrivateStorage;
 use App\Infrastructure\Storage\PrivateStorage;
+use App\Infrastructure\Storage\RuntimeWorkspace;
+use App\Infrastructure\Workbook\OoxmlWorkbookPatcher;
+use App\Infrastructure\Workbook\WorkbookPatcher;
+use App\Repositories\Contracts\Export\SigningCertificateRepository;
 use App\Support\Runtime\DisposableRuntimeGuard;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
@@ -24,6 +32,22 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(PrivateStorage::class, fn (Application $app): PrivateStorage => new LocalPrivateStorage(
             $app->make(FilesystemFactory::class)->disk('nscmf_private'),
+        ));
+
+        $this->app->singleton(RuntimeWorkspace::class, fn (Application $app): RuntimeWorkspace => new RuntimeWorkspace(
+            $app->make(FilesystemFactory::class)->disk('nscmf_runtime_tmp'),
+        ));
+        $this->app->bind(WorkbookPatcher::class, OoxmlWorkbookPatcher::class);
+        $this->app->singleton(SpreadsheetRenderer::class, fn (): SpreadsheetRenderer => new LibreOfficeRenderer(
+            config()->string('nscmf.renderer.executable'),
+            config()->integer('nscmf.renderer.timeout_seconds'),
+        ));
+
+        $this->app->singleton(PdfSigner::class, fn (Application $app): PdfSigner => new SappPdfSigner(
+            config()->string('nscmf.signing.p12_path'),
+            config()->string('nscmf.signing.p12_passphrase'),
+            config()->string('nscmf.signing.organization'),
+            $app->make(SigningCertificateRepository::class),
         ));
 
         $this->app->singleton(MalwareScanner::class, fn (): MalwareScanner => new ClamdScanner(

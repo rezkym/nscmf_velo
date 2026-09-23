@@ -39,7 +39,7 @@ verifies that every other member is byte-identical and that the member list is u
 | NEW service: id, status, description, location | `Z18`, `8201`/`8202`, `Z20`, `Z22` |
 | installation_rfs_date | `B24` |
 | sla_items 1..3 | `R24`, `R25`, `R26` |
-| lan_ip_allocation / wan_ip / gateway | `A32` / `M32` / `AG32` |
+| lan_ip_allocation / wan_ip (address / prefix) / gateway | `D32` / `M32` + `W32` / `AG32` (*decision*: `A32` is a two-column merge too narrow for a prefix list) |
 | pop / regional / preferred_upstream / secondary_upstream | `A34` / `M34` / `Y34` / `AK34` |
 | primary_noc_link / downlink_router / secondary_noc_link | `A36` / `M36` / `Y36` (*decision*: one `downlink_router` value goes to the primary column) |
 | bandwidth international / domestic IIX / mixed (Mbps) | `H40` / `H41` / `H42` |
@@ -66,10 +66,10 @@ verifies that every other member is byte-identical and that the member list is u
 | facing_challenges 1..3 / maintenance_purpose | `C14`, `C15`, `C16` / `Z14` |
 | identified_problems 1..3 | `C20`, `C21`, `C22` |
 | service_impacts NOC15 / NOC23 / NOC361 / REGIONAL / POP / CUSTOMER / OTHER | shapes `7306` / `7308` / `7309` / `7307` / `7313` / `7318` / `7310` |
-| OTHER description | `H30` |
+| OTHER description | `H31` (the underlined line; `H30` overlaps the label) |
 | improvement_items 1..3 plan / target_kpi | `C34`, `C35`, `C36` / `Z34`, `Z35`, `Z36` |
-| target_execution_date / monitoring period (value + unit) | `H39` / `AC39` |
-| rollback_scenario | `H40` |
+| target_execution_date / monitoring period (value + unit) | `L39` / `AF39` (clear of the long labels) |
+| rollback_scenario | `J40` |
 | announcement ONE_WEEK / TWO_WEEKS / TWO_DAYS_EMERGENCY | shapes `7314` / `7315` / `7316` |
 | results 1..5 summary / performance / status | `B50..B54` / `V50..V54` / `AH50..AH54` |
 | Requested By name / date · Reviewed By · Approved By | `A67`/`A69` · `Q67`/`Q69` · `AG67`/`AG69` |
@@ -81,7 +81,9 @@ verifies that every other member is byte-identical and that the member list is u
 - Signature cells stay empty: a human signature is not a digital signature, and the Approved PDF
   is signed by the Organization certificate, not by the Approver (10 §signing).
 - "Page" (`AP6`/`AQ6`) is left empty.
-- The other family's sheet is hidden, so one export prints one form.
+- The other family's sheet is hidden in the XLSX. LibreOffice still prints hidden sheets, so
+  the PDF keeps only the family's pages (the blank other sheet is exactly one page).
+- Cells keep the template's own font and colour; some input styles are light grey by design.
 
 ## Decisions for owner review
 
@@ -89,5 +91,6 @@ verifies that every other member is byte-identical and that the member list is u
 2. Single-value model fields placed in the primary column: `downlink_router`, `local_loops`,
    `routers`; the "Antenna" cell `W56` has no model field and stays empty.
 3. Date format `YYYY-MM-DD`; "Page" left empty; the other sheet hidden.
+4. WAN IP `a.b.c.d/nn` is split into the address cell `M32` and the prefix cell `W32`.
 
 A change to any of these is a new `mapping_version`, never an edit of v1.

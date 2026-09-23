@@ -11,6 +11,7 @@ use App\Repositories\Contracts\Attachment\AttachmentRepository;
 use App\Repositories\Contracts\Audit\AccessAuditRepository;
 use App\Repositories\Contracts\Audit\BusinessAuditRepository;
 use App\Repositories\Contracts\Audit\SecurityAuditRepository;
+use App\Repositories\Contracts\Export\ExportRepository;
 use App\Repositories\Contracts\Export\SigningCertificateRepository;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Repositories\Contracts\Nscmf\NumberSequenceRepository;
@@ -24,6 +25,7 @@ use App\Repositories\Eloquent\Attachment\EloquentAttachmentRepository;
 use App\Repositories\Eloquent\Audit\EloquentAccessAuditRepository;
 use App\Repositories\Eloquent\Audit\EloquentBusinessAuditRepository;
 use App\Repositories\Eloquent\Audit\EloquentSecurityAuditRepository;
+use App\Repositories\Eloquent\Export\EloquentExportRepository;
 use App\Repositories\Eloquent\Export\EloquentSigningCertificateRepository;
 use App\Repositories\Eloquent\Nscmf\EloquentNscmfRepository;
 use App\Repositories\Eloquent\Nscmf\EloquentRecordEvidenceRepository;
@@ -50,5 +52,6 @@ class RepositoryServiceProvider extends ServiceProvider
         NumberSequenceRepository::class => MySqlNumberSequenceRepository::class,
         WorkflowRepository::class => EloquentWorkflowRepository::class,
         AttachmentRepository::class => EloquentAttachmentRepository::class,
+        ExportRepository::class => EloquentExportRepository::class,
     ];
 }

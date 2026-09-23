@@ -41,6 +41,13 @@ function sheetCells(string $xlsx, string $sheet): array
     return array_column(array_map(fn (array $m): array => [$m[1], html_entity_decode($m[2])], $matches), 1, 0);
 }
 
+function soleValue(string $table, string $column): string|int
+{
+    $value = DB::table($table)->value($column);
+
+    return is_string($value) || is_int($value) ? $value : throw new RuntimeException("No {$table}.{$column}.");
+}
+
 function zipMember(string $xlsx, string $name): string
 {
     $zip = new ZipArchive;
@@ -61,11 +68,12 @@ it('registers the official template privately, verifies its hash and never overw
     registerTemplate();
 
     $version = DB::table('nscmf_template_versions')->sole();
+    $key = (string) soleValue('nscmf_template_versions', 'private_object_key');
     expect($version->template_sha256)->toBe(hash_file('sha256', officialWorkbook()))
         ->and($version->is_active)->toBe(1)
         ->and($version->mapping_version)->toBe('nscmf-form-3.0/v1')
-        ->and(Storage::disk('nscmf_private')->exists($version->private_object_key))->toBeTrue()
-        ->and(str_starts_with($version->private_object_key, 'templates/'))->toBeTrue();
+        ->and(Storage::disk('nscmf_private')->exists($key))->toBeTrue()
+        ->and(str_starts_with($key, 'templates/'))->toBeTrue();
 })->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
 
 it('requests an export with an immutable snapshot, audits it and queues the worker after commit', function (): void {
@@ -85,7 +93,7 @@ it('requests an export with an immutable snapshot, audits it and queues the work
         ->and(DB::table('access_audit_events')->where('event_type', 'EXPORT_REQUESTED')->count())->toBe(1);
     Queue::assertPushed(GenerateExport::class);
 
-    signIn(Actors::requester())->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->assertForbidden();
+    signIn(Actors::user(['nscmf.view']))->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->assertForbidden();
     signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'DOCX'])->assertUnprocessable();
 })->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
 
@@ -101,22 +109,24 @@ it('generates the XLSX from the snapshot only, patching cells and controls and n
         ['nscmf_record_id' => $recordId, 'impact_code' => 'NOC15', 'other_description' => null],
         ['nscmf_record_id' => $recordId, 'impact_code' => 'OTHER', 'other_description' => 'East enterprise'],
     ]);
+    Records::submitted($recordId, $owner);
+    DB::table('nscmf_records')->where('id', $recordId)->update(['request_date' => '2026-09-22']);
     signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->assertStatus(202);
 
     // A later edit must not leak into the already-bound snapshot.
     DB::table('nscmf_change_details')->where('nscmf_record_id', $recordId)->update(['maintenance_purpose' => 'Edited later']);
-    app(ExportGenerationService::class)->generate((int) DB::table('nscmf_export_requests')->value('id'));
+    app(ExportGenerationService::class)->generate((int) soleValue('nscmf_export_requests', 'id'));
 
     $request = DB::table('nscmf_export_requests')->sole();
     $artifact = DB::table('nscmf_export_artifacts')->sole();
     expect($request->status)->toBe('READY')
         ->and($artifact->mime_type)->toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
-    $xlsx = Storage::disk('nscmf_private')->path($artifact->private_object_key);
+    $xlsx = Storage::disk('nscmf_private')->path((string) soleValue('nscmf_export_artifacts', 'private_object_key'));
     expect(hash_file('sha256', $xlsx))->toBe($artifact->artifact_sha256)
         ->and(sheetCells($xlsx, 'sheet2'))->toMatchArray([
             'AQ4' => 'CHG-2026-001', 'AQ5' => '2026-09-22', 'Z14' => 'Replace optics & clean <patch>',
-            'AC39' => '3 DAY', 'H40' => 'Restore', 'H30' => 'East enterprise', 'A67' => 'Rina Requester',
+            'AF39' => '3 DAY', 'J40' => 'Restore', 'H31' => 'East enterprise', 'A67' => 'Rina Requester',
         ])
         ->and(zipMember($xlsx, 'xl/ctrlProps/ctrlProp18.xml'))->toContain('checked="Checked"')
         ->and(zipMember($xlsx, 'xl/ctrlProps/ctrlProp22.xml'))->toContain('checked="Checked"')
@@ -158,7 +168,7 @@ it('refuses to export without an active, hash-verified template', function (): v
     signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->assertConflict()->assertJsonPath('code', 'EXPORT_NOT_READY');
 
     registerTemplate();
-    Storage::disk('nscmf_private')->put((string) DB::table('nscmf_template_versions')->value('private_object_key'), 'tampered');
+    Storage::disk('nscmf_private')->put((string) soleValue('nscmf_template_versions', 'private_object_key'), 'tampered');
     signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->assertConflict()->assertJsonPath('code', 'EXPORT_NOT_READY');
 })->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
 
