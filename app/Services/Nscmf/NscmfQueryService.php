@@ -11,6 +11,7 @@ use App\Domain\Nscmf\RecordAccess;
 use App\Domain\Nscmf\SubmissionWarnings;
 use App\Domain\Shared\DomainRuleException;
 use App\Models\Nscmf\NscmfRecord;
+use App\Models\Team;
 use App\Models\User;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Services\Audit\AccessAuditService;
@@ -25,6 +26,8 @@ final readonly class NscmfQueryService
     public const string EDIT_DRAFT = 'edit_draft';
 
     public const string EDIT_RESULTS = 'edit_results';
+
+    private const int DASHBOARD_ITEMS = 5;
 
     public function __construct(
         private NscmfRepository $records,
@@ -102,6 +105,109 @@ final readonly class NscmfQueryService
         }
 
         return $actions;
+    }
+
+    /**
+     * The Team-neutral Review queue (12 §45): every permitted reviewer sees the same candidates,
+     * and opening the queue claims nothing.
+     *
+     * @param  array{page: int, per_page: int, sort: string, direction: string, q: string|null}  $query
+     * @return array<string, mixed>
+     */
+    public function reviewQueue(User $actor, array $query): array
+    {
+        if (! $actor->can('nscmf.review')) {
+            throw DomainRuleException::forbidden();
+        }
+
+        $paginator = $this->records->paginateByStatus(NscmfStatus::PENDING_REVIEW, $query);
+
+        return [
+            'items' => array_map(fn (NscmfRecord $record): array => self::queueRow($record), $paginator->items()),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'from' => $paginator->firstItem(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'to' => $paginator->lastItem(),
+                'total' => $paginator->total(),
+            ],
+            'query' => $query,
+        ];
+    }
+
+    /**
+     * Dashboard cards (07 §17): the actor's own editable work, plus the shared pools only for the
+     * permissions they hold. Team never widens or narrows a pool.
+     *
+     * @return array<string, mixed>
+     */
+    public function dashboard(User $actor): array
+    {
+        $ownCounts = $this->records->countOwnByStatus($actor->id, NscmfStatus::DRAFT, NscmfStatus::REVISION_REQUIRED);
+        $counts = [
+            'drafts' => ['count' => $ownCounts[NscmfStatus::DRAFT->value] ?? 0],
+            'revisions' => ['count' => $ownCounts[NscmfStatus::REVISION_REQUIRED->value] ?? 0],
+            'reviews' => null,
+            'approvals' => null,
+        ];
+        $items = [
+            'drafts' => $this->summaries($this->records->recentOwnByStatus($actor->id, NscmfStatus::DRAFT, self::DASHBOARD_ITEMS)),
+            'revisions' => $this->summaries($this->records->recentOwnByStatus($actor->id, NscmfStatus::REVISION_REQUIRED, self::DASHBOARD_ITEMS)),
+        ];
+
+        if ($actor->can('nscmf.review')) {
+            $counts['reviews'] = ['count' => $this->records->countByStatus(NscmfStatus::PENDING_REVIEW)];
+            $items['reviews'] = $this->summaries($this->records->recentByStatus(NscmfStatus::PENDING_REVIEW, self::DASHBOARD_ITEMS));
+        }
+
+        if ($actor->can('nscmf.approve')) {
+            $counts['approvals'] = ['count' => $this->records->countByStatus(NscmfStatus::PENDING_APPROVAL)];
+            $items['approvals'] = $this->summaries($this->records->recentByStatus(NscmfStatus::PENDING_APPROVAL, self::DASHBOARD_ITEMS));
+        }
+
+        return ['counts' => $counts, 'items' => $items];
+    }
+
+    /**
+     * @param  list<NscmfRecord>  $records
+     * @return list<array<string, mixed>>
+     */
+    private function summaries(array $records): array
+    {
+        return array_map(fn (NscmfRecord $record): array => [
+            'id' => $record->id,
+            'request_no' => $record->request_no,
+            'family' => $record->family->value,
+            'subtype' => $record->subtype->value,
+            'team' => self::teamRef($record->team),
+        ], $records);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function queueRow(NscmfRecord $record): array
+    {
+        return [
+            'id' => $record->id,
+            'request_no' => $record->request_no,
+            'family' => $record->family->value,
+            'subtype' => $record->subtype->value,
+            'request_date' => $record->request_date?->toDateString(),
+            'requester' => $record->requestedBy === null ? null : ['id' => $record->requestedBy->id, 'name' => $record->requestedBy->name],
+            'team' => self::teamRef($record->team),
+            'business_status' => $record->business_status->value,
+            'is_archived' => $record->is_archived,
+        ];
+    }
+
+    /**
+     * @return array{id: int, name: string}|null
+     */
+    private static function teamRef(?Team $team): ?array
+    {
+        return $team === null ? null : ['id' => $team->id, 'name' => $team->name];
     }
 
     private function visibleRecord(User $actor, int $recordId): NscmfRecord

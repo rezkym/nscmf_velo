@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Arr;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\Actors;
@@ -36,6 +36,14 @@ it('counts the actor\'s own drafts and revisions and lists a few of each', funct
             ->where('items.revisions.0.id', $revision));
 });
 
+/**
+ * @param  list<string>  $permissions
+ */
+function actorWith(array $permissions): User
+{
+    return Actors::member($permissions);
+}
+
 it('shows the shared pools only to actors who hold their permission', function (): void {
     $owner = Actors::requester();
     $waiting = Records::create($owner);
@@ -50,7 +58,7 @@ it('shows the shared pools only to actors who hold their permission', function (
             ->where('counts.drafts.count', 0)
             ->where('items.reviews.0.id', $waiting));
 
-    $approver = Actors::member(Arr::flatten([['nscmf.view'], ['nscmf.approve']]));
+    $approver = actorWith(['nscmf.view', 'nscmf.approve']);
     signIn($approver)->get('/dashboard')
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('counts.approvals.count', 1)

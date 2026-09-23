@@ -16,6 +16,7 @@ use App\Http\Controllers\Nscmf\RecordController;
 use App\Http\Controllers\Nscmf\SaveChangeResultsController;
 use App\Http\Controllers\Nscmf\SaveDraftController;
 use App\Http\Controllers\Nscmf\Workflow\SubmitRecordController;
+use App\Http\Controllers\Review\ReviewQueueController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -35,6 +36,8 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/account/re-authenticate', ReauthenticateController::class)->name('account.reauthenticate');
 
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get('/review', ReviewQueueController::class)->name('review.index');
 
     Route::get('/nscmf/create', [CreateNscmfController::class, 'create'])->name('nscmf.create');
     Route::post('/nscmf', [CreateNscmfController::class, 'store'])->name('nscmf.store');
