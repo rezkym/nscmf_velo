@@ -54,16 +54,25 @@ export async function sendBytes<TBody = unknown>(
     return send<TBody>(method, url, { payload: bytes, type: 'application/octet-stream' }, init);
 }
 
+/** A multipart form (a public file upload); the browser sets its own boundary header. */
+export async function sendForm<TBody = unknown>(
+    url: string,
+    form: FormData,
+    init: { signal?: AbortSignal } = {},
+): Promise<JsonResult<TBody>> {
+    return send<TBody>('POST', url, { payload: form }, init);
+}
+
 async function send<TBody>(
     method: HttpMethod,
     url: string,
-    body: { payload: BodyInit; type: string } | undefined,
+    body: { payload: BodyInit; type?: string } | undefined,
     init: { signal?: AbortSignal },
 ): Promise<JsonResult<TBody>> {
     const headers = new Headers({ Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' });
     const token = xsrfToken();
     if (token) headers.set('X-XSRF-TOKEN', token);
-    if (body !== undefined) headers.set('Content-Type', body.type);
+    if (body?.type) headers.set('Content-Type', body.type);
 
     let response: Response;
     try {
