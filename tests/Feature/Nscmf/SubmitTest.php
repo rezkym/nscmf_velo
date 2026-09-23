@@ -203,7 +203,8 @@ it('reports the Activation submission rules, including dependencies and formats'
     'missing RFS date' => [['installation_rfs_date' => null], ['activation.installation_rfs_date']],
     'no new service block' => [['service_blocks' => []], ['activation.service_blocks']],
     'incomplete new service block' => [['service_blocks' => [['service_context' => 'NEW', 'service_id' => 'SVC-1', 'service_status' => null, 'service_description' => null, 'service_location' => null]]], ['activation.service_blocks.0.service_status']],
-    'started optional existing block' => [['service_blocks' => [['service_context' => 'NEW', 'service_id' => 'SVC-1', 'service_status' => 'ACTIVATED', 'service_description' => 'd', 'service_location' => 'l'], ['service_context' => 'EXISTING', 'service_id' => 'SVC-0']]], ['activation.service_blocks.1.service_status']],
+    // The persisted set is canonical (EXISTING before NEW), so the started EXISTING block is index 0.
+    'started optional existing block' => [['service_blocks' => [['service_context' => 'NEW', 'service_id' => 'SVC-1', 'service_status' => 'ACTIVATED', 'service_description' => 'd', 'service_location' => 'l'], ['service_context' => 'EXISTING', 'service_id' => 'SVC-0']]], ['activation.service_blocks.0.service_status']],
     'reference OTHER without specification' => [['references' => [['reference_type' => 'OTHER', 'specification' => null]]], ['activation.references.0.specification']],
     'invalid WAN IP' => [['wan_ip' => 'not-an-ip'], ['activation.wan_ip']],
     'invalid gateway' => [['gateway' => '203.0.113.300'], ['activation.gateway']],
