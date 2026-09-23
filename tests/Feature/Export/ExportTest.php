@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Export\NscmfFormMappingV1;
 use App\Jobs\GenerateExport;
 use App\Services\Export\ExportGenerationService;
 use Illuminate\Support\Facades\Artisan;
@@ -96,6 +97,82 @@ it('requests an export with an immutable snapshot, audits it and queues the work
     signIn(Actors::user(['nscmf.view']))->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->assertForbidden();
     signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'DOCX'])->assertUnprocessable();
 })->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+
+function columnBefore(string $column): string
+{
+    $index = array_reduce(str_split($column), fn (int $carry, string $letter): int => $carry * 26 + ord($letter) - 64, 0) - 1;
+    for ($name = ''; $index > 0; $index = intdiv($index - 1, 26)) {
+        $name = chr(65 + ($index - 1) % 26).$name;
+    }
+
+    return $name;
+}
+
+/**
+ * Cells where the official template expects a value on one worksheet: the top-left cell of a
+ * merged range, or the first cell of an underlined (bottom-bordered) run.
+ *
+ * @return list<string>
+ */
+function templateInputCells(string $sheet): array
+{
+    $styles = zipMember(officialWorkbook(), 'xl/styles.xml');
+    preg_match('#<borders[^>]*>(.*?)</borders>#s', $styles, $borders);
+    preg_match_all('#<border(?:\\s[^>]*)?(?:/>|>.*?</border>)#s', $borders[1] ?? '', $borderList);
+    preg_match('#<cellXfs[^>]*>(.*?)</cellXfs>#s', $styles, $xfs);
+    preg_match_all('#<xf [^>]*borderId="(\d+)"#', $xfs[1] ?? '', $xfBorders);
+    $underlined = fn (?string $style): bool => $style !== null && str_contains($borderList[0][(int) $xfBorders[1][(int) $style]] ?? '', '<bottom style');
+
+    $xml = zipMember(officialWorkbook(), "xl/worksheets/{$sheet}.xml");
+    preg_match_all('#<mergeCell ref="([A-Z]+\d+):#', $xml, $merges);
+    preg_match_all('#<c r="([A-Z]+)(\d+)"(?:[^>]* s="(\d+)")?#', $xml, $cells, PREG_SET_ORDER);
+    $lines = [];
+    foreach ($cells as $cell) {
+        $lines[$cell[1].$cell[2]] = $underlined($cell[3] ?? null);
+    }
+    $firstOfRun = [];
+    foreach ($cells as $cell) {
+        $left = columnBefore($cell[1]).$cell[2];
+        if ($lines[$cell[1].$cell[2]] && ! ($lines[$left] ?? false)) {
+            $firstOfRun[] = $cell[1].$cell[2];
+        }
+    }
+
+    return [...$merges[1], ...$firstOfRun];
+}
+
+/** @return array<string, mixed> a snapshot with every mapped field of the family filled */
+function completeSnapshot(string $family): array
+{
+    $mapping = new ReflectionClass(NscmfFormMappingV1::class);
+    $constant = fn (string $name): array => (array) $mapping->getConstant($name);
+    $numbered = fn (array $layout): array => array_map(
+        fn (array $columns): array => array_map(fn (int $no): array => ['row_no' => $no, ...array_fill_keys(array_keys($columns), 'x')], range(1, count((array) reset($columns)))),
+        $layout,
+    );
+
+    $form = $family === 'ACTIVATION' ? [
+        ...array_fill_keys(array_keys($constant('ACTIVATION_SCALARS')), 'x'),
+        ...$numbered($constant('ACTIVATION_ROWS')),
+        ...array_map(fn (array $fields): array => array_fill_keys(array_keys($fields), 'x'), $constant('SITES')),
+        'wan_ip' => '192.0.2.1/30',
+        'references' => array_map(fn (string $type): array => ['reference_type' => $type, 'specification' => 'x'], array_keys($constant('REFERENCES'))),
+        'service_blocks' => array_map(fn (string $context): array => ['service_context' => $context, 'service_id' => 'x', 'service_description' => 'x', 'service_location' => 'x'], array_keys($constant('SERVICE_BLOCKS'))),
+    ] : [
+        ...$numbered($constant('CHANGE_ROWS')),
+        'maintenance_purpose' => 'x', 'target_execution_date' => 'x', 'monitoring_period_value' => 1, 'monitoring_period_unit' => 'DAY', 'rollback_scenario' => 'x',
+        'service_impacts' => [['impact_code' => 'OTHER', 'other_description' => 'x']],
+    ];
+    $signoff = ['name' => 'x', 'date' => 'x'];
+
+    return ['record' => ['family' => $family, 'request_no' => 'x', 'request_date' => 'x'], 'form' => $form, 'signoffs' => ['requested_by' => $signoff, 'reviewed_by' => $signoff, 'approved_by' => $signoff]];
+}
+
+it('writes every value exactly into an input cell of the official template', function (string $family): void {
+    $fill = NscmfFormMappingV1::fill(completeSnapshot($family));
+
+    expect(array_values(array_diff(array_keys($fill['cells']), templateInputCells($fill['sheet']))))->toBe([]);
+})->with(['ACTIVATION', 'CHANGE'])->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
 
 it('generates the XLSX from the snapshot only, patching cells and controls and nothing else', function (): void {
     registerTemplate();
