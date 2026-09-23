@@ -38,7 +38,7 @@ const RECORD: NscmfDetailRecord = {
 
 function mountShow(record: Partial<NscmfDetailRecord> = {}): VueWrapper {
     return mount(Show, {
-        props: { record: { ...RECORD, ...record } as NscmfDetailRecord, attachments: [] },
+        props: { record: { ...RECORD, ...record }, attachments: [] },
         attachTo: document.body,
     });
 }
