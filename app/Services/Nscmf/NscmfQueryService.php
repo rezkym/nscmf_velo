@@ -185,7 +185,7 @@ final readonly class NscmfQueryService
     }
 
     /**
-     * History (12 §47): visibility per 12 §17.1; archived stays a separate filter.
+     * History (12 §47): visibility per 12 §17.1; archived stays a separate filter, off by default.
      *
      * @param  ListQuery  $query
      * @return array<string, mixed>
@@ -195,6 +195,8 @@ final readonly class NscmfQueryService
         if (! $actor->can('nscmf.view.history')) {
             throw DomainRuleException::forbidden();
         }
+        // Archived records are a separate, explicit view (07 §451).
+        $query['archived'] ??= false;
 
         return $this->paginated($actor, $query, $query);
     }
