@@ -177,10 +177,10 @@ it('flashes action conflicts and validation errors for an Inertia form', functio
         ->and(DB::table('business_audit_events')->count())->toBe(0);
 });
 
-it('validates exact payload, positive version and reason character bounds', function (array $payload, string $errorKey): void {
+it('validates exact payload, positive version and reason character bounds', function (array $payload, string $errorKey, int $jsonOptions = 0): void {
     [$recordId] = pendingReviewRecord();
 
-    signIn(Actors::reviewer())->postJson(reviewReturnUrl($recordId), $payload)
+    signIn(Actors::reviewer())->postJson(reviewReturnUrl($recordId), $payload, [], $jsonOptions)
         ->assertStatus(422)->assertJsonPath('code', 'VALIDATION_FAILED')->assertJsonValidationErrors($errorKey, 'errors');
 
     expect(Records::version($recordId))->toBe(1)
@@ -191,6 +191,8 @@ it('validates exact payload, positive version and reason character bounds', func
     'negative version' => [['record_version' => -1, 'reason' => 'Valid reason'], 'record_version'],
     'wrong version' => [['record_version' => 'wrong', 'reason' => 'Valid reason'], 'record_version'],
     'decimal version' => [['record_version' => 1.5, 'reason' => 'Valid reason'], 'record_version'],
+    'boolean version' => [['record_version' => true, 'reason' => 'Valid reason'], 'record_version'],
+    'integral float version' => [['record_version' => 1.0, 'reason' => 'Valid reason'], 'record_version', JSON_PRESERVE_ZERO_FRACTION],
     'missing reason' => [['record_version' => 1], 'reason'],
     'nonstring reason' => [['record_version' => 1, 'reason' => ['valid']], 'reason'],
     'blank reason' => [['record_version' => 1, 'reason' => '   '], 'reason'],
@@ -198,6 +200,16 @@ it('validates exact payload, positive version and reason character bounds', func
     '2001 unicode chars' => [['record_version' => 1, 'reason' => str_repeat('é', 2001)], 'reason'],
     'extra business key' => [['record_version' => 1, 'reason' => 'Valid reason', 'business_status' => 'APPROVED'], 'business_status'],
 ]);
+
+it('accepts a valid form-encoded integer version string', function (): void {
+    [$recordId] = pendingReviewRecord();
+
+    signIn(Actors::reviewer())->post(reviewReturnUrl($recordId), ['record_version' => '1', 'reason' => 'Needs revision'])
+        ->assertStatus(303)->assertRedirect("/nscmf/{$recordId}");
+
+    expect(Records::version($recordId))->toBe(2)
+        ->and(DB::table('business_audit_events')->where('event_type', 'REVIEW_RETURNED')->count())->toBe(1);
+});
 
 it('accepts five and 2000 Unicode characters after trimming', function (int $length): void {
     [$recordId] = pendingReviewRecord();
