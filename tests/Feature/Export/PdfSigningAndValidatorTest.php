@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Attachment\ScanVerdict;
 use App\Infrastructure\Malware\MalwareScanner;
+use App\Infrastructure\Pdf\PdfSigner;
 use App\Services\Export\ExportGenerationService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Artisan;
@@ -34,7 +35,11 @@ function activateSigner(string $label = 'NSCMF Organization Test'): void
     Artisan::call('nscmf:signing:activate', ['--generate' => true, '--label' => $label]);
 }
 
-/** Exports an Approved Change as PDF through the real pipeline and returns [recordId, pdf bytes]. */
+/**
+ * Exports an Approved Change as PDF through the real pipeline.
+ *
+ * @return array{int, string} record id and PDF bytes
+ */
 function approvedPdf(): array
 {
     $owner = Actors::requester(['name' => 'Private Requester Name']);
@@ -52,7 +57,7 @@ function approvedPdf(): array
 /** @return TestResponse<Response> */
 function verifyPdf(string $bytes, string $name = 'nscmf.pdf'): TestResponse
 {
-    return test()->post('/ispdfvalid/verify', ['file' => UploadedFile::fake()->createWithContent($name, $bytes)], ['Accept' => 'application/json']);
+    return asGuest()->post('/ispdfvalid/verify', ['file' => UploadedFile::fake()->createWithContent($name, $bytes)], ['Accept' => 'application/json']);
 }
 
 beforeEach(function (): void {
@@ -81,7 +86,9 @@ it('signs an Approved PDF with the Organization certificate and records immutabl
         ->and($issuance->nscmf_record_id)->toBe($recordId)
         ->and(DB::table('nscmf_export_requests')->value('status'))->toBe('READY');
 
-    signIn(Actors::requester())->getJson('/nscmf/exports/'.DB::table('nscmf_export_requests')->value('id'))->assertNotFound();
+    $exportId = DB::table('nscmf_export_requests')->value('id');
+    assert(is_int($exportId));
+    signIn(Actors::requester())->getJson("/nscmf/exports/{$exportId}")->assertNotFound();
 })->skip(fn (): bool => ! signingReady(), 'LibreOffice or the official workbook is not provisioned.');
 
 it('verifies a genuine current PDF publicly with minimum disclosure, then as superseded after Reopen', function (): void {
@@ -109,8 +116,8 @@ it('reports a modified signed PDF as INVALID_MODIFIED and an unknown PDF as UNKN
     [, $pdf] = approvedPdf();
 
     verifyPdf($pdf."\n% appended after signing\n")->assertOk()->assertJsonPath('data.result', 'INVALID_MODIFIED')->assertJsonMissingPath('data.request_no');
-    $tampered = substr_replace($pdf, 'CHG-SIGNED-9', (int) strpos($pdf, 'CHG-SIGNED-1'), 12);
-    verifyPdf($tampered)->assertOk()->assertJsonPath('data.result', strpos($pdf, 'CHG-SIGNED-1') === false ? 'INVALID_MODIFIED' : 'INVALID_MODIFIED');
+    $signedByte = (int) strpos($pdf, '/Type');
+    verifyPdf(substr_replace($pdf, '/TYPE', $signedByte, 5))->assertOk()->assertJsonPath('data.result', 'INVALID_MODIFIED');
     verifyPdf("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n")->assertOk()->assertJsonPath('data.result', 'UNKNOWN');
 })->skip(fn (): bool => ! signingReady(), 'LibreOffice or the official workbook is not provisioned.');
 
@@ -134,7 +141,7 @@ it('never produces an unsigned Approved PDF: signing unavailable refuses or fail
     $exportId = signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'PDF'])->json('data.id');
     assert(is_int($exportId));
     config(['nscmf.signing.p12_passphrase' => 'wrong-passphrase']);
-    app()->forgetInstance(\App\Infrastructure\Pdf\PdfSigner::class);
+    app()->forgetInstance(PdfSigner::class);
     app()->forgetInstance(ExportGenerationService::class);
     app(ExportGenerationService::class)->generate($exportId);
 
@@ -160,16 +167,17 @@ it('renders a non-Approved PDF unsigned and without issuance', function (): void
 it('hardens the public validator input, scan and rate limit', function (): void {
     config(['security.pdf_validator_throttle.per_minute' => 5]);
 
-    $this->get('/ispdfvalid')->assertOk();
+    asGuest()->get('/ispdfvalid')->assertOk();
     verifyPdf('')->assertUnprocessable();
     verifyPdf(str_repeat('a', 100), 'notes.txt')->assertUnprocessable()->assertJsonPath('code', 'VALIDATOR_FILE_INVALID');
-    $this->post('/ispdfvalid/verify', ['file' => UploadedFile::fake()->create('big.pdf', 19_532)], ['Accept' => 'application/json'])
+    asGuest()->post('/ispdfvalid/verify', ['file' => UploadedFile::fake()->create('big.pdf', 19_532)], ['Accept' => 'application/json'])
         ->assertUnprocessable()->assertJsonPath('code', 'VALIDATOR_FILE_TOO_LARGE');
 
     app()->instance(MalwareScanner::class, new FakeScanner(null));
     verifyPdf("%PDF-1.4\n%%EOF\n")->assertStatus(503)->assertJsonPath('code', 'VALIDATOR_SCAN_FAILED');
     app()->instance(MalwareScanner::class, new FakeScanner(ScanVerdict::INFECTED));
-    verifyPdf("%PDF-1.4\n%%EOF\n")->assertStatus(429);
+    verifyPdf("%PDF-1.4\n%%EOF\n")->assertUnprocessable()->assertJsonPath('code', 'VALIDATOR_FILE_INVALID');
+    verifyPdf("%PDF-1.4\n%%EOF\n")->assertStatus(429)->assertJsonPath('code', 'RATE_LIMITED');
 
     expect(Storage::disk('nscmf_runtime_tmp')->allFiles())->toBe([]);
 });
@@ -177,9 +185,9 @@ it('hardens the public validator input, scan and rate limit', function (): void 
 it('exposes only the validator on the public ingress hostname', function (): void {
     config(['nscmf.public_host' => 'verify.example.test']);
 
-    $this->get('http://verify.example.test/ispdfvalid')->assertOk();
+    asGuest()->get('http://verify.example.test/ispdfvalid')->assertOk();
     foreach (['/login', '/dashboard', '/up', '/history', '/administration/users', '/nscmf/1'] as $path) {
-        $this->get("http://verify.example.test{$path}")->assertNotFound();
+        asGuest()->get("http://verify.example.test{$path}")->assertNotFound();
     }
-    $this->get('http://localhost/login')->assertOk();
+    asGuest()->get('http://localhost/login')->assertOk();
 });

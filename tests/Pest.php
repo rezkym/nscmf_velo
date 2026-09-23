@@ -35,3 +35,12 @@ function reviewActionDestination(User $actor, int $recordId): string
 {
     return $actor->can('nscmf.review') ? "/review/{$recordId}" : ($actor->can('nscmf.view') ? "/nscmf/{$recordId}" : '/dashboard');
 }
+
+/** The current test case for unauthenticated requests (public validator, ingress). */
+function asGuest(): TestCase
+{
+    $test = TestSuite::getInstance()->test;
+    assert($test instanceof TestCase);
+
+    return $test;
+}

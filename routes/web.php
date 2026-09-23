@@ -30,6 +30,7 @@ use App\Http\Controllers\Nscmf\Workflow\ReviewForwardController;
 use App\Http\Controllers\Nscmf\Workflow\ReviewRejectController;
 use App\Http\Controllers\Nscmf\Workflow\ReviewReturnController;
 use App\Http\Controllers\Nscmf\Workflow\SubmitRecordController;
+use App\Http\Controllers\PublicValidatorController;
 use App\Http\Controllers\Review\ReviewDetailController;
 use App\Http\Controllers\Review\ReviewQueueController;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +39,10 @@ use Inertia\Inertia;
 Route::get('/', fn () => Inertia::render('Welcome', [
     'appName' => config('app.name'),
 ]))->name('home');
+
+// The only public, no-login capability (12 §72–75); the public ingress exposes nothing else.
+Route::get('/ispdfvalid', [PublicValidatorController::class, 'show'])->name('ispdfvalid');
+Route::post('/ispdfvalid/verify', [PublicValidatorController::class, 'verify'])->middleware('throttle:pdf-validator')->name('ispdfvalid.verify');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [LoginController::class, 'create'])->name('login');

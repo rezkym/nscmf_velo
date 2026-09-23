@@ -10,6 +10,12 @@ return [
     'browser_testing' => (bool) env('NSCMF_BROWSER_TESTING', false),
 
     /*
+     * Hostname of the public validator ingress (20 §19–21). Requests for it reach only
+     * /ispdfvalid; empty means no separate public hostname is configured.
+     */
+    'public_host' => (string) env('NSCMF_PUBLIC_HOST', ''),
+
+    /*
      * Attachment limits are specification (06 §50–51, 11A §3–4, G06), not environment tuning.
      */
     'attachments' => [

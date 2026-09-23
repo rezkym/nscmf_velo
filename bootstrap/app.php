@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Middleware\EnforceSessionLifetime;
 use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RestrictPublicIngress;
 use App\Support\Http\ErrorEnvelope;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(RestrictPublicIngress::class);
         $middleware->web(append: [
             EnforceSessionLifetime::class,
             EnsurePasswordChanged::class,
