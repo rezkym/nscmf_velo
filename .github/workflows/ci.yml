@@ -146,6 +146,9 @@ jobs:
             - name: Build frontend
               run: npm run build
 
+            - name: Browser runtime configuration
+              run: npm run test:browser-runtime-config
+
             - name: Install Playwright Chromium
               run: npx playwright install --with-deps chromium
 

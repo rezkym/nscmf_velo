@@ -9,8 +9,18 @@ import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '../../..');
 const browserStorage = path.join(root, 'storage/framework/testing/browser');
 
-export const BROWSER_PORT = 8010;
+export const BROWSER_PORT = tcpPort('NSCMF_BROWSER_APP_PORT', process.env.NSCMF_BROWSER_APP_PORT ?? '8010');
+export const BROWSER_GUARD_PROBE_PORT = tcpPort(
+    'NSCMF_BROWSER_GUARD_PROBE_PORT',
+    process.env.NSCMF_BROWSER_GUARD_PROBE_PORT ?? String(BROWSER_PORT + 1),
+);
+
+if (BROWSER_PORT === BROWSER_GUARD_PROBE_PORT) {
+    throw new Error('NSCMF_BROWSER_GUARD_PROBE_PORT must differ from NSCMF_BROWSER_APP_PORT.');
+}
+
 export const BROWSER_BASE_URL = `http://127.0.0.1:${BROWSER_PORT}`;
+export const BROWSER_SERVER_CHECK_URL = `${BROWSER_BASE_URL}/up`;
 
 export const browserRuntimeEnv: Record<string, string> = {
     APP_ENV: 'testing',
@@ -19,7 +29,8 @@ export const browserRuntimeEnv: Record<string, string> = {
     NSCMF_BROWSER_TESTING: 'true',
     DB_CONNECTION: 'mysql',
     DB_HOST: process.env.NSCMF_BROWSER_DB_HOST ?? '127.0.0.1',
-    DB_DATABASE: 'nscmf_testing',
+    DB_PORT: String(tcpPort('NSCMF_BROWSER_DB_PORT', process.env.NSCMF_BROWSER_DB_PORT ?? '3306')),
+    DB_DATABASE: process.env.NSCMF_BROWSER_DB_DATABASE ?? 'nscmf_testing',
     SESSION_DRIVER: 'database',
     CACHE_STORE: 'database',
     QUEUE_CONNECTION: 'database',
@@ -28,6 +39,15 @@ export const browserRuntimeEnv: Record<string, string> = {
     NSCMF_PRIVATE_STORAGE_ROOT: path.join(browserStorage, 'private'),
     NSCMF_RUNTIME_TMP_ROOT: path.join(browserStorage, 'tmp'),
 };
+
+function tcpPort(name: string, value: string | number): number {
+    const port = Number(value);
+    if (!/^\d+$/.test(String(value)) || !Number.isSafeInteger(port) || port < 1 || port > 65_535) {
+        throw new Error(`${name} must be a finite TCP port between 1 and 65535.`);
+    }
+
+    return port;
+}
 
 function runArtisan(args: string[]): string {
     return execFileSync('php', ['artisan', ...args], {
@@ -76,9 +96,11 @@ export function createBrowserUser(options: BrowserUserOptions = {}): BrowserUser
  * to prove the boot guard runs inside the served application itself, not only inside Pest.
  */
 export function startUnsafeServer(port: number, overrides: Record<string, string>): ChildProcess {
+    const safePort = tcpPort('unsafe browser guard probe port', port);
+
     return spawn(
         'php',
-        ['-S', `127.0.0.1:${port}`, '../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'],
+        ['-S', `127.0.0.1:${safePort}`, '../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'],
         {
             cwd: path.join(root, 'public'),
             env: { ...process.env, ...browserRuntimeEnv, ...overrides },

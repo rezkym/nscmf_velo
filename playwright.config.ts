@@ -1,6 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
-import { BROWSER_BASE_URL, BROWSER_PORT, browserRuntimeEnv } from './tests/Browser/support/runtime';
+import {
+    BROWSER_PORT,
+    BROWSER_SERVER_CHECK_URL,
+    BROWSER_BASE_URL,
+    browserRuntimeEnv,
+} from './tests/Browser/support/runtime';
 
 // Required failures stay failures: no automatic retry-as-pass (16_Testing_Specification.md §83).
 // Traces, screenshots and video stay off: journeys show one-time credentials and typed passwords,
@@ -29,7 +34,7 @@ export default defineConfig({
         // served process; the application's boot guard refuses any other database or storage.
         command: `php -S 127.0.0.1:${BROWSER_PORT} ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`,
         cwd: 'public',
-        url: `${BROWSER_BASE_URL}/up`,
+        url: BROWSER_SERVER_CHECK_URL,
         env: browserRuntimeEnv,
         reuseExistingServer: false,
         stdout: 'ignore',

@@ -6,6 +6,13 @@ import { pathToFileURL } from 'node:url';
 
 const root = path.resolve(import.meta.dirname, '../..');
 const runtimeUrl = pathToFileURL(path.join(root, 'tests/Browser/support/runtime.ts')).href;
+const browserConfigurationNames = [
+    'NSCMF_BROWSER_APP_PORT',
+    'NSCMF_BROWSER_GUARD_PROBE_PORT',
+    'NSCMF_BROWSER_DB_HOST',
+    'NSCMF_BROWSER_DB_PORT',
+    'NSCMF_BROWSER_DB_DATABASE',
+];
 
 function inspectRuntime(overrides = {}) {
     const script = `
@@ -19,11 +26,14 @@ function inspectRuntime(overrides = {}) {
         }));
     `;
 
+    const environment = { ...process.env };
+    for (const name of browserConfigurationNames) delete environment[name];
+
     return JSON.parse(
         execFileSync(process.execPath, ['--experimental-strip-types', '--input-type=module', '--eval', script], {
             cwd: root,
             encoding: 'utf8',
-            env: { ...process.env, ...overrides },
+            env: { ...environment, ...overrides },
         }),
     );
 }

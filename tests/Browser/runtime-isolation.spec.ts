@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { createBrowserUser, startUnsafeServer } from './support/runtime';
+import { BROWSER_GUARD_PROBE_PORT, browserRuntimeEnv, createBrowserUser, startUnsafeServer } from './support/runtime';
 
 /*
  * BE-005 AC-01..03 — the browser journeys run against the disposable testing runtime only,
@@ -10,7 +10,7 @@ import { createBrowserUser, startUnsafeServer } from './support/runtime';
 test('fixtures and the served application use the disposable testing database', async ({ page }) => {
     const user = createBrowserUser({ roles: ['Requester'], team: true });
 
-    expect(user.runtime).toEqual({ environment: 'testing', database: 'nscmf_testing' });
+    expect(user.runtime).toEqual({ environment: 'testing', database: browserRuntimeEnv.DB_DATABASE });
 
     await page.goto('/login');
     await page.getByLabel('Username').fill(user.username);
@@ -39,12 +39,12 @@ test('the suite never retries and never records traces, screenshots or video', (
 });
 
 test('a served process pointed at the development database refuses every request', async ({ request }) => {
-    const server = startUnsafeServer(8011, { DB_DATABASE: 'nscmf' });
+    const server = startUnsafeServer(BROWSER_GUARD_PROBE_PORT, { DB_DATABASE: 'nscmf' });
     try {
         let status = 0;
         for (let attempt = 0; attempt < 50 && status === 0; attempt++) {
             status = await request
-                .get('http://127.0.0.1:8011/login')
+                .get(`http://127.0.0.1:${BROWSER_GUARD_PROBE_PORT}/login`)
                 .then((response) => response.status())
                 .catch(() => 0);
             if (status === 0) await new Promise((resolve) => setTimeout(resolve, 100));
