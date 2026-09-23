@@ -5,10 +5,12 @@ declare(strict_types=1);
 use App\Domain\Attachment\ScanVerdict;
 use App\Infrastructure\Malware\MalwareScanner;
 use App\Infrastructure\Pdf\PdfSigner;
+use App\Infrastructure\Pdf\SpreadsheetRenderer;
 use App\Services\Export\ExportGenerationService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
@@ -78,6 +80,18 @@ beforeEach(function (): void {
 });
 
 afterEach(fn () => @unlink(storage_path('framework/testing/signing-'.getmypid().'.p12')));
+
+it('renders with exactly the fonts the official template uses, never a substitute', function (): void {
+    $workspace = storage_path('framework/testing/render-'.getmypid());
+    @mkdir($workspace, 0700, true);
+    copy(base_path('NSCMF-Form-3.0.xlsx'), $workspace.'/template.xlsx');
+
+    $pdf = (string) file_get_contents(app(SpreadsheetRenderer::class)->render($workspace.'/template.xlsx', $workspace));
+    preg_match_all('#/BaseFont\s*/(?:[A-Z]{6}\+)?([A-Za-z]+)#', $pdf, $matches);
+    File::deleteDirectory($workspace);
+
+    expect(array_values(array_unique($matches[1])))->toEqualCanonicalizing(['Calibri', 'AptosNarrow', 'AptosDisplay']);
+})->skip(fn (): bool => ! signingReady(), 'LibreOffice or the official workbook is not provisioned.');
 
 it('signs an Approved PDF with the Organization certificate and records immutable issuance evidence', function (): void {
     activateSigner();
