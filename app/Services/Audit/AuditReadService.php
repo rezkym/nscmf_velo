@@ -9,6 +9,7 @@ use App\Domain\Shared\DomainRuleException;
 use App\Models\User;
 use App\Repositories\Contracts\Audit\AccessAuditRepository;
 use App\Repositories\Contracts\Audit\SecurityAuditRepository;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use stdClass;
 
@@ -37,7 +38,7 @@ final readonly class AuditReadService
         return self::page($this->access->paginate($filters), $filters, static fn (stdClass $row): array => [
             'id' => $row->id,
             'event_type' => $row->event_type,
-            'occurred_at' => $row->occurred_at,
+            'occurred_at' => self::iso($row->occurred_at),
             'actor' => self::ref($row->actor_user_id, $row->actor_name),
             'record' => $row->nscmf_record_id === null ? null : ['id' => $row->nscmf_record_id, 'request_no' => $row->request_no],
             'attachment_id' => $row->attachment_id,
@@ -57,7 +58,7 @@ final readonly class AuditReadService
             'id' => $row->id,
             'event_type' => $row->event_type,
             'outcome' => $row->outcome,
-            'occurred_at' => $row->occurred_at,
+            'occurred_at' => self::iso($row->occurred_at),
             'actor' => self::ref($row->actor_user_id, $row->actor_name),
             'target' => self::ref($row->target_user_id, $row->target_name),
             'subject_username' => $row->subject_username,
@@ -92,6 +93,12 @@ final readonly class AuditReadService
             ],
             'query' => $filters,
         ];
+    }
+
+    /** Stored as Asia/Jakarta wall time (config app.timezone); sent with its offset. */
+    private static function iso(mixed $value): ?string
+    {
+        return is_string($value) ? CarbonImmutable::parse($value)->toIso8601String() : null;
     }
 
     /**
