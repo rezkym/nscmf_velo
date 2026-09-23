@@ -27,7 +27,7 @@ const BASE: Omit<NscmfDetailRecord, 'family' | 'subtype'> = {
 };
 
 function mountShow(record: NscmfDetailRecord): VueWrapper {
-    return mount(Show, { props: { record } });
+    return mount(Show, { props: { record, attachments: [] } });
 }
 
 function field(wrapper: VueWrapper, key: string): string {
@@ -204,15 +204,15 @@ describe('Record detail (FE-18)', () => {
         expect(wrapper.get('[data-testid="table-results"]').text()).toContain('None');
     });
 
-    it('switches to the Timeline and Attachments tabs, which are not available yet', async () => {
+    it('switches between the tabs; the Timeline needs its own permission', async () => {
         const wrapper = mountShow({ ...BASE, family: 'CHANGE', subtype: 'MAINTENANCE', change: {} });
 
         await wrapper.get('[data-testid="tab-timeline"]').trigger('click');
-        expect(wrapper.get('[data-testid="timeline-stub"]').text()).toContain('not available yet');
+        expect(wrapper.text()).toContain('You do not have permission to view this timeline.');
         expect(wrapper.find('[data-testid="form-detail-section"]').exists()).toBe(false);
 
         await wrapper.get('[data-testid="tab-attachments"]').trigger('click');
-        expect(wrapper.get('[data-testid="attachments-stub"]').text()).toContain('not available yet');
+        expect(wrapper.text()).toContain('No attachments on this record.');
 
         await wrapper.get('[data-testid="tab-form"]').trigger('click');
         expect(wrapper.find('[data-testid="form-detail-section"]').exists()).toBe(true);
@@ -241,5 +241,34 @@ describe('Record detail (FE-18)', () => {
 
         const bareChange = mountShow({ ...BASE, family: 'CHANGE', subtype: 'MAINTENANCE' });
         expect(bareChange.get('[data-testid="field-maintenance_purpose"]').text()).toBe('—');
+    });
+
+    it('FE-34..36: offers the lifecycle actions the server allows on this record', () => {
+        resetInertia({ auth: { permissions: ['nscmf.view', 'nscmf.archive'] } });
+        const wrapper = mountShow({
+            ...BASE,
+            allowed_actions: ['nscmf.archive'],
+            family: 'ACTIVATION',
+            subtype: 'ACTIVATION',
+            activation: {},
+        });
+
+        expect(wrapper.get('[data-testid="lifecycle-archive"]').text()).toBe('Archive');
+    });
+
+    it('FE-38/43: the Timeline and Attachments tabs show the real panels, not placeholders', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(() => new Promise(() => undefined)),
+        );
+        resetInertia({ auth: { permissions: ['nscmf.view', 'nscmf.timeline.view'] } });
+        const wrapper = mountShow({ ...BASE, family: 'ACTIVATION', subtype: 'ACTIVATION', activation: {} });
+
+        await wrapper.get('[data-testid="tab-timeline"]').trigger('click');
+        expect(wrapper.find('[aria-label="Business timeline"]').exists()).toBe(true);
+        await wrapper.get('[data-testid="tab-attachments"]').trigger('click');
+        expect(wrapper.find('[data-testid="attachments-stub"]').exists()).toBe(false);
+        expect(wrapper.text()).toContain('No attachments on this record.');
+        vi.unstubAllGlobals();
     });
 });
