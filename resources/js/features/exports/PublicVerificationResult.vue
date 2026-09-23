@@ -6,7 +6,6 @@ import { formatJakarta } from '@/lib/datetime';
 
 import type { VerificationAnswer } from './verification';
 
-
 const props = defineProps<{ answer: VerificationAnswer }>();
 
 const OUTCOMES = {
