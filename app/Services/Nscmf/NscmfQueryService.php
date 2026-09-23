@@ -145,11 +145,10 @@ final readonly class NscmfQueryService
     public function dashboard(User $actor): array
     {
         $ownCounts = $this->records->countOwnByStatus($actor->id, NscmfStatus::DRAFT, NscmfStatus::REVISION_REQUIRED);
+        // A pool the actor may not see is omitted, not null: the card then shows its own empty state.
         $counts = [
             'drafts' => ['count' => $ownCounts[NscmfStatus::DRAFT->value] ?? 0],
             'revisions' => ['count' => $ownCounts[NscmfStatus::REVISION_REQUIRED->value] ?? 0],
-            'reviews' => null,
-            'approvals' => null,
         ];
         $items = [
             'drafts' => $this->summaries($this->records->recentOwnByStatus($actor->id, NscmfStatus::DRAFT, self::DASHBOARD_ITEMS)),
