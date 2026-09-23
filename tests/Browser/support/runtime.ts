@@ -38,6 +38,9 @@ export const browserRuntimeEnv: Record<string, string> = {
     LOG_CHANNEL: 'single',
     NSCMF_PRIVATE_STORAGE_ROOT: path.join(browserStorage, 'private'),
     NSCMF_RUNTIME_TMP_ROOT: path.join(browserStorage, 'tmp'),
+    // A throw-away Organization signer for this runtime only (never the development key).
+    NSCMF_SIGNING_P12_PATH: path.join(browserStorage, 'signing/organization.p12'),
+    NSCMF_SIGNING_P12_PASSPHRASE: 'browser-runtime-only-passphrase',
 };
 
 function tcpPort(name: string, value: string | number): number {
@@ -59,6 +62,17 @@ function runArtisan(args: string[]): string {
 
 export function prepareBrowserRuntime(): void {
     runArtisan(['nscmf:browser-testing:prepare']);
+}
+
+/** Runs every queued job once (upload finalization, export generation); there is no worker. */
+export function runQueuedJobs(): void {
+    runArtisan(['queue:work', '--stop-when-empty', '--tries=1']);
+}
+
+/** Registers the private official workbook and a fresh signer, as an operator would. */
+export function provisionExports(): void {
+    runArtisan(['nscmf:template:register', path.join(root, 'NSCMF-Form-3.0.xlsx'), '--activate']);
+    runArtisan(['nscmf:signing:activate', '--generate']);
 }
 
 export interface BrowserUser {
