@@ -59,7 +59,7 @@ test('a Change is completed, submitted, reviewed from the queue and its Result c
     const requestNo = (await page.locator('tbody tr').first().locator('td').first().innerText()).trim();
     expect(requestNo).toMatch(/^NSCMF-/);
     await page.locator('tbody tr').first().getByRole('link', { name: 'View' }).click();
-    await expect(page).toHaveURL(new RegExp(`${recordPath}$`));
+    await expect(page).toHaveURL(new RegExp(`${recordPath.replace('/nscmf/', '/review/')}$`));
     await expect(page.getByText('Replace the optical module on the core router.')).toBeVisible();
 
     // The owner captures the Result while the record is in review.
