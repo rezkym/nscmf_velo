@@ -21,12 +21,12 @@ function importsUnder(string $directory): array
     return $imports;
 }
 
-it('keeps each layer away from the persistence it must not touch', /** @param list<string> $forbidden */ function (string $directory, array $forbidden): void {
+it('keeps each layer away from the persistence it must not touch', function (string $directory, array $forbidden): void {
     $violations = [];
     foreach (importsUnder($directory) as $file => $imports) {
         foreach ($imports as $import) {
             foreach ($forbidden as $prefix) {
-                if (str_starts_with($import, $prefix)) {
+                if (is_string($prefix) && str_starts_with($import, $prefix)) {
                     $violations[] = "{$file} uses {$import}";
                 }
             }
