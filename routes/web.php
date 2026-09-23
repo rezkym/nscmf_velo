@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Account\TemporaryPasswordController;
+use App\Http\Controllers\Administration\Audits\AuditController;
 use App\Http\Controllers\Administration\Roles\RoleController;
 use App\Http\Controllers\Administration\SetupController;
 use App\Http\Controllers\Administration\Teams\TeamController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\ReauthenticateController;
 use App\Http\Controllers\Dashboard\DashboardController;
+use App\Http\Controllers\History\HistoryController;
 use App\Http\Controllers\Nscmf\CreateNscmfController;
 use App\Http\Controllers\Nscmf\DownloadAttachmentController;
 use App\Http\Controllers\Nscmf\RecordController;
@@ -52,6 +54,8 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('/approval', ApprovalQueueController::class)->name('approval.index');
     Route::get('/approval/{record}', ApprovalDetailController::class)->whereNumber('record')->name('approval.show');
+
+    Route::get('/history', HistoryController::class)->name('history.index');
 
     Route::get('/nscmf/create', [CreateNscmfController::class, 'create'])->name('nscmf.create');
     Route::post('/nscmf', [CreateNscmfController::class, 'store'])->name('nscmf.store');
@@ -101,5 +105,8 @@ Route::middleware('auth')->group(function (): void {
         Route::patch('/roles/{role}', [RoleController::class, 'update'])->name('administration.roles.update');
         Route::put('/roles/{role}/permissions', [RoleController::class, 'permissions'])->name('administration.roles.permissions');
         Route::get('/permissions', [RoleController::class, 'catalog'])->name('administration.permissions.index');
+
+        Route::get('/audits/access', [AuditController::class, 'access'])->name('administration.audits.access');
+        Route::get('/audits/security', [AuditController::class, 'security'])->name('administration.audits.security');
     });
 });

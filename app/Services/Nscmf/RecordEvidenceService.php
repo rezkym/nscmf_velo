@@ -7,6 +7,8 @@ namespace App\Services\Nscmf;
 use App\Domain\Audit\Enums\AccessAuditEvent;
 use App\Domain\Nscmf\RecordAccess;
 use App\Domain\Shared\DomainRuleException;
+use App\Models\Audit\BusinessAuditChangeRecord;
+use App\Models\Audit\BusinessAuditEventRecord;
 use App\Models\User;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Repositories\Contracts\Nscmf\RecordEvidenceRepository;
@@ -29,26 +31,25 @@ final readonly class RecordEvidenceService
     {
         $this->authorizeRecord($actor, $recordId, ['nscmf.timeline.view']);
         $events = $this->evidence->timeline($recordId, $page, $perPage);
-        $changes = [];
-        $ids = array_map(static fn (\stdClass $event): int => (int) $event->id, $events->items());
-        foreach ($this->evidence->changes($ids) as $change) {
-            $changes[(int) $change->business_audit_event_id][] = [
-                'field' => $change->field_path, 'before' => $change->old_value_text, 'after' => $change->new_value_text,
-            ];
-        }
 
         return [
-            'data' => array_map(static fn (\stdClass $event): array => [
-                'id' => (int) $event->id,
+            'data' => array_map(static fn (BusinessAuditEventRecord $event): array => [
+                'id' => $event->id,
                 'event_type' => $event->event_type,
-                'actor' => $event->actor_type === 'SYSTEM' ? 'System' : $event->actor_name,
-                'iteration_no' => $event->iteration_no === null ? null : (int) $event->iteration_no,
-                'from_status' => $event->from_status, 'to_status' => $event->to_status,
-                'reason' => $event->reason, 'comment' => $event->comment,
-                'version_before' => $event->record_version_before, 'version_after' => $event->record_version_after,
-                'occurred_at' => $event->occurred_at, 'changes' => $changes[(int) $event->id] ?? [],
+                'actor' => $event->actor_type === 'SYSTEM' ? 'System' : $event->actor?->name,
+                'iteration_no' => $event->iteration?->iteration_no,
+                'from_status' => $event->from_status,
+                'to_status' => $event->to_status,
+                'reason' => $event->reason,
+                'comment' => $event->comment,
+                'version_before' => $event->record_version_before,
+                'version_after' => $event->record_version_after,
+                'occurred_at' => $event->occurred_at->toIso8601String(),
+                'changes' => $event->changes->map(static fn (BusinessAuditChangeRecord $change): array => [
+                    'field' => $change->field_path, 'before' => $change->old_value_text, 'after' => $change->new_value_text,
+                ])->values()->all(),
             ], $events->items()),
-            'meta' => ['current_page' => $events->currentPage(), 'last_page' => $events->lastPage(), 'total' => $events->total()],
+            'meta' => ['current_page' => $events->currentPage(), 'last_page' => $events->lastPage(), 'per_page' => $events->perPage(), 'total' => $events->total()],
         ];
     }
 

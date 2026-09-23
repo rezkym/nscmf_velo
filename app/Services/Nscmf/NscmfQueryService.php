@@ -185,6 +185,21 @@ final readonly class NscmfQueryService
     }
 
     /**
+     * History (12 §47): visibility per 12 §17.1; archived stays a separate filter.
+     *
+     * @param  ListQuery  $query
+     * @return array<string, mixed>
+     */
+    public function history(User $actor, array $query): array
+    {
+        if (! $actor->can('nscmf.view.history')) {
+            throw DomainRuleException::forbidden();
+        }
+
+        return $this->paginated($actor, $query, $query);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function approvalDetail(User $actor, int $recordId): array

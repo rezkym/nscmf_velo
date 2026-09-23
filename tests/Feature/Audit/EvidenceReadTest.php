@@ -9,6 +9,7 @@ use App\Domain\Audit\Enums\SecurityAuditOutcome;
 use App\Services\Audit\AccessAuditService;
 use App\Services\Audit\BusinessAuditService;
 use App\Services\Audit\SecurityAuditService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\Actors;
@@ -68,7 +69,7 @@ it('lists History for the visible records only, with filters that never widen vi
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('History/Index', false)
             ->where('meta.total', 3)
-            ->where('items', fn ($items): bool => ! collect($items)->pluck('id')->contains($othersDraft)));
+            ->where('items', fn (Collection $items): bool => ! $items->pluck('id')->contains($othersDraft)));
 
     signIn($owner)->get('/history?archived=0&family=ACTIVATION')
         ->assertInertia(fn (AssertableInertia $page) => $page->has('items', 1)->where('items.0.id', $approved));
