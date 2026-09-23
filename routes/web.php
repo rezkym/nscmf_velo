@@ -15,6 +15,7 @@ use App\Http\Controllers\Nscmf\CreateNscmfController;
 use App\Http\Controllers\Nscmf\RecordController;
 use App\Http\Controllers\Nscmf\SaveChangeResultsController;
 use App\Http\Controllers\Nscmf\SaveDraftController;
+use App\Http\Controllers\Nscmf\Workflow\ReviewReturnController;
 use App\Http\Controllers\Nscmf\Workflow\SubmitRecordController;
 use App\Http\Controllers\Review\ReviewQueueController;
 use Illuminate\Support\Facades\Route;
@@ -46,6 +47,7 @@ Route::middleware('auth')->group(function (): void {
     Route::patch('/nscmf/{record}/draft', SaveDraftController::class)->whereNumber('record')->name('nscmf.draft');
     Route::patch('/nscmf/{record}/change-results', SaveChangeResultsController::class)->whereNumber('record')->name('nscmf.change-results');
     Route::post('/nscmf/{record}/submit', SubmitRecordController::class)->whereNumber('record')->name('nscmf.submit');
+    Route::post('/nscmf/{record}/review/return', ReviewReturnController::class)->whereNumber('record')->name('nscmf.review.return');
 
     Route::prefix('administration')->whereNumber(['team', 'user', 'role'])->group(function (): void {
         Route::get('/setup', SetupController::class)->name('administration.setup');

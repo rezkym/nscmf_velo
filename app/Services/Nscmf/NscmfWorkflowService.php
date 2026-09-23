@@ -102,6 +102,49 @@ final readonly class NscmfWorkflowService
         });
     }
 
+    /** Reviewer Return keeps the active iteration and its existing sign-off evidence (05 §16, §32). */
+    public function returnForRevision(User $actor, int $recordId, int $expectedVersion, string $reason): void
+    {
+        $this->database->connection()->transaction(function () use ($actor, $recordId, $expectedVersion, $reason): void {
+            $record = $this->records->lockForUpdate($recordId);
+
+            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+                throw DomainRuleException::notFound();
+            }
+
+            if (! $actor->can('nscmf.review.return')) {
+                throw DomainRuleException::forbidden();
+            }
+
+            if ($record->is_archived) {
+                throw new DomainRuleException('NSCMF_ARCHIVED_CONFLICT', 'This record is archived.', 409, self::context($record));
+            }
+
+            if ($record->business_status !== NscmfStatus::PENDING_REVIEW) {
+                throw new DomainRuleException('NSCMF_STATE_CONFLICT', 'This record is not pending review.', 409, self::context($record));
+            }
+
+            if ($expectedVersion !== $record->record_version) {
+                throw new DomainRuleException('NSCMF_VERSION_CONFLICT', 'A newer version of this record exists. Refresh the record before returning it.', 409, self::context($record));
+            }
+
+            $versionBefore = $record->record_version;
+            $this->records->updateAndIncrementVersion($record, ['business_status' => NscmfStatus::REVISION_REQUIRED->value]);
+
+            $this->businessAudit->record(
+                recordId: $record->id,
+                actorUserId: $actor->id,
+                event: BusinessAuditEvent::REVIEW_RETURNED,
+                versionBefore: $versionBefore,
+                versionAfter: $record->record_version,
+                fromStatus: NscmfStatus::PENDING_REVIEW->value,
+                toStatus: NscmfStatus::REVISION_REQUIRED->value,
+                reason: trim($reason),
+                workflowIterationId: $record->current_workflow_iteration_id,
+            );
+        });
+    }
+
     /**
      * @return array<string, mixed>
      */
