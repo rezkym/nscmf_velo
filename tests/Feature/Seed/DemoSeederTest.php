@@ -75,7 +75,7 @@ it('seeds the twenty coherent DEMO scenarios with every state, subtype and archi
         'DEMO-ACT-007' => ['CANCELLED', 0], 'DEMO-ACT-008' => ['APPROVED', 1], 'DEMO-ACT-009' => ['REVISION_REQUIRED', 0],
         'DEMO-ACT-010' => ['PENDING_REVIEW', 0], 'DEMO-CHG-001' => ['DRAFT', 0], 'DEMO-CHG-002' => ['PENDING_REVIEW', 0],
         'DEMO-CHG-003' => ['PENDING_REVIEW', 0], 'DEMO-CHG-004' => ['REVISION_REQUIRED', 0], 'DEMO-CHG-005' => ['PENDING_APPROVAL', 0],
-        'DEMO-CHG-006' => ['APPROVED', 0], 'DEMO-CHG-007' => ['REJECTED', 0], 'DEMO-CHG-008' => ['CANCELLED', 0], // G20: 17 §49 asks archived, 12 §17.1 lets no demo actor see it
+        'DEMO-CHG-006' => ['APPROVED', 0], 'DEMO-CHG-007' => ['REJECTED', 0], 'DEMO-CHG-008' => ['CANCELLED', 1],
         'DEMO-CHG-009' => ['APPROVED', 1], 'DEMO-CHG-010' => ['PENDING_REVIEW', 0],
     ];
     expect(array_map(fn (stdClass $r): array => [$r->business_status, $r->is_archived], $records))->toEqualCanonicalizing($expected)
@@ -85,6 +85,11 @@ it('seeds the twenty coherent DEMO scenarios with every state, subtype and archi
     foreach (['DEMO-ACT-001', 'DEMO-ACT-007', 'DEMO-CHG-001', 'DEMO-CHG-008'] as $neverSubmitted) {
         expect($records[$neverSubmitted]->current_workflow_iteration_id)->toBeNull()->and($records[$neverSubmitted]->requested_by_user_id)->toBeNull();
     }
+
+    // Cancelled + archived by the Protected Superadmin, who owns it: a never-submitted record is
+    // visible to its owner only (12 §17.1), and the archive actor is the Superadmin (17 §49, §981).
+    expect($records['DEMO-CHG-008']->owner_user_id)->toBe(userId('superadmin'))
+        ->and($records['DEMO-CHG-008']->archived_by_user_id)->toBe(userId('superadmin'));
 
     // Reviewer collaboration: an earlier Return by demo.reviewer, the effective Forward by demo.multi.
     $act004 = $records['DEMO-ACT-004'];
@@ -125,7 +130,7 @@ it('covers every reference type, service impact and Result scenario with synthet
     foreach (['nscmf_attachments', 'nscmf_attachment_upload_sessions', 'nscmf_export_requests', 'nscmf_pdf_issuances', 'nscmf_template_versions', 'nscmf_number_sequences'] as $table) {
         expect(DB::table($table)->count())->toBe(0);
     }
-    expect(collect($records)->pluck('team_id')->unique()->count())->toBe(2);
+    expect(collect($records)->pluck('team_id')->filter()->unique()->count())->toBe(2);
 });
 
 it('reruns safely: no duplicates and intentional changes are preserved', function (): void {
