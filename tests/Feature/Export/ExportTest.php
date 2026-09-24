@@ -353,3 +353,24 @@ it('leaves expired files out of a batch ZIP and refuses one with nothing left to
     signIn($owner)->getJson("/nscmf/export-batches/{$batchId}/download")->assertStatus(410)->assertJsonPath('code', 'EXPORT_EXPIRED');
     expect(DB::table('access_audit_events')->where('event_type', 'EXPORT_DOWNLOADED')->count())->toBe(0);
 })->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+
+it('reports the snapshot an export is bound to, unaffected by later edits (FE-44 AC3)', function (): void {
+    registerTemplate();
+    $owner = Actors::requester();
+    $recordId = Records::create($owner);
+    Records::submitted($recordId, $owner);
+    $version = DB::table('nscmf_records')->where('id', $recordId)->value('record_version');
+
+    $exportId = signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])
+        ->assertStatus(202)
+        ->assertJsonPath('data.snapshot.record_version', $version)
+        ->assertJsonPath('data.snapshot.iteration_no', 1)
+        ->assertJsonPath('data.snapshot.template', 'NSCMF-Form-3.0')
+        ->json('data.id');
+    assert(is_int($exportId));
+
+    DB::table('nscmf_records')->where('id', $recordId)->increment('record_version');
+    signIn($owner)->getJson("/nscmf/exports/{$exportId}")->assertOk()
+        ->assertJsonPath('data.snapshot.record_version', $version)
+        ->assertJsonMissingPath('data.snapshot.snapshot_json');
+})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
