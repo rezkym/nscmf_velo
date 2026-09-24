@@ -7,7 +7,7 @@
 > **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-09-24 (`nscmf.analytics.view`, §12.1)  
 
 ---
 
@@ -208,6 +208,21 @@ no MFA
 
 Requester mutation ownership remains explicit where upstream says own record.
 
+## 12.1 Dashboard Analytics — decided 2026-09-24
+
+| Permission | Description |
+|---|---|
+| `nscmf.analytics.view` | View organization-wide Dashboard aggregates (`12 §44.1`) |
+
+Rules:
+
+- the organization panel is served only when the actor holds **both** `nscmf.analytics.view` and `nscmf.view.history`; either alone serves nothing organization-wide;
+- the permission is read-only and aggregate-only: it never reveals a record, Request No, owner identity, another user's Draft, or a queue;
+- Team never participates; multi-role uses the ordinary effective-permission union;
+- default bundle: **Superadmin only** (§36); Requester, Reviewer and Approver do not receive it; a custom role receives it only through normal role-permission administration.
+
+Decision owner: project owner (user), 2026-09-24, recorded as gap G22 in the backend microtask register.
+
 ## 13. Review Permissions
 
 | Permission | Eligible State |
@@ -372,6 +387,7 @@ Legend: ✅ default; 🔒 protected/inherent; `Own` explicit ownership; — not 
 | Reopen Approved/Rejected | ✅ | — | — | — |
 | Archive/Unarchive | ✅ | — | — | — |
 | Single/Bulk Export authorized | ✅ | ✅ | ✅ | ✅ |
+| Organization Dashboard analytics (§12.1) | ✅ | — | — | — |
 | Hard Delete | ❌ | ❌ | ❌ | ❌ |
 
 ## 22. Administration Matrix
@@ -521,7 +537,7 @@ nscmf.export.bulk
 
 ## 36. Superadmin Bundle
 
-All defined normal app permissions plus `nscmf.reopen`, `nscmf.archive`, privileged audit views, eligible admin permissions, and `system.settings.manage`, subject to protected invariants.
+All defined normal app permissions plus `nscmf.reopen`, `nscmf.archive`, `nscmf.analytics.view` (§12.1), privileged audit views, eligible admin permissions, and `system.settings.manage`, subject to protected invariants.
 
 No hard-delete/impersonation/invalid-state/audit-purge/security bypass.
 

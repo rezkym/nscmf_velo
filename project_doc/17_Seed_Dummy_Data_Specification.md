@@ -8,7 +8,7 @@
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md` through `16_Testing_Specification.md`  
 > **Canonical Application / Seed Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-09-24 (`nscmf.analytics.view` in the Superadmin bundle, §339)  
 
 ---
 
@@ -338,7 +338,7 @@ nscmf.export.bulk
 
 ### Superadmin
 
-Superadmin receives all current normal application/admin permissions including `nscmf.reopen`, `nscmf.archive`, audit views, and `system.settings.manage`, while remaining subject to state/security/protected invariants.
+Superadmin receives all current normal application/admin permissions including `nscmf.reopen`, `nscmf.archive`, `nscmf.analytics.view` (`04 §12.1`, decided 2026-09-24), audit views, and `system.settings.manage`, while remaining subject to state/security/protected invariants. Requester, Reviewer and Approver bundles do not receive `nscmf.analytics.view`; rerunning the reference seed adds it to an existing Superadmin role without removing any grant.
 
 The seed MUST NOT create a universal authorization bypass.
 

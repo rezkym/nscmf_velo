@@ -1,6 +1,6 @@
 # Desain UI NSCMF — arah redesign
 
-> Status: proposal desain untuk goal implementasi berikutnya. `project_doc/` tetap menjadi otoritas; perubahan produk, RBAC, UI, API, dan seed pada proposal ini harus disinkronkan ke dokumen terkait sebelum implementasi. Rencana lengkap, kontrak, urutan kerja, serta acceptance berada di [desaign/plan.md](desaign/plan.md).
+> Status: disetujui pemilik 2026-09-24 dan disinkronkan ke `project_doc/` 01 (§8), 04 (§12.1, §21, §36), 07 (§7.1, §17.1), 12 (§44.1), dan 17 (§339); keputusan tercatat sebagai gap G22. `project_doc/` tetap menjadi otoritas. Rencana lengkap, kontrak, urutan kerja, serta acceptance berada di [design/plan.md](design/plan.md).
 
 ## Arah visual
 
@@ -20,4 +20,4 @@ Keputusan metrik, permission, bundle, dan prop ini harus disinkronkan ke `projec
 
 Komposisi referensi adalah panduan visual, bukan sumber fungsi: tidak ada pencarian global, notifikasi, avatar foto, promosi aplikasi, time tracker, atau angka pertumbuhan buatan. Form panjang tetap punya navigator bagian, validasi server, dan save/konflik yang jujur. Status bisnis memakai tujuh nilai canonical; Archived, scan, dan ekspor tetap status terpisah. Tampilan harus tetap jelas pada lebar 320, 768, dan 1280 px, bisa dipakai dengan keyboard, menghormati reduced motion, dan memenuhi arah keterbacaan WCAG-AA-like proyek.
 
-Rincian token, kontrak TypeScript, penerapan per layar, urutan TDD, dan skenario pengujian ada di [rencana lengkap](desaign/plan.md).
+Rincian token, kontrak TypeScript, penerapan per layar, urutan TDD, dan skenario pengujian ada di [rencana lengkap](design/plan.md).

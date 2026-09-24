@@ -10,7 +10,7 @@
 > **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `14_Environment_Specification.md`  
 > **Application Style:** Laravel 13 modular monolith + Inertia 3 + Vue 3 + session authentication  
 > **Canonical Application Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-23 (G06 byte-limit decision; G01/G03/G07/G09/G12/G14/G19 decisions)
+> **Last Updated:** 2026-09-24 (G22 Dashboard analytics §44.1; earlier: G06 byte-limit decision; G01/G03/G07/G09/G12/G14/G19 decisions)
 
 ---
 
@@ -1152,6 +1152,34 @@ GET /history
 ```
 
 `GET /nscmf/{record}/edit` serves both the Draft/Revision editor and the Change Result-only editor (§29).
+
+## 44.1 Dashboard Analytics Prop — decided 2026-09-24 (G22)
+
+`GET /dashboard` keeps its route and adds the Inertia prop `analytics`; no new endpoint:
+
+```ts
+type DashboardAnalytics = {
+    period: { from: string; through: string; timezone: 'Asia/Jakarta' };
+    mine: {
+        totals_28d: { created: number; first_submitted: number; approval_decisions: number };
+        weekly: Array<{ from: string; through: string; created: number; first_submitted: number; approval_decisions: number }>;
+        active_status_counts: Array<{ status: BusinessStatus; count: number }>;
+    };
+    organization?: {
+        totals_28d: { first_submitted: number; approval_decisions: number };
+        weekly: Array<{ from: string; through: string; first_submitted: number; approval_decisions: number }>;
+        active_status_counts: Array<{ status: BusinessStatus; count: number }>;
+    };
+};
+```
+
+Rules:
+
+- the period is today in `Asia/Jakarta` plus the 27 previous calendar days, split oldest-first into four consecutive 7-day buckets; `from`/`through` are inclusive `YYYY-MM-DD` dates; day boundaries are computed in `Asia/Jakarta` before querying;
+- `created` counts `nscmf_records.created_at` of records the actor owns; `first_submitted` counts `first_submitted_at`; `approval_decisions` counts `nscmf_workflow_iterations.approved_at` of in-scope records — every approved iteration is one decision, so a record approved again after Reopen counts twice when both fall in the period;
+- `mine.active_status_counts` counts the actor's own records with `is_archived = false`, one entry per business status (§33), zero included;
+- `organization` is present **only** when the actor holds `nscmf.analytics.view` **and** `nscmf.view.history` (`04 §12.1`); otherwise the key is absent (never zero-filled); organization aggregates cover only records with `first_submitted_at IS NOT NULL` (§17.1), and `organization.active_status_counts` additionally requires `is_archived = false` and lists only statuses reachable after a first submission (all except `DRAFT`, zero included);
+- aggregates carry no Request No and no owner identity; Team never participates; the server computes every number and the client only renders.
 
 ## 45. Review Queue
 

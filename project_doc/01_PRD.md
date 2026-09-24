@@ -8,7 +8,7 @@
 > **Repository:** `rezkym/nscmf_velo`  
 > **Primary Business Reference:** NSCMF Form 3.0 (Excel)  
 > **Product Flow Reference:** NSCMF FigJam proposal  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-09-24 (Dashboard analytics decision, `07 §17.1`)  
 
 ---
 
@@ -194,7 +194,7 @@ MVP includes:
 7. Multi-role.
 8. Spatie Permission 8.x + Policies/Gates/domain checks.
 9. Spatie Teams disabled.
-10. Dashboard.
+10. Dashboard, including read-only activity/status analytics of the actor's own records and, with `nscmf.analytics.view` + `nscmf.view.history`, organization-wide aggregates (decided 2026-09-24; `04 §12.1`, `07 §17.1`, `12 §44.1`).
 11. Create New Form.
 12. History.
 13. Activation/Change forms + subtypes.

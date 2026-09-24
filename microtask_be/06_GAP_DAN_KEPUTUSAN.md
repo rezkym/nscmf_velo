@@ -215,4 +215,18 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Temuan audit yang **tidak** diubah karena sudah sesuai: `results` di Draft save saat PENDING_REVIEW tetap `422` (12 §26, checklist 12); Superadmin non-pemilik tidak punya aksi pada REVISION_REQUIRED (05 §9, §30; 04 §10).
 - Bukti: `handoff/2026-09-24-e2e-gap-closure.md`.
 
+<a id="g22"></a>
+
+## G22 — Redesign UI dan analitik Dashboard
+
+- Sumber: `design.md`, `design/plan.md` §5; `07 §17` hanya mengatur empat kartu, belum ada izin/prop analitik.
+- Dampak/task owner: [BE-087](BE-087.md), FE-16, seluruh layar (sistem visual bersama).
+- Pihak berwenang: Pemilik proyek.
+- Status: **CLOSED 2026-09-24** oleh pemilik proyek:
+  1. izin baru `nscmf.analytics.view`, bundle bawaan Superadmin saja (04 §12.1, §36; 17 §339);
+  2. panel organisasi hanya bila aktor punya `nscmf.analytics.view` **dan** `nscmf.view.history`; bila kurang, key `organization` tidak dikirim (12 §44.1);
+  3. prop Inertia `analytics` pada `GET /dashboard`, tanpa endpoint, migrasi, atau dependency baru (12 §44.1);
+  4. tata letak Dashboard dan sistem visual bersama (07 §7.1, §17.1).
+- Wajib human security review sebelum merge (izin baru, 18 §17).
+
 Removed concerns dari19A/20 tidak menjadi gap: HA/Redis/DR/backup/load/SLA architecture/automatedCD/publicCA/multi-server. Actual hostname/provider/Linux/path baru dicatat ketika deployment sungguhan diperintahkan; tidak memilih server sekarang.

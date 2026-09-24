@@ -10,7 +10,7 @@
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Visual/Flow Reference:** NSCMF FigJam proposal  
 > **UI Implementation Reference:** Vue 3 + TypeScript + Inertia 3 + shadcn-vue + Tailwind CSS 4  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-09-24 (Dashboard analytics and shared visual system, §7.1, §17.1)  
 
 ---
 
@@ -107,6 +107,21 @@ Team MAY appear as user/profile/business context but MUST NOT imply access entit
 | black | `#000000` |
 
 Semantic success=green, warning=amber/yellow, destructive/error=red, primary/info=brand blue, neutral=gray. Meaning never relies on color alone.
+
+## 7.1 Shared Visual System — decided 2026-09-24
+
+One visual language for every screen (authenticated shell, authentication pages and the public validator), defined once as design tokens in `resources/css/app.css` and reused through shared components, never re-declared per page:
+
+| Token | Value |
+|---|---|
+| canvas | `#F5F7FB` |
+| surface (card, sidebar, header) | `#FFFFFF` |
+| hairline border | `#E4E9F2` |
+| heading text | `#091540` (brand-950) |
+| body text | `#202939` |
+| secondary text | `#5B6575` |
+
+Neutral values are presentation tokens, never business-status colors. Body text is at least 14 px; 12 px only for short metadata that keeps its contrast. Panels use a soft radius and a thin shadow; one highlighted Dashboard card may use a brand-950 → brand-700 gradient with white text that passes contrast. System fonts only; no external fonts or images. The light theme is the design reference; the existing `.dark` token set stays compatible, but no dark-mode toggle is added. Reference detail: `design/plan.md`.
 
 ## 8. Accessibility / Typography / Spacing
 
@@ -275,6 +290,16 @@ Operational landing page with current attention + quick Create + History.
 Recommended cards: My Draft, Revision Required, Pending Review if effective Review permission exists, Pending Approval if effective Approval permission exists.
 
 Counts obey backend resource authorization and permissions. Team does not grant queue access.
+
+## 17.1 Dashboard Layout and Analytics — decided 2026-09-24
+
+- cards appear in the fixed order Draft, Revision, Review, Approval; the grid uses as many desktop columns as cards are present (2, 3 or 4), at most two on tablet and one on phone, with no empty slot for a hidden card;
+- a card shows its label, the server count, at most a few Request No links and `View all` only where a list page exists; loading shows `Loading…`, an unknown value `—`, a true zero `0`, and a failure a message + Retry that reloads the counts only; no trend text without an official definition;
+- **Activity** (grouped bars for four 7-day periods) and **Status** (a labeled segmented bar with a legend) render server aggregates from `12 §44.1`; every value and date range is also readable as text, without color, hover or animation;
+- a `Mine` / `Organization` switch appears only when the server sent the organization aggregates (`04 §12.1`); the switch is presentation only;
+- **Needs attention** lists records already sent for the cards (order Revision, Review, Approval, Draft; at most six; no duplicates), each opening the page where its work is done;
+- **Quick actions** lists only actions the actor can actually take (Create, History, Review queue, Approval queue by permission/prerequisite);
+- a panel that does not apply is omitted and its neighbor widens; no decorative notifications, search, avatars, reminders or invented growth figures.
 
 ## 18. Create Flow
 
