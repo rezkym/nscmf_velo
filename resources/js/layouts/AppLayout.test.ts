@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/vue3';
-import { mount } from '@vue/test-utils';
-import { nextTick, ref } from 'vue';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises, mount } from '@vue/test-utils';
+import { ref } from 'vue';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AppLayout from './AppLayout.vue';
 
@@ -275,57 +275,91 @@ describe('AppLayout.vue', () => {
         expect(wrapper.findComponent(Head).props('title')).toBe('Dashboard');
     });
 
-    describe('navigation panel on narrow screens', () => {
-        afterEach(() => {
-            document.body.innerHTML = '';
-        });
-
-        function mountShell() {
+    describe('sidebar on wide screens', () => {
+        it('collapses and expands from the header button, which reports its state', async () => {
             mockPageProps.value = {
                 auth: {
                     user: { id: 1, username: 'demo.user', name: 'Demo User', must_change_password: false },
                     permissions: ['nscmf.view.history'],
                 },
             };
-            return mount(AppLayout, { props: { title: 'Dashboard' }, attachTo: document.body });
+            const wrapper = mount(AppLayout, { props: { title: 'Dashboard' } });
+            const toggle = wrapper.get('[data-testid="sidebar-toggle"]');
+            const sidebar = () => wrapper.get('[data-slot="sidebar"]');
+
+            expect(toggle.attributes('aria-expanded')).toBe('true');
+            expect(sidebar().attributes('data-state')).toBe('expanded');
+
+            await toggle.trigger('click');
+            expect(toggle.attributes('aria-expanded')).toBe('false');
+            expect(sidebar().attributes('data-state')).toBe('collapsed');
+
+            await toggle.trigger('click');
+            expect(sidebar().attributes('data-state')).toBe('expanded');
+        });
+    });
+
+    describe('navigation panel on narrow screens', () => {
+        beforeEach(() => {
+            // A phone-width viewport: the sidebar becomes a panel over the page.
+            vi.stubGlobal(
+                'matchMedia',
+                vi.fn((query: string) => ({
+                    matches: true,
+                    media: query,
+                    addEventListener: vi.fn(),
+                    removeEventListener: vi.fn(),
+                })),
+            );
+        });
+
+        afterEach(() => {
+            vi.unstubAllGlobals();
+            document.body.innerHTML = '';
+        });
+
+        async function mountShell() {
+            mockPageProps.value = {
+                auth: {
+                    user: { id: 1, username: 'demo.user', name: 'Demo User', must_change_password: false },
+                    permissions: ['nscmf.view.history'],
+                },
+            };
+            const wrapper = mount(AppLayout, { props: { title: 'Dashboard' }, attachTo: document.body });
+            await flushPromises();
+            return wrapper;
         }
 
-        it('opens from the menu button and moves focus into the panel', async () => {
-            const wrapper = mountShell();
+        it('keeps the navigation closed until the menu button opens it, then moves focus into it', async () => {
+            const wrapper = await mountShell();
             const toggle = wrapper.get('[data-testid="sidebar-toggle"]');
 
-            expect(toggle.attributes('aria-controls')).toBe('sidebar-navigation');
+            expect(wrapper.find('nav[aria-label="Sidebar Menu"]').exists()).toBe(false);
             expect(toggle.attributes('aria-expanded')).toBe('false');
 
             (toggle.element as HTMLElement).focus();
             await toggle.trigger('click');
-            await nextTick();
+            await flushPromises();
 
+            const panel = wrapper.get('[role="dialog"]');
             expect(toggle.attributes('aria-expanded')).toBe('true');
-            expect(wrapper.get('#sidebar-navigation').element.contains(document.activeElement)).toBe(true);
+            expect(panel.find('nav[aria-label="Sidebar Menu"]').exists()).toBe(true);
+            expect(panel.element.contains(document.activeElement)).toBe(true);
         });
 
         it('closes with Escape and returns focus to the menu button', async () => {
-            const wrapper = mountShell();
+            const wrapper = await mountShell();
             const toggle = wrapper.get('[data-testid="sidebar-toggle"]');
             (toggle.element as HTMLElement).focus();
             await toggle.trigger('click');
-            await nextTick();
+            await flushPromises();
 
             window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-            await nextTick();
+            await flushPromises();
 
+            expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
             expect(toggle.attributes('aria-expanded')).toBe('false');
             expect(document.activeElement).toBe(toggle.element);
-        });
-
-        it('closes from the backdrop', async () => {
-            const wrapper = mountShell();
-            await wrapper.get('[data-testid="sidebar-toggle"]').trigger('click');
-
-            await wrapper.get('[data-testid="sidebar-backdrop"]').trigger('click');
-
-            expect(wrapper.get('[data-testid="sidebar-toggle"]').attributes('aria-expanded')).toBe('false');
         });
     });
 
@@ -384,7 +418,7 @@ describe('AppLayout.vue', () => {
 
         // Normal sidebar and nav should not be rendered
         expect(wrapper.find('nav').exists()).toBe(false);
-        expect(wrapper.find('[data-testid="sidebar"]').exists()).toBe(false);
+        expect(wrapper.find('[data-slot="sidebar"]').exists()).toBe(false);
 
         // But slot content is rendered in a minimalist/isolated container
         expect(wrapper.text()).toContain('Must change password form');
@@ -407,8 +441,8 @@ describe('AppLayout.vue', () => {
         const wrapper = mount(AppLayout, { props: { title: 'History' } });
 
         expect(wrapper.get('header').text()).toContain('History');
-        expect(wrapper.get('[data-testid="sidebar"]').text()).toContain('Demo Requester A');
+        expect(wrapper.get('[data-testid="sidebar-user"]').text()).toContain('Demo Requester A');
         // Team is profile information only, never an access hint (07 §6).
-        expect(wrapper.get('[data-testid="sidebar"]').text()).toContain('Team Alpha');
+        expect(wrapper.get('[data-testid="sidebar-user"]').text()).toContain('Team Alpha');
     });
 });
