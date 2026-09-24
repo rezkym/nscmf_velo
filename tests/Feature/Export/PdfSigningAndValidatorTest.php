@@ -18,11 +18,14 @@ use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\Actors;
 use Tests\Support\FakeScanner;
 use Tests\Support\Records;
+use Tests\Support\StandInRenderer;
+use Tests\Support\SyntheticWorkbook;
 
 /*
  * BE-114–124 / T54–T61 — qualified renderer, Organization signing, issuance evidence and the
- * public validator (10 §signing; 11 §47–48; 12 §68, §72–75; 20 §19–21). Runs the real
- * LibreOffice renderer and real OpenSSL signing; skips when either is not provisioned.
+ * public validator (10 §signing; 11 §47–48; 12 §68, §72–75; 20 §19–21). Signing and verification
+ * are always real (ddn/sapp + OpenSSL). Rendering is real LibreOffice on the official workbook when
+ * both are provisioned, else a stand-in PDF; the font test needs the real pair and skips without it.
  */
 
 /** LibreOffice from the PATH (Homebrew, apt, …); empty when not installed. */
@@ -31,7 +34,8 @@ function soffice(): string
     return trim((string) shell_exec('command -v soffice 2>/dev/null'));
 }
 
-function signingReady(): bool
+/** The real renderer and the official workbook, needed only where rendering fidelity is the point. */
+function realRendererReady(): bool
 {
     return is_file(base_path('NSCMF-Form-3.0.xlsx')) && soffice() !== '';
 }
@@ -76,7 +80,14 @@ beforeEach(function (): void {
         'nscmf.signing.p12_path' => storage_path('framework/testing/signing-'.getmypid().'.p12'),
         'nscmf.signing.p12_passphrase' => 'test-only-passphrase',
     ]);
-    Artisan::call('nscmf:template:register', ['path' => base_path('NSCMF-Form-3.0.xlsx'), '--activate' => true]);
+    // Real LibreOffice + official workbook when provisioned; otherwise (CI) a stand-in renderer on a
+    // synthetic template, so signing, issuance and verification still run with real cryptography.
+    if (realRendererReady()) {
+        Artisan::call('nscmf:template:register', ['path' => base_path('NSCMF-Form-3.0.xlsx'), '--activate' => true]);
+    } else {
+        app()->instance(SpreadsheetRenderer::class, new StandInRenderer);
+        Artisan::call('nscmf:template:register', ['path' => SyntheticWorkbook::path(), '--activate' => true]);
+    }
 });
 
 afterEach(fn () => @unlink(storage_path('framework/testing/signing-'.getmypid().'.p12')));
@@ -94,7 +105,7 @@ it('renders with exactly the fonts the official template uses, never a substitut
     $substitutes = array_filter($matches[1], fn (string $font): bool => preg_match('/^(Calibri|Aptos-Narrow|Aptos-Display)(-|$)/', $font) !== 1);
     expect($matches[1])->toContain('Calibri')->toContain('Aptos-Narrow')
         ->and(array_values(array_unique($substitutes)))->toBe([]);
-})->skip(fn (): bool => ! signingReady(), 'LibreOffice or the official workbook is not provisioned.');
+})->skip(fn (): bool => ! realRendererReady(), 'LibreOffice or the official workbook is not provisioned.');
 
 it('signs an Approved PDF with the Organization certificate and records immutable issuance evidence', function (): void {
     activateSigner();
@@ -110,7 +121,7 @@ it('signs an Approved PDF with the Organization certificate and records immutabl
     $exportId = DB::table('nscmf_export_requests')->value('id');
     assert(is_int($exportId));
     signIn(Actors::requester())->getJson("/nscmf/exports/{$exportId}")->assertNotFound();
-})->skip(fn (): bool => ! signingReady(), 'LibreOffice or the official workbook is not provisioned.');
+});
 
 it('verifies a genuine current PDF publicly with minimum disclosure, then as superseded after Reopen', function (): void {
     activateSigner();
@@ -130,7 +141,7 @@ it('verifies a genuine current PDF publicly with minimum disclosure, then as sup
 
     verifyPdf($pdf)->assertOk()->assertJsonPath('data.result', 'VALID_SUPERSEDED');
     expect(Storage::disk('nscmf_runtime_tmp')->allFiles())->toBe([]);
-})->skip(fn (): bool => ! signingReady(), 'LibreOffice or the official workbook is not provisioned.');
+});
 
 it('reports a modified signed PDF as INVALID_MODIFIED and an unknown PDF as UNKNOWN, disclosing nothing', function (): void {
     activateSigner();
@@ -140,7 +151,7 @@ it('reports a modified signed PDF as INVALID_MODIFIED and an unknown PDF as UNKN
     $signedByte = (int) strpos($pdf, '/Type');
     verifyPdf(substr_replace($pdf, '/TYPE', $signedByte, 5))->assertOk()->assertJsonPath('data.result', 'INVALID_MODIFIED');
     verifyPdf("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n")->assertOk()->assertJsonPath('data.result', 'UNKNOWN');
-})->skip(fn (): bool => ! signingReady(), 'LibreOffice or the official workbook is not provisioned.');
+});
 
 it('keeps verifying PDFs signed by a retired certificate after rotation', function (): void {
     activateSigner('Organization 2026');
@@ -149,7 +160,7 @@ it('keeps verifying PDFs signed by a retired certificate after rotation', functi
 
     expect(DB::table('nscmf_signing_certificates')->whereNotNull('retired_at')->count())->toBe(1);
     verifyPdf($pdf)->assertOk()->assertJsonPath('data.result', 'VALID_CURRENT');
-})->skip(fn (): bool => ! signingReady(), 'LibreOffice or the official workbook is not provisioned.');
+});
 
 it('never produces an unsigned Approved PDF: signing unavailable refuses or fails the export', function (): void {
     $owner = Actors::requester();
@@ -172,7 +183,7 @@ it('never produces an unsigned Approved PDF: signing unavailable refuses or fail
         ->and(DB::table('nscmf_pdf_issuances')->count())->toBe(0)
         ->and(DB::table('nscmf_records')->where('id', $recordId)->value('business_status'))->toBe('APPROVED')
         ->and(DB::table('security_audit_events')->where('event_type', 'PDF_SIGNING_FAILED')->count())->toBe(1);
-})->skip(fn (): bool => ! signingReady(), 'LibreOffice or the official workbook is not provisioned.');
+});
 
 it('renders a non-Approved PDF unsigned and without issuance', function (): void {
     $owner = Actors::requester();
@@ -183,7 +194,7 @@ it('renders a non-Approved PDF unsigned and without issuance', function (): void
 
     signIn($owner)->getJson("/nscmf/exports/{$exportId}")->assertJsonPath('data.status', 'READY')->assertJsonPath('data.signed', false);
     expect(DB::table('nscmf_pdf_issuances')->count())->toBe(0);
-})->skip(fn (): bool => ! signingReady(), 'LibreOffice or the official workbook is not provisioned.');
+});
 
 it('hardens the public validator input, scan and rate limit', function (): void {
     config(['security.pdf_validator_throttle.per_minute' => 5]);
