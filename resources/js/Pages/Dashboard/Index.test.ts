@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { requests, resetInertia, router } from '@/testing/inertia';
 
-import type { DashboardCounts, DashboardItems } from '@/features/dashboard/types';
+import type { DashboardAnalytics, DashboardCounts, DashboardItems } from '@/features/dashboard/types';
 
 import Index from './Index.vue';
 
@@ -16,14 +16,61 @@ function mountDashboard(
     {
         counts = {},
         items = {},
+        analytics = undefined,
         team = TEAM_ALPHA,
-    }: { counts?: DashboardCounts; items?: DashboardItems; team?: typeof TEAM_ALPHA | null } = {},
+    }: {
+        counts?: DashboardCounts;
+        items?: DashboardItems;
+        analytics?: DashboardAnalytics;
+        team?: typeof TEAM_ALPHA | null;
+    } = {},
 ): VueWrapper {
     resetInertia({
         auth: { user: { id: 5, username: 'demo.requester.a', name: 'Demo Requester A', team }, permissions },
     });
-    return mount(Index, { props: { counts, items } });
+    return mount(Index, { props: { counts, items, analytics } });
 }
+
+const week = (from: string, through: string) => ({ from, through });
+const WEEKS = [
+    week('2026-08-28', '2026-09-03'),
+    week('2026-09-04', '2026-09-10'),
+    week('2026-09-11', '2026-09-17'),
+    week('2026-09-18', '2026-09-24'),
+];
+
+const MINE: DashboardAnalytics['mine'] = {
+    totals_28d: { created: 5, first_submitted: 3, approval_decisions: 2 },
+    weekly: [
+        { ...WEEKS[0]!, created: 1, first_submitted: 0, approval_decisions: 0 },
+        { ...WEEKS[1]!, created: 2, first_submitted: 1, approval_decisions: 1 },
+        { ...WEEKS[2]!, created: 0, first_submitted: 1, approval_decisions: 0 },
+        { ...WEEKS[3]!, created: 2, first_submitted: 1, approval_decisions: 1 },
+    ],
+    active_status_counts: [
+        { status: 'DRAFT', count: 2 },
+        { status: 'PENDING_REVIEW', count: 1 },
+        { status: 'REVISION_REQUIRED', count: 0 },
+        { status: 'PENDING_APPROVAL', count: 0 },
+        { status: 'REJECTED', count: 0 },
+        { status: 'APPROVED', count: 4 },
+        { status: 'CANCELLED', count: 0 },
+    ],
+};
+
+const ORGANIZATION: NonNullable<DashboardAnalytics['organization']> = {
+    totals_28d: { first_submitted: 11, approval_decisions: 7 },
+    weekly: WEEKS.map((range, index) => ({ ...range, first_submitted: index + 2, approval_decisions: index })),
+    active_status_counts: [
+        { status: 'PENDING_REVIEW', count: 6 },
+        { status: 'REVISION_REQUIRED', count: 1 },
+        { status: 'PENDING_APPROVAL', count: 2 },
+        { status: 'REJECTED', count: 0 },
+        { status: 'APPROVED', count: 9 },
+    ],
+};
+
+const PERIOD: DashboardAnalytics['period'] = { from: '2026-08-28', through: '2026-09-24', timezone: 'Asia/Jakarta' };
 
 describe('Dashboard (FE-16)', () => {
     beforeEach(() => {
@@ -136,5 +183,125 @@ describe('Dashboard (FE-16)', () => {
 
         expect(wrapper.find('#main-content a[href="/nscmf/create"]').exists()).toBe(false);
         expect(wrapper.text()).toContain('active team');
+    });
+
+    it('lays the attention cards out in as many desktop columns as there are cards', () => {
+        const columns = (permissions: string[]) =>
+            mountDashboard(permissions).get('[data-testid="attention-cards"]').classes();
+
+        expect(columns([])).toContain('lg:grid-cols-2');
+        expect(columns(['nscmf.review'])).toContain('lg:grid-cols-3');
+        expect(columns(['nscmf.review', 'nscmf.approve'])).toContain('lg:grid-cols-4');
+        // Tablets never get more than two columns, phones one.
+        expect(columns(['nscmf.review', 'nscmf.approve'])).toEqual(
+            expect.arrayContaining(['grid-cols-1', 'sm:grid-cols-2']),
+        );
+    });
+
+    describe('analytics (12 §44.1, 07 §17.1)', () => {
+        it("shows the actor's activity of the last 28 days as totals and weekly values", () => {
+            const panel = mountDashboard([], { analytics: { period: PERIOD, mine: MINE } }).get(
+                '[data-testid="activity-panel"]',
+            );
+
+            const legend = panel.get('[data-testid="activity-legend"]').text();
+            expect(legend).toContain('Created');
+            expect(legend).toContain('First submissions');
+            expect(legend).toContain('Approval decisions');
+            expect(panel.findAll('[data-testid="activity-total"]').map((total) => total.text())).toEqual([
+                '5',
+                '3',
+                '2',
+            ]);
+
+            const rows = panel.findAll('tbody tr');
+            expect(rows).toHaveLength(4);
+            expect(rows[0]!.text()).toContain('Aug 28 – Sep 3');
+            expect(rows[1]!.findAll('td').map((cell) => cell.text())).toEqual(['2', '1', '1']);
+        });
+
+        it('lists every business status with its count, a true zero included', () => {
+            const rows = mountDashboard([], { analytics: { period: PERIOD, mine: MINE } }).findAll(
+                '[data-testid="status-panel"] li',
+            );
+
+            expect(rows).toHaveLength(7);
+            expect(rows[5]!.text()).toContain('Approved');
+            expect(rows[5]!.text()).toContain('4');
+            expect(rows[6]!.text()).toContain('Cancelled');
+            expect(rows[6]!.text()).toContain('0');
+        });
+
+        it('offers no Organization view when the server did not send one', () => {
+            const wrapper = mountDashboard(['nscmf.view.history'], { analytics: { period: PERIOD, mine: MINE } });
+
+            expect(wrapper.find('[data-testid="analytics-scope"]').exists()).toBe(false);
+        });
+
+        it('switches to the organization aggregates the server sent', async () => {
+            const wrapper = mountDashboard([], {
+                analytics: { period: PERIOD, mine: MINE, organization: ORGANIZATION },
+            });
+            const organization = wrapper.get('[data-testid="analytics-scope"] button:last-child');
+            expect(organization.text()).toBe('Organization');
+            expect(organization.attributes('aria-pressed')).toBe('false');
+
+            await organization.trigger('click');
+
+            expect(organization.attributes('aria-pressed')).toBe('true');
+            const activity = wrapper.get('[data-testid="activity-panel"]');
+            expect(activity.get('[data-testid="activity-legend"]').text()).not.toContain('Created');
+            expect(activity.findAll('[data-testid="activity-total"]').map((total) => total.text())).toEqual([
+                '11',
+                '7',
+            ]);
+            const statuses = wrapper.findAll('[data-testid="status-panel"] li');
+            expect(statuses).toHaveLength(5);
+            expect(statuses[0]!.text()).toContain('Pending Review');
+            expect(statuses[0]!.text()).toContain('6');
+        });
+
+        it('leaves the analytics panels out when the prop is absent', () => {
+            const wrapper = mountDashboard([]);
+
+            expect(wrapper.find('[data-testid="activity-panel"]').exists()).toBe(false);
+            expect(wrapper.find('[data-testid="status-panel"]').exists()).toBe(false);
+        });
+    });
+
+    it('lists what needs attention in the order returned, review, approval, draft', () => {
+        const record = (id: number) =>
+            ({ id, request_no: `DEMO-${id}`, family: 'CHANGE', subtype: 'MAINTENANCE' }) as const;
+        const wrapper = mountDashboard(['nscmf.draft.edit', 'nscmf.review', 'nscmf.approve'], {
+            items: { drafts: [record(7)], revisions: [record(8)], reviews: [record(9)], approvals: [record(10)] },
+        });
+
+        const links = wrapper.findAll('[data-testid="needs-attention"] li a');
+        expect(links.map((link) => link.attributes('href'))).toEqual([
+            '/nscmf/8/edit',
+            '/review/9',
+            '/approval/10',
+            '/nscmf/7/edit',
+        ]);
+        expect(links[0]!.text()).toContain('DEMO-8');
+        expect(links[0]!.text()).toContain('Revision required');
+    });
+
+    it('says so when nothing needs attention', () => {
+        expect(mountDashboard([]).get('[data-testid="needs-attention"]').text()).toContain(
+            'Nothing needs your attention',
+        );
+    });
+
+    it('offers only the quick actions the actor can take', () => {
+        const actions = (permissions: string[], team: typeof TEAM_ALPHA | null = TEAM_ALPHA) =>
+            mountDashboard(permissions, { team })
+                .findAll('[data-testid="quick-actions"] a')
+                .map((link) => link.attributes('href'));
+
+        expect(actions(['nscmf.create', 'nscmf.view.history'])).toEqual(['/nscmf/create', '/history']);
+        expect(actions(['nscmf.create'], null)).toEqual([]);
+        expect(actions(['nscmf.review', 'nscmf.approve'])).toEqual(['/review', '/approval']);
+        expect(mountDashboard([]).find('[data-testid="quick-actions"]').exists()).toBe(false);
     });
 });
