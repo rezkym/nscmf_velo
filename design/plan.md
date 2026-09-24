@@ -22,7 +22,7 @@ Implementasi memakai Vue 3, TypeScript strict, Inertia 3, shadcn-vue, Tailwind C
 | Teks | Judul navy `#091540`; teks isi gelap `#202939`; teks sekunder `#5B6575`. Ukuran minimum teks isi 14 px; keterangan 12 px hanya untuk metadata singkat yang tetap kontras. |
 | Status | Hijau hanya success, amber untuk warning/revision, merah untuk error/destructive, biru untuk primary/info, abu-abu netral. Selalu sertakan label teks; Archived mempunyai badge terpisah. |
 | Tipografi | Gunakan font sistem yang telah tersedia; judul halaman sekitar 28–32 px, judul kartu 16–18 px, angka utama 36–44 px, teks isi 14–16 px. Hindari font baru dan dekorasi huruf yang mengganggu pembacaan data. |
-| Bentuk | Radius panel 18–22 px, tombol 10–12 px, input 10 px; garis dan bayangan tipis. Kartu unggulan memakai gradasi `brand-950` ke `brand-700` dengan teks putih yang lolos pemeriksaan kontras. |
+| Bentuk | Radius mengikuti token shadcn-vue (`--radius` 0,75 rem: kartu 16 px, tombol dan input 10 px); garis dan bayangan tipis. Kartu unggulan memakai permukaan `brand-950` solid dengan token gelap sehingga teksnya lolos kontras; 07 §7.1 mengizinkan, bukan mewajibkan, gradasi. *(Diperbarui 2026-09-24 saat UI dipindah ke komponen shadcn-vue.)* |
 | Ruang | Grid dasar 8 px; jarak panel 16–24 px; padding kartu 20–24 px; jarak antarbagian layar 24–32 px. |
 | Fokus dan gerak | Fokus keyboard terlihat jelas; ikon tanpa teks punya nama aksesibel; animasi sederhana dan mengikuti `prefers-reduced-motion`. Tidak ada informasi yang hanya muncul saat hover. |
 
@@ -106,7 +106,7 @@ Sebelum test/kode, sinkronkan `project_doc/01_PRD.md` (kemampuan analitik), `04_
 | Login/password sementara | Kartu autentikasi terpusat dengan identitas brand dan fokus form yang kuat. | Copy generik untuk gagal login, password tidak tersimpan, penggantian wajib tetap memblokir navigasi normal. |
 | Validator PDF publik | Satu panel unggah/hasil dengan bahasa visual sama, tanpa shell internal. | Hanya `/ispdfvalid` publik; tidak ada auth props, menu internal, atau kebocoran metadata. |
 
-Komponen bersama yang perlu ditinjau: `AppLayout`, `QueueCard`, `ResourceTable`, `Button`, `Badge`, `Alert`, `FormField`, dialog, serta token `resources/css/app.css`. Hindari menyebar nilai visual yang sama sebagai kelas ad hoc ke puluhan halaman. Pertahankan `data-testid` dan label yang dipakai journey penting kecuali test serta kontrak terkait sengaja diperbarui bersama.
+Komponen bersama yang perlu ditinjau: `AppLayout`, `QueueCard`, `ResourceTable`, `Button`, `Badge`, `Alert`, `FormField`, dialog, serta token `resources/css/app.css`. *(Pembaruan 2026-09-24: primitif buatan sendiri sudah diganti komponen shadcn-vue di `resources/js/components/ui/`; lihat `handoff/2026-09-24-shadcn-vue.md`.)* Hindari menyebar nilai visual yang sama sebagai kelas ad hoc ke puluhan halaman. Pertahankan `data-testid` dan label yang dipakai journey penting kecuali test serta kontrak terkait sengaja diperbarui bersama.
 
 Peta file untuk implementer sesudah branch integrasi tersedia:
 

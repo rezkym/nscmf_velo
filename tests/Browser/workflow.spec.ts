@@ -101,7 +101,7 @@ test('the Dashboard shows own activity from the database and the organization vi
 
     await page.getByTestId('btn-logout').click();
     await loginToDashboard(page, lead.username, lead.password);
-    await page.getByTestId('analytics-scope').getByRole('button', { name: 'Organization' }).click();
+    await page.getByTestId('analytics-scope').getByRole('tab', { name: 'Organization' }).click();
     const legend = page.getByTestId('activity-legend');
     await expect(legend).not.toContainText('Created');
     expect(Number(await page.getByTestId('activity-total').first().innerText())).toBeGreaterThanOrEqual(1);
