@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 
-import { buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import CenteredLayout from '@/layouts/CenteredLayout.vue';
 
 defineProps<{
@@ -14,7 +14,9 @@ defineProps<{
 
     <CenteredLayout :title="appName">
         <div class="flex justify-center">
-            <Link href="/login" :class="buttonVariants()">Sign in</Link>
+            <Button as-child>
+                <Link href="/login">Sign in</Link>
+            </Button>
         </div>
     </CenteredLayout>
 </template>

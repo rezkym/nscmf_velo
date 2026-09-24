@@ -4,7 +4,7 @@ import { ClipboardCheck, FilePlus2, History, Stamp } from '@lucide/vue';
 import { computed } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
-import { buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/composables/usePermissions';
 import AnalyticsSection from '@/features/dashboard/AnalyticsSection.vue';
 import NeedsAttention from '@/features/dashboard/NeedsAttention.vue';
@@ -92,15 +92,19 @@ function reloadCounts(): void {
             <PageHeader title="Dashboard" description="What needs your attention.">
                 <template #actions>
                     <template v-if="can('nscmf.create')">
-                        <Link v-if="canCreate" href="/nscmf/create" :class="buttonVariants()">
-                            <FilePlus2 class="size-4" :stroke-width="2" aria-hidden="true" />
-                            Create NSCMF
-                        </Link>
+                        <Button v-if="canCreate" as-child>
+                            <Link href="/nscmf/create">
+                                <FilePlus2 class="size-4" :stroke-width="2" aria-hidden="true" />
+                                Create NSCMF
+                            </Link>
+                        </Button>
                         <p v-else class="text-sm text-muted-foreground">
                             You need an active team to create records. Contact an administrator.
                         </p>
                     </template>
-                    <Link href="/history" :class="buttonVariants({ variant: 'outline' })">History</Link>
+                    <Button as-child variant="outline">
+                        <Link href="/history">History</Link>
+                    </Button>
                 </template>
             </PageHeader>
 

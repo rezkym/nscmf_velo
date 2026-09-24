@@ -1,11 +1,23 @@
 <script setup lang="ts">
-import { Search } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { ArrowDown, ArrowUp, ChevronsUpDown } from '@lucide/vue';
+import { computed, ref, useSlots, watch } from 'vue';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
+import {
+    Table,
+    TableBody,
+    TableCaption,
+    TableCell,
+    TableEmpty,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 
 export interface ColumnDef {
     key: string;
@@ -148,20 +160,17 @@ const currentPage = computed(() => props.meta?.current_page ?? props.query.page)
 const lastPage = computed(() => props.meta?.last_page ?? 1);
 
 const isPrevDisabled = computed(() => currentPage.value <= 1);
+const slots = useSlots();
+const columnCount = computed(() => props.columns.length + (slots.actions ? 1 : 0));
 const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
 </script>
 
 <template>
-    <div class="resource-table-container panel overflow-hidden">
+    <Card class="gap-0 overflow-hidden py-0">
         <!-- Controls: Search & Per Page -->
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
-            <div class="relative w-full sm:w-72">
-                <label for="table-search" class="sr-only">Search</label>
-                <Search
-                    class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                    :stroke-width="1.75"
-                    aria-hidden="true"
-                />
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b p-4">
+            <div class="w-full sm:w-72">
+                <Label for="table-search" class="sr-only">Search</Label>
                 <Input
                     id="table-search"
                     v-model="searchInput"
@@ -172,7 +181,7 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
             </div>
 
             <div class="flex items-center gap-2">
-                <label for="table-per-page" class="whitespace-nowrap text-sm text-muted-foreground">Per page</label>
+                <Label for="table-per-page" class="font-normal whitespace-nowrap text-muted-foreground">Per page</Label>
                 <NativeSelect
                     id="table-per-page"
                     data-testid="table-per-page-select"
@@ -187,111 +196,104 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
             </div>
         </div>
 
-        <!-- Loading indicator -->
-        <div
+        <p
             v-if="loading"
             data-testid="table-loading-state"
             aria-busy="true"
-            class="border-b border-border px-4 py-3 text-sm text-muted-foreground"
+            class="border-b px-4 py-3 text-muted-foreground"
         >
             Loading…
-        </div>
+        </p>
 
-        <!-- Error state -->
         <div v-if="error" data-testid="table-error-state" role="alert" class="p-4">
-            <Alert variant="destructive"
-                ><AlertDescription>{{ error }}</AlertDescription></Alert
-            >
+            <Alert variant="destructive">
+                <AlertDescription>{{ error }}</AlertDescription>
+            </Alert>
         </div>
 
-        <!-- Table View -->
-        <div data-testid="table-scroll-container" class="overflow-x-auto">
-            <table class="min-w-full text-left text-sm">
-                <caption class="sr-only">
-                    {{
-                        caption
-                    }}
-                </caption>
-                <thead class="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                        <th
-                            v-for="col in columns"
-                            :key="col.key"
-                            :data-testid="`header-${col.key}`"
-                            :aria-sort="getHeaderAriaSort(col)"
-                            class="whitespace-nowrap px-4 py-3 font-medium"
-                        >
-                            <button
-                                v-if="col.sortable"
-                                type="button"
-                                :data-testid="`sort-button-${col.key}`"
-                                class="inline-flex items-center gap-1 rounded-sm font-medium uppercase tracking-wide transition-colors duration-150 hover:text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                @click="onSortChange(col.key)"
-                            >
-                                {{ col.label }}
-                                <span v-if="query?.sort === col.key" aria-hidden="true">
-                                    {{ query?.direction === 'desc' ? '↓' : '↑' }}
-                                </span>
-                            </button>
-                            <span v-else>{{ col.label }}</span>
-                        </th>
-                        <th v-if="$slots.actions" class="px-4 py-3 text-right font-medium">Actions</th>
-                    </tr>
-                </thead>
-                <tbody v-if="!error && currentItems.length > 0" class="divide-y divide-border">
-                    <tr
-                        v-for="(item, idx) in currentItems"
-                        :key="typeof item.id === 'string' || typeof item.id === 'number' ? item.id : idx"
-                        class="transition-colors duration-150 hover:bg-muted/50"
+        <Table data-testid="table-scroll-container">
+            <TableCaption class="sr-only">{{ caption }}</TableCaption>
+            <TableHeader class="bg-muted/50">
+                <TableRow>
+                    <TableHead
+                        v-for="col in columns"
+                        :key="col.key"
+                        :data-testid="`header-${col.key}`"
+                        :aria-sort="getHeaderAriaSort(col)"
+                        class="px-4"
                     >
-                        <td v-for="col in columns" :key="col.key" class="px-4 py-3 align-middle">
-                            <slot :name="`cell-${col.key}`" :item="item" :value="item[col.key]">
-                                {{ item[col.key] }}
-                            </slot>
-                        </td>
-                        <td v-if="$slots.actions" class="px-4 py-3 text-right">
-                            <slot name="actions" :item="item" />
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Empty state -->
-        <div
-            v-if="!error && currentItems.length === 0"
-            data-testid="table-empty-state"
-            class="px-4 py-12 text-center text-sm text-muted-foreground"
-        >
-            {{ emptyText }}
-        </div>
+                        <Button
+                            v-if="col.sortable"
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            class="-ml-2.5"
+                            :data-testid="`sort-button-${col.key}`"
+                            @click="onSortChange(col.key)"
+                        >
+                            {{ col.label }}
+                            <ArrowDown
+                                v-if="query?.sort === col.key && query?.direction === 'desc'"
+                                aria-hidden="true"
+                            />
+                            <ArrowUp v-else-if="query?.sort === col.key" aria-hidden="true" />
+                            <ChevronsUpDown v-else class="text-muted-foreground" aria-hidden="true" />
+                        </Button>
+                        <template v-else>{{ col.label }}</template>
+                    </TableHead>
+                    <TableHead v-if="$slots.actions" class="px-4 text-right">Actions</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody v-if="!error">
+                <TableRow
+                    v-for="(item, idx) in currentItems"
+                    :key="typeof item.id === 'string' || typeof item.id === 'number' ? item.id : idx"
+                >
+                    <TableCell v-for="col in columns" :key="col.key" class="px-4 py-3">
+                        <slot :name="`cell-${col.key}`" :item="item" :value="item[col.key]">
+                            {{ item[col.key] }}
+                        </slot>
+                    </TableCell>
+                    <TableCell v-if="$slots.actions" class="px-4 py-3 text-right">
+                        <slot name="actions" :item="item" />
+                    </TableCell>
+                </TableRow>
+                <TableEmpty
+                    v-if="currentItems.length === 0"
+                    data-testid="table-empty-state"
+                    :colspan="columnCount"
+                    class="text-muted-foreground"
+                >
+                    {{ emptyText }}
+                </TableEmpty>
+            </TableBody>
+        </Table>
 
         <!-- Pagination Bar -->
-        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
-            <div class="text-sm text-muted-foreground">
-                Page {{ currentPage }} of {{ lastPage }} ({{ meta?.total ?? 0 }}
-                total)
-            </div>
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
+            <p class="text-muted-foreground">Page {{ currentPage }} of {{ lastPage }} ({{ meta?.total ?? 0 }} total)</p>
             <div class="flex items-center gap-2">
-                <button
+                <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     data-testid="pagination-prev"
                     :disabled="isPrevDisabled"
-                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
                     @click="onPageChange(currentPage - 1)"
                 >
                     Previous
-                </button>
-                <button
+                </Button>
+                <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     data-testid="pagination-next"
                     :disabled="isNextDisabled"
-                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
                     @click="onPageChange(currentPage + 1)"
                 >
                     Next
-                </button>
+                </Button>
             </div>
         </div>
-    </div>
+    </Card>
 </template>

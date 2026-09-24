@@ -6,6 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Card, CardContent } from '@/components/ui/card';
+import { Empty, EmptyDescription } from '@/components/ui/empty';
+import { Item, ItemContent, ItemTitle } from '@/components/ui/item';
 import { formatJakarta } from '@/lib/datetime';
 
 /** The server's echo of the accepted audit query (12 §13, §49–50). */
@@ -125,75 +129,96 @@ function filter(key: 'event_type' | 'outcome' | 'occurred_from' | 'occurred_to',
 </script>
 
 <template>
-    <div class="space-y-4">
-        <form class="panel grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Audit filters" @submit.prevent>
-            <label class="space-y-1 text-sm">
-                <span class="block text-muted-foreground">Event</span>
-                <NativeSelect
-                    class="w-full"
-                    data-testid="audit-filter-event"
-                    :model-value="query.event_type ?? ''"
-                    @change="filter('event_type', $event)"
-                >
-                    <option value="">All events</option>
-                    <option v-for="event in events" :key="event" :value="event">{{ label(event) }}</option>
-                </NativeSelect>
-            </label>
-            <label v-if="kind === 'security'" class="space-y-1 text-sm">
-                <span class="block text-muted-foreground">Outcome</span>
-                <NativeSelect
-                    class="w-full"
-                    data-testid="audit-filter-outcome"
-                    :model-value="query.outcome ?? ''"
-                    @change="filter('outcome', $event)"
-                >
-                    <option value="">All outcomes</option>
-                    <option v-for="outcome in OUTCOMES" :key="outcome" :value="outcome">{{ label(outcome) }}</option>
-                </NativeSelect>
-            </label>
-            <label class="space-y-1 text-sm">
-                <span class="block text-muted-foreground">From</span>
-                <Input
-                    type="date"
-                    data-testid="audit-filter-from"
-                    :model-value="query.occurred_from ?? ''"
-                    @change="filter('occurred_from', $event)"
-                />
-            </label>
-            <label class="space-y-1 text-sm">
-                <span class="block text-muted-foreground">To</span>
-                <Input
-                    type="date"
-                    data-testid="audit-filter-to"
-                    :model-value="query.occurred_to ?? ''"
-                    @change="filter('occurred_to', $event)"
-                />
-            </label>
-        </form>
+    <div class="grid gap-4">
+        <Card>
+            <CardContent>
+                <form class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Audit filters" @submit.prevent>
+                    <Field>
+                        <FieldLabel for="audit-filter-event">Event</FieldLabel>
+                        <NativeSelect
+                            id="audit-filter-event"
+                            class="w-full"
+                            data-testid="audit-filter-event"
+                            :model-value="query.event_type ?? ''"
+                            @change="filter('event_type', $event)"
+                        >
+                            <option value="">All events</option>
+                            <option v-for="event in events" :key="event" :value="event">{{ label(event) }}</option>
+                        </NativeSelect>
+                    </Field>
+                    <Field v-if="kind === 'security'">
+                        <FieldLabel for="audit-filter-outcome">Outcome</FieldLabel>
+                        <NativeSelect
+                            id="audit-filter-outcome"
+                            class="w-full"
+                            data-testid="audit-filter-outcome"
+                            :model-value="query.outcome ?? ''"
+                            @change="filter('outcome', $event)"
+                        >
+                            <option value="">All outcomes</option>
+                            <option v-for="outcome in OUTCOMES" :key="outcome" :value="outcome">
+                                {{ label(outcome) }}
+                            </option>
+                        </NativeSelect>
+                    </Field>
+                    <Field>
+                        <FieldLabel for="audit-filter-from">From</FieldLabel>
+                        <Input
+                            id="audit-filter-from"
+                            type="date"
+                            data-testid="audit-filter-from"
+                            :model-value="query.occurred_from ?? ''"
+                            @change="filter('occurred_from', $event)"
+                        />
+                    </Field>
+                    <Field>
+                        <FieldLabel for="audit-filter-to">To</FieldLabel>
+                        <Input
+                            id="audit-filter-to"
+                            type="date"
+                            data-testid="audit-filter-to"
+                            :model-value="query.occurred_to ?? ''"
+                            @change="filter('occurred_to', $event)"
+                        />
+                    </Field>
+                </form>
+            </CardContent>
+        </Card>
 
-        <p v-if="rows.length === 0" class="rounded-lg border border-border p-6 text-sm text-muted-foreground">
-            No audit events match these filters.
-        </p>
-        <ul v-else class="divide-y divide-border panel">
-            <li v-for="row in rows" :key="row.id" class="space-y-1 p-4 text-sm">
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="font-medium">{{ row.event }}</span>
-                    <Badge v-if="row.outcome" :variant="row.outcome === 'SUCCESS' ? 'success' : 'warning'">{{
-                        label(row.outcome)
-                    }}</Badge>
-                </div>
-                <p class="text-xs text-muted-foreground">{{ row.at }} · {{ row.actor }}</p>
-                <p v-if="row.target" class="text-xs">Target user: {{ row.target }}</p>
-                <p v-if="row.subject" class="text-xs">Username entered: {{ row.subject }}</p>
-                <p v-if="row.ip" class="text-xs">IP address: {{ row.ip }}</p>
-                <p v-if="row.record" class="text-xs">
-                    Record:
-                    <Link :href="`/nscmf/${row.record.id}`" class="text-primary hover:underline">{{
-                        row.record.request_no ?? `#${row.record.id}`
-                    }}</Link>
-                </p>
-            </li>
-        </ul>
+        <Empty v-if="rows.length === 0" class="border p-8">
+            <EmptyDescription>No audit events match these filters.</EmptyDescription>
+        </Empty>
+        <Card v-else class="gap-0 py-0">
+            <ul class="divide-y">
+                <li v-for="row in rows" :key="row.id">
+                    <Item size="sm" class="rounded-none">
+                        <ItemContent>
+                            <ItemTitle>
+                                {{ row.event }}
+                                <Badge v-if="row.outcome" :variant="row.outcome === 'SUCCESS' ? 'success' : 'warning'">
+                                    {{ label(row.outcome) }}
+                                </Badge>
+                            </ItemTitle>
+                            <div class="grid gap-0.5 text-xs">
+                                <p class="text-muted-foreground">{{ row.at }} · {{ row.actor }}</p>
+                                <p v-if="row.target">Target user: {{ row.target }}</p>
+                                <p v-if="row.subject">Username entered: {{ row.subject }}</p>
+                                <p v-if="row.ip">IP address: {{ row.ip }}</p>
+                                <p v-if="row.record">
+                                    Record:
+                                    <Link
+                                        :href="`/nscmf/${row.record.id}`"
+                                        class="text-primary underline-offset-4 hover:underline"
+                                    >
+                                        {{ row.record.request_no ?? `#${row.record.id}` }}
+                                    </Link>
+                                </p>
+                            </div>
+                        </ItemContent>
+                    </Item>
+                </li>
+            </ul>
+        </Card>
 
         <nav aria-label="Audit pages" class="flex items-center justify-between gap-3">
             <Button
@@ -204,9 +229,9 @@ function filter(key: 'event_type' | 'outcome' | 'occurred_from' | 'occurred_to',
                 @click="visit({ page: meta.current_page - 1 })"
                 >Previous</Button
             >
-            <span class="text-sm text-muted-foreground"
-                >Page {{ meta.current_page }} of {{ Math.max(1, meta.last_page) }} · {{ meta.total }} events</span
-            >
+            <span class="text-muted-foreground">
+                Page {{ meta.current_page }} of {{ Math.max(1, meta.last_page) }} · {{ meta.total }} events
+            </span>
             <Button
                 type="button"
                 variant="outline"

@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Card, CardContent } from '@/components/ui/card';
 import { usePermissions } from '@/composables/usePermissions';
 import BulkExportPanel from '@/features/exports/BulkExportPanel.vue';
 import type { BusinessStatus, PaginationMeta } from '@/features/nscmf/contracts';
@@ -168,90 +170,96 @@ const row = (item: unknown) => item as HistoryItem;
                 description="Every NSCMF record you may see. Archived records are a separate view."
             />
 
-            <form
-                class="panel grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3"
-                aria-label="History filters"
-                @submit.prevent
-            >
-                <label class="space-y-1 text-sm">
-                    <span class="block text-muted-foreground">View</span>
-                    <NativeSelect
-                        class="w-full"
-                        data-testid="filter-archived"
-                        :model-value="query.archived ? '1' : '0'"
-                        @change="filter({ archived: selectValue($event) === '1' })"
-                    >
-                        <option value="0">Active records</option>
-                        <option value="1">Archived records</option>
-                    </NativeSelect>
-                </label>
-                <label class="space-y-1 text-sm">
-                    <span class="block text-muted-foreground">Family</span>
-                    <NativeSelect
-                        class="w-full"
-                        data-testid="filter-family"
-                        :model-value="query.family ?? ''"
-                        @change="filter({ family: selectValue($event) as NscmfFamily | null, subtype: null })"
-                    >
-                        <option value="">All families</option>
-                        <option v-for="(label, family) in FAMILY_LABELS" :key="family" :value="family">
-                            {{ label }}
-                        </option>
-                    </NativeSelect>
-                </label>
-                <label class="space-y-1 text-sm">
-                    <span class="block text-muted-foreground">Subtype</span>
-                    <NativeSelect
-                        class="w-full"
-                        data-testid="filter-subtype"
-                        :model-value="query.subtype ?? ''"
-                        :disabled="subtypes.length === 0"
-                        @change="filter({ subtype: selectValue($event) as NscmfSubtype | null })"
-                    >
-                        <option value="">All subtypes</option>
-                        <option v-for="subtype in subtypes" :key="subtype" :value="subtype">
-                            {{ SUBTYPE_LABELS[subtype] }}
-                        </option>
-                    </NativeSelect>
-                </label>
-                <label class="space-y-1 text-sm">
-                    <span class="block text-muted-foreground">Status</span>
-                    <NativeSelect
-                        class="w-full"
-                        data-testid="filter-status"
-                        :model-value="query.business_status ?? ''"
-                        @change="filter({ business_status: selectValue($event) as BusinessStatus | null })"
-                    >
-                        <option value="">All statuses</option>
-                        <option v-for="(label, status) in STATUS_LABELS" :key="status" :value="status">
-                            {{ label }}
-                        </option>
-                    </NativeSelect>
-                </label>
-                <label class="space-y-1 text-sm">
-                    <span class="block text-muted-foreground">Request date from</span>
-                    <Input
-                        type="date"
-                        data-testid="filter-date-from"
-                        :model-value="query.request_date_from ?? ''"
-                        @change="filter({ request_date_from: selectValue($event) })"
-                    />
-                </label>
-                <label class="space-y-1 text-sm">
-                    <span class="block text-muted-foreground">Request date to</span>
-                    <Input
-                        type="date"
-                        data-testid="filter-date-to"
-                        :model-value="query.request_date_to ?? ''"
-                        @change="filter({ request_date_to: selectValue($event) })"
-                    />
-                </label>
-            </form>
+            <Card>
+                <CardContent>
+                    <form class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="History filters" @submit.prevent>
+                        <Field>
+                            <FieldLabel for="filter-archived">View</FieldLabel>
+                            <NativeSelect
+                                id="filter-archived"
+                                class="w-full"
+                                data-testid="filter-archived"
+                                :model-value="query.archived ? '1' : '0'"
+                                @change="filter({ archived: selectValue($event) === '1' })"
+                            >
+                                <option value="0">Active records</option>
+                                <option value="1">Archived records</option>
+                            </NativeSelect>
+                        </Field>
+                        <Field>
+                            <FieldLabel for="filter-family">Family</FieldLabel>
+                            <NativeSelect
+                                id="filter-family"
+                                class="w-full"
+                                data-testid="filter-family"
+                                :model-value="query.family ?? ''"
+                                @change="filter({ family: selectValue($event) as NscmfFamily | null, subtype: null })"
+                            >
+                                <option value="">All families</option>
+                                <option v-for="(label, family) in FAMILY_LABELS" :key="family" :value="family">
+                                    {{ label }}
+                                </option>
+                            </NativeSelect>
+                        </Field>
+                        <Field>
+                            <FieldLabel for="filter-subtype">Subtype</FieldLabel>
+                            <NativeSelect
+                                id="filter-subtype"
+                                class="w-full"
+                                data-testid="filter-subtype"
+                                :model-value="query.subtype ?? ''"
+                                :disabled="subtypes.length === 0"
+                                @change="filter({ subtype: selectValue($event) as NscmfSubtype | null })"
+                            >
+                                <option value="">All subtypes</option>
+                                <option v-for="subtype in subtypes" :key="subtype" :value="subtype">
+                                    {{ SUBTYPE_LABELS[subtype] }}
+                                </option>
+                            </NativeSelect>
+                        </Field>
+                        <Field>
+                            <FieldLabel for="filter-status">Status</FieldLabel>
+                            <NativeSelect
+                                id="filter-status"
+                                class="w-full"
+                                data-testid="filter-status"
+                                :model-value="query.business_status ?? ''"
+                                @change="filter({ business_status: selectValue($event) as BusinessStatus | null })"
+                            >
+                                <option value="">All statuses</option>
+                                <option v-for="(label, status) in STATUS_LABELS" :key="status" :value="status">
+                                    {{ label }}
+                                </option>
+                            </NativeSelect>
+                        </Field>
+                        <Field>
+                            <FieldLabel for="filter-date-from">Request date from</FieldLabel>
+                            <Input
+                                id="filter-date-from"
+                                type="date"
+                                data-testid="filter-date-from"
+                                :model-value="query.request_date_from ?? ''"
+                                @change="filter({ request_date_from: selectValue($event) })"
+                            />
+                        </Field>
+                        <Field>
+                            <FieldLabel for="filter-date-to">Request date to</FieldLabel>
+                            <Input
+                                id="filter-date-to"
+                                type="date"
+                                data-testid="filter-date-to"
+                                :model-value="query.request_date_to ?? ''"
+                                @change="filter({ request_date_to: selectValue($event) })"
+                            />
+                        </Field>
+                    </form>
+                </CardContent>
+            </Card>
 
             <p
                 v-if="informational.length"
                 data-testid="informational-filters"
-                class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
+                class="flex flex-wrap items-center gap-2 text-muted-foreground"
             >
                 Also filtered by {{ informational.join(', ') }} (information only, not access).
                 <Button
@@ -288,7 +296,7 @@ const row = (item: unknown) => item as HistoryItem;
                 <template #cell-request_no="{ item }">
                     <Link
                         :href="`/nscmf/${row(item).id}`"
-                        class="whitespace-nowrap font-medium text-primary hover:underline"
+                        class="whitespace-nowrap font-medium text-primary underline-offset-4 hover:underline"
                         >{{ row(item).request_no }}</Link
                     >
                 </template>

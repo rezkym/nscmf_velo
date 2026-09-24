@@ -364,6 +364,8 @@ describe('Nscmf/Edit.vue — the return reason in Revision mode', () => {
         reply(page([returned(7, 'Fix the rollback steps.'), save(5), returned(3, 'Old reason.')], 2, 2));
 
         const wrapper = mountRevision(['nscmf.draft.edit', 'nscmf.submit', 'nscmf.timeline.view']);
+        // Two timeline pages are read one after the other before the notice settles.
+        await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2));
         await flushPromises();
 
         const notice = wrapper.get('[data-testid="revision-notice"]').text();

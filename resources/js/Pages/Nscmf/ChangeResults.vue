@@ -47,7 +47,7 @@ import { computed, ref, watch } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import RequestFeedback from '@/components/RequestFeedback.vue';
 import SectionCard from '@/components/SectionCard.vue';
 // Types come from their canonical module, not through the SFC: a type re-exported from a .vue file
@@ -330,9 +330,9 @@ function handleRefresh(): void {
                     </p>
                 </div>
                 <template #actions>
-                    <Link :href="`/nscmf/${record.id}`" :class="buttonVariants({ variant: 'outline' })">
-                        Back to detail
-                    </Link>
+                    <Button as-child variant="outline">
+                        <Link :href="`/nscmf/${record.id}`"> Back to detail </Link>
+                    </Button>
                 </template>
             </PageHeader>
 

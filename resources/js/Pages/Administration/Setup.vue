@@ -4,7 +4,7 @@ import { computed, ref, watch } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import RoleManager, { type PermissionCatalogItem, type RoleRow } from '@/features/administration/RoleManager.vue';
@@ -170,14 +170,9 @@ const readinessSummary = computed(() => [
                         </Badge>
                     </li>
                 </ul>
-                <Link
-                    v-if="readiness.setup_completed"
-                    href="/dashboard"
-                    data-testid="btn-go-dashboard"
-                    :class="buttonVariants()"
-                >
-                    Go to dashboard
-                </Link>
+                <Button v-if="readiness.setup_completed" as-child>
+                    <Link href="/dashboard" data-testid="btn-go-dashboard"> Go to dashboard </Link>
+                </Button>
                 <p v-else class="text-sm text-muted-foreground">
                     The dashboard becomes available once the server reports setup as completed.
                 </p>

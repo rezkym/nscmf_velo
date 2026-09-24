@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Field, FieldLabel } from '@/components/ui/field';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { firstFieldError } from '@/lib/apiErrors';
 import { sendJson } from '@/lib/http';
@@ -83,23 +84,24 @@ function confirmed(): void {
                     Delete technical logs automatically
                 </label>
                 <div class="grid grid-cols-2 gap-3">
-                    <label class="space-y-1 text-sm">
-                        <span class="block text-muted-foreground">Keep logs for</span>
+                    <Field>
+                        <FieldLabel for="settings-value">Keep logs for</FieldLabel>
                         <Input
+                            id="settings-value"
                             v-model="value"
                             type="text"
                             inputmode="numeric"
                             data-testid="settings-value"
                             :aria-invalid="problem !== null"
                         />
-                    </label>
-                    <label class="space-y-1 text-sm">
-                        <span class="block text-muted-foreground">Unit</span>
-                        <NativeSelect class="w-full" v-model="unit" data-testid="settings-unit">
+                    </Field>
+                    <Field>
+                        <FieldLabel for="settings-unit">Unit</FieldLabel>
+                        <NativeSelect id="settings-unit" class="w-full" v-model="unit" data-testid="settings-unit">
                             <option value="DAY">Days</option>
                             <option value="MONTH">Calendar months</option>
                         </NativeSelect>
-                    </label>
+                    </Field>
                 </div>
                 <p v-if="!enabled" class="text-sm text-muted-foreground">
                     Cleanup is off: technical logs keep growing until it is turned on again. The period above is kept.

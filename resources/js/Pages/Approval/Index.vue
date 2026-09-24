@@ -4,7 +4,7 @@ import { computed } from 'vue';
 
 import ResourceTable, { type ColumnDef, type TableQuery } from '@/components/ResourceTable.vue';
 import PageHeader from '@/components/PageHeader.vue';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import type { BusinessStatus, PaginationMeta } from '@/features/nscmf/contracts';
 import StatusBadge from '@/features/nscmf/StatusBadge.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -134,13 +134,14 @@ function reloadQueue(): void {
                 </template>
 
                 <template #actions="{ item }">
-                    <Link
-                        :href="`/approval/${(item as ApprovalQueueItem).id}`"
-                        :data-testid="`btn-view-${(item as ApprovalQueueItem).id}`"
-                        :class="buttonVariants({ variant: 'outline', size: 'sm' })"
-                    >
-                        View
-                    </Link>
+                    <Button as-child variant="outline" size="sm">
+                        <Link
+                            :href="`/approval/${(item as ApprovalQueueItem).id}`"
+                            :data-testid="`btn-view-${(item as ApprovalQueueItem).id}`"
+                        >
+                            View
+                        </Link>
+                    </Button>
                 </template>
             </ResourceTable>
         </div>

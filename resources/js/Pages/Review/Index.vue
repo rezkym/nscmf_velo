@@ -4,7 +4,7 @@ import { computed } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import ResourceTable, { type ColumnDef, type TableQuery } from '@/components/ResourceTable.vue';
 import type { BusinessStatus, PaginationMeta } from '@/features/nscmf/contracts';
 import { FAMILY_LABELS, type NscmfFamily, type NscmfSubtype, SUBTYPE_LABELS } from '@/features/nscmf/types';
@@ -182,13 +182,14 @@ function reloadQueue(): void {
                 <!-- The record detail page is the destination that exists; the Review detail page
                      with its actions is FE-31. -->
                 <template #actions="{ item }">
-                    <Link
-                        :href="`/review/${(item as ReviewQueueItem).id}`"
-                        :data-testid="`btn-view-${(item as ReviewQueueItem).id}`"
-                        :class="buttonVariants({ variant: 'outline', size: 'sm' })"
-                    >
-                        View
-                    </Link>
+                    <Button as-child variant="outline" size="sm">
+                        <Link
+                            :href="`/review/${(item as ReviewQueueItem).id}`"
+                            :data-testid="`btn-view-${(item as ReviewQueueItem).id}`"
+                        >
+                            View
+                        </Link>
+                    </Button>
                 </template>
             </ResourceTable>
         </div>
