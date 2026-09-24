@@ -17,8 +17,10 @@ withDefaults(
         items?: RecordSummary[];
         /** Full queue page, when one exists. */
         href?: string;
+        /** Where one listed record opens: the page where this queue's work is done. */
+        itemHref?: (item: RecordSummary) => string;
     }>(),
-    { state: () => ({}), items: () => [], href: undefined },
+    { state: () => ({}), items: () => [], href: undefined, itemHref: (item: RecordSummary) => `/nscmf/${item.id}` },
 );
 
 const emit = defineEmits<{ retry: [] }>();
@@ -50,7 +52,7 @@ const emit = defineEmits<{ retry: [] }>();
 
         <ul v-if="items.length > 0" class="space-y-1 border-t border-border pt-3 text-sm">
             <li v-for="item in items" :key="item.id" class="flex items-center justify-between gap-2">
-                <Link :href="`/nscmf/${item.id}`" class="truncate font-medium text-foreground hover:underline">
+                <Link :href="itemHref(item)" class="truncate font-medium text-foreground hover:underline">
                     {{ item.request_no }}
                 </Link>
                 <span class="shrink-0 text-xs text-muted-foreground">
