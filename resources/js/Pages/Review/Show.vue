@@ -4,6 +4,7 @@ import AttachmentPanel from '@/features/attachments/AttachmentPanel.vue';
 import { router } from '@inertiajs/vue3';
 
 import { Button } from '@/components/ui/button';
+import SectionCard from '@/components/SectionCard.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import RecordDetail from '@/features/nscmf/RecordDetail.vue';
 import ReviewActions from '@/features/nscmf/workflow/ReviewActions.vue';
@@ -22,14 +23,15 @@ const { can } = usePermissions();
     <AppLayout :title="`Review · ${record.request_no}`">
         <RecordDetail :record="record" back-href="/review" back-label="Back to review queue">
             <template #actions>
-                <section aria-label="Review actions" class="space-y-3 panel p-5">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <h2 class="font-semibold">Review</h2>
-                        <Button type="button" variant="outline" @click="router.reload()">Refresh details</Button>
-                    </div>
+                <SectionCard title="Review">
+                    <template #action>
+                        <Button type="button" variant="outline" size="sm" @click="router.reload()">
+                            Refresh details
+                        </Button>
+                    </template>
                     <p
                         v-if="record.is_archived || record.business_status !== 'PENDING_REVIEW'"
-                        class="text-sm text-muted-foreground"
+                        class="text-muted-foreground"
                     >
                         This record is no longer available for review. Its current details are shown below.
                     </p>
@@ -39,7 +41,7 @@ const { can } = usePermissions();
                                 can(permission),
                             )
                         "
-                        class="text-sm text-muted-foreground"
+                        class="text-muted-foreground"
                     >
                         You can read this record but do not have permission to perform a review action.
                     </p>
@@ -54,7 +56,7 @@ const { can } = usePermissions();
                         :change-forward-ready="record.forward_readiness.ready"
                         :change-forward-reason="record.forward_readiness.reason"
                     />
-                </section>
+                </SectionCard>
             </template>
             <template #timeline>
                 <BusinessTimeline :key="`${record.id}-${record.record_version}`" :record-id="record.id" />

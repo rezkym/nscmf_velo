@@ -2,7 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
-import { buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import type { NscmfDetailRecord } from '@/features/nscmf/types';
 
 /**
@@ -29,27 +29,24 @@ const waitingForRequester = computed(() => props.record.business_status === 'REV
     <section
         v-if="canEdit || canUpdateResults || canReview || canApprove || waitingForRequester"
         aria-label="Next step"
-        class="panel flex flex-wrap items-center gap-x-4 gap-y-3 p-4 sm:px-6"
+        class="flex flex-wrap items-center gap-x-4 gap-y-2"
     >
-        <p class="text-sm font-medium text-heading">Next step</p>
-        <Link v-if="canEdit" data-testid="next-step-edit" :href="editPath" :class="buttonVariants()">
-            {{ record.business_status === 'REVISION_REQUIRED' ? 'Revise and Resubmit' : 'Edit Draft' }}
-        </Link>
-        <Link v-if="canUpdateResults" data-testid="next-step-results" :href="editPath" :class="buttonVariants()">
-            Update Result of Changes
-        </Link>
-        <Link v-if="canReview" data-testid="next-step-review" :href="`/review/${record.id}`" :class="buttonVariants()">
-            Open Review
-        </Link>
-        <Link
-            v-if="canApprove"
-            data-testid="next-step-approval"
-            :href="`/approval/${record.id}`"
-            :class="buttonVariants()"
-        >
-            Open Approval
-        </Link>
-        <p v-if="waitingForRequester" data-testid="next-step-waiting" class="text-sm text-muted-foreground">
+        <p class="font-medium text-heading">Next step</p>
+        <Button v-if="canEdit" as-child>
+            <Link data-testid="next-step-edit" :href="editPath">
+                {{ record.business_status === 'REVISION_REQUIRED' ? 'Revise and Resubmit' : 'Edit Draft' }}
+            </Link>
+        </Button>
+        <Button v-if="canUpdateResults" as-child>
+            <Link data-testid="next-step-results" :href="editPath">Update Result of Changes</Link>
+        </Button>
+        <Button v-if="canReview" as-child>
+            <Link data-testid="next-step-review" :href="`/review/${record.id}`">Open Review</Link>
+        </Button>
+        <Button v-if="canApprove" as-child>
+            <Link data-testid="next-step-approval" :href="`/approval/${record.id}`">Open Approval</Link>
+        </Button>
+        <p v-if="waitingForRequester" data-testid="next-step-waiting" class="text-muted-foreground">
             Waiting for the requester to revise and resubmit this record.
         </p>
     </section>

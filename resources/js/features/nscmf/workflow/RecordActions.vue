@@ -201,8 +201,8 @@ function refresh(): void {
 </script>
 
 <template>
-    <div ref="actionsRegion" :data-testid="`${testidPrefix}-actions`" class="space-y-3" tabindex="-1">
-        <div v-if="visible().length" class="flex flex-wrap gap-3">
+    <div ref="actionsRegion" :data-testid="`${testidPrefix}-actions`" class="grid gap-3" tabindex="-1">
+        <div v-if="visible().length" class="flex flex-wrap gap-2">
             <Button
                 type="button"
                 v-for="action in visible()"
@@ -220,20 +220,26 @@ function refresh(): void {
             <p
                 v-if="action.unavailableReason"
                 :id="`${testidPrefix}-${action.key}-reason`"
-                class="text-sm text-muted-foreground"
+                class="text-muted-foreground"
             >
                 {{ action.unavailableReason }}
             </p>
         </template>
-        <Alert v-if="conflict" variant="destructive" class="space-y-2"
-            ><AlertTitle>Record changed</AlertTitle
-            ><AlertDescription
-                ><p>{{ error }}</p>
-                <Button type="button" variant="outline" :data-testid="`${testidPrefix}-refresh`" @click="refresh"
-                    >Refresh record</Button
-                ></AlertDescription
-            ></Alert
-        >
+        <Alert v-if="conflict" variant="destructive">
+            <AlertTitle>Record changed</AlertTitle>
+            <AlertDescription class="grid justify-items-start gap-2">
+                <p>{{ error }}</p>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    :data-testid="`${testidPrefix}-refresh`"
+                    @click="refresh"
+                >
+                    Refresh record
+                </Button>
+            </AlertDescription>
+        </Alert>
         <ActionDialog
             v-if="selected"
             :key="selected.key"

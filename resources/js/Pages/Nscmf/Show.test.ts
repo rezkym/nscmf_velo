@@ -277,7 +277,7 @@ describe('Record detail (FE-18)', () => {
 
         await wrapper.get('[data-testid="tab-timeline"]').trigger('mousedown', { button: 0 });
         await flushPromises();
-        expect(wrapper.find('[aria-label="Business timeline"]').exists()).toBe(true);
+        expect(wrapper.findAll('h2').map((heading) => heading.text())).toContain('Business timeline');
         await wrapper.get('[data-testid="tab-attachments"]').trigger('mousedown', { button: 0 });
         await flushPromises();
         expect(wrapper.find('[data-testid="attachments-stub"]').exists()).toBe(false);

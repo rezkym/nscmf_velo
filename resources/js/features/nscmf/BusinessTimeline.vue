@@ -3,6 +3,8 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import SectionCard from '@/components/SectionCard.vue';
+import { Card, CardContent } from '@/components/ui/card';
 import { usePermissions } from '@/composables/usePermissions';
 import { formatJakarta } from '@/lib/datetime';
 import { sendJson } from '@/lib/http';
@@ -93,25 +95,25 @@ onUnmounted(() => controller.abort());
 </script>
 
 <template>
-    <p v-if="!permitted" class="rounded-lg border border-border p-6 text-sm text-muted-foreground">
-        You do not have permission to view this timeline.
-    </p>
-    <section v-else aria-label="Business timeline" :aria-busy="loading" class="space-y-4 panel p-6">
-        <div class="flex items-center justify-between gap-3">
-            <h2 class="font-semibold">Business timeline</h2>
-            <Button type="button" variant="outline" :disabled="loading" @click="load(page)">Refresh timeline</Button>
-        </div>
-        <p v-if="loading" role="status" class="text-sm text-muted-foreground">Loading timeline…</p>
-        <Alert v-if="error" variant="destructive"
-            ><AlertTitle>Timeline unavailable</AlertTitle><AlertDescription>{{ error }}</AlertDescription></Alert
-        >
-        <p v-else-if="!loading && entries.length === 0" class="text-sm text-muted-foreground">
-            No business events recorded.
-        </p>
+    <Card v-if="!permitted">
+        <CardContent class="text-muted-foreground">You do not have permission to view this timeline.</CardContent>
+    </Card>
+    <SectionCard v-else title="Business timeline" :aria-busy="loading">
+        <template #action>
+            <Button type="button" variant="outline" size="sm" :disabled="loading" @click="load(page)">
+                Refresh timeline
+            </Button>
+        </template>
+        <p v-if="loading" role="status" class="text-muted-foreground">Loading timeline…</p>
+        <Alert v-if="error" variant="destructive">
+            <AlertTitle>Timeline unavailable</AlertTitle>
+            <AlertDescription>{{ error }}</AlertDescription>
+        </Alert>
+        <p v-else-if="!loading && entries.length === 0" class="text-muted-foreground">No business events recorded.</p>
         <section v-for="group in groups" :key="group.key" data-testid="timeline-group" class="space-y-3">
-            <h3 class="text-sm font-semibold text-muted-foreground">{{ group.title }}</h3>
+            <h3 class="font-medium text-muted-foreground">{{ group.title }}</h3>
             <ol class="space-y-4">
-                <li v-for="entry in group.events" :key="entry.id" class="space-y-2 border-l-2 border-border pl-4">
+                <li v-for="entry in group.events" :key="entry.id" class="grid gap-1.5 border-l-2 pl-4">
                     <p class="font-medium">{{ label(entry.event_type) }}</p>
                     <p class="text-xs text-muted-foreground">
                         {{ entry.actor ?? 'Unknown actor' }} · {{ formatJakarta(entry.occurred_at) }}
@@ -148,10 +150,10 @@ onUnmounted(() => controller.abort());
             <Button type="button" variant="outline" :disabled="loading || page <= 1" @click="load(page - 1)"
                 >Previous</Button
             >
-            <span class="text-sm">Page {{ page }} of {{ lastPage }}</span>
+            <span>Page {{ page }} of {{ lastPage }}</span>
             <Button type="button" variant="outline" :disabled="loading || page >= lastPage" @click="load(page + 1)"
                 >Next</Button
             >
         </nav>
-    </section>
+    </SectionCard>
 </template>

@@ -5,6 +5,8 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import SectionCard from '@/components/SectionCard.vue';
+import { Item, ItemActions, ItemContent, ItemTitle } from '@/components/ui/item';
 import { usePermissions } from '@/composables/usePermissions';
 import type { BusinessStatus } from '@/features/nscmf/contracts';
 import { formatJakarta } from '@/lib/datetime';
@@ -101,12 +103,8 @@ async function download(job: ExportJob): Promise<void> {
 </script>
 
 <template>
-    <section v-if="can('nscmf.export')" aria-label="Export" class="space-y-3 panel p-5">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-                <h2 class="font-semibold">Export</h2>
-                <p class="text-sm text-muted-foreground">Official NSCMF Form 3.0 as Excel or PDF.</p>
-            </div>
+    <SectionCard v-if="can('nscmf.export')" title="Export" description="Official NSCMF Form 3.0 as Excel or PDF.">
+        <template #action>
             <div class="flex gap-2">
                 <Button
                     type="button"
@@ -114,69 +112,75 @@ async function download(job: ExportJob): Promise<void> {
                     data-testid="export-XLSX"
                     :disabled="requesting"
                     @click="request('XLSX')"
-                    >Export XLSX</Button
                 >
+                    Export XLSX
+                </Button>
                 <Button
                     type="button"
                     variant="outline"
                     data-testid="export-PDF"
                     :disabled="requesting"
                     @click="request('PDF')"
-                    >Export PDF</Button
                 >
+                    Export PDF
+                </Button>
             </div>
-        </div>
-        <p v-if="businessStatus === 'APPROVED'" class="text-sm">
+        </template>
+
+        <p v-if="businessStatus === 'APPROVED'">
             Approved by {{ approvedBy ?? '—' }}.
-            <Link href="/ispdfvalid" class="text-primary hover:underline">Verify a PDF</Link>
+            <Link href="/ispdfvalid" class="text-primary underline-offset-4 hover:underline">Verify a PDF</Link>
         </p>
-        <Alert v-if="error" variant="destructive"
-            ><AlertTitle>Export not started</AlertTitle><AlertDescription>{{ error }}</AlertDescription></Alert
-        >
-        <ul v-if="jobs.length" class="divide-y divide-border">
-            <li
-                v-for="job in jobs"
-                :key="job.id"
-                :data-testid="`export-job-${job.id}`"
-                class="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"
-            >
-                <div class="space-y-1">
-                    <p class="flex items-center gap-2 font-medium">
-                        {{ job.format }}
-                        <Badge :variant="job.status === 'READY' ? 'success' : 'secondary'">{{
-                            EXPORT_STATUS_LABELS[job.status]
-                        }}</Badge>
-                    </p>
-                    <p class="text-xs text-muted-foreground">Requested {{ formatJakarta(job.requested_at) }}</p>
-                    <p v-if="job.snapshot" class="text-xs text-muted-foreground">
-                        Version {{ job.snapshot.record_version
-                        }}<template v-if="job.snapshot.iteration_no !== null">
-                            · iteration {{ job.snapshot.iteration_no }}</template
+        <Alert v-if="error" variant="destructive">
+            <AlertTitle>Export not started</AlertTitle>
+            <AlertDescription>{{ error }}</AlertDescription>
+        </Alert>
+        <ul v-if="jobs.length" class="grid gap-2">
+            <li v-for="job in jobs" :key="job.id" :data-testid="`export-job-${job.id}`">
+                <Item variant="outline" size="sm">
+                    <ItemContent>
+                        <ItemTitle>
+                            {{ job.format }}
+                            <Badge :variant="job.status === 'READY' ? 'success' : 'secondary'">
+                                {{ EXPORT_STATUS_LABELS[job.status] }}
+                            </Badge>
+                        </ItemTitle>
+                        <div class="grid gap-0.5 text-xs text-muted-foreground">
+                            <p>Requested {{ formatJakarta(job.requested_at) }}</p>
+                            <p v-if="job.snapshot">
+                                Version {{ job.snapshot.record_version
+                                }}<template v-if="job.snapshot.iteration_no !== null">
+                                    · iteration {{ job.snapshot.iteration_no }}</template
+                                >
+                                · {{ job.snapshot.template }}
+                            </p>
+                            <p v-if="job.status === 'READY' && job.expires_at">
+                                Available until {{ formatJakarta(job.expires_at) }}
+                            </p>
+                            <p
+                                v-if="job.status === 'READY' && job.format === 'PDF' && job.signed"
+                                class="text-foreground"
+                            >
+                                Signed with the NSCMF Organization certificate.
+                            </p>
+                            <p v-if="job.status === 'FAILED'" role="status" class="text-destructive">
+                                {{ failureMessage(job) }}
+                            </p>
+                            <p v-if="job.status === 'EXPIRED'">This file expired. Export again for a new copy.</p>
+                        </div>
+                    </ItemContent>
+                    <ItemActions v-if="job.status === 'READY' && job.download_url">
+                        <Button
+                            type="button"
+                            size="sm"
+                            :data-testid="`export-download-${job.id}`"
+                            @click="download(job)"
                         >
-                        · {{ job.snapshot.template }}
-                    </p>
-                    <p v-if="job.status === 'READY' && job.expires_at" class="text-xs text-muted-foreground">
-                        Available until {{ formatJakarta(job.expires_at) }}
-                    </p>
-                    <p v-if="job.status === 'READY' && job.format === 'PDF' && job.signed" class="text-xs">
-                        Signed with the NSCMF Organization certificate.
-                    </p>
-                    <p v-if="job.status === 'FAILED'" role="status" class="text-xs text-destructive">
-                        {{ failureMessage(job) }}
-                    </p>
-                    <p v-if="job.status === 'EXPIRED'" class="text-xs text-muted-foreground">
-                        This file expired. Export again for a new copy.
-                    </p>
-                </div>
-                <Button
-                    type="button"
-                    v-if="job.status === 'READY' && job.download_url"
-                    size="sm"
-                    :data-testid="`export-download-${job.id}`"
-                    @click="download(job)"
-                    >Download</Button
-                >
+                            Download
+                        </Button>
+                    </ItemActions>
+                </Item>
             </li>
         </ul>
-    </section>
+    </SectionCard>
 </template>

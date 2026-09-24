@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle, alertVariants } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/composables/usePermissions';
 import type { BusinessStatus } from './contracts';
@@ -198,86 +198,81 @@ function handleSubmit(): void {
 </script>
 
 <template>
-    <div data-testid="submit-panel" class="space-y-4">
+    <div data-testid="submit-panel" class="grid gap-4">
         <!-- Status indicator (always derived from authoritative server props, never locally mutated prematurely) -->
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-muted-foreground font-medium">Current Status:</span>
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="flex items-center gap-2">
+                <span class="text-muted-foreground">Current status</span>
                 <StatusBadge data-testid="submit-status-badge" :status="businessStatus" />
-            </div>
+            </p>
 
             <!-- Request Meta info (immutable request_no, server iteration) -->
-            <div
+            <p
                 v-if="requestNo || iteration"
                 data-testid="submit-meta-info"
                 class="flex items-center gap-4 text-xs text-muted-foreground"
             >
-                <span v-if="requestNo" class="font-mono font-medium">
-                    {{ requestNo }}
-                </span>
-                <span v-if="iteration !== null && iteration !== undefined"> Iteration: {{ iteration }} </span>
-            </div>
+                <span v-if="requestNo" class="font-mono font-medium">{{ requestNo }}</span>
+                <span v-if="iteration !== null && iteration !== undefined">Iteration: {{ iteration }}</span>
+            </p>
         </div>
 
         <!-- Revision Notice (Shown in Revision Mode with reviewer return reason) -->
-        <Alert v-if="isRevisionMode" data-testid="revision-notice"
-            ><AlertTitle>Revision Required</AlertTitle
-            ><AlertDescription
-                ><p v-if="revisionReason">
-                    <span class="font-medium">Return Reason:</span> {{ revisionReason }}
-                </p></AlertDescription
-            ></Alert
-        >
+        <Alert v-if="isRevisionMode" data-testid="revision-notice">
+            <AlertTitle>Revision Required</AlertTitle>
+            <AlertDescription>
+                <p v-if="revisionReason"><span class="font-medium">Return Reason:</span> {{ revisionReason }}</p>
+            </AlertDescription>
+        </Alert>
 
         <!-- Domain Error Alert (403/409/422/etc) -->
-        <Alert v-if="domainError?.message" data-testid="domain-error-alert" variant="destructive"
-            ><AlertDescription>{{ domainError.message }}</AlertDescription></Alert
-        >
+        <Alert v-if="domainError?.message" data-testid="domain-error-alert" variant="destructive">
+            <AlertDescription>{{ domainError.message }}</AlertDescription>
+        </Alert>
 
-        <!-- Error Summary (Focus summary first, links to target fields) -->
+        <!-- Error Summary (focus lands here first; each entry links to its field) -->
         <div
             v-if="mappedErrors.length > 0"
             ref="summaryRef"
             data-testid="error-summary"
             role="alert"
             tabindex="-1"
-            class="p-4 rounded-md bg-destructive/10 border border-destructive text-destructive focus:outline-none focus:ring-2 focus:ring-destructive"
+            :class="alertVariants({ variant: 'destructive' })"
         >
-            <h3 class="text-sm font-semibold mb-2">There are errors preventing submission</h3>
-            <ul class="list-disc list-inside space-y-1 text-sm">
+            <h3 class="font-medium">There are errors preventing submission</h3>
+            <ul class="list-disc pl-4">
                 <li v-for="err in mappedErrors" :key="err.path" data-testid="error-summary-item">
                     <button
                         v-if="err.label"
                         type="button"
-                        class="underline hover:opacity-80 font-medium inline-block text-left"
+                        class="font-medium underline underline-offset-4"
                         @click="navigateToError(err.path)"
                     >
                         {{ err.label }}:
                     </button>
-                    <span v-else class="font-medium inline-block text-left"> </span>
-                    <span> {{ err.message }}</span>
+                    <span>{{ err.message }}</span>
                 </li>
             </ul>
         </div>
 
         <!-- Warning Summary (Visually distinct from error, non-blocking) -->
-        <Alert v-if="warnings.length > 0" data-testid="warning-summary" variant="warning"
-            ><AlertTitle>Submission Warnings</AlertTitle
-            ><AlertDescription
-                ><ul class="list-disc list-inside space-y-1">
-                    <li v-for="(warn, idx) in warnings" :key="idx" data-testid="warning-summary-item">
-                        {{ warn }}
-                    </li>
-                </ul></AlertDescription
-            ></Alert
-        >
+        <Alert v-if="warnings.length > 0" data-testid="warning-summary" variant="warning">
+            <AlertTitle>Submission Warnings</AlertTitle>
+            <AlertDescription>
+                <ul class="list-disc pl-4">
+                    <li v-for="(warn, idx) in warnings" :key="idx" data-testid="warning-summary-item">{{ warn }}</li>
+                </ul>
+            </AlertDescription>
+        </Alert>
 
-        <div v-if="saveBlockingMessage" data-testid="save-blocking-message" class="text-sm text-destructive">
+        <p v-if="saveBlockingMessage" data-testid="save-blocking-message" class="text-destructive">
             {{ saveBlockingMessage }}
-        </div>
+        </p>
 
-        <Button type="button" data-testid="submit-button" :disabled="!canSubmit" @click="handleSubmit">
-            Submit for Review
-        </Button>
+        <div>
+            <Button type="button" data-testid="submit-button" :disabled="!canSubmit" @click="handleSubmit">
+                Submit for Review
+            </Button>
+        </div>
     </div>
 </template>

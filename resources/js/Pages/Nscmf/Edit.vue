@@ -4,9 +4,10 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
 import RequestFeedback from '@/components/RequestFeedback.vue';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import FormField from '@/components/FormField.vue';
+import SectionCard from '@/components/SectionCard.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import type { AttachmentItem } from '@/features/attachments/AttachmentList.vue';
 import AttachmentPanel from '@/features/attachments/AttachmentPanel.vue';
@@ -192,9 +193,9 @@ const form = ref<HTMLElement | null>(null);
                     <StatusBadge :status="record.business_status" />
                 </div>
                 <template #actions>
-                    <Link :href="`/nscmf/${record.id}`" :class="buttonVariants({ variant: 'outline' })"
-                        >View record</Link
-                    >
+                    <Button as-child variant="outline">
+                        <Link :href="`/nscmf/${record.id}`">View record</Link>
+                    </Button>
                     <Button
                         type="button"
                         data-testid="btn-save-draft"
@@ -218,8 +219,7 @@ const form = ref<HTMLElement | null>(null);
                 <SectionNavigator :form="form" class="mb-6 xl:sticky xl:top-24 xl:order-last xl:mb-0" />
 
                 <div ref="form" class="min-w-0 space-y-6">
-                    <section data-testid="draft-header" class="space-y-4 panel p-6">
-                        <h2 class="text-base font-semibold">Request</h2>
+                    <SectionCard data-testid="draft-header" title="Request">
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <FormField id="request_no" label="Request number" :error="fieldErrors['header.request_no']">
                                 <template #default="{ id, describedBy }">
@@ -257,7 +257,7 @@ const form = ref<HTMLElement | null>(null);
                                 </template>
                             </FormField>
                         </div>
-                    </section>
+                    </SectionCard>
 
                     <template v-if="isActivation">
                         <GeneralServiceSection
@@ -296,7 +296,7 @@ const form = ref<HTMLElement | null>(null);
                         @changed="attachmentsChanged"
                     />
 
-                    <section class="panel p-6">
+                    <SectionCard title="Submit">
                         <SubmitPanel
                             :record-id="record.id"
                             :record-version="draft.currentVersion.value"
@@ -311,7 +311,7 @@ const form = ref<HTMLElement | null>(null);
                             :revision-reason="revisionReason"
                             :domain-error="domainError"
                         />
-                    </section>
+                    </SectionCard>
                 </div>
             </div>
         </div>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { buttonVariants } from '@/components/ui/button';
+import { Alert, AlertAction, AlertDescription, AlertTitle, type AlertVariants } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 
 import type { RequestFeedbackError, SaveStatus } from '@/types/feedback';
 
@@ -80,208 +81,137 @@ const canShowSaveStatus = computed(() => {
     return Boolean(props.saveStatus);
 });
 
-function handleRefresh(): void {
-    emit('refresh');
+type FeedbackAction = 'refresh' | 'retry' | 'login';
+
+interface Notice {
+    testid: string;
+    variant: AlertVariants['variant'];
+    title: string;
+    text: string;
+    details?: string[];
+    action?: { event: FeedbackAction; label: string; testid: string };
 }
 
-function handleRetry(): void {
-    emit('retry');
-}
+const RETRY = { event: 'retry', label: 'Retry', testid: 'feedback-retry-btn' } as const;
 
-function handleLogin(): void {
-    emit('login');
+/** The one message for the current failure; the checks run in the order of precedence. */
+const notice = computed<Notice | null>(() => {
+    if (!props.error) return null;
+    if (isSessionRevoked.value)
+        return {
+            testid: 'feedback-session-revoked',
+            variant: 'warning',
+            title: 'Your session has expired. Please sign in again.',
+            text: 'Your session was terminated or expired. Unsaved changes were not persisted.',
+            action: { event: 'login', label: 'Sign in again', testid: 'feedback-login-btn' },
+        };
+    if (isConflict.value)
+        return {
+            testid: 'feedback-conflict',
+            variant: 'warning',
+            title: 'A newer version exists',
+            text: 'This record was modified by another user or transaction. Please refresh to load the latest record and avoid overwriting newer data.',
+            action: { event: 'refresh', label: 'Refresh', testid: 'feedback-refresh-btn' },
+        };
+    if (isValidation.value)
+        return {
+            testid: 'feedback-validation',
+            variant: 'destructive',
+            title: 'Validation Error',
+            text: 'Please review the highlighted fields and correct your input. Your current input has been preserved.',
+            details: validationErrorList.value,
+        };
+    if (isForbidden.value)
+        return {
+            testid: 'feedback-forbidden',
+            variant: 'destructive',
+            title: 'Access Denied',
+            text: 'You do not have permission to perform this action.',
+        };
+    if (isNotFound.value)
+        return {
+            testid: 'feedback-not-found',
+            variant: 'default',
+            title: 'Not Found',
+            text: 'The requested resource was not found or is unavailable.',
+        };
+    if (isThrottled.value)
+        return {
+            testid: 'feedback-throttled',
+            variant: 'warning',
+            title: 'Too Many Requests',
+            text: 'Rate limit exceeded. Please wait before retrying.',
+            action: RETRY,
+        };
+    if (isServiceUnavailable.value)
+        return {
+            testid: 'feedback-service-unavailable',
+            variant: 'warning',
+            title: 'Service Temporarily Unavailable',
+            text: 'The service is temporarily unavailable. You may retry safely.',
+            action: RETRY,
+        };
+    if (isNetworkFailure.value)
+        return {
+            testid: 'feedback-network-error',
+            variant: 'warning',
+            title: 'Network Connection Issue',
+            text: 'Unable to reach server. Please check your connection.',
+            action: RETRY,
+        };
+    return {
+        testid: 'feedback-generic-error',
+        variant: 'destructive',
+        title: 'Unexpected Error',
+        text: 'An unexpected error occurred. Please try again later.',
+    };
+});
+
+function act(event: FeedbackAction): void {
+    if (event === 'refresh') emit('refresh');
+    else if (event === 'retry') emit('retry');
+    else emit('login');
 }
 </script>
 
 <template>
-    <div data-testid="request-feedback" class="space-y-4 text-sm">
+    <div data-testid="request-feedback" class="grid gap-4">
         <!-- Save status indicator (suppressed when session is revoked) -->
-        <div v-if="canShowSaveStatus" data-testid="save-status-indicator" class="flex items-center gap-2">
-            <span v-if="saveStatus === 'saving'" class="text-muted-foreground flex items-center gap-1.5">
-                <span class="inline-block h-2 w-2 animate-pulse rounded-full bg-primary"></span>
-                Saving…
-            </span>
-            <span v-else-if="saveStatus === 'saved'" class="text-emerald-700 flex items-center gap-1.5">
-                <span class="inline-block h-2 w-2 rounded-full bg-emerald-600"></span>
-                Saved just now
-            </span>
-            <span v-else class="text-destructive flex items-center gap-1.5">
-                <span class="inline-block h-2 w-2 rounded-full bg-destructive"></span>
-                Save failed — retry
-            </span>
-        </div>
+        <p v-if="canShowSaveStatus" data-testid="save-status-indicator" class="flex items-center gap-2">
+            <template v-if="saveStatus === 'saving'">
+                <span class="size-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+                <span class="text-muted-foreground">Saving…</span>
+            </template>
+            <template v-else-if="saveStatus === 'saved'">
+                <span class="size-2 rounded-full bg-success" aria-hidden="true" />
+                <span class="text-success">Saved just now</span>
+            </template>
+            <template v-else>
+                <span class="size-2 rounded-full bg-destructive" aria-hidden="true" />
+                <span class="text-destructive">Save failed — retry</span>
+            </template>
+        </p>
 
-        <!-- 401 Session Revoked / Expired -->
-        <div
-            v-if="isSessionRevoked"
-            role="alert"
-            class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"
-            data-testid="feedback-session-revoked"
-        >
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h4 class="font-semibold text-amber-900">Your session has expired. Please sign in again.</h4>
-                    <p class="mt-1 text-xs text-amber-800">
-                        Your session was terminated or expired. Unsaved changes were not persisted.
-                    </p>
-                </div>
-                <button
+        <!-- Every failure is announced at once, whatever its tone. -->
+        <Alert v-if="notice" :variant="notice.variant" role="alert" :data-testid="notice.testid">
+            <AlertTitle>{{ notice.title }}</AlertTitle>
+            <AlertDescription>
+                <p>{{ notice.text }}</p>
+                <ul v-if="notice.details?.length" class="list-disc pl-4">
+                    <li v-for="(message, index) in notice.details" :key="index">{{ message }}</li>
+                </ul>
+            </AlertDescription>
+            <AlertAction v-if="notice.action">
+                <Button
                     type="button"
-                    data-testid="feedback-login-btn"
-                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
-                    @click="handleLogin"
+                    variant="outline"
+                    size="sm"
+                    :data-testid="notice.action.testid"
+                    @click="act(notice.action.event)"
                 >
-                    Sign in again
-                </button>
-            </div>
-        </div>
-
-        <!-- 409 Version Conflict -->
-        <div
-            v-else-if="isConflict"
-            role="alert"
-            class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"
-            data-testid="feedback-conflict"
-        >
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h4 class="font-semibold text-amber-900">A newer version exists</h4>
-                    <p class="mt-1 text-xs text-amber-800">
-                        This record was modified by another user or transaction. Please refresh to load the latest
-                        record and avoid overwriting newer data.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    data-testid="feedback-refresh-btn"
-                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
-                    @click="handleRefresh"
-                >
-                    Refresh
-                </button>
-            </div>
-        </div>
-
-        <!-- 422 Validation Error -->
-        <div
-            v-else-if="isValidation"
-            role="alert"
-            class="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-destructive"
-            data-testid="feedback-validation"
-        >
-            <h4 class="font-semibold text-destructive">Validation Error</h4>
-            <p class="mt-1 text-xs">
-                Please review the highlighted fields and correct your input. Your current input has been preserved.
-            </p>
-            <ul v-if="validationErrorList.length > 0" class="mt-2 list-inside list-disc space-y-0.5 text-xs">
-                <li v-for="(msg, idx) in validationErrorList" :key="idx">
-                    {{ msg }}
-                </li>
-            </ul>
-        </div>
-
-        <!-- 403 Forbidden - Generic & safe -->
-        <div
-            v-else-if="isForbidden"
-            role="alert"
-            class="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-foreground"
-            data-testid="feedback-forbidden"
-        >
-            <h4 class="font-semibold text-destructive">Access Denied</h4>
-            <p class="mt-1 text-xs text-muted-foreground">You do not have permission to perform this action.</p>
-        </div>
-
-        <!-- 404 Not Found - Generic & safe -->
-        <div
-            v-else-if="isNotFound"
-            role="alert"
-            class="rounded-lg border border-border bg-muted/40 p-4 text-foreground"
-            data-testid="feedback-not-found"
-        >
-            <h4 class="font-semibold text-foreground">Not Found</h4>
-            <p class="mt-1 text-xs text-muted-foreground">The requested resource was not found or is unavailable.</p>
-        </div>
-
-        <!-- 429 Throttled -->
-        <div
-            v-else-if="isThrottled"
-            role="alert"
-            class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"
-            data-testid="feedback-throttled"
-        >
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h4 class="font-semibold text-amber-900">Too Many Requests</h4>
-                    <p class="mt-1 text-xs text-amber-800">Rate limit exceeded. Please wait before retrying.</p>
-                </div>
-                <button
-                    type="button"
-                    data-testid="feedback-retry-btn"
-                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
-                    @click="handleRetry"
-                >
-                    Retry
-                </button>
-            </div>
-        </div>
-
-        <!-- 503 Service Unavailable -->
-        <div
-            v-else-if="isServiceUnavailable"
-            role="alert"
-            class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"
-            data-testid="feedback-service-unavailable"
-        >
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h4 class="font-semibold text-amber-900">Service Temporarily Unavailable</h4>
-                    <p class="mt-1 text-xs text-amber-800">
-                        The service is temporarily unavailable. You may retry safely.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    data-testid="feedback-retry-btn"
-                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
-                    @click="handleRetry"
-                >
-                    Retry
-                </button>
-            </div>
-        </div>
-
-        <!-- Network connection issue -->
-        <div
-            v-else-if="isNetworkFailure"
-            role="alert"
-            class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"
-            data-testid="feedback-network-error"
-        >
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h4 class="font-semibold text-amber-900">Network Connection Issue</h4>
-                    <p class="mt-1 text-xs text-amber-800">Unable to reach server. Please check your connection.</p>
-                </div>
-                <button
-                    type="button"
-                    data-testid="feedback-retry-btn"
-                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
-                    @click="handleRetry"
-                >
-                    Retry
-                </button>
-            </div>
-        </div>
-
-        <!-- Generic / 500 error -->
-        <div
-            v-else-if="error"
-            role="alert"
-            class="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-destructive"
-            data-testid="feedback-generic-error"
-        >
-            <h4 class="font-semibold text-destructive">Unexpected Error</h4>
-            <p class="mt-1 text-xs">An unexpected error occurred. Please try again later.</p>
-        </div>
+                    {{ notice.action.label }}
+                </Button>
+            </AlertAction>
+        </Alert>
     </div>
 </template>

@@ -4,6 +4,10 @@ import { computed, onUnmounted, ref, watch } from 'vue';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import SectionCard from '@/components/SectionCard.vue';
+import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
+import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from '@/components/ui/item';
+import { Progress } from '@/components/ui/progress';
 
 import AttachmentList, { type AttachmentItem } from './AttachmentList.vue';
 import { fileProblem, type AttachmentPolicy } from './attachmentPolicy';
@@ -78,16 +82,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <section aria-label="Attachments" class="space-y-4 panel p-6">
-        <div class="space-y-1">
-            <h2 class="font-semibold">Attachments</h2>
-            <p class="text-sm text-muted-foreground">
-                Attachments are optional. A file can be downloaded only after the malware scan marks it Ready.
-            </p>
-        </div>
-
-        <div v-if="editable" class="space-y-2">
-            <label for="attachment-input" class="block text-sm font-medium">Add a file</label>
+    <SectionCard
+        title="Attachments"
+        description="Attachments are optional. A file can be downloaded only after the malware scan marks it Ready."
+    >
+        <Field v-if="editable">
+            <FieldLabel for="attachment-input">Add a file</FieldLabel>
             <Input
                 id="attachment-input"
                 type="file"
@@ -96,47 +96,37 @@ onUnmounted(() => {
                 :disabled="pickerDisabled"
                 @change="pick"
             />
-            <p v-if="!policy" class="text-sm text-muted-foreground">Attachments are not available right now.</p>
-            <p v-else-if="lockedReason" class="text-sm text-muted-foreground">{{ lockedReason }}</p>
-            <p v-else class="text-xs text-muted-foreground">
+            <FieldDescription v-if="!policy">Attachments are not available right now.</FieldDescription>
+            <FieldDescription v-else-if="lockedReason">{{ lockedReason }}</FieldDescription>
+            <FieldDescription v-else>
                 Up to {{ policy.max_files }} files, {{ policy.max_bytes.toLocaleString('en-US') }} bytes each:
                 {{ policy.extensions.join(', ').toUpperCase() }}.
-            </p>
-            <p v-if="problem" role="alert" class="text-sm text-destructive">{{ problem }}</p>
-        </div>
+            </FieldDescription>
+            <FieldError v-if="problem">{{ problem }}</FieldError>
+        </Field>
 
-        <ul v-if="uploads.length" class="space-y-2">
-            <li
-                v-for="upload in uploads"
-                :key="upload.state.filename"
-                :data-testid="`upload-${upload.state.filename}`"
-                class="space-y-1 rounded-md border border-border p-3 text-sm"
-            >
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                    <span class="break-all font-medium">{{ upload.state.filename }}</span>
-                    <span class="text-muted-foreground">
-                        {{ PHASES[upload.state.phase] }}
-                        <template v-if="upload.state.total">
-                            · {{ upload.state.accepted }}/{{ upload.state.total }} parts</template
-                        >
-                    </span>
-                </div>
-                <progress
-                    v-if="upload.state.total"
-                    class="w-full"
-                    :value="upload.state.accepted"
-                    :max="upload.state.total"
-                    :aria-label="`${upload.state.filename} upload progress`"
-                />
-                <p v-if="upload.state.message" role="status" class="text-xs">{{ upload.state.message }}</p>
-                <Button
-                    type="button"
-                    v-if="['uploading', 'interrupted', 'cancel-failed'].includes(upload.state.phase)"
-                    variant="ghost"
-                    size="sm"
-                    @click="upload.cancel()"
-                    >Cancel upload</Button
-                >
+        <ul v-if="uploads.length" class="grid gap-2">
+            <li v-for="upload in uploads" :key="upload.state.filename">
+                <Item variant="outline" size="sm" :data-testid="`upload-${upload.state.filename}`">
+                    <ItemContent>
+                        <ItemTitle class="break-all">{{ upload.state.filename }}</ItemTitle>
+                        <ItemDescription>
+                            {{ PHASES[upload.state.phase] }}
+                            <template v-if="upload.state.total">
+                                · {{ upload.state.accepted }}/{{ upload.state.total }} parts</template
+                            >
+                        </ItemDescription>
+                        <Progress
+                            v-if="upload.state.total"
+                            :model-value="(upload.state.accepted / upload.state.total) * 100"
+                            :aria-label="`${upload.state.filename} upload progress`"
+                        />
+                        <p v-if="upload.state.message" role="status" class="text-xs">{{ upload.state.message }}</p>
+                    </ItemContent>
+                    <ItemActions v-if="['uploading', 'interrupted', 'cancel-failed'].includes(upload.state.phase)">
+                        <Button type="button" variant="ghost" size="sm" @click="upload.cancel()">Cancel upload</Button>
+                    </ItemActions>
+                </Item>
             </li>
         </ul>
 
@@ -146,5 +136,5 @@ onUnmounted(() => {
             :manageable="editable && lockedReason === null"
             @changed="emit('changed')"
         />
-    </section>
+    </SectionCard>
 </template>

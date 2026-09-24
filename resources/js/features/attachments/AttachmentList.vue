@@ -3,6 +3,7 @@ import { ref } from 'vue';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from '@/components/ui/item';
 import { sendJson } from '@/lib/http';
 
 export interface AttachmentItem {
@@ -65,68 +66,71 @@ async function remove(attachment: AttachmentItem): Promise<void> {
 </script>
 
 <template>
-    <p v-if="attachments.length === 0" class="text-sm text-muted-foreground">No attachments on this record.</p>
-    <ul v-else class="divide-y divide-border">
-        <li
-            v-for="attachment in attachments"
-            :key="attachment.id"
-            :data-testid="`attachment-${attachment.id}`"
-            class="flex flex-wrap items-center justify-between gap-3 py-3"
-        >
-            <div class="min-w-0 space-y-1">
-                <p class="break-all text-sm font-medium">{{ attachment.filename }}</p>
-                <p class="text-xs text-muted-foreground">{{ attachment.size_bytes.toLocaleString('en-US') }} bytes</p>
-                <Badge :variant="attachment.security_status === 'CLEAN' ? 'success' : 'warning'">{{
-                    LABELS[attachment.security_status]
-                }}</Badge>
-                <p v-if="messages[attachment.id]" role="status" class="text-xs text-destructive">
-                    {{ messages[attachment.id] }}
-                </p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <Button
-                    type="button"
-                    v-if="downloadable(attachment)"
-                    variant="outline"
-                    size="sm"
-                    :data-testid="`attachment-download-${attachment.id}`"
-                    :disabled="busy !== null || revoked.includes(attachment.id)"
-                    @click="download(attachment)"
-                    >Download</Button
-                >
-                <span v-else class="text-sm text-muted-foreground">Download unavailable</span>
-                <template v-if="manageable">
-                    <template v-if="confirming === attachment.id">
+    <p v-if="attachments.length === 0" class="text-muted-foreground">No attachments on this record.</p>
+    <ul v-else class="grid gap-2">
+        <li v-for="attachment in attachments" :key="attachment.id">
+            <Item variant="outline" size="sm" :data-testid="`attachment-${attachment.id}`">
+                <ItemContent>
+                    <ItemTitle class="break-all">{{ attachment.filename }}</ItemTitle>
+                    <ItemDescription class="flex flex-wrap items-center gap-2">
+                        {{ attachment.size_bytes.toLocaleString('en-US') }} bytes
+                        <Badge :variant="attachment.security_status === 'CLEAN' ? 'success' : 'warning'">
+                            {{ LABELS[attachment.security_status] }}
+                        </Badge>
+                    </ItemDescription>
+                    <p v-if="messages[attachment.id]" role="status" class="text-xs text-destructive">
+                        {{ messages[attachment.id] }}
+                    </p>
+                </ItemContent>
+                <ItemActions class="flex-wrap">
+                    <Button
+                        v-if="downloadable(attachment)"
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        :data-testid="`attachment-download-${attachment.id}`"
+                        :disabled="busy !== null || revoked.includes(attachment.id)"
+                        @click="download(attachment)"
+                    >
+                        Download
+                    </Button>
+                    <span v-else class="text-muted-foreground">Download unavailable</span>
+                    <template v-if="manageable">
+                        <template v-if="confirming === attachment.id">
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                :data-testid="`attachment-confirm-remove-${attachment.id}`"
+                                :disabled="busy !== null"
+                                @click="remove(attachment)"
+                            >
+                                Confirm remove
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                :disabled="busy !== null"
+                                @click="confirming = null"
+                            >
+                                Keep
+                            </Button>
+                        </template>
                         <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            :data-testid="`attachment-confirm-remove-${attachment.id}`"
-                            :disabled="busy !== null"
-                            @click="remove(attachment)"
-                            >Confirm remove</Button
-                        >
-                        <Button
+                            v-else
                             type="button"
                             variant="ghost"
                             size="sm"
+                            :data-testid="`attachment-remove-${attachment.id}`"
                             :disabled="busy !== null"
-                            @click="confirming = null"
-                            >Keep</Button
+                            @click="confirming = attachment.id"
                         >
+                            Remove
+                        </Button>
                     </template>
-                    <Button
-                        type="button"
-                        v-else
-                        variant="ghost"
-                        size="sm"
-                        :data-testid="`attachment-remove-${attachment.id}`"
-                        :disabled="busy !== null"
-                        @click="confirming = attachment.id"
-                        >Remove</Button
-                    >
-                </template>
-            </div>
+                </ItemActions>
+            </Item>
         </li>
     </ul>
 </template>
