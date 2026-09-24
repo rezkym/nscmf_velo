@@ -62,8 +62,23 @@ test('browser runtime preserves the disposable primary defaults and isolated por
             LOG_CHANNEL: 'single',
             NSCMF_PRIVATE_STORAGE_ROOT: path.join(root, 'storage/framework/testing/browser/private'),
             NSCMF_RUNTIME_TMP_ROOT: path.join(root, 'storage/framework/testing/browser/tmp'),
+            NSCMF_SIGNING_P12_PATH: path.join(root, 'storage/framework/testing/browser/signing/organization.p12'),
+            NSCMF_SIGNING_P12_PASSPHRASE: 'browser-runtime-only-passphrase',
         },
     });
+});
+
+test('browser runtime never signs with a development or production key from the environment', () => {
+    const runtime = inspectRuntime({
+        NSCMF_SIGNING_P12_PATH: '/srv/nscmf/private/signing/organization.p12',
+        NSCMF_SIGNING_P12_PASSPHRASE: 'real-operator-secret',
+    });
+
+    assert.equal(
+        runtime.environment.NSCMF_SIGNING_P12_PATH,
+        path.join(root, 'storage/framework/testing/browser/signing/organization.p12'),
+    );
+    assert.notEqual(runtime.environment.NSCMF_SIGNING_P12_PASSPHRASE, 'real-operator-secret');
 });
 
 test('browser runtime ignores generic development database settings', () => {
