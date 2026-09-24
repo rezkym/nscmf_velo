@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { ArrowUpRight } from '@lucide/vue';
-import { computed } from 'vue';
 
+import { Button } from '@/components/ui/button';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { QueueCount } from '@/features/dashboard/types';
-import { cn } from '@/lib/utils';
 
 import { type RecordSummary, SUBTYPE_LABELS } from './types';
 
-const props = withDefaults(
+withDefaults(
     defineProps<{
         title: string;
         caption?: string;
@@ -32,85 +33,63 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{ retry: [] }>();
-
-// Text on the featured gradient stays white; everything else uses the ordinary text tokens.
-const tone = computed(() =>
-    props.featured
-        ? {
-              title: 'text-white/80',
-              value: 'text-white',
-              muted: 'text-white/75',
-              link: 'text-white',
-              rule: 'border-white/20',
-          }
-        : {
-              title: 'text-muted-foreground',
-              value: 'text-heading',
-              muted: 'text-muted-foreground',
-              link: 'text-heading',
-              rule: 'border-border',
-          },
-);
 </script>
 
 <template>
-    <section :class="cn('panel flex flex-col gap-4 p-5', featured && 'bg-linear-to-br from-brand-950 to-brand-700')">
-        <div class="flex items-start justify-between gap-3">
-            <h2 :class="cn('text-base font-medium', tone.title)">{{ title }}</h2>
-            <Link
-                v-if="href"
-                :href="href"
-                :class="
-                    cn(
-                        'inline-flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        featured
-                            ? 'border-white/30 text-white hover:bg-white/10'
-                            : 'border-border text-heading hover:bg-muted',
-                    )
-                "
-            >
-                <span class="sr-only">View all</span>
-                <ArrowUpRight class="size-4" :stroke-width="2" aria-hidden="true" />
-            </Link>
-        </div>
+    <!-- The highlighted card borrows the dark token set, so every part stays readable on navy. -->
+    <Card :class="featured ? 'dark bg-brand-950 text-card-foreground ring-0' : undefined">
+        <CardHeader>
+            <CardTitle class="text-muted-foreground">{{ title }}</CardTitle>
+            <CardAction v-if="href">
+                <Button as-child variant="ghost" size="icon-sm" class="-mt-1 -mr-2 text-muted-foreground">
+                    <Link :href="href">
+                        <ArrowUpRight aria-hidden="true" />
+                        <span class="sr-only">View all</span>
+                    </Link>
+                </Button>
+            </CardAction>
+        </CardHeader>
 
-        <div>
-            <p v-if="state.loading" :class="cn('text-sm', tone.muted)">Loading…</p>
-            <div v-else-if="state.error" class="space-y-1">
-                <p :class="cn('text-sm', featured ? 'text-white' : 'text-destructive')">{{ state.error }}</p>
-                <button
+        <CardContent class="grid gap-1">
+            <div v-if="state.loading" role="status" class="py-1">
+                <Skeleton class="h-10 w-16" />
+                <span class="sr-only">Loading…</span>
+            </div>
+            <div v-else-if="state.error" class="grid justify-items-start gap-1">
+                <p class="text-destructive">{{ state.error }}</p>
+                <Button
                     type="button"
+                    variant="link"
+                    size="sm"
+                    class="h-auto px-0"
                     data-testid="retry-button"
-                    :class="cn('text-sm font-medium underline underline-offset-2', tone.link)"
                     @click="emit('retry')"
                 >
                     Retry
-                </button>
+                </Button>
             </div>
-            <p
-                v-else
-                data-testid="count-value"
-                :class="cn('text-4xl font-semibold tracking-tight tabular-nums', tone.value)"
-            >
+            <p v-else data-testid="count-value" class="text-4xl font-semibold tracking-tight tabular-nums text-heading">
                 <template v-if="typeof state.count === 'number'">{{ state.count }}</template>
                 <template v-else>—</template>
             </p>
-            <p v-if="caption" :class="cn('mt-1 text-sm', tone.muted)">{{ caption }}</p>
-        </div>
+            <p v-if="caption" class="text-muted-foreground">{{ caption }}</p>
+        </CardContent>
 
-        <ul v-if="items.length > 0" :class="cn('space-y-2 border-t pt-3 text-sm', tone.rule)">
-            <li v-for="item in items" :key="item.id" class="flex flex-col">
-                <!-- The Request No is what the user clicks: it never shrinks; the context text wraps. -->
-                <Link
-                    :href="itemHref(item)"
-                    :class="cn('break-all font-medium underline-offset-2 hover:underline', tone.link)"
-                >
-                    {{ item.request_no }}
-                </Link>
-                <span :class="cn('text-xs', tone.muted)">
-                    {{ SUBTYPE_LABELS[item.subtype] }}<template v-if="item.team"> · {{ item.team.name }}</template>
-                </span>
-            </li>
-        </ul>
-    </section>
+        <CardContent v-if="items.length > 0">
+            <ul class="grid gap-2.5 border-t pt-4">
+                <li v-for="item in items" :key="item.id" class="grid">
+                    <!-- The Request No is what the user clicks: it never shrinks; the context text wraps. -->
+                    <Link
+                        :href="itemHref(item)"
+                        class="break-all font-medium text-heading underline-offset-4 hover:underline"
+                    >
+                        {{ item.request_no }}
+                    </Link>
+                    <span class="text-xs text-muted-foreground">
+                        {{ SUBTYPE_LABELS[item.subtype] }}<template v-if="item.team"> · {{ item.team.name }}</template>
+                    </span>
+                </li>
+            </ul>
+        </CardContent>
+    </Card>
 </template>
