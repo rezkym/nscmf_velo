@@ -268,3 +268,18 @@ it('treats a duplicate complete and a retried finalization as no-ops', function 
         ->and(DB::table('business_audit_events')->where('event_type', 'ATTACHMENT_ADDED')->count())->toBe(1)
         ->and(Records::version($recordId))->toBe(2);
 });
+
+it('fails an upload whose finalization ran out of attempts and never exposes the file (11A, 12 §56)', function (): void {
+    [$recordId, $owner] = editableRecord();
+    $uploadId = uploadIdOf(initiateUpload($owner, $recordId, 'evidence.pdf', strlen(PDF_BYTES)));
+    putChunk($owner, $recordId, $uploadId, 1, PDF_BYTES)->assertOk();
+    signIn($owner)->postJson("/nscmf/{$recordId}/attachment-uploads/{$uploadId}/complete")->assertStatus(202);
+    $sessionId = soleId('nscmf_attachment_upload_sessions');
+
+    (new FinalizeAttachmentUpload($sessionId))->failed(new RuntimeException('clamd crashed'));
+
+    expect(DB::table('nscmf_attachment_upload_sessions')->value('upload_status'))->toBe('FAILED')
+        ->and(DB::table('nscmf_attachments')->where('security_status', 'CLEAN')->count())->toBe(0)
+        ->and(Records::version($recordId))->toBe(1);
+    signIn($owner)->getJson("/nscmf/{$recordId}/attachment-uploads/{$uploadId}")->assertOk()->assertJsonPath('data.status', 'FAILED');
+});
