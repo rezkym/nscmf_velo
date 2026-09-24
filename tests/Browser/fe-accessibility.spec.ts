@@ -101,3 +101,30 @@ test('AC5: motion is removed when the user prefers reduced motion', async ({ pag
     );
     expect(animated).toBe(0);
 });
+
+test('on a phone the navigation opens as a panel, takes focus, closes on Escape and returns focus', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    const requester = createBrowserUser({ roles: ['Requester'], team: true });
+    await loginToDashboard(page, requester.username, requester.password);
+
+    const menu = page.getByTestId('sidebar-toggle');
+    const navigation = page.getByRole('navigation', { name: 'Sidebar Menu' });
+    await expect(navigation).toBeHidden();
+
+    await menu.focus();
+    await page.keyboard.press('Enter');
+    await expect(menu).toHaveAttribute('aria-expanded', 'true');
+    await expect(navigation).toBeVisible();
+    await expect(page.locator('#sidebar-navigation :focus')).toHaveCount(1);
+
+    await page.keyboard.press('Escape');
+    await expect(navigation).toBeHidden();
+    await expect(menu).toBeFocused();
+
+    await menu.click();
+    await navigation.getByRole('link', { name: 'History' }).click();
+    await expect(page).toHaveURL(/\/history$/);
+    await noHorizontalScroll(page);
+});

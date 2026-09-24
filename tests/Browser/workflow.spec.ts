@@ -70,3 +70,39 @@ test('the dashboard counts come from the database and hide pools the actor may n
     await expect(page.getByTestId('card-reviews')).toHaveCount(0);
     await expect(page.getByTestId('card-approvals')).toHaveCount(0);
 });
+
+/*
+ * G22 — the Dashboard analytics come from the database (12 §44.1) and the organization view follows
+ * nscmf.analytics.view + nscmf.view.history (04 §12.1); the switch is never a client-side grant.
+ */
+test('the Dashboard shows own activity from the database and the organization view only with both permissions', async ({
+    page,
+}) => {
+    const requester = createBrowserUser({ roles: ['Requester'], team: true });
+    const analyticsOnly = createBrowserUser({ permissions: ['nscmf.analytics.view'], team: true });
+    const lead = createBrowserUser({ roles: ['Superadmin'], team: true });
+
+    await loginToDashboard(page, requester.username, requester.password);
+    await createChangeDraft(page);
+    await fillSubmittableChange(page);
+    await page.getByTestId('submit-button').click();
+    await expect(page.getByTestId('business-status-badge')).toHaveText('Pending Review');
+    await page.getByRole('navigation', { name: 'Sidebar Menu' }).getByRole('link', { name: 'Dashboard' }).click();
+
+    await expect(page.getByTestId('activity-total')).toHaveText(['1', '1', '0']);
+    await expect(page.getByTestId('analytics-scope')).toHaveCount(0);
+    await expect(page.getByTestId('status-panel').getByRole('listitem').nth(1)).toContainText('Pending Review');
+    await expect(page.getByTestId('status-panel').getByRole('listitem').nth(1)).toContainText('1');
+
+    await page.getByTestId('btn-logout').click();
+    await loginToDashboard(page, analyticsOnly.username, analyticsOnly.password);
+    await expect(page.getByTestId('activity-panel')).toBeVisible();
+    await expect(page.getByTestId('analytics-scope')).toHaveCount(0);
+
+    await page.getByTestId('btn-logout').click();
+    await loginToDashboard(page, lead.username, lead.password);
+    await page.getByTestId('analytics-scope').getByRole('button', { name: 'Organization' }).click();
+    const legend = page.getByTestId('activity-legend');
+    await expect(legend).not.toContainText('Created');
+    expect(Number(await page.getByTestId('activity-total').first().innerText())).toBeGreaterThanOrEqual(1);
+});
