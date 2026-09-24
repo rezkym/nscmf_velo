@@ -22,6 +22,10 @@ declare module 'node:child_process' {
     ): ChildProcess;
 }
 
+declare module 'node:fs' {
+    export function existsSync(path: string): boolean;
+}
+
 declare module 'node:path' {
     const path: {
         resolve(...segments: string[]): string;

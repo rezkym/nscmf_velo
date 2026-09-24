@@ -9,7 +9,8 @@ import TechnicalLogs from './TechnicalLogs.vue';
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
 
 const fetchMock = vi.fn();
-const SETTING = { automatic_cleanup_enabled: true, retention_value: 30, retention_unit: 'DAY' as const };
+type Setting = { automatic_cleanup_enabled: boolean; retention_value: number; retention_unit: 'DAY' | 'MONTH' };
+const SETTING: Setting = { automatic_cleanup_enabled: true, retention_value: 30, retention_unit: 'DAY' };
 
 function respond(status: number, body: unknown): void {
     fetchMock.mockResolvedValueOnce(
@@ -17,7 +18,7 @@ function respond(status: number, body: unknown): void {
     );
 }
 
-function mountPage(setting = SETTING) {
+function mountPage(setting: Setting = SETTING) {
     return mount(TechnicalLogs, { props: { setting }, attachTo: document.body });
 }
 

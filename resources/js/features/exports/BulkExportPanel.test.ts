@@ -85,7 +85,7 @@ describe('Bulk export (FE-46)', () => {
                 id: 3,
                 format: 'XLSX',
                 items: [
-                    { record_id: 5, ...exportJob(40, 5, 'READY') },
+                    exportJob(40, 5, 'READY'),
                     { record_id: 8, error: { code: 'FORBIDDEN', message: 'You cannot export this record.' } },
                 ],
             },
@@ -103,7 +103,7 @@ describe('Bulk export (FE-46)', () => {
 
     it('AC3: follows the batch until every export settles', async () => {
         respond(202, {
-            data: { id: 3, format: 'XLSX', items: [{ record_id: 5, ...exportJob(40, 5, 'QUEUED') }] },
+            data: { id: 3, format: 'XLSX', items: [exportJob(40, 5, 'QUEUED')] },
         });
         respond(200, { data: { id: 3, format: 'XLSX', exports: [exportJob(40, 5, 'FAILED')] } });
         const wrapper = mountPanel([SELECTED[0]!]);
@@ -119,10 +119,7 @@ describe('Bulk export (FE-46)', () => {
             data: {
                 id: 3,
                 format: 'XLSX',
-                items: [
-                    { record_id: 5, ...exportJob(40, 5, 'QUEUED') },
-                    { record_id: 8, ...exportJob(41, 8, 'QUEUED') },
-                ],
+                items: [exportJob(40, 5, 'QUEUED'), exportJob(41, 8, 'QUEUED')],
             },
         });
         let release: () => void = () => undefined;
@@ -169,7 +166,7 @@ describe('Bulk export (FE-46)', () => {
                 id: 4,
                 format: 'XLSX',
                 items: [
-                    { record_id: 5, ...exportJob(40, 5, 'FAILED') },
+                    exportJob(40, 5, 'FAILED'),
                     { record_id: 8, error: { code: 'FORBIDDEN', message: 'You cannot export this record.' } },
                 ],
             },

@@ -134,11 +134,7 @@ test('AC3: an attachment is scanned before download, and an Approved PDF is sign
     // Attachment: uploaded in chunks, scanned by the real clamd, only then downloadable.
     await loginToDashboard(page, requester.username, requester.password);
     const recordPath = await createChangeDraft(page);
-    await page.getByTestId('attachment-input').setInputFiles({
-        name: 'plan.txt',
-        mimeType: 'text/plain',
-        buffer: Buffer.from('Maintenance plan: replace the optical module.'),
-    });
+    await page.getByTestId('attachment-input').setInputFiles(path.resolve(import.meta.dirname, 'fixtures/plan.txt'));
     await expect(page.getByTestId('upload-plan.txt')).toContainText('Scanning');
     runQueuedJobs();
     await expect(page.getByTestId('upload-plan.txt')).toContainText('Processed', { timeout: 15_000 });
@@ -172,15 +168,12 @@ test('AC3: an attachment is scanned before download, and an Approved PDF is sign
     await expect(job).toContainText('Signed with the NSCMF Organization certificate.');
     const download = page.waitForEvent('download');
     await page.locator('[data-testid^="export-download-"]').first().click();
-    const pdfPath = await (await download).path();
+    const pdfPath = test.info().outputPath('nscmf.pdf');
+    await (await download).saveAs(pdfPath);
 
     await page.goto('/ispdfvalid');
     await expect(page.getByRole('link')).toHaveCount(0);
-    await page.getByTestId('validator-file').setInputFiles({
-        name: 'nscmf.pdf',
-        mimeType: 'application/pdf',
-        buffer: await import('node:fs/promises').then((fs) => fs.readFile(pdfPath)),
-    });
+    await page.getByTestId('validator-file').setInputFiles(pdfPath);
     await page.getByTestId('validator-verify').click();
     await expect(page.getByTestId('validator-result')).toContainText('Valid and current', { timeout: 30_000 });
 });

@@ -104,7 +104,7 @@ describe('Cancel Draft (FE-34)', () => {
             data: { code: 'NSCMF_VERSION_CONFLICT' },
         });
 
-        expect(wrapper.get('[data-testid="lifecycle-refresh"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="lifecycle-refresh"]').exists()).toBe(true);
         expect(requests).toHaveLength(1);
     });
 });
@@ -168,10 +168,11 @@ describe('Archive and unarchive (FE-36)', () => {
     });
 
     it('AC2: a reason of 5 to 2000 characters is required in both directions', async () => {
-        for (const [record, action] of [
+        const cases: [Partial<NscmfDetailRecord>, string][] = [
             [{}, 'archive'],
             [{ is_archived: true, allowed_actions: ['nscmf.unarchive'] }, 'unarchive'],
-        ] as const) {
+        ];
+        for (const [record, action] of cases) {
             const wrapper = mountActions(record);
             await confirm(wrapper, action, 'abcd');
             expect(wrapper.get('[role="dialog"]').text()).toContain('Reason must be at least 5 characters');

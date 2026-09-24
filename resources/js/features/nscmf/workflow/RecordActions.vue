@@ -127,9 +127,9 @@ function showDomainError(domain: { code?: string; message?: string } | null): bo
     return true;
 }
 
-function body(action: RecordActionSpec, text: string): Record<string, unknown> {
+function body(action: RecordActionSpec, text: string): Record<string, string | number> {
     const trimmed = text.trim();
-    const payload: Record<string, unknown> = { record_version: props.recordVersion, ...action.payload };
+    const payload: Record<string, string | number> = { record_version: props.recordVersion, ...action.payload };
     if (action.input === 'comment') payload.comment = trimmed;
     else if (action.input === 'reason' || trimmed !== '') payload.reason = trimmed;
     return payload;
