@@ -49,7 +49,9 @@ final readonly class ExportGenerationService
     {
         $claimed = $this->database->connection()->transaction(function () use ($exportId): bool {
             $request = $this->exports->lockRequest($exportId);
-            if ($request->status !== ExportStatus::QUEUED) {
+            // PROCESSING here means an earlier attempt of this same job was cut off before it
+            // settled; the queue never runs two attempts at once (job timeout < retry_after).
+            if (! in_array($request->status, [ExportStatus::QUEUED, ExportStatus::PROCESSING], true)) {
                 return false;
             }
             $this->exports->updateRequest($request, ['status' => ExportStatus::PROCESSING, 'started_at' => CarbonImmutable::now()]);
