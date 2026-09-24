@@ -169,6 +169,11 @@
     h3 {
         @apply text-heading;
     }
+
+    /* A section reached from an in-page link clears the sticky header. */
+    section[id] {
+        scroll-margin-top: calc(var(--spacing) * 24);
+    }
 }
 
 /* Respect a reduced-motion preference everywhere (07 accessibility; FE-51). */

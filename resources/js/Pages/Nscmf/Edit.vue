@@ -2,6 +2,7 @@
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
+import PageHeader from '@/components/PageHeader.vue';
 import RequestFeedback from '@/components/RequestFeedback.vue';
 import Button from '@/components/ui/Button.vue';
 import { buttonVariants } from '@/components/ui/button';
@@ -21,6 +22,7 @@ import ResultsSection from '@/features/nscmf/change/ResultsSection.vue';
 import type { DraftHeader } from '@/features/nscmf/draftPayload';
 import type { FieldErrors } from '@/features/nscmf/fieldErrors';
 import { latestReturnReason } from '@/features/nscmf/returnReason';
+import SectionNavigator from '@/features/nscmf/SectionNavigator.vue';
 import SubmitPanel, { type SaveState } from '@/features/nscmf/SubmitPanel.vue';
 import {
     type ActivationDraftFields,
@@ -177,30 +179,28 @@ function refresh(): void {
 function signIn(): void {
     router.visit('/login');
 }
+
+/** The form column; the section navigator reads its panels. */
+const form = ref<HTMLElement | null>(null);
 </script>
 
 <template>
     <AppLayout title="Edit NSCMF">
-        <div class="mx-auto max-w-5xl space-y-6">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="space-y-1">
-                    <h1 class="text-xl font-semibold text-foreground">
-                        {{ FAMILY_LABELS[record.family] }} — {{ SUBTYPE_LABELS[record.subtype] }}
-                    </h1>
-                    <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span class="font-mono">{{ record.request_no }}</span>
-                        <StatusBadge :status="record.business_status" />
-                    </div>
+        <div class="mx-auto max-w-6xl space-y-6">
+            <PageHeader :title="`${FAMILY_LABELS[record.family]} — ${SUBTYPE_LABELS[record.subtype]}`">
+                <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <span class="font-mono">{{ record.request_no }}</span>
+                    <StatusBadge :status="record.business_status" />
                 </div>
-                <div class="flex items-center gap-2">
+                <template #actions>
                     <Link :href="`/nscmf/${record.id}`" :class="buttonVariants({ variant: 'secondary' })"
                         >View record</Link
                     >
                     <Button data-testid="btn-save-draft" :disabled="draft.isSaving.value" @click="saveNow">
                         {{ draft.isSaving.value ? 'Saving…' : 'Save draft' }}
                     </Button>
-                </div>
-            </div>
+                </template>
+            </PageHeader>
 
             <RequestFeedback
                 :error="draft.feedbackError.value"
@@ -210,94 +210,106 @@ function signIn(): void {
                 @login="signIn"
             />
 
-            <section data-testid="draft-header" class="space-y-4 panel p-6">
-                <h2 class="text-base font-semibold">Request</h2>
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <FormField id="request_no" label="Request number" :error="fieldErrors['header.request_no']">
-                        <template #default="{ id, describedBy }">
-                            <input
-                                v-if="canCorrectNumber"
-                                :id="id"
-                                v-model="header.request_no"
-                                data-testid="draft-request-no"
-                                type="text"
-                                maxlength="64"
-                                autocomplete="off"
-                                :aria-describedby="describedBy"
-                                :class="[controlClass, 'font-mono']"
-                            />
-                            <p v-else :id="id" class="font-mono text-sm text-foreground">{{ record.request_no }}</p>
-                        </template>
-                    </FormField>
-                    <FormField
-                        id="request_date"
-                        label="Request date"
-                        required
-                        :error="fieldErrors['header.request_date']"
-                    >
-                        <template #default="{ id, describedBy }">
-                            <input
-                                :id="id"
-                                v-model="header.request_date"
-                                data-testid="draft-request-date"
-                                type="date"
-                                :aria-describedby="describedBy"
-                                :class="controlClass"
-                            />
-                        </template>
-                    </FormField>
+            <div class="xl:grid xl:grid-cols-[minmax(0,1fr)_14rem] xl:items-start xl:gap-8">
+                <SectionNavigator :form="form" class="mb-6 xl:sticky xl:top-24 xl:order-last xl:mb-0" />
+
+                <div ref="form" class="min-w-0 space-y-6">
+                    <section data-testid="draft-header" class="space-y-4 panel p-6">
+                        <h2 class="text-base font-semibold">Request</h2>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <FormField id="request_no" label="Request number" :error="fieldErrors['header.request_no']">
+                                <template #default="{ id, describedBy }">
+                                    <input
+                                        v-if="canCorrectNumber"
+                                        :id="id"
+                                        v-model="header.request_no"
+                                        data-testid="draft-request-no"
+                                        type="text"
+                                        maxlength="64"
+                                        autocomplete="off"
+                                        :aria-describedby="describedBy"
+                                        :class="[controlClass, 'font-mono']"
+                                    />
+                                    <p v-else :id="id" class="font-mono text-sm text-foreground">
+                                        {{ record.request_no }}
+                                    </p>
+                                </template>
+                            </FormField>
+                            <FormField
+                                id="request_date"
+                                label="Request date"
+                                required
+                                :error="fieldErrors['header.request_date']"
+                            >
+                                <template #default="{ id, describedBy }">
+                                    <input
+                                        :id="id"
+                                        v-model="header.request_date"
+                                        data-testid="draft-request-date"
+                                        type="date"
+                                        :aria-describedby="describedBy"
+                                        :class="controlClass"
+                                    />
+                                </template>
+                            </FormField>
+                        </div>
+                    </section>
+
+                    <template v-if="isActivation">
+                        <GeneralServiceSection
+                            v-model="activationFields"
+                            :subtype="record.subtype as ActivationSubtype"
+                            :errors="fieldErrors"
+                        />
+                        <BandwidthSection v-model="activationFields" :errors="fieldErrors" />
+                        <NetworkHostingSection v-model="activationFields" :errors="fieldErrors" />
+                        <SiteSection v-model="activationFields" :errors="fieldErrors" />
+                    </template>
+                    <template v-else>
+                        <PurposeImpactSection
+                            v-model="changeFields"
+                            :subtype="record.subtype as ChangeSubtype"
+                            :errors="fieldErrors"
+                        />
+                        <PlanSection
+                            v-model="changeFields"
+                            :subtype="record.subtype as ChangeSubtype"
+                            :errors="fieldErrors"
+                        />
+                        <ResultsSection
+                            v-model="changeFields"
+                            :subtype="record.subtype as ChangeSubtype"
+                            :errors="fieldErrors"
+                        />
+                    </template>
+
+                    <AttachmentPanel
+                        :record-id="record.id"
+                        :attachments="attachments"
+                        :policy="attachment_policy"
+                        :editable="attachmentsEditable"
+                        :locked-reason="attachmentsLocked"
+                        @changed="attachmentsChanged"
+                    />
+
+                    <section class="panel p-6">
+                        <SubmitPanel
+                            :record-id="record.id"
+                            :record-version="draft.currentVersion.value"
+                            :business-status="record.business_status"
+                            :owner-id="record.owner?.id ?? null"
+                            :allowed-actions="record.allowed_actions ?? []"
+                            :save-state="saveState"
+                            :errors="submitErrors"
+                            :warnings="warnings"
+                            :request-no="record.request_no"
+                            :iteration="record.iteration_no ?? null"
+                            :revision-reason="revisionReason"
+                            :domain-error="domainError"
+                        />
+                    </section>
                 </div>
-            </section>
-
-            <template v-if="isActivation">
-                <GeneralServiceSection
-                    v-model="activationFields"
-                    :subtype="record.subtype as ActivationSubtype"
-                    :errors="fieldErrors"
-                />
-                <BandwidthSection v-model="activationFields" :errors="fieldErrors" />
-                <NetworkHostingSection v-model="activationFields" :errors="fieldErrors" />
-                <SiteSection v-model="activationFields" :errors="fieldErrors" />
-            </template>
-            <template v-else>
-                <PurposeImpactSection
-                    v-model="changeFields"
-                    :subtype="record.subtype as ChangeSubtype"
-                    :errors="fieldErrors"
-                />
-                <PlanSection v-model="changeFields" :subtype="record.subtype as ChangeSubtype" :errors="fieldErrors" />
-                <ResultsSection
-                    v-model="changeFields"
-                    :subtype="record.subtype as ChangeSubtype"
-                    :errors="fieldErrors"
-                />
-            </template>
-
-            <AttachmentPanel
-                :record-id="record.id"
-                :attachments="attachments"
-                :policy="attachment_policy"
-                :editable="attachmentsEditable"
-                :locked-reason="attachmentsLocked"
-                @changed="attachmentsChanged"
-            />
-
-            <section class="panel p-6">
-                <SubmitPanel
-                    :record-id="record.id"
-                    :record-version="draft.currentVersion.value"
-                    :business-status="record.business_status"
-                    :owner-id="record.owner?.id ?? null"
-                    :allowed-actions="record.allowed_actions ?? []"
-                    :save-state="saveState"
-                    :errors="submitErrors"
-                    :warnings="warnings"
-                    :request-no="record.request_no"
-                    :iteration="record.iteration_no ?? null"
-                    :revision-reason="revisionReason"
-                    :domain-error="domainError"
-                />
-            </section>
+            </div>
         </div>
     </AppLayout>
 </template>
