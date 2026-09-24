@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { requests, resetInertia, router } from '@/testing/inertia';
 
-import Index, { type DashboardCounts, type DashboardItems } from './Index.vue';
+import type { DashboardCounts, DashboardItems } from '@/features/dashboard/types';
+
+import Index from './Index.vue';
 
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
 

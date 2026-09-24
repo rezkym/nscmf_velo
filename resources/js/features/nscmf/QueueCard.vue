@@ -1,14 +1,9 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 
-import { type RecordSummary, SUBTYPE_LABELS } from './types';
+import type { QueueCount } from '@/features/dashboard/types';
 
-/** Server-provided count for one attention queue. Loading and failure are explicit, never shown as 0. */
-export interface QueueCount {
-    count?: number | null;
-    loading?: boolean;
-    error?: string | null;
-}
+import { type RecordSummary, SUBTYPE_LABELS } from './types';
 
 withDefaults(
     defineProps<{

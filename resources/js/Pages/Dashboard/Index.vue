@@ -3,14 +3,11 @@ import { Link, router } from '@inertiajs/vue3';
 
 import { buttonVariants } from '@/components/ui/button';
 import { usePermissions } from '@/composables/usePermissions';
-import QueueCard, { type QueueCount } from '@/features/nscmf/QueueCard.vue';
+import { recordHref } from '@/features/dashboard/queues';
+import type { DashboardCounts, DashboardItems, Queue } from '@/features/dashboard/types';
+import QueueCard from '@/features/nscmf/QueueCard.vue';
 import type { RecordSummary } from '@/features/nscmf/types';
 import AppLayout from '@/layouts/AppLayout.vue';
-
-type Queue = 'drafts' | 'revisions' | 'reviews' | 'approvals';
-
-export type DashboardCounts = Partial<Record<Queue, QueueCount>>;
-export type DashboardItems = Partial<Record<Queue, RecordSummary[]>>;
 
 withDefaults(defineProps<{ counts?: DashboardCounts; items?: DashboardItems }>(), {
     counts: () => ({}),
@@ -20,10 +17,10 @@ withDefaults(defineProps<{ counts?: DashboardCounts; items?: DashboardItems }>()
 const { user, can } = usePermissions();
 
 // Own Drafts and returned records open in the editor; queued records open where they are decided.
-const ownEditHref = (item: RecordSummary): string =>
-    can('nscmf.draft.edit') ? `/nscmf/${item.id}/edit` : `/nscmf/${item.id}`;
-const reviewHref = (item: RecordSummary): string => `/review/${item.id}`;
-const approvalHref = (item: RecordSummary): string => `/approval/${item.id}`;
+const hrefIn =
+    (queue: Queue) =>
+    (item: RecordSummary): string =>
+        recordHref(queue, item.id, can('nscmf.draft.edit'));
 
 function reloadCounts(): void {
     router.reload({ only: ['counts'] });
@@ -55,7 +52,7 @@ function reloadCounts(): void {
                     title="My drafts"
                     :state="counts.drafts"
                     :items="items.drafts"
-                    :item-href="ownEditHref"
+                    :item-href="hrefIn('drafts')"
                     @retry="reloadCounts"
                 />
                 <QueueCard
@@ -63,7 +60,7 @@ function reloadCounts(): void {
                     title="Revision required"
                     :state="counts.revisions"
                     :items="items.revisions"
-                    :item-href="ownEditHref"
+                    :item-href="hrefIn('revisions')"
                     @retry="reloadCounts"
                 />
                 <QueueCard
@@ -73,7 +70,7 @@ function reloadCounts(): void {
                     href="/review"
                     :state="counts.reviews"
                     :items="items.reviews"
-                    :item-href="reviewHref"
+                    :item-href="hrefIn('reviews')"
                     @retry="reloadCounts"
                 />
                 <QueueCard
@@ -83,7 +80,7 @@ function reloadCounts(): void {
                     href="/approval"
                     :state="counts.approvals"
                     :items="items.approvals"
-                    :item-href="approvalHref"
+                    :item-href="hrefIn('approvals')"
                     @retry="reloadCounts"
                 />
             </div>
