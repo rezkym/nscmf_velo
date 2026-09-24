@@ -114,7 +114,7 @@ describe('User administration (FE-12)', () => {
     it('renders inside the authenticated shell with team, roles and status per user', () => {
         const wrapper = mountPage();
 
-        expect(wrapper.find('#sidebar-navigation').exists()).toBe(true);
+        expect(wrapper.find('nav[aria-label="Sidebar Menu"]').exists()).toBe(true);
         expect(wrapper.get('[data-testid="user-row-2"]').text()).toContain('demo.requester.a');
         expect(wrapper.get('[data-testid="user-row-2"]').text()).toContain('Demo Team Alpha');
         expect(wrapper.get('[data-testid="user-row-2"]').text()).toContain('Requester');

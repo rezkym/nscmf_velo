@@ -45,7 +45,7 @@ describe('Role administration (FE-14)', () => {
     it('renders inside the authenticated shell and lists roles with their permission counts', () => {
         const wrapper = mountPage();
 
-        expect(wrapper.find('#sidebar-navigation').exists()).toBe(true);
+        expect(wrapper.find('nav[aria-label="Sidebar Menu"]').exists()).toBe(true);
         expect(wrapper.get('[data-testid="role-row-2"]').text()).toContain('Requester');
         expect(wrapper.get('[data-testid="role-row-2"]').text()).toContain('2 permissions');
         expect(wrapper.get('[data-testid="role-row-1"]').text()).toContain('Protected');

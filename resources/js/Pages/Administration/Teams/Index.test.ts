@@ -36,7 +36,7 @@ describe('Team administration (FE-11)', () => {
     it('renders inside the authenticated shell and lists teams with their status', () => {
         const wrapper = mountPage();
 
-        expect(wrapper.find('#sidebar-navigation').exists()).toBe(true);
+        expect(wrapper.find('nav[aria-label="Sidebar Menu"]').exists()).toBe(true);
         expect(wrapper.find('[data-testid="team-row-1"]').text()).toContain('Demo Team Alpha');
         expect(wrapper.find('[data-testid="team-row-1"]').text()).toContain('Active');
         expect(wrapper.find('[data-testid="team-row-2"]').text()).toContain('Inactive');

@@ -32,7 +32,7 @@ describe('Create NSCMF (FE-17)', () => {
     });
 
     it('renders inside the authenticated shell', () => {
-        expect(mountCreate().find('#sidebar-navigation').exists()).toBe(true);
+        expect(mountCreate().find('nav[aria-label="Sidebar Menu"]').exists()).toBe(true);
     });
 
     it('AC1: offers the subtypes of the chosen family and resets the subtype when the family changes', async () => {
