@@ -300,13 +300,15 @@ describe('Nscmf/Edit.vue — attachments (FE-40, FE-43)', () => {
  * REVISION_REQUIRED. The reason lives in the Business Timeline (07 §36; 12 §33).
  */
 describe('Nscmf/Edit.vue — the return reason in Revision mode', () => {
-    const event = (id: number, to_status: string | null, reason: string | null) => ({
+    // Shapes as the server records them: a save made during revision is a DRAFT_UPDATED event
+    // from REVISION_REQUIRED to REVISION_REQUIRED; only a return is a transition into it.
+    const event = (id: number, event_type: string, from_status: string, reason: string | null) => ({
         id,
-        event_type: to_status === null ? 'DRAFT_SAVED' : 'REVIEW_RETURNED',
+        event_type,
         actor: 'Reviewer',
         iteration_no: 1,
-        from_status: null,
-        to_status,
+        from_status,
+        to_status: 'REVISION_REQUIRED',
         reason,
         comment: null,
         version_before: null,
@@ -314,6 +316,8 @@ describe('Nscmf/Edit.vue — the return reason in Revision mode', () => {
         occurred_at: '2026-09-24T10:00:00+07:00',
         changes: [],
     });
+    const save = (id: number) => event(id, 'DRAFT_UPDATED', 'REVISION_REQUIRED', null);
+    const returned = (id: number, reason: string) => event(id, 'REVIEW_RETURNED', 'PENDING_REVIEW', reason);
     const page = (data: ReturnType<typeof event>[], current: number, last: number) => ({
         ok: true as const,
         status: 200,
@@ -334,17 +338,8 @@ describe('Nscmf/Edit.vue — the return reason in Revision mode', () => {
     });
 
     it('shows the reason of the latest return, even when later saves pushed it to an older page', async () => {
-        reply(page([event(9, null, null), event(8, null, null)], 1, 2));
-        reply(
-            page(
-                [
-                    event(7, 'REVISION_REQUIRED', 'Fix the rollback steps.'),
-                    event(3, 'REVISION_REQUIRED', 'Old reason.'),
-                ],
-                2,
-                2,
-            ),
-        );
+        reply(page([save(9), save(8)], 1, 2));
+        reply(page([returned(7, 'Fix the rollback steps.'), save(5), returned(3, 'Old reason.')], 2, 2));
 
         const wrapper = mountRevision(['nscmf.draft.edit', 'nscmf.submit', 'nscmf.timeline.view']);
         await flushPromises();
