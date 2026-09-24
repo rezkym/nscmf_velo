@@ -30,3 +30,18 @@ export async function fillSubmittableChange(page: Page): Promise<void> {
     await page.getByTestId('btn-save-draft').click();
     await expect(page.getByTestId('save-status-indicator')).toContainText('Saved');
 }
+
+/** Opens a record the way a user finds it: the sidebar's History, then the record's row. */
+export async function openFromHistory(page: Page, recordPath: string): Promise<void> {
+    await page.getByRole('navigation', { name: 'Sidebar Menu' }).getByRole('link', { name: 'History' }).click();
+    await expect(page).toHaveURL(/\/history/);
+    await page.locator(`#main-content a[href="${recordPath}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`${recordPath}$`));
+}
+
+/** From the Dashboard card, opens an own Draft or returned record straight in the editor. */
+export async function openOwnFromDashboard(page: Page, card: 'card-drafts' | 'card-revisions', recordPath: string) {
+    await page.getByRole('navigation', { name: 'Sidebar Menu' }).getByRole('link', { name: 'Dashboard' }).click();
+    await page.getByTestId(card).locator(`a[href="${recordPath}/edit"]`).click();
+    await expect(page).toHaveURL(new RegExp(`${recordPath}/edit$`));
+}

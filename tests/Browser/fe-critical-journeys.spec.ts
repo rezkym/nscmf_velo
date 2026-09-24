@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { expect, type Page, test } from '@playwright/test';
 
-import { createChangeDraft, fillSubmittableChange } from './support/nscmf';
+import { createChangeDraft, fillSubmittableChange, openFromHistory, openOwnFromDashboard } from './support/nscmf';
 import {
     createBrowserUser,
     prepareBrowserRuntime,
@@ -40,7 +40,9 @@ async function submittedChange(page: Page, requester: BrowserUser): Promise<stri
     await page.getByTestId('submit-button').click();
     await expect(page).toHaveURL(new RegExp(`${recordPath}$`));
 
-    await page.goto(`${recordPath}/edit`);
+    // 07 §26: the owner reaches the Result update from the record, not by typing a URL.
+    await page.getByTestId('next-step-results').click();
+    await expect(page).toHaveURL(new RegExp(`${recordPath}/edit$`));
     await page.getByTestId('btn-add-row').first().click();
     await page.locator('#results-0-result_summary').fill('Module replaced, service restored.');
     await page.locator('#results-0-performance_information').fill('Zero errors for 72 hours.');
@@ -53,18 +55,24 @@ async function submittedChange(page: Page, requester: BrowserUser): Promise<stri
     return recordPath;
 }
 
+/** Opens a queued record from the sidebar queue page, as a reviewer or approver would. */
+async function openQueued(page: Page, queue: 'Review' | 'Approval', id: string): Promise<void> {
+    await page.getByRole('navigation', { name: 'Sidebar Menu' }).getByRole('link', { name: queue }).click();
+    await page.getByTestId(`btn-view-${id}`).click();
+    await expect(page).toHaveURL(new RegExp(`/${queue.toLowerCase()}/${id}$`));
+}
+
 /** Reviewer forwards and approver approves, each from their own detail page. */
 async function reviewAndApprove(page: Page, recordPath: string, reviewer: BrowserUser, approver: BrowserUser) {
     const id = recordPath.split('/').pop() ?? '';
     await loginToDashboard(page, reviewer.username, reviewer.password);
-    await page.goto(`/review/${id}`);
+    await openQueued(page, 'Review', id);
     await page.getByTestId('review-forward').click();
     await confirmDialog(page);
     await signOut(page);
 
     await loginToDashboard(page, approver.username, approver.password);
-    await page.goto('/approval');
-    await page.getByTestId(`btn-view-${id}`).click();
+    await openQueued(page, 'Approval', id);
     await expect(page).toHaveURL(new RegExp(`/approval/${id}$`));
     await page.getByTestId('approval-approve').click();
     await confirmDialog(page, 'Looks good.');
@@ -84,7 +92,7 @@ test('AC1: a Change goes from Draft through review and approval to History and t
     await signOut(page);
 
     await loginToDashboard(page, archivist.username, archivist.password);
-    await page.goto(recordPath);
+    await openFromHistory(page, recordPath);
     await page.getByTestId('lifecycle-archive').click();
     await confirmDialog(page, 'Filed after closure.');
     await expect(page.getByTestId('archived-badge')).toHaveText('Archived');
@@ -103,7 +111,7 @@ test('AC2: an actor without the permission can neither open nor act on an approv
     const id = recordPath.split('/').pop() ?? '';
 
     await loginToDashboard(page, reviewer.username, reviewer.password);
-    await page.goto(`/review/${id}`);
+    await openQueued(page, 'Review', id);
     await page.getByTestId('review-forward').click();
     await confirmDialog(page);
 
@@ -143,11 +151,11 @@ test('AC3: an attachment is scanned before download, and an Approved PDF is sign
 
     // Approved PDF: generated from the official template, signed, then checked on /ispdfvalid.
     await loginToDashboard(page, requester.username, requester.password);
-    await page.goto(`${recordPath}/edit`);
+    await openOwnFromDashboard(page, 'card-drafts', recordPath);
     await fillSubmittableChange(page);
     await page.getByTestId('submit-button').click();
     await expect(page).toHaveURL(new RegExp(`${recordPath}$`));
-    await page.goto(`${recordPath}/edit`);
+    await page.getByTestId('next-step-results').click();
     await page.getByTestId('btn-add-row').first().click();
     await page.locator('#results-0-result_summary').fill('Module replaced.');
     await page.locator('#results-0-performance_information').fill('No errors.');
@@ -159,7 +167,7 @@ test('AC3: an attachment is scanned before download, and an Approved PDF is sign
     await signOut(page);
 
     await loginToDashboard(page, requester.username, requester.password);
-    await page.goto(recordPath);
+    await openFromHistory(page, recordPath);
     await page.getByTestId('export-PDF').click();
     const job = page.locator('[data-testid^="export-job-"]').first();
     await expect(job).toContainText('Queued');
@@ -171,7 +179,8 @@ test('AC3: an attachment is scanned before download, and an Approved PDF is sign
     const pdfPath = test.info().outputPath('nscmf.pdf');
     await (await download).saveAs(pdfPath);
 
-    await page.goto('/ispdfvalid');
+    await page.getByRole('link', { name: 'Verify a PDF' }).click();
+    await expect(page).toHaveURL(/\/ispdfvalid$/);
     await expect(page.getByRole('link')).toHaveCount(0);
     await page.getByTestId('validator-file').setInputFiles(pdfPath);
     await page.getByTestId('validator-verify').click();
@@ -185,7 +194,8 @@ test('AC4: the protected setting needs a fresh password, and a cancelled prompt 
     createBrowserUser({ roles: ['Requester'], team: true });
     const superadmin = createBrowserUser({ roles: ['Superadmin'], protectedSuperadmin: true });
     await login(page, superadmin.username, superadmin.password);
-    await page.goto('/administration/settings/technical-logs');
+    await page.getByRole('navigation', { name: 'Sidebar Menu' }).getByRole('link', { name: 'Technical Logs' }).click();
+    await expect(page).toHaveURL(/\/administration\/settings\/technical-logs$/);
     const value = page.getByTestId('settings-value');
     const before = await value.inputValue();
 

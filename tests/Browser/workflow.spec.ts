@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { createBrowserUser } from './support/runtime';
-import { createChangeDraft, fillSubmittableChange } from './support/nscmf';
+import { createChangeDraft, fillSubmittableChange, openFromHistory } from './support/nscmf';
 import { loginToDashboard } from './support/session';
 
 /*
@@ -37,7 +37,9 @@ test('a Change is completed, submitted, reviewed from the queue and its Result c
     // The owner captures the Result while the record is in review.
     await page.getByTestId('btn-logout').click();
     await loginToDashboard(page, requester.username, requester.password);
-    await page.goto(`${recordPath}/edit`);
+    await openFromHistory(page, recordPath);
+    await page.getByTestId('next-step-results').click();
+    await expect(page).toHaveURL(new RegExp(`${recordPath}/edit$`));
     await expect(page.getByTestId('results-editor')).toBeVisible();
     await page.getByTestId('btn-add-row').first().click();
     await page.locator('#results-0-result_summary').fill('Module replaced, service restored.');
