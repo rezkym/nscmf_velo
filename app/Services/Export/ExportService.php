@@ -53,7 +53,7 @@ final readonly class ExportService
 
         return $this->database->connection()->transaction(function () use ($actor, $recordId, $format, $batch, $template): ExportRequest {
             $record = $this->records->lockForUpdate($recordId);
-            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor)) {
                 throw DomainRuleException::notFound();
             }
             if (! $actor->can('nscmf.export')) {
@@ -140,7 +140,7 @@ final readonly class ExportService
     public function recent(User $actor, int $recordId): array
     {
         $record = $this->records->find($recordId);
-        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor)) {
             throw DomainRuleException::notFound();
         }
         if (! $actor->can('nscmf.export')) {
@@ -196,7 +196,7 @@ final readonly class ExportService
         $files = [];
         foreach ($batch->requests as $request) {
             $record = $this->records->find($request->nscmf_record_id);
-            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor)) {
                 continue;
             }
             try {
@@ -329,7 +329,7 @@ final readonly class ExportService
     {
         $request = $this->exports->findRequest($exportId);
         $record = $request === null ? null : $this->records->find($request->nscmf_record_id);
-        if ($request === null || $record === null || $request->requested_by_user_id !== $actor->id || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+        if ($request === null || $record === null || $request->requested_by_user_id !== $actor->id || ! RecordAccess::isVisibleTo($record, $actor)) {
             throw DomainRuleException::notFound();
         }
         if (! $actor->can('nscmf.export')) {

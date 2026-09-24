@@ -100,7 +100,7 @@ final readonly class AttachmentService
     {
         $this->database->connection()->transaction(function () use ($actor, $recordId, $attachmentId): void {
             $record = $this->records->lockForUpdate($recordId);
-            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor)) {
                 throw DomainRuleException::notFound();
             }
             if (! $actor->can('nscmf.attachment.manage') || ! RecordAccess::isOwnedBy($record, $actor->id)) {
@@ -135,7 +135,7 @@ final readonly class AttachmentService
     private function readableRecord(User $actor, int $recordId): NscmfRecord
     {
         $record = $this->records->find($recordId);
-        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor)) {
             throw DomainRuleException::notFound();
         }
         if (! array_any(self::READ_PERMISSIONS, fn (string $permission): bool => $actor->can($permission))) {

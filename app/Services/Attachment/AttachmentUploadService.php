@@ -270,7 +270,7 @@ final readonly class AttachmentUploadService
     private function visibleRecord(User $actor, int $recordId): NscmfRecord
     {
         $record = $this->records->find($recordId);
-        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor)) {
             throw DomainRuleException::notFound();
         }
         if (! $actor->can('nscmf.attachment.manage') || ! RecordAccess::isOwnedBy($record, $actor->id)) {

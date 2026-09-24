@@ -51,7 +51,7 @@ final readonly class RecordEvidenceService
     private function authorizeRecord(User $actor, int $recordId, array $permissions): void
     {
         $record = $this->records->find($recordId);
-        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor)) {
             throw DomainRuleException::notFound();
         }
         if (! array_any($permissions, fn (string $permission): bool => $actor->can($permission))) {

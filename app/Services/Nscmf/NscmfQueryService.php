@@ -328,7 +328,7 @@ final readonly class NscmfQueryService
     {
         $record = $this->records->findForProjection($recordId);
 
-        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor)) {
             throw DomainRuleException::notFound();
         }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Nscmf;
 
 use App\Domain\Audit\Enums\BusinessAuditEvent;
+use App\Domain\Nscmf\Enums\NscmfFamily;
 use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Domain\Nscmf\RecordAccess;
 use App\Domain\Nscmf\RecordConflict;
@@ -15,6 +16,7 @@ use App\Models\Nscmf\NscmfRecord;
 use App\Models\Nscmf\WorkflowIteration;
 use App\Models\User;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
+use App\Repositories\Contracts\Nscmf\RecordEvidenceRepository;
 use App\Repositories\Contracts\Nscmf\WorkflowRepository;
 use App\Services\Audit\BusinessAuditService;
 use Carbon\CarbonImmutable;
@@ -31,7 +33,24 @@ final readonly class NscmfWorkflowService
         private WorkflowRepository $workflow,
         private BusinessAuditService $businessAudit,
         private DatabaseManager $database,
+        private RecordEvidenceRepository $evidence,
     ) {}
+
+    /**
+     * Whether the Change target date now differs from the value it had when the record last
+     * came back for revision (06 §40). Changed and restored counts as unchanged.
+     *
+     * @param  array<string, mixed>  $state
+     */
+    private function targetDateChangedInRevision(NscmfRecord $record, array $state): bool
+    {
+        if ($record->family !== NscmfFamily::CHANGE) {
+            return false;
+        }
+        $accepted = $this->evidence->valueAtLastReturnIfChanged($record->id, 'change.target_execution_date');
+
+        return $accepted !== null && $accepted['value'] !== ($state['target_execution_date'] ?? null);
+    }
 
     /** First Submit establishes iteration 1 and Requested By; a Resubmit keeps both (05 §16). */
     public function submit(User $actor, int $recordId, int $expectedVersion): void
@@ -39,7 +58,7 @@ final readonly class NscmfWorkflowService
         $this->database->connection()->transaction(function () use ($actor, $recordId, $expectedVersion): void {
             $record = $this->records->lockForUpdate($recordId);
 
-            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor)) {
                 throw DomainRuleException::notFound();
             }
 
@@ -60,12 +79,14 @@ final readonly class NscmfWorkflowService
             }
 
             $isFirstSubmit = $record->requested_by_user_id === null;
+            $state = $this->records->familyState($record);
             $errors = SubmissionRules::errors(
                 $record->family,
                 $record->subtype,
-                $this->records->familyState($record),
+                $state,
                 $record->request_date?->toDateString(),
                 $isFirstSubmit,
+                ! $isFirstSubmit && $this->targetDateChangedInRevision($record, $state),
             );
 
             if ($errors !== []) {
@@ -270,7 +291,7 @@ final readonly class NscmfWorkflowService
     private function lockInState(User $actor, int $recordId, int $expectedVersion, string $permission, NscmfStatus $status, string $stage): NscmfRecord
     {
         $record = $this->records->lockForUpdate($recordId);
-        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor)) {
             throw DomainRuleException::notFound();
         }
         if (! $actor->can($permission)) {

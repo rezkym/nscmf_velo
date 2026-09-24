@@ -68,7 +68,8 @@ it('conceals another user\'s never-submitted Draft and shows submitted records t
     signIn($reviewer)->get("/nscmf/{$submittedId}")->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('record.allowed_actions', ['nscmf.review.return', 'nscmf.review.reject', 'nscmf.review.forward'])->where('record.iteration_no', 1)->where('record.requested_by.id', $owner->id));
     signIn(Actors::superadmin())->get("/nscmf/{$draftId}")->assertNotFound();
-    signIn(Actors::member(['nscmf.create']))->get("/nscmf/{$submittedId}")->assertForbidden();
+    // Without any read permission a submitted record is invisible, so it is concealed (12 §17.1, §102).
+    signIn(Actors::member(['nscmf.create']))->get("/nscmf/{$submittedId}")->assertNotFound();
     signIn($owner)->get('/nscmf/999999')->assertNotFound();
 });
 

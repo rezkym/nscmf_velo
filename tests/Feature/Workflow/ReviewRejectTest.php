@@ -30,7 +30,8 @@ it('closes the current iteration and records exactly one rejection without rewri
     $actor = match ($actorKind) {
         'owner' => $owner,
         'other team' => Actors::reviewer(),
-        'no team' => Actors::user(['nscmf.review.reject'], ['team_id' => null]),
+        // A Team-less reviewer: the queue permission reveals the record (12 §17.1), Team never does.
+        'no team' => Actors::user(['nscmf.review', 'nscmf.review.reject'], ['team_id' => null]),
         default => throw new InvalidArgumentException('Unknown actor kind.'),
     };
     if ($actorKind === 'owner') {
@@ -116,6 +117,8 @@ it('requires the reject permission even for protected Superadmin', function (boo
     if ($protected) {
         $actor->revokePermissionTo('nscmf.review.reject');
         $actor->roles()->detach();
+        // Still able to read the record (12 §17.1), so only the action permission is missing.
+        $actor->givePermissionTo('nscmf.view');
     }
 
     signIn($actor)->postJson(reviewRejectUrl($recordId), ['record_version' => 1, 'reason' => 'Valid reason'])

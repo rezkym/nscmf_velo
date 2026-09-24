@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Nscmf;
 
 use App\Models\Nscmf\NscmfRecord;
+use App\Models\User;
 
 /**
  * Record resource visibility (12 §17.1, confirmed 2026-09-22): a never-submitted record is
@@ -13,9 +14,16 @@ use App\Models\Nscmf\NscmfRecord;
  */
 final class RecordAccess
 {
-    public static function isVisibleTo(NscmfRecord $record, int $userId): bool
+    /** The page/read permissions of 12 §17.1: History, record view or a queue. */
+    private const array READ_PERMISSIONS = ['nscmf.view', 'nscmf.view.history', 'nscmf.review', 'nscmf.approve'];
+
+    public static function isVisibleTo(NscmfRecord $record, User $actor): bool
     {
-        return $record->owner_user_id === $userId || ! $record->business_status->isNeverSubmitted();
+        if ($record->owner_user_id === $actor->id) {
+            return true;
+        }
+
+        return ! $record->business_status->isNeverSubmitted() && $actor->hasAnyPermission(self::READ_PERMISSIONS);
     }
 
     public static function isOwnedBy(NscmfRecord $record, int $userId): bool

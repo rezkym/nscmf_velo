@@ -23,18 +23,27 @@ final class SubmissionRules
     ];
 
     /**
+     * The target date must be today or later on first Submit, and at Resubmit when it was changed
+     * during revision; an unchanged accepted past date may stay (06 §40).
+     *
      * @param  array<string, mixed>  $state  canonical family state
      * @return array<string, list<string>>
      */
-    public static function errors(NscmfFamily $family, NscmfSubtype $subtype, array $state, ?string $requestDate, bool $isFirstSubmit): array
-    {
+    public static function errors(
+        NscmfFamily $family,
+        NscmfSubtype $subtype,
+        array $state,
+        ?string $requestDate,
+        bool $isFirstSubmit,
+        bool $targetDateChangedInRevision = false,
+    ): array {
         $errors = self::headerErrors($requestDate, $isFirstSubmit);
 
         return [
             ...$errors,
             ...($family === NscmfFamily::ACTIVATION
                 ? self::activationErrors($subtype, $state)
-                : self::changeErrors($subtype, $state, $isFirstSubmit)),
+                : self::changeErrors($subtype, $state, $isFirstSubmit || $targetDateChangedInRevision)),
         ];
     }
 
@@ -152,7 +161,7 @@ final class SubmissionRules
      * @param  array<string, mixed>  $state
      * @return array<string, list<string>>
      */
-    private static function changeErrors(NscmfSubtype $subtype, array $state, bool $isFirstSubmit): array
+    private static function changeErrors(NscmfSubtype $subtype, array $state, bool $targetMustNotBePast): array
     {
         $errors = [];
         $root = 'change';
@@ -208,7 +217,7 @@ final class SubmissionRules
         $targetDate = $state['target_execution_date'] ?? null;
         if (self::blank($targetDate)) {
             $errors["{$root}.target_execution_date"] = ['The target execution date is required.'];
-        } elseif ($isFirstSubmit && is_string($targetDate) && CarbonImmutable::parse($targetDate)->isBefore(CarbonImmutable::now()->startOfDay())) {
+        } elseif ($targetMustNotBePast && is_string($targetDate) && CarbonImmutable::parse($targetDate)->isBefore(CarbonImmutable::now()->startOfDay())) {
             $errors["{$root}.target_execution_date"] = ['The target execution date must be today or later.'];
         }
 

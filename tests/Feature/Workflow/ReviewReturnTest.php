@@ -31,7 +31,8 @@ it('returns a submitted record for revision without changing its iteration or si
     $actor = match ($actorKind) {
         'owner' => $owner,
         'other team' => Actors::reviewer(),
-        'no team' => Actors::user(['nscmf.review.return'], ['team_id' => null]),
+        // A Team-less reviewer: the queue permission reveals the record (12 §17.1), Team never does.
+        'no team' => Actors::user(['nscmf.review', 'nscmf.review.return'], ['team_id' => null]),
         default => throw new InvalidArgumentException('Unknown actor kind.'),
     };
     if ($actorKind === 'owner') {
@@ -96,6 +97,8 @@ it('rejects missing permission even for a protected Superadmin, without mutation
     if ($protected) {
         $actor->revokePermissionTo('nscmf.review.return');
         $actor->roles()->detach();
+        // Still able to read the record (12 §17.1), so only the action permission is missing.
+        $actor->givePermissionTo('nscmf.view');
     }
 
     signIn($actor)->postJson(reviewReturnUrl($recordId), ['record_version' => 1, 'reason' => 'Needs revision'])

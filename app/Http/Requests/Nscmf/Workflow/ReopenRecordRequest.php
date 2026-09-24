@@ -22,7 +22,7 @@ final class ReopenRecordRequest extends AllowlistedRequest
     {
         return [
             'record_version' => ['required', 'integer', 'min:1'],
-            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+            'reason' => ['required', 'string', 'max:2000', new MeaningfulReason],
             'destination_status' => ['required', 'string', Rule::in(self::DESTINATIONS)],
         ];
     }

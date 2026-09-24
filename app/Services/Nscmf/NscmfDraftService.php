@@ -42,7 +42,7 @@ final readonly class NscmfDraftService
         return $this->database->connection()->transaction(function () use ($actor, $recordId, $payload): array {
             $record = $this->records->lockForUpdate($recordId);
 
-            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor)) {
                 throw DomainRuleException::notFound();
             }
 

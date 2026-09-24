@@ -51,6 +51,10 @@ final readonly class NscmfLifecycleService
     public function reopen(User $actor, int $recordId, int $expectedVersion, string $reason, NscmfStatus $destination): void
     {
         $this->database->connection()->transaction(function () use ($actor, $recordId, $expectedVersion, $reason, $destination): void {
+            // 05 §21: Reopen only ever leads back into Revision or Review, whoever calls this.
+            if (! in_array($destination, [NscmfStatus::REVISION_REQUIRED, NscmfStatus::PENDING_REVIEW], true)) {
+                throw new DomainRuleException('VALIDATION_FAILED', 'Some fields need to be corrected.', 422, errors: ['destination_status' => ['Reopen goes to Revision Required or Pending Review only.']]);
+            }
             $record = $this->lock($actor, $recordId, $expectedVersion, 'nscmf.reopen');
             if (! in_array($record->business_status, [NscmfStatus::APPROVED, NscmfStatus::REJECTED], true)) {
                 throw RecordConflict::state($record, 'Only an Approved or Rejected record can be reopened.');
@@ -112,7 +116,7 @@ final readonly class NscmfLifecycleService
     private function lock(User $actor, int $recordId, int $expectedVersion, string $permission, bool $allowArchived = false): NscmfRecord
     {
         $record = $this->records->lockForUpdate($recordId);
-        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor)) {
             throw DomainRuleException::notFound();
         }
         if (! $actor->can($permission)) {

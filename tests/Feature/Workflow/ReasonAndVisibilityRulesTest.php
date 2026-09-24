@@ -31,7 +31,7 @@ it('refuses a mandatory reason with fewer than five non-whitespace characters', 
     expect(DB::table('nscmf_records')->where('id', $recordId)->value('business_status'))->toBe($status);
 
     signIn($actor)->postJson("/nscmf/{$recordId}/{$action}", ['record_version' => 1, 'reason' => 'a b c d e', ...$extra])
-        ->assertSessionHasNoErrors()->assertJsonMissingValidationErrors('reason', 'errors');
+        ->assertStatus(303);
 })->with([
     'review return' => ['review/return', 'PENDING_REVIEW'],
     'reopen' => ['reopen', 'APPROVED'],

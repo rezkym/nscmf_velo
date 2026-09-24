@@ -6,6 +6,7 @@ namespace App\Http\Requests\Nscmf\Workflow;
 
 use App\Http\Requests\AllowlistedRequest;
 use Closure;
+use Illuminate\Contracts\Validation\ValidationRule;
 
 /** Exact input for every action with a mandatory reason (12 §39). */
 final class WorkflowReasonRequest extends AllowlistedRequest
@@ -15,7 +16,7 @@ final class WorkflowReasonRequest extends AllowlistedRequest
         return ['record_version', 'reason'];
     }
 
-    /** @return array<string, list<string|Closure>> */
+    /** @return array<string, list<string|Closure|ValidationRule>> */
     public function rules(): array
     {
         return [
@@ -29,7 +30,7 @@ final class WorkflowReasonRequest extends AllowlistedRequest
                     }
                 },
             ],
-            'reason' => ['required', 'string', 'min:5', 'max:2000'],
+            'reason' => ['required', 'string', 'max:2000', new MeaningfulReason],
         ];
     }
 }
