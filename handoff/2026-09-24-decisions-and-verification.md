@@ -74,7 +74,7 @@ Setiap aturan kritis sengaja dirusak satu per satu, lalu seluruh suite dijalanka
 | Gate | Hasil |
 | --- | --- |
 | Pint, PHPStan max | **PASS** |
-| Pest + coverage | **PASS**: 474 test, coverage PHP 94,7% (naik dari 443 / 93,7%) |
+| Pest + coverage | **PASS**: 474 test, coverage PHP 94,9% (naik dari 443 / 93,7%) |
 | ESLint, Prettier, vue-tsc | **PASS**. Untuk pertama kalinya semua bersih, karena file test lokal yang rusak sudah diperbaiki. |
 | Vitest + coverage | **PASS**: 686 test, coverage baris FE 97,29% |
 | `npm run build` | **PASS** |
