@@ -10,6 +10,8 @@ export interface ExportJob {
     failure_code: string | null;
     signed: boolean;
     download_url: string | null;
+    /** The immutable snapshot the file is built from; absent when the server sends none. */
+    snapshot?: { record_version: number; iteration_no: number | null; template: string } | null;
 }
 
 export const EXPORT_STATUS_LABELS: Record<ExportJob['status'], string> = {

@@ -122,6 +122,13 @@ async function download(job: ExportJob): Promise<void> {
                         }}</Badge>
                     </p>
                     <p class="text-xs text-muted-foreground">Requested {{ formatJakarta(job.requested_at) }}</p>
+                    <p v-if="job.snapshot" class="text-xs text-muted-foreground">
+                        Version {{ job.snapshot.record_version
+                        }}<template v-if="job.snapshot.iteration_no !== null">
+                            · iteration {{ job.snapshot.iteration_no }}</template
+                        >
+                        · {{ job.snapshot.template }}
+                    </p>
                     <p v-if="job.status === 'READY' && job.expires_at" class="text-xs text-muted-foreground">
                         Available until {{ formatJakarta(job.expires_at) }}
                     </p>
