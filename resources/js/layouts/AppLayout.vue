@@ -145,7 +145,8 @@ function signOut(): void {
             :class="
                 cn(
                     'fixed inset-y-0 left-0 z-50 w-64 flex-col border-r border-sidebar-border bg-sidebar',
-                    'transition-transform duration-300 ease-drawer starting:-translate-x-full',
+                    // Only the narrow-screen panel slides in; the desktop sidebar never animates on page load.
+                    'transition-transform duration-300 ease-drawer max-lg:starting:-translate-x-full',
                     'lg:sticky lg:top-0 lg:z-auto lg:flex lg:h-screen lg:shrink-0',
                     isMenuOpen ? 'flex' : 'hidden',
                 )
@@ -195,22 +196,20 @@ function signOut(): void {
             </nav>
 
             <!-- Team is profile information only, never an access hint (07 §6). -->
-            <div v-if="user" class="border-t border-sidebar-border p-4">
-                <div class="flex items-center gap-3 px-2">
-                    <div class="min-w-0 flex-1">
-                        <p class="truncate text-sm font-medium text-heading">{{ user.name }}</p>
-                        <p v-if="user.team" class="truncate text-xs text-muted-foreground">{{ user.team.name }}</p>
-                    </div>
-                    <button
-                        type="button"
-                        data-testid="btn-logout"
-                        class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        @click="signOut"
-                    >
-                        <LogOut class="size-4" :stroke-width="1.75" aria-hidden="true" />
-                        Sign out
-                    </button>
+            <div v-if="user" class="space-y-2 border-t border-sidebar-border p-4">
+                <div class="min-w-0 px-3">
+                    <p class="truncate text-sm font-medium text-heading">{{ user.name }}</p>
+                    <p v-if="user.team" class="truncate text-xs text-muted-foreground">{{ user.team.name }}</p>
                 </div>
+                <button
+                    type="button"
+                    data-testid="btn-logout"
+                    class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors duration-150 hover:bg-muted hover:text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    @click="signOut"
+                >
+                    <LogOut class="size-[18px]" :stroke-width="1.75" aria-hidden="true" />
+                    Sign out
+                </button>
             </div>
         </aside>
 
