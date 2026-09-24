@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
+import SectionCard from '@/components/SectionCard.vue';
 
 import DraftField from '../DraftField.vue';
 import DraftNumberField from '../DraftNumberField.vue';
@@ -34,9 +35,8 @@ function popError(key: keyof PopSiteBlock): string | undefined {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 panel p-6">
-            <div class="flex items-center justify-between gap-4">
-                <h2 class="text-base font-semibold">Customer site (direct)</h2>
+        <SectionCard title="Customer site (direct)">
+            <template #action>
                 <Button
                     type="button"
                     variant="ghost"
@@ -47,7 +47,7 @@ function popError(key: keyof PopSiteBlock): string | undefined {
                 >
                     Clear block
                 </Button>
-            </div>
+            </template>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <DraftField
@@ -161,11 +161,10 @@ function popError(key: keyof PopSiteBlock): string | undefined {
                     @update:model-value="(value) => updateDirect({ cable: value })"
                 />
             </div>
-        </section>
+        </SectionCard>
 
-        <section class="space-y-4 panel p-6">
-            <div class="flex items-center justify-between gap-4">
-                <h2 class="text-base font-semibold">Customer site at POP</h2>
+        <SectionCard title="Customer site at POP">
+            <template #action>
                 <Button
                     type="button"
                     variant="ghost"
@@ -176,7 +175,7 @@ function popError(key: keyof PopSiteBlock): string | undefined {
                 >
                     Clear block
                 </Button>
-            </div>
+            </template>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <DraftField
@@ -244,6 +243,6 @@ function popError(key: keyof PopSiteBlock): string | undefined {
                     @update:model-value="(value) => updatePop({ cpe_outdoor: value })"
                 />
             </div>
-        </section>
+        </SectionCard>
     </div>
 </template>

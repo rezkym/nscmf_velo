@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { NativeSelect } from '@/components/ui/native-select';
 import FormField from '@/components/FormField.vue';
 import { Checkbox } from '@/components/ui/checkbox';
+import SectionCard from '@/components/SectionCard.vue';
 import { computed } from 'vue';
 
 import DraftField from '../DraftField.vue';
@@ -126,9 +127,7 @@ function onStatusChange(context: ServiceContext, event: Event): void {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 panel p-6">
-            <h2 class="text-base font-semibold">Customer and request</h2>
-
+        <SectionCard title="Customer and request">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <DraftField
                     id="customer_name"
@@ -161,14 +160,9 @@ function onStatusChange(context: ServiceContext, event: Event): void {
                     @update:model-value="(value) => update({ installation_rfs_date: value })"
                 />
             </div>
-        </section>
+        </SectionCard>
 
-        <section class="space-y-4 panel p-6">
-            <div>
-                <h2 class="text-base font-semibold">References</h2>
-                <p class="text-sm text-muted-foreground">Select any that apply. Other needs a specification.</p>
-            </div>
-
+        <SectionCard title="References" description="Select any that apply. Other needs a specification.">
             <div class="space-y-3">
                 <div v-for="(label, type) in REFERENCE_TYPE_LABELS" :key="type" class="space-y-2">
                     <label class="flex items-center gap-2 text-sm">
@@ -195,16 +189,15 @@ function onStatusChange(context: ServiceContext, event: Event): void {
                     />
                 </div>
             </div>
-        </section>
+        </SectionCard>
 
-        <section v-for="service in SERVICE_BLOCKS" :key="service.context" class="space-y-4 panel p-6">
-            <div class="flex items-center justify-between gap-4">
-                <div class="flex items-center gap-2">
-                    <h2 class="text-base font-semibold">{{ service.title }}</h2>
-                    <Badge variant="secondary" :data-testid="`requirement-${service.key}`">
-                        {{ REQUIRED_BLOCKS[subtype][service.context] ? 'Required' : 'Optional' }}
-                    </Badge>
-                </div>
+        <SectionCard v-for="service in SERVICE_BLOCKS" :key="service.context" :title="service.title">
+            <template #badge>
+                <Badge variant="secondary" :data-testid="`requirement-${service.key}`">
+                    {{ REQUIRED_BLOCKS[subtype][service.context] ? 'Required' : 'Optional' }}
+                </Badge>
+            </template>
+            <template #action>
                 <Button
                     type="button"
                     variant="ghost"
@@ -215,7 +208,7 @@ function onStatusChange(context: ServiceContext, event: Event): void {
                 >
                     Clear block
                 </Button>
-            </div>
+            </template>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <DraftField
@@ -285,6 +278,6 @@ function onStatusChange(context: ServiceContext, event: Event): void {
                     @update:model-value="(value) => updateBlock(service.context, { service_location: value })"
                 />
             </div>
-        </section>
+        </SectionCard>
     </div>
 </template>

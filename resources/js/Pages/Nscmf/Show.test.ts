@@ -1,4 +1,4 @@
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetInertia } from '@/testing/inertia';
@@ -215,14 +215,17 @@ describe('Record detail (FE-18)', () => {
     it('switches between the tabs; the Timeline needs its own permission', async () => {
         const wrapper = mountShow({ ...BASE, family: 'CHANGE', subtype: 'MAINTENANCE', change: {} });
 
-        await wrapper.get('[data-testid="tab-timeline"]').trigger('click');
+        await wrapper.get('[data-testid="tab-timeline"]').trigger('mousedown', { button: 0 });
+        await flushPromises();
         expect(wrapper.text()).toContain('You do not have permission to view this timeline.');
         expect(wrapper.find('[data-testid="form-detail-section"]').exists()).toBe(false);
 
-        await wrapper.get('[data-testid="tab-attachments"]').trigger('click');
+        await wrapper.get('[data-testid="tab-attachments"]').trigger('mousedown', { button: 0 });
+        await flushPromises();
         expect(wrapper.text()).toContain('No attachments on this record.');
 
-        await wrapper.get('[data-testid="tab-form"]').trigger('click');
+        await wrapper.get('[data-testid="tab-form"]').trigger('mousedown', { button: 0 });
+        await flushPromises();
         expect(wrapper.find('[data-testid="form-detail-section"]').exists()).toBe(true);
     });
 
@@ -272,9 +275,11 @@ describe('Record detail (FE-18)', () => {
         resetInertia({ auth: { permissions: ['nscmf.view', 'nscmf.timeline.view'] } });
         const wrapper = mountShow({ ...BASE, family: 'ACTIVATION', subtype: 'ACTIVATION', activation: {} });
 
-        await wrapper.get('[data-testid="tab-timeline"]').trigger('click');
+        await wrapper.get('[data-testid="tab-timeline"]').trigger('mousedown', { button: 0 });
+        await flushPromises();
         expect(wrapper.find('[aria-label="Business timeline"]').exists()).toBe(true);
-        await wrapper.get('[data-testid="tab-attachments"]').trigger('click');
+        await wrapper.get('[data-testid="tab-attachments"]').trigger('mousedown', { button: 0 });
+        await flushPromises();
         expect(wrapper.find('[data-testid="attachments-stub"]').exists()).toBe(false);
         expect(wrapper.text()).toContain('No attachments on this record.');
         vi.unstubAllGlobals();

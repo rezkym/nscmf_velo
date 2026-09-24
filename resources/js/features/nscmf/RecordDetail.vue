@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
-import { buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import SectionCard from '@/components/SectionCard.vue';
 import DetailList, { type DetailItem } from '@/features/nscmf/DetailList.vue';
 import DetailTable from '@/features/nscmf/DetailTable.vue';
 import StatusBadge from '@/features/nscmf/StatusBadge.vue';
@@ -38,23 +41,6 @@ const TABS = [
     { key: 'timeline', label: 'Timeline' },
     { key: 'attachments', label: 'Attachments' },
 ] as const;
-const activeTab = ref<(typeof TABS)[number]['key']>('form');
-
-function moveTab(event: KeyboardEvent, key: (typeof TABS)[number]['key']): void {
-    const index = TABS.findIndex((tab) => tab.key === key);
-    let next: number;
-    if (event.key === 'ArrowRight') next = (index + 1) % TABS.length;
-    else if (event.key === 'ArrowLeft') next = (index + TABS.length - 1) % TABS.length;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = TABS.length - 1;
-    else return;
-    event.preventDefault();
-    const nextTab = TABS[next];
-    if (!nextTab) return;
-    activeTab.value = nextTab.key;
-    const button = event.currentTarget as HTMLButtonElement;
-    button.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
-}
 
 /** Missing values show a neutral dash; 0 and false are real values. */
 function display(value: Value): string {
@@ -259,202 +245,173 @@ const NUMBERED_TEXT = [
                 </p>
             </div>
             <template #actions>
-                <Link :href="backHref" :class="buttonVariants({ variant: 'outline' })">{{ backLabel }}</Link>
+                <Button as-child variant="outline">
+                    <Link :href="backHref">{{ backLabel }}</Link>
+                </Button>
             </template>
         </PageHeader>
 
-        <section class="space-y-4 panel p-6">
-            <DetailList :items="summary" />
-            <dl class="grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-3">
-                <div v-for="signoff in signoffs" :key="signoff.testid" :data-testid="signoff.testid">
-                    <dt class="text-xs text-muted-foreground">{{ signoff.label }}</dt>
-                    <dd class="text-sm text-foreground">{{ display(signoff.person?.name) }}</dd>
-                    <dd class="text-xs text-muted-foreground">{{ formatJakarta(signoff.at) }}</dd>
-                </div>
-            </dl>
-        </section>
+        <Card>
+            <CardContent class="grid gap-4">
+                <DetailList :items="summary" />
+                <dl class="grid grid-cols-1 gap-4 border-t pt-4 sm:grid-cols-3">
+                    <div v-for="signoff in signoffs" :key="signoff.testid" :data-testid="signoff.testid">
+                        <dt class="text-xs text-muted-foreground">{{ signoff.label }}</dt>
+                        <dd>{{ display(signoff.person?.name) }}</dd>
+                        <dd class="text-xs text-muted-foreground">{{ formatJakarta(signoff.at) }}</dd>
+                    </div>
+                </dl>
+            </CardContent>
+        </Card>
 
         <slot name="actions" />
 
-        <div aria-label="Record detail" role="tablist" class="flex gap-6 border-b border-border">
-            <button
-                v-for="tab in TABS"
-                :key="tab.key"
-                type="button"
-                role="tab"
-                :data-testid="`tab-${tab.key}`"
-                :aria-selected="activeTab === tab.key"
-                :id="`record-${record.id}-tab-${tab.key}`"
-                :aria-controls="`record-${record.id}-panel-${tab.key}`"
-                :tabindex="activeTab === tab.key ? 0 : -1"
-                @keydown="moveTab($event, tab.key)"
-                class="-mb-px border-b-2 px-1 py-2 text-sm font-medium"
-                :class="
-                    activeTab === tab.key
-                        ? 'border-primary text-foreground'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                "
-                @click="activeTab = tab.key"
-            >
-                {{ tab.label }}
-            </button>
-        </div>
+        <Tabs default-value="form" class="gap-4">
+            <TabsList variant="line" aria-label="Record detail">
+                <TabsTrigger v-for="tab in TABS" :key="tab.key" :value="tab.key" :data-testid="`tab-${tab.key}`">
+                    {{ tab.label }}
+                </TabsTrigger>
+            </TabsList>
 
-        <div
-            v-if="activeTab === 'form'"
-            :id="`record-${record.id}-panel-form`"
-            role="tabpanel"
-            :aria-labelledby="`record-${record.id}-tab-form`"
-            data-testid="form-detail-section"
-            class="space-y-6"
-        >
-            <template v-if="record.family === 'ACTIVATION'">
-                <section class="space-y-4 panel p-6">
-                    <h2 class="text-base font-semibold">General and service</h2>
-                    <DetailList :items="activation.general" />
-                    <DetailTable
-                        data-testid="table-references"
-                        title="References"
-                        :columns="[
-                            { key: 'type', label: 'Type' },
-                            { key: 'specification', label: 'Specification' },
-                        ]"
-                        :rows="activation.references"
-                    />
-                    <DetailTable
-                        data-testid="table-service_blocks"
-                        title="Services"
-                        :columns="[
-                            { key: 'context', label: 'Service' },
-                            { key: 'id', label: 'Service ID' },
-                            { key: 'status', label: 'Status' },
-                            { key: 'description', label: 'Description' },
-                            { key: 'location', label: 'Location' },
-                        ]"
-                        :rows="activation.serviceBlocks"
-                    />
-                    <DetailTable
-                        data-testid="table-sla_items"
-                        title="Specific requirements (SLA)"
-                        :columns="NUMBERED_TEXT"
-                        :rows="activation.slaItems"
-                    />
-                </section>
+            <TabsContent value="form">
+                <div data-testid="form-detail-section" class="grid gap-6">
+                    <template v-if="record.family === 'ACTIVATION'">
+                        <SectionCard title="General and service">
+                            <DetailList :items="activation.general" />
+                            <DetailTable
+                                data-testid="table-references"
+                                title="References"
+                                :columns="[
+                                    { key: 'type', label: 'Type' },
+                                    { key: 'specification', label: 'Specification' },
+                                ]"
+                                :rows="activation.references"
+                            />
+                            <DetailTable
+                                data-testid="table-service_blocks"
+                                title="Services"
+                                :columns="[
+                                    { key: 'context', label: 'Service' },
+                                    { key: 'id', label: 'Service ID' },
+                                    { key: 'status', label: 'Status' },
+                                    { key: 'description', label: 'Description' },
+                                    { key: 'location', label: 'Location' },
+                                ]"
+                                :rows="activation.serviceBlocks"
+                            />
+                            <DetailTable
+                                data-testid="table-sla_items"
+                                title="Specific requirements (SLA)"
+                                :columns="NUMBERED_TEXT"
+                                :rows="activation.slaItems"
+                            />
+                        </SectionCard>
 
-                <section class="space-y-4 panel p-6">
-                    <h2 class="text-base font-semibold">NOC configuration</h2>
-                    <DetailList :items="activation.network" />
-                </section>
+                        <SectionCard title="NOC configuration">
+                            <DetailList :items="activation.network" />
+                        </SectionCard>
 
-                <section class="space-y-4 panel p-6">
-                    <h2 class="text-base font-semibold">Bandwidth</h2>
-                    <DetailList :items="activation.bandwidth" />
-                    <DetailTable
-                        data-testid="table-virtual_connections"
-                        title="Virtual connections"
-                        :columns="[
-                            { key: 'no', label: '#' },
-                            { key: 'bandwidth', label: 'Bandwidth (Mbps)' },
-                        ]"
-                        :rows="activation.virtualConnections"
-                    />
-                    <DetailTable
-                        data-testid="table-priority_destinations"
-                        title="Priority destinations"
-                        :columns="[
-                            { key: 'no', label: '#' },
-                            { key: 'destination', label: 'Destination' },
-                        ]"
-                        :rows="activation.priorityDestinations"
-                    />
-                </section>
+                        <SectionCard title="Bandwidth">
+                            <DetailList :items="activation.bandwidth" />
+                            <DetailTable
+                                data-testid="table-virtual_connections"
+                                title="Virtual connections"
+                                :columns="[
+                                    { key: 'no', label: '#' },
+                                    { key: 'bandwidth', label: 'Bandwidth (Mbps)' },
+                                ]"
+                                :rows="activation.virtualConnections"
+                            />
+                            <DetailTable
+                                data-testid="table-priority_destinations"
+                                title="Priority destinations"
+                                :columns="[
+                                    { key: 'no', label: '#' },
+                                    { key: 'destination', label: 'Destination' },
+                                ]"
+                                :rows="activation.priorityDestinations"
+                            />
+                        </SectionCard>
 
-                <section class="space-y-4 panel p-6">
-                    <h2 class="text-base font-semibold">Domain, DNS and hosting</h2>
-                    <DetailList :items="activation.hosting" />
-                </section>
+                        <SectionCard title="Domain, DNS and hosting">
+                            <DetailList :items="activation.hosting" />
+                        </SectionCard>
 
-                <section class="space-y-4 panel p-6">
-                    <h2 class="text-base font-semibold">Customer site (direct)</h2>
-                    <DetailList :items="activation.directSite" />
-                </section>
+                        <SectionCard title="Customer site (direct)">
+                            <DetailList :items="activation.directSite" />
+                        </SectionCard>
 
-                <section class="space-y-4 panel p-6">
-                    <h2 class="text-base font-semibold">Customer site at POP</h2>
-                    <DetailList :items="activation.popSite" />
-                </section>
-            </template>
+                        <SectionCard title="Customer site at POP">
+                            <DetailList :items="activation.popSite" />
+                        </SectionCard>
+                    </template>
 
-            <template v-else>
-                <section class="space-y-4 panel p-6">
-                    <h2 class="text-base font-semibold">Purpose of changes</h2>
-                    <DetailList :items="change.purpose" />
-                    <DetailTable
-                        data-testid="table-facing_challenges"
-                        title="Facing challenges"
-                        :columns="NUMBERED_TEXT"
-                        :rows="change.challenges"
-                    />
-                    <DetailTable
-                        data-testid="table-identified_problems"
-                        title="Identified problems"
-                        :columns="NUMBERED_TEXT"
-                        :rows="change.problems"
-                    />
-                    <DetailTable
-                        data-testid="table-service_impacts"
-                        title="Service impact"
-                        :columns="[
-                            { key: 'impact', label: 'Impact' },
-                            { key: 'description', label: 'Description' },
-                        ]"
-                        :rows="change.impacts"
-                    />
-                </section>
+                    <template v-else>
+                        <SectionCard title="Purpose of changes">
+                            <DetailList :items="change.purpose" />
+                            <DetailTable
+                                data-testid="table-facing_challenges"
+                                title="Facing challenges"
+                                :columns="NUMBERED_TEXT"
+                                :rows="change.challenges"
+                            />
+                            <DetailTable
+                                data-testid="table-identified_problems"
+                                title="Identified problems"
+                                :columns="NUMBERED_TEXT"
+                                :rows="change.problems"
+                            />
+                            <DetailTable
+                                data-testid="table-service_impacts"
+                                title="Service impact"
+                                :columns="[
+                                    { key: 'impact', label: 'Impact' },
+                                    { key: 'description', label: 'Description' },
+                                ]"
+                                :rows="change.impacts"
+                            />
+                        </SectionCard>
 
-                <section class="space-y-4 panel p-6">
-                    <h2 class="text-base font-semibold">Plan, schedule and rollback</h2>
-                    <DetailTable
-                        data-testid="table-improvement_items"
-                        title="Improvement plan and target KPI"
-                        :columns="[
-                            { key: 'no', label: '#' },
-                            { key: 'plan', label: 'Plan' },
-                            { key: 'kpi', label: 'Target KPI' },
-                        ]"
-                        :rows="change.improvements"
-                    />
-                    <DetailList :items="change.plan" />
-                </section>
+                        <SectionCard title="Plan, schedule and rollback">
+                            <DetailTable
+                                data-testid="table-improvement_items"
+                                title="Improvement plan and target KPI"
+                                :columns="[
+                                    { key: 'no', label: '#' },
+                                    { key: 'plan', label: 'Plan' },
+                                    { key: 'kpi', label: 'Target KPI' },
+                                ]"
+                                :rows="change.improvements"
+                            />
+                            <DetailList :items="change.plan" />
+                        </SectionCard>
 
-                <section class="space-y-4 panel p-6">
-                    <h2 class="text-base font-semibold">Result of changes</h2>
-                    <DetailTable
-                        data-testid="table-results"
-                        title="Results"
-                        :columns="[
-                            { key: 'no', label: '#' },
-                            { key: 'summary', label: 'Result summary' },
-                            { key: 'performance', label: 'Performance information' },
-                            { key: 'status', label: 'Status' },
-                        ]"
-                        :rows="change.results"
-                    />
-                </section>
-            </template>
-        </div>
+                        <SectionCard title="Result of changes">
+                            <DetailTable
+                                data-testid="table-results"
+                                title="Results"
+                                :columns="[
+                                    { key: 'no', label: '#' },
+                                    { key: 'summary', label: 'Result summary' },
+                                    { key: 'performance', label: 'Performance information' },
+                                    { key: 'status', label: 'Status' },
+                                ]"
+                                :rows="change.results"
+                            />
+                        </SectionCard>
+                    </template>
+                </div>
+            </TabsContent>
 
-        <div
-            v-else
-            :id="`record-${record.id}-panel-${activeTab}`"
-            role="tabpanel"
-            :aria-labelledby="`record-${record.id}-tab-${activeTab}`"
-        >
-            <slot :name="activeTab">
-                <p :data-testid="`${activeTab}-stub`" class="panel p-8 text-center text-sm text-muted-foreground">
-                    {{ activeTab === 'timeline' ? 'The timeline' : 'Attachments' }} are not available yet.
-                </p>
-            </slot>
-        </div>
+            <TabsContent v-for="tab in TABS.slice(1)" :key="tab.key" :value="tab.key">
+                <slot :name="tab.key">
+                    <Card :data-testid="`${tab.key}-stub`">
+                        <CardContent class="py-4 text-center text-muted-foreground">
+                            {{ tab.key === 'timeline' ? 'The timeline' : 'Attachments' }} are not available yet.
+                        </CardContent>
+                    </Card>
+                </slot>
+            </TabsContent>
+        </Tabs>
     </div>
 </template>

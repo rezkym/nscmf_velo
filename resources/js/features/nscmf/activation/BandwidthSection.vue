@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SectionCard from '@/components/SectionCard.vue';
+
 import DraftField from '../DraftField.vue';
 import DraftNumberField from '../DraftNumberField.vue';
 import { fieldError, type FieldErrors } from '../fieldErrors';
@@ -33,12 +35,7 @@ function error(...segments: (string | number)[]): string | undefined {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 panel p-6">
-            <div>
-                <h2 class="text-base font-semibold">Specific requirements (SLA)</h2>
-                <p class="text-sm text-muted-foreground">Up to three requirements, 1,000 characters each.</p>
-            </div>
-
+        <SectionCard title="Specific requirements (SLA)" description="Up to three requirements, 1,000 characters each.">
             <RepeatableRows
                 data-collection="sla_items"
                 add-label="Add requirement"
@@ -62,11 +59,9 @@ function error(...segments: (string | number)[]): string | undefined {
                     />
                 </template>
             </RepeatableRows>
-        </section>
+        </SectionCard>
 
-        <section class="space-y-4 panel p-6">
-            <h2 class="text-base font-semibold">Bandwidth</h2>
-
+        <SectionCard title="Bandwidth">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <DraftNumberField
                     id="bandwidth_international_mbps"
@@ -122,14 +117,9 @@ function error(...segments: (string | number)[]): string | undefined {
                     </template>
                 </RepeatableRows>
             </div>
-        </section>
+        </SectionCard>
 
-        <section class="space-y-4 panel p-6">
-            <div>
-                <h2 class="text-base font-semibold">Priority destinations</h2>
-                <p class="text-sm text-muted-foreground">Up to three destinations, free text.</p>
-            </div>
-
+        <SectionCard title="Priority destinations" description="Up to three destinations, free text.">
             <RepeatableRows
                 data-collection="priority_destinations"
                 add-label="Add destination"
@@ -152,6 +142,6 @@ function error(...segments: (string | number)[]): string | undefined {
                     />
                 </template>
             </RepeatableRows>
-        </section>
+        </SectionCard>
     </div>
 </template>

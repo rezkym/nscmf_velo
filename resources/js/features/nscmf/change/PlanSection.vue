@@ -2,6 +2,7 @@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { NativeSelect } from '@/components/ui/native-select';
 import FormField from '@/components/FormField.vue';
+import SectionCard from '@/components/SectionCard.vue';
 import { computed } from 'vue';
 
 import DraftField from '../DraftField.vue';
@@ -71,12 +72,10 @@ const announcementWarning = computed<string | null>(() => {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 panel p-6">
-            <div>
-                <h2 class="text-base font-semibold">Improvement plan and target KPI</h2>
-                <p class="text-sm text-muted-foreground">Up to three pairs. Both sides belong together at submit.</p>
-            </div>
-
+        <SectionCard
+            title="Improvement plan and target KPI"
+            description="Up to three pairs. Both sides belong together at submit."
+        >
             <RepeatableRows
                 data-collection="improvement_items"
                 add-label="Add improvement"
@@ -112,11 +111,9 @@ const announcementWarning = computed<string | null>(() => {
                     </div>
                 </template>
             </RepeatableRows>
-        </section>
+        </SectionCard>
 
-        <section class="space-y-4 panel p-6">
-            <h2 class="text-base font-semibold">Schedule and monitoring</h2>
-
+        <SectionCard title="Schedule and monitoring">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <DraftField
                     id="target_execution_date"
@@ -160,11 +157,9 @@ const announcementWarning = computed<string | null>(() => {
                     </template>
                 </FormField>
             </div>
-        </section>
+        </SectionCard>
 
-        <section class="space-y-4 panel p-6">
-            <h2 class="text-base font-semibold">Rollback and announcement</h2>
-
+        <SectionCard title="Rollback and announcement">
             <DraftField
                 id="rollback_scenario"
                 label="Rollback scenario"
@@ -204,6 +199,6 @@ const announcementWarning = computed<string | null>(() => {
             <Alert v-if="announcementWarning" variant="warning" data-testid="announcement-warning"
                 ><AlertDescription>{{ announcementWarning }}</AlertDescription></Alert
             >
-        </section>
+        </SectionCard>
     </div>
 </template>

@@ -49,6 +49,7 @@ import PageHeader from '@/components/PageHeader.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import RequestFeedback from '@/components/RequestFeedback.vue';
+import SectionCard from '@/components/SectionCard.vue';
 // Types come from their canonical module, not through the SFC: a type re-exported from a .vue file
 // resolves to `any` for eslint, which is what the suppression here used to paper over.
 import type { RequestFeedbackError, SaveStatus } from '@/types/feedback';
@@ -345,8 +346,7 @@ function handleRefresh(): void {
             >
 
             <!-- Read-only Planning and General context -->
-            <section class="space-y-4 panel p-6">
-                <h2 class="text-base font-semibold">Purpose of changes</h2>
+            <SectionCard title="Purpose of changes">
                 <DetailList :items="change.purpose" />
                 <DetailTable
                     data-testid="table-facing_challenges"
@@ -369,10 +369,9 @@ function handleRefresh(): void {
                     ]"
                     :rows="change.impacts"
                 />
-            </section>
+            </SectionCard>
 
-            <section class="space-y-4 panel p-6">
-                <h2 class="text-base font-semibold">Plan, schedule and rollback</h2>
+            <SectionCard title="Plan, schedule and rollback">
                 <DetailTable
                     data-testid="table-improvement_items"
                     title="Improvement plan and target KPI"
@@ -384,7 +383,7 @@ function handleRefresh(): void {
                     :rows="change.improvements"
                 />
                 <DetailList :items="change.plan" />
-            </section>
+            </SectionCard>
 
             <!-- Results editor and submit button -->
             <div v-if="isEligible" data-testid="results-editor" class="space-y-6">

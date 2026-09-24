@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Checkbox } from '@/components/ui/checkbox';
+import SectionCard from '@/components/SectionCard.vue';
 
 import DraftField from '../DraftField.vue';
 import DraftNumberField from '../DraftNumberField.vue';
@@ -65,9 +66,7 @@ function text(key: keyof NetworkFields): string | null {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 panel p-6">
-            <h2 class="text-base font-semibold">NOC configuration</h2>
-
+        <SectionCard title="NOC configuration">
             <DraftField
                 id="lan_ip_allocation"
                 label="LAN IP allocation"
@@ -110,11 +109,9 @@ function text(key: keyof NetworkFields): string | null {
                     @update:model-value="(value) => update({ [identifier.key]: value })"
                 />
             </div>
-        </section>
+        </SectionCard>
 
-        <section class="space-y-4 panel p-6">
-            <h2 class="text-base font-semibold">Domain, DNS and email</h2>
-
+        <SectionCard title="Domain, DNS and email">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <DraftField
                     id="domain_name_1"
@@ -173,11 +170,9 @@ function text(key: keyof NetworkFields): string | null {
                     @update:model-value="(value) => update({ mx_secondary: value })"
                 />
             </div>
-        </section>
+        </SectionCard>
 
-        <section class="space-y-4 panel p-6">
-            <h2 class="text-base font-semibold">Hosting and migration</h2>
-
+        <SectionCard title="Hosting and migration">
             <div class="space-y-2">
                 <label class="flex items-center gap-2 text-sm">
                     <Checkbox
@@ -221,6 +216,6 @@ function text(key: keyof NetworkFields): string | null {
                     @update:model-value="(value) => update({ hosting_capacity_gb: value })"
                 />
             </div>
-        </section>
+        </SectionCard>
     </div>
 </template>

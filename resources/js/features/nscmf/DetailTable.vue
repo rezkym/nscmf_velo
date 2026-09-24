@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 defineProps<{
     title: string;
     columns: { key: string; label: string }[];
@@ -7,26 +9,26 @@ defineProps<{
 </script>
 
 <template>
-    <div class="space-y-2">
-        <h3 class="text-sm font-medium text-foreground">{{ title }}</h3>
-        <p v-if="rows.length === 0" class="text-sm text-muted-foreground">None</p>
-        <div v-else class="overflow-x-auto rounded-lg border border-border">
-            <table class="min-w-full divide-y divide-border text-left text-sm">
-                <thead class="bg-muted text-xs uppercase text-muted-foreground">
-                    <tr>
-                        <th v-for="column in columns" :key="column.key" scope="col" class="px-4 py-2">
+    <div class="grid gap-2">
+        <h3 class="font-medium">{{ title }}</h3>
+        <p v-if="rows.length === 0" class="text-muted-foreground">None</p>
+        <div v-else class="rounded-lg border">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead v-for="column in columns" :key="column.key" class="px-3">
                             {{ column.label }}
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-border">
-                    <tr v-for="(row, index) in rows" :key="index">
-                        <td v-for="column in columns" :key="column.key" class="whitespace-pre-wrap px-4 py-2">
+                        </TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow v-for="(row, index) in rows" :key="index">
+                        <TableCell v-for="column in columns" :key="column.key" class="whitespace-pre-wrap px-3">
                             {{ row[column.key] }}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                        </TableCell>
+                    </TableRow>
+                </TableBody>
+            </Table>
         </div>
     </div>
 </template>

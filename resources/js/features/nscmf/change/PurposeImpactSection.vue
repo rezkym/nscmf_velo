@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import SectionCard from '@/components/SectionCard.vue';
 
 import DraftField from '../DraftField.vue';
 import { fieldError, type FieldErrors } from '../fieldErrors';
@@ -68,9 +69,7 @@ function otherIndex(): number {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 panel p-6">
-            <h2 class="text-base font-semibold">Purpose of changes</h2>
-
+        <SectionCard title="Purpose of changes">
             <DraftField
                 id="maintenance_purpose"
                 label="Maintenance purpose"
@@ -82,15 +81,14 @@ function otherIndex(): number {
                 :disabled="disabled"
                 @update:model-value="(value) => update({ maintenance_purpose: value })"
             />
-        </section>
+        </SectionCard>
 
-        <section class="space-y-4 panel p-6">
-            <div class="flex items-center gap-2">
-                <h2 class="text-base font-semibold">Facing challenges</h2>
+        <SectionCard title="Facing challenges">
+            <template #badge>
                 <Badge variant="secondary" data-testid="requirement-facing_challenges">
                     {{ subtype === 'MAINTENANCE' ? 'Optional' : 'Required' }}
                 </Badge>
-            </div>
+            </template>
 
             <RepeatableRows
                 data-collection="facing_challenges"
@@ -115,13 +113,12 @@ function otherIndex(): number {
                     />
                 </template>
             </RepeatableRows>
-        </section>
+        </SectionCard>
 
-        <section class="space-y-4 panel p-6">
-            <div class="flex items-center gap-2">
-                <h2 class="text-base font-semibold">Identified problems</h2>
+        <SectionCard title="Identified problems">
+            <template #badge>
                 <Badge variant="secondary" data-testid="requirement-identified_problems">Required</Badge>
-            </div>
+            </template>
 
             <RepeatableRows
                 data-collection="identified_problems"
@@ -146,13 +143,12 @@ function otherIndex(): number {
                     />
                 </template>
             </RepeatableRows>
-        </section>
+        </SectionCard>
 
-        <section class="space-y-4 panel p-6">
-            <div class="flex items-center gap-2">
-                <h2 class="text-base font-semibold">Service impact</h2>
+        <SectionCard title="Service impact">
+            <template #badge>
                 <Badge variant="secondary" data-testid="requirement-service_impacts">Required</Badge>
-            </div>
+            </template>
 
             <div class="space-y-2">
                 <label
@@ -182,6 +178,6 @@ function otherIndex(): number {
                 :disabled="disabled"
                 @update:model-value="setOtherDescription"
             />
-        </section>
+        </SectionCard>
     </div>
 </template>

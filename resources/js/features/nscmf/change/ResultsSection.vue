@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SectionCard from '@/components/SectionCard.vue';
+
 import DraftField from '../DraftField.vue';
 import { fieldError, type FieldErrors } from '../fieldErrors';
 import RepeatableRows from '../RepeatableRows.vue';
@@ -31,14 +33,10 @@ function error(...segments: (string | number)[]): string | undefined {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 panel p-6">
-            <div>
-                <h2 class="text-base font-semibold">Result of changes</h2>
-                <p class="text-sm text-muted-foreground">
-                    Up to five rows. Status is free text (not an enum). Started rows must be complete at submit.
-                </p>
-            </div>
-
+        <SectionCard
+            title="Result of changes"
+            description="Up to five rows. Status is free text (not an enum). Started rows must be complete at submit."
+        >
             <RepeatableRows
                 data-collection="results"
                 add-label="Add result"
@@ -94,6 +92,6 @@ function error(...segments: (string | number)[]): string | undefined {
                     </div>
                 </template>
             </RepeatableRows>
-        </section>
+        </SectionCard>
     </div>
 </template>
