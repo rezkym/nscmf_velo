@@ -283,3 +283,15 @@ it('fails an upload whose finalization ran out of attempts and never exposes the
         ->and(Records::version($recordId))->toBe(1);
     signIn($owner)->getJson("/nscmf/{$recordId}/attachment-uploads/{$uploadId}")->assertOk()->assertJsonPath('data.status', 'FAILED');
 });
+
+it('serves an attachment only on an explicit CLEAN verdict, even when its bytes are stored (06 §53, 12 §59)', function (string $status): void {
+    [$recordId, $owner] = editableRecord();
+    uploadFile($owner, $recordId);
+    $attachmentId = soleId('nscmf_attachments');
+    // Stored bytes exist, but the verdict is not CLEAN: the file must stay unavailable.
+    DB::table('nscmf_attachments')->where('id', $attachmentId)->update(['security_status' => $status]);
+
+    signIn($owner)->getJson("/nscmf/{$recordId}/attachments/{$attachmentId}/download")
+        ->assertConflict()->assertJsonPath('code', 'ATTACHMENT_NOT_CLEAN');
+    expect(DB::table('access_audit_events')->where('event_type', 'ATTACHMENT_DOWNLOADED')->count())->toBe(0);
+})->with(['PENDING', 'INFECTED', 'FAILED']);

@@ -9,6 +9,7 @@ use App\Infrastructure\Pdf\RenderFailed;
 use App\Jobs\FinalizeAttachmentUpload;
 use App\Jobs\GenerateExport;
 use Illuminate\Support\Facades\File;
+use Tests\Support\FakeClamd;
 
 /*
  * G15 — finite, evidence-based timeouts (14 §48, §63; 20 §17). A legitimate scan/render/sign must
@@ -19,44 +20,6 @@ use Illuminate\Support\Facades\File;
  * 20 MB file scan <= 1.9 s cold; dense archive (~250 MB unpacked) 6.6 s; one LibreOffice pass
  * ~1.7 s; signing ~0.01 s.
  */
-
-/**
- * A fake clamd on a loopback port, running in its own process. $behaviour is PHP code executed
- * with the accepted connection in $c after the client's INSTREAM terminator arrives.
- *
- * @return array{0: string, 1: resource}
- */
-function fakeClamd(string $behaviour): array
-{
-    $script = <<<PHP
-        \$server = stream_socket_server('tcp://127.0.0.1:0');
-        echo stream_socket_get_name(\$server, false), "\\n";
-        \$c = stream_socket_accept(\$server, 10);
-        \$buffer = '';
-        while (! str_ends_with(\$buffer, pack('N', 0)) && (\$chunk = fread(\$c, 65536)) !== false && \$chunk !== '') {
-            \$buffer = substr(\$buffer . \$chunk, -8);
-        }
-        {$behaviour}
-        PHP;
-    $process = proc_open([PHP_BINARY, '-r', $script], [1 => ['pipe', 'w']], $pipes);
-    if (! is_resource($process)) {
-        throw new RuntimeException('Could not start the fake clamd.');
-    }
-    $address = trim((string) fgets($pipes[1]));
-
-    return ['tcp://'.$address, $process];
-}
-
-/** @return resource */
-function scanInput(): mixed
-{
-    $stream = fopen('php://memory', 'w+b');
-    assert($stream !== false);
-    fwrite($stream, 'harmless');
-    rewind($stream);
-
-    return $stream;
-}
 
 /** @return array{0: float, 1: ?Throwable} seconds taken, and what was thrown */
 function timed(callable $action): array
@@ -96,9 +59,9 @@ it('gives each job room for its slowest legitimate external step', function (): 
 });
 
 it('cuts off a scanner that accepts the file but never answers', function (): void {
-    [$address, $process] = fakeClamd('sleep(20);');
+    [$address, $process] = FakeClamd::start('sleep(20);');
 
-    [$elapsed, $thrown] = timed(fn () => (new ClamdScanner($address, 1))->scan(scanInput()));
+    [$elapsed, $thrown] = timed(fn () => (new ClamdScanner($address, 1))->scan(FakeClamd::input()));
     proc_terminate($process);
 
     expect($thrown)->toBeInstanceOf(ScannerUnavailable::class)
@@ -106,9 +69,9 @@ it('cuts off a scanner that accepts the file but never answers', function (): vo
 });
 
 it('cuts off a scanner that keeps trickling bytes without ever finishing its reply', function (): void {
-    [$address, $process] = fakeClamd('for ($i = 0; $i < 40; $i++) { fwrite($c, "s"); usleep(300000); }');
+    [$address, $process] = FakeClamd::start('for ($i = 0; $i < 40; $i++) { fwrite($c, "s"); usleep(300000); }');
 
-    [$elapsed, $thrown] = timed(fn () => (new ClamdScanner($address, 1))->scan(scanInput()));
+    [$elapsed, $thrown] = timed(fn () => (new ClamdScanner($address, 1))->scan(FakeClamd::input()));
     proc_terminate($process);
 
     expect($thrown)->toBeInstanceOf(ScannerUnavailable::class)

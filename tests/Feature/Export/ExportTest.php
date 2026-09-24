@@ -404,3 +404,18 @@ it('fails an export safely once its job has no attempts left (12 §66)', functio
     $summary = DB::table('nscmf_export_requests')->where('id', $exportId)->value('failure_summary');
     expect(is_string($summary) && ! str_contains($summary, '/var/secret'))->toBeTrue();
 })->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+
+it('refuses to build a file from a snapshot that no longer matches its hash (11 §44)', function (): void {
+    registerTemplate();
+    $owner = Actors::requester();
+    $recordId = Records::create($owner);
+    $exportId = signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->json('data.id');
+    assert(is_int($exportId));
+    DB::table('nscmf_export_snapshots')->where('export_request_id', $exportId)
+        ->update(['snapshot_json' => DB::raw("JSON_SET(snapshot_json, '$.record.request_no', 'TAMPERED')")]);
+
+    app(ExportGenerationService::class)->generate($exportId);
+
+    signIn($owner)->getJson("/nscmf/exports/{$exportId}")->assertJsonPath('data.status', 'FAILED')->assertJsonPath('data.download_url', null);
+    expect(DB::table('nscmf_export_artifacts')->count())->toBe(0);
+})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
