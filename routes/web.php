@@ -88,6 +88,7 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/nscmf/exports/{export}', 'show')->whereNumber('export')->name('nscmf.exports.show');
         Route::get('/nscmf/exports/{export}/download', 'download')->whereNumber('export')->name('nscmf.exports.download');
         Route::get('/nscmf/export-batches/{batch}', 'batch')->whereNumber('batch')->name('nscmf.export-batches.show');
+        Route::get('/nscmf/export-batches/{batch}/download', 'package')->whereNumber('batch')->name('nscmf.export-batches.download');
     });
     Route::get('/nscmf/{record}/attachments/{attachment}/download', DownloadAttachmentController::class)->whereNumber(['record', 'attachment'])->name('nscmf.attachments.download');
     Route::get('/nscmf/{record}/edit', [RecordController::class, 'edit'])->whereNumber('record')->name('nscmf.edit');

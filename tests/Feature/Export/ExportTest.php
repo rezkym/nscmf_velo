@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
-use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\Support\Actors;
 use Tests\Support\Records;
@@ -302,7 +302,11 @@ it('packages a settled bulk export as one ZIP of the files the requester may sti
     $failing = Records::create($owner, 'CHANGE', 'MAINTENANCE', ['request_no' => 'CHG-C', 'request_no_normalized' => 'chg-c']);
     $batchId = signIn($owner)->postJson('/nscmf/exports/bulk', ['format' => 'XLSX', 'record_ids' => [$first, $second, $failing]])->json('data.id');
     assert(is_int($batchId));
-    $exportOf = fn (int $record): int => (int) DB::table('nscmf_export_requests')->where('nscmf_record_id', $record)->value('id');
+    $exportOf = function (int $record): int {
+        $id = DB::table('nscmf_export_requests')->where('nscmf_record_id', $record)->value('id');
+
+        return is_int($id) ? $id : throw new RuntimeException("No export for record {$record}.");
+    };
 
     // Nothing is packaged while any file is still being generated.
     app(ExportGenerationService::class)->generate($exportOf($first));
@@ -318,8 +322,11 @@ it('packages a settled bulk export as one ZIP of the files the requester may sti
     expect((string) $response->headers->get('Content-Disposition'))->toContain("nscmf-exports-{$batchId}.zip");
 
     $entries = zipEntries($response->streamedContent());
-    $artifact = fn (int $record): string => (string) Storage::disk('nscmf_private')->get((string) DB::table('nscmf_export_artifacts')
-        ->where('export_request_id', $exportOf($record))->value('private_object_key'));
+    $artifact = function (int $record) use ($exportOf): ?string {
+        $key = DB::table('nscmf_export_artifacts')->where('export_request_id', $exportOf($record))->value('private_object_key');
+
+        return is_string($key) ? Storage::disk('nscmf_private')->get($key) : null;
+    };
     expect(array_keys($entries))->toEqualCanonicalizing(['CHG-A-1.xlsx', 'CHG-B.xlsx'])
         ->and($entries['CHG-A-1.xlsx'])->toBe($artifact($first))
         ->and($entries['CHG-B.xlsx'])->toBe($artifact($second))
@@ -328,7 +335,7 @@ it('packages a settled bulk export as one ZIP of the files the requester may sti
 
     // Another actor learns nothing, and bulk export stays a separate permission.
     signIn(Actors::requester())->getJson("/nscmf/export-batches/{$batchId}/download")->assertNotFound();
-    $owner->roles->each(fn (Role $role) => $role->revokePermissionTo('nscmf.export.bulk'));
+    Permission::findByName('nscmf.export.bulk', 'web')->roles()->detach();
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     signIn($owner->refresh())->getJson("/nscmf/export-batches/{$batchId}/download")->assertForbidden();
 })->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');

@@ -41,14 +41,27 @@ final class ExportController extends Controller
     {
         $file = $this->exports->download(self::actor($request), $export);
 
-        return response()->streamDownload(static function () use ($file): void {
+        return self::stream($file['stream'], $file['filename'], $file['mime']);
+    }
+
+    public function package(Request $request, int $batch): StreamedResponse
+    {
+        $file = $this->exports->package(self::actor($request), $batch);
+
+        return self::stream($file['stream'], $file['filename'], 'application/zip');
+    }
+
+    /** @param resource $stream */
+    private static function stream(mixed $stream, string $filename, string $mime): StreamedResponse
+    {
+        return response()->streamDownload(static function () use ($stream): void {
             try {
-                fpassthru($file['stream']);
+                fpassthru($stream);
             } finally {
-                fclose($file['stream']);
+                fclose($stream);
             }
-        }, $file['filename'], [
-            'Content-Type' => $file['mime'],
+        }, $filename, [
+            'Content-Type' => $mime,
             'Cache-Control' => 'no-store, private',
             'X-Content-Type-Options' => 'nosniff',
         ]);

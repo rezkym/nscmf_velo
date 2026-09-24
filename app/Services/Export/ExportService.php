@@ -13,6 +13,7 @@ use App\Domain\Shared\DomainRuleException;
 use App\Infrastructure\Pdf\PdfSigner;
 use App\Infrastructure\Pdf\SpreadsheetRenderer;
 use App\Infrastructure\Storage\PrivateStorage;
+use App\Infrastructure\Storage\RuntimeWorkspace;
 use App\Jobs\GenerateExport;
 use App\Models\Export\ExportBatch;
 use App\Models\Export\ExportRequest;
@@ -24,6 +25,7 @@ use App\Services\Audit\AccessAuditService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\DatabaseManager;
 use RuntimeException;
+use ZipArchive;
 
 /**
  * Export requests, polling, download and bulk batches (12 §64–71). A request binds an immutable
@@ -42,6 +44,7 @@ final readonly class ExportService
         private PrivateStorage $storage,
         private AccessAuditService $accessAudit,
         private DatabaseManager $database,
+        private RuntimeWorkspace $workspace,
     ) {}
 
     public function request(User $actor, int $recordId, ExportFormat $format, ?ExportBatch $batch = null): ExportRequest
@@ -138,30 +141,77 @@ final readonly class ExportService
     public function download(User $actor, int $exportId): array
     {
         $request = $this->ownRequest($actor, $exportId);
-        $artifact = $request->artifact;
-        if ($request->status === ExportStatus::EXPIRED || ($artifact !== null && ($artifact->expires_at->isPast() || $artifact->binary_purged_at !== null))) {
-            throw new DomainRuleException('EXPORT_EXPIRED', 'This export expired. Request a new one.', 410);
-        }
-        if ($request->status === ExportStatus::FAILED) {
-            throw new DomainRuleException('EXPORT_FAILED', 'This export failed. Request a new one.', 409);
-        }
-        if ($request->status !== ExportStatus::READY || $artifact?->private_object_key === null) {
-            throw new DomainRuleException('EXPORT_NOT_READY', 'This export is not ready yet.', 409);
-        }
+        $key = $this->downloadableKey($request);
         try {
-            $stream = $this->storage->readStream($artifact->private_object_key);
+            $stream = $this->storage->readStream($key);
         } catch (RuntimeException) {
             throw new DomainRuleException('EXPORT_EXPIRED', 'This export is no longer available. Request a new one.', 410);
         }
         $this->accessAudit->record($actor->id, AccessAuditEvent::EXPORT_DOWNLOADED, $request->nscmf_record_id, exportRequestId: $request->id);
 
-        $requestNo = $request->snapshot?->recordField('request_no');
+        return ['stream' => $stream, 'filename' => self::fileName($request), 'mime' => (string) $request->artifact?->mime_type];
+    }
 
-        return [
-            'stream' => $stream,
-            'filename' => preg_replace('/[^A-Za-z0-9._-]+/', '-', is_string($requestNo) ? $requestNo : 'nscmf').'.'.strtolower($request->format->value),
-            'mime' => $artifact->mime_type,
-        ];
+    /**
+     * One ZIP of a settled batch (G04): every READY, unexpired file the requester may still
+     * download, byte for byte. Files that failed, expired or became invisible are left out;
+     * each packaged file is audited as a download.
+     *
+     * @return array{stream: resource, filename: string}
+     */
+    public function package(User $actor, int $batchId): array
+    {
+        $batch = $this->exports->findBatch($batchId);
+        if ($batch === null || $batch->requested_by_user_id !== $actor->id) {
+            throw DomainRuleException::notFound();
+        }
+        if (! $actor->can('nscmf.export.bulk') || ! $actor->can('nscmf.export')) {
+            throw DomainRuleException::forbidden();
+        }
+        if ($batch->requests->contains(fn (ExportRequest $request): bool => in_array($request->status, [ExportStatus::QUEUED, ExportStatus::PROCESSING], true))) {
+            throw new DomainRuleException('EXPORT_NOT_READY', 'Some files in this batch are still being generated.', 409);
+        }
+
+        $files = [];
+        foreach ($batch->requests as $request) {
+            $record = $this->records->find($request->nscmf_record_id);
+            if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+                continue;
+            }
+            try {
+                $files[] = [$request, $this->storage->localPath($this->downloadableKey($request))];
+            } catch (DomainRuleException|RuntimeException) {
+                continue;
+            }
+        }
+        if ($files === []) {
+            throw new DomainRuleException('EXPORT_EXPIRED', 'No file in this batch can be downloaded any more. Request a new export.', 410);
+        }
+
+        $directory = $this->workspace->create('exports');
+        try {
+            $path = $directory.'/batch.zip';
+            $zip = new ZipArchive;
+            if ($zip->open($path, ZipArchive::CREATE | ZipArchive::EXCL) !== true) {
+                throw new RuntimeException('The export package could not be created.');
+            }
+            $names = [];
+            foreach ($files as [$request, $file]) {
+                $zip->addFile($file, self::uniqueName(self::fileName($request), $names));
+            }
+            if (! $zip->close()) {
+                throw new RuntimeException('The export package could not be written.');
+            }
+            $stream = fopen($path, 'rb') ?: throw new RuntimeException('The export package could not be read.');
+        } finally {
+            // The open handle keeps the bytes readable after the directory is gone.
+            $this->workspace->remove($directory);
+        }
+        foreach ($files as [$request]) {
+            $this->accessAudit->record($actor->id, AccessAuditEvent::EXPORT_DOWNLOADED, $request->nscmf_record_id, exportRequestId: $request->id);
+        }
+
+        return ['stream' => $stream, 'filename' => "nscmf-exports-{$batch->id}.zip"];
     }
 
     /**
@@ -210,6 +260,42 @@ final readonly class ExportService
         if ($record->business_status === NscmfStatus::APPROVED && ! $this->signer->isReady()) {
             throw new DomainRuleException('SIGNING_NOT_READY', 'Approved PDFs cannot be signed right now.', 409);
         }
+    }
+
+    /** The private key of a READY, unexpired artifact; otherwise the matching refusal. */
+    private function downloadableKey(ExportRequest $request): string
+    {
+        $artifact = $request->artifact;
+        if ($request->status === ExportStatus::EXPIRED || ($artifact !== null && ($artifact->expires_at->isPast() || $artifact->binary_purged_at !== null))) {
+            throw new DomainRuleException('EXPORT_EXPIRED', 'This export expired. Request a new one.', 410);
+        }
+        if ($request->status === ExportStatus::FAILED) {
+            throw new DomainRuleException('EXPORT_FAILED', 'This export failed. Request a new one.', 409);
+        }
+        if ($request->status !== ExportStatus::READY || $artifact?->private_object_key === null) {
+            throw new DomainRuleException('EXPORT_NOT_READY', 'This export is not ready yet.', 409);
+        }
+
+        return $artifact->private_object_key;
+    }
+
+    private static function fileName(ExportRequest $request): string
+    {
+        $requestNo = $request->snapshot?->recordField('request_no');
+
+        return preg_replace('/[^A-Za-z0-9._-]+/', '-', is_string($requestNo) ? $requestNo : 'nscmf').'.'.strtolower($request->format->value);
+    }
+
+    /** @param array<string, true> $taken */
+    private static function uniqueName(string $name, array &$taken): string
+    {
+        $candidate = $name;
+        for ($n = 2; isset($taken[$candidate]); $n++) {
+            $candidate = pathinfo($name, PATHINFO_FILENAME)."-{$n}.".pathinfo($name, PATHINFO_EXTENSION);
+        }
+        $taken[$candidate] = true;
+
+        return $candidate;
     }
 
     private function ownRequest(User $actor, int $exportId): ExportRequest
