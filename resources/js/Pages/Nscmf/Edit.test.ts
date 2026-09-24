@@ -76,6 +76,28 @@ describe('Nscmf/Edit.vue — the Draft editor page (FE-27 composition, BE-062)',
         expect((wrapper.get('#rollback_scenario').element as HTMLTextAreaElement).value).toBe('Restore');
     });
 
+    // 07 §21: a long single-page form comes with a section navigator.
+    it('lists every form section in a navigator that jumps to it', async () => {
+        const wrapper = mountEdit();
+        await nextTick();
+
+        const links = wrapper.findAll('[data-testid="section-navigator"] a');
+        const labels = links.map((link) => link.text());
+        expect(labels).toEqual(
+            expect.arrayContaining([
+                'Request',
+                'Purpose of changes',
+                'Service impact',
+                'Result of changes',
+                'Attachments',
+            ]),
+        );
+        for (const link of links) {
+            const target = link.attributes('href')?.slice(1) ?? '';
+            expect(document.getElementById(target)?.tagName).toBe('SECTION');
+        }
+    });
+
     it('composes the four Activation sections', () => {
         const wrapper = mountEdit(
             changeRecord({
