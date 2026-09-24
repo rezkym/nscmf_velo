@@ -17,6 +17,9 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Card } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { usePermissions } from '@/composables/usePermissions';
 import { pageDomainError } from '@/lib/apiErrors';
 import { groupBy, toggleItem } from '@/lib/utils';
@@ -133,25 +136,27 @@ function savePermissions(role: RoleRow): void {
             <Button type="button" data-testid="create-role-btn" @click="openNameForm(null)"> Create role </Button>
         </div>
 
-        <div class="overflow-hidden panel">
-            <table class="min-w-full divide-y divide-border text-left text-sm">
-                <thead class="bg-muted text-xs uppercase text-muted-foreground">
-                    <tr>
-                        <th scope="col" class="px-4 py-3">Role</th>
-                        <th scope="col" class="px-4 py-3">Permissions</th>
-                        <th scope="col" class="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-border">
-                    <tr v-for="role in roles" :key="role.id" :data-testid="`role-row-${role.id}`">
-                        <td class="px-4 py-3">
-                            <div class="flex items-center gap-2 font-medium text-foreground">
+        <Card class="gap-0 overflow-hidden py-0">
+            <Table>
+                <TableHeader class="bg-muted/50">
+                    <TableRow>
+                        <TableHead class="px-4 py-3">Role</TableHead>
+                        <TableHead class="px-4 py-3">Permissions</TableHead>
+                        <TableHead class="px-4 py-3 text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow v-for="role in roles" :key="role.id" :data-testid="`role-row-${role.id}`">
+                        <TableCell class="px-4 py-3">
+                            <div class="flex items-center gap-2 font-medium">
                                 {{ role.name }}
                                 <Badge v-if="role.is_protected" variant="warning">Protected</Badge>
                             </div>
-                        </td>
-                        <td class="px-4 py-3 text-muted-foreground">{{ role.permissions.length }} permissions</td>
-                        <td class="whitespace-nowrap px-4 py-3 text-right">
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-muted-foreground"
+                            >{{ role.permissions.length }} permissions</TableCell
+                        >
+                        <TableCell class="whitespace-nowrap px-4 py-3 text-right">
                             <template v-if="!role.is_protected">
                                 <Button
                                     type="button"
@@ -174,14 +179,14 @@ function savePermissions(role: RoleRow): void {
                                     Permissions
                                 </Button>
                             </template>
-                        </td>
-                    </tr>
-                    <tr v-if="roles.length === 0">
-                        <td colspan="3" class="px-4 py-8 text-center text-muted-foreground">No roles yet.</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+                        </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="roles.length === 0" :colspan="3" class="text-muted-foreground"
+                        >No roles yet.</TableEmpty
+                    >
+                </TableBody>
+            </Table>
+        </Card>
     </div>
 
     <Dialog
@@ -210,7 +215,7 @@ function savePermissions(role: RoleRow): void {
                         />
                     </template>
                 </FormField>
-                <div class="flex justify-end gap-2 pt-2">
+                <DialogFooter>
                     <Button type="button" variant="outline" :disabled="nameForm.processing" @click="closeNameForm"
                         >Cancel</Button
                     >
@@ -221,7 +226,7 @@ function savePermissions(role: RoleRow): void {
                     >
                         {{ nameForm.processing ? 'Saving…' : 'Save' }}
                     </Button>
-                </div>
+                </DialogFooter>
             </form>
         </DialogContent>
     </Dialog>
@@ -242,13 +247,13 @@ function savePermissions(role: RoleRow): void {
                     sessions.</DialogDescription
                 >
             </DialogHeader>
-            <div class="space-y-4">
-                <Alert v-if="permissionsError" variant="destructive"
-                    ><AlertDescription>{{ permissionsError }}</AlertDescription></Alert
-                >
-                <fieldset v-for="(items, group) in permissionGroups" :key="group" class="space-y-2">
-                    <legend class="text-xs font-semibold uppercase text-muted-foreground">{{ group }}</legend>
-                    <label v-for="item in items" :key="item.name" class="flex items-start gap-2 text-sm">
+            <div class="grid gap-6">
+                <Alert v-if="permissionsError" variant="destructive">
+                    <AlertDescription>{{ permissionsError }}</AlertDescription>
+                </Alert>
+                <FieldSet v-for="(items, group) in permissionGroups" :key="group" class="gap-3">
+                    <FieldLegend variant="label" class="mb-0">{{ group }}</FieldLegend>
+                    <label v-for="item in items" :key="item.name" class="flex items-start gap-2">
                         <Checkbox
                             class="mt-0.5"
                             :data-testid="`permission-${item.name}`"
@@ -258,13 +263,13 @@ function savePermissions(role: RoleRow): void {
                             "
                         />
                         <span>
-                            <span class="font-mono text-foreground">{{ item.name }}</span>
+                            <span class="font-mono">{{ item.name }}</span>
                             <span v-if="item.description" class="block text-xs text-muted-foreground">
                                 {{ item.description }}
                             </span>
                         </span>
                     </label>
-                </fieldset>
+                </FieldSet>
             </div>
             <DialogFooter>
                 <Button

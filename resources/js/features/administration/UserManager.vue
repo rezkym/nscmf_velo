@@ -18,6 +18,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Card } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { usePermissions } from '@/composables/usePermissions';
 import OneTimeCredential from '@/features/administration/OneTimeCredential.vue';
 import {
@@ -286,48 +288,48 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
             </Button>
         </div>
 
-        <Alert v-if="pageError" variant="destructive" data-testid="users-server-error"
-            ><AlertDescription>{{ pageError }}</AlertDescription></Alert
-        >
+        <Alert v-if="pageError" variant="destructive" data-testid="users-server-error">
+            <AlertDescription>{{ pageError }}</AlertDescription>
+        </Alert>
 
-        <div class="overflow-x-auto panel">
-            <table class="min-w-full divide-y divide-border text-left text-sm">
-                <thead class="bg-muted text-xs uppercase text-muted-foreground">
-                    <tr>
-                        <th scope="col" class="px-4 py-3">User</th>
-                        <th scope="col" class="px-4 py-3">Team</th>
-                        <th scope="col" class="px-4 py-3">Roles</th>
-                        <th scope="col" class="px-4 py-3">Status</th>
-                        <th scope="col" class="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-border">
-                    <tr v-for="user in users" :key="user.id" :data-testid="`user-row-${user.id}`">
-                        <td class="px-4 py-3">
-                            <div class="flex items-center gap-2 font-medium text-foreground">
+        <Card class="gap-0 overflow-hidden py-0">
+            <Table>
+                <TableHeader class="bg-muted/50">
+                    <TableRow>
+                        <TableHead class="px-4 py-3">User</TableHead>
+                        <TableHead class="px-4 py-3">Team</TableHead>
+                        <TableHead class="px-4 py-3">Roles</TableHead>
+                        <TableHead class="px-4 py-3">Status</TableHead>
+                        <TableHead class="px-4 py-3 text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow v-for="user in users" :key="user.id" :data-testid="`user-row-${user.id}`">
+                        <TableCell class="px-4 py-3">
+                            <div class="flex items-center gap-2 font-medium">
                                 {{ user.name }}
                                 <Badge v-if="user.is_protected_superadmin" variant="warning">Protected</Badge>
                             </div>
                             <div class="font-mono text-xs text-muted-foreground">{{ user.username }}</div>
-                        </td>
-                        <td class="px-4 py-3">
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
                             <span v-if="user.team_name">{{ user.team_name }}</span>
                             <span v-else class="text-muted-foreground">No team</span>
-                        </td>
-                        <td class="px-4 py-3">
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
                             <div v-if="user.roles.length > 0" class="flex flex-wrap gap-1">
                                 <Badge variant="secondary" v-for="role in user.roles" :key="role.id">{{
                                     role.name
                                 }}</Badge>
                             </div>
                             <span v-else class="text-muted-foreground">No roles</span>
-                        </td>
-                        <td class="px-4 py-3">
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
                             <Badge :variant="user.is_active ? 'success' : 'secondary'">
                                 {{ user.is_active ? 'Active' : 'Disabled' }}
                             </Badge>
-                        </td>
-                        <td class="whitespace-nowrap px-4 py-3 text-right">
+                        </TableCell>
+                        <TableCell class="whitespace-nowrap px-4 py-3 text-right">
                             <Button
                                 type="button"
                                 v-if="can('users.update')"
@@ -390,14 +392,14 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                                     Enable
                                 </Button>
                             </template>
-                        </td>
-                    </tr>
-                    <tr v-if="users.length === 0">
-                        <td colspan="5" class="px-4 py-8 text-center text-muted-foreground">No users yet.</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+                        </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="users.length === 0" :colspan="5" class="text-muted-foreground"
+                        >No users yet.</TableEmpty
+                    >
+                </TableBody>
+            </Table>
+        </Card>
     </div>
 
     <!-- The form dialog steps aside while re-authentication is asked, so only one dialog traps focus. -->
@@ -417,9 +419,9 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                 >
             </DialogHeader>
             <form class="space-y-4" @submit.prevent="requestSensitive({ kind: 'create' })">
-                <Alert v-if="formError" variant="destructive"
-                    ><AlertDescription>{{ formError }}</AlertDescription></Alert
-                >
+                <Alert v-if="formError" variant="destructive">
+                    <AlertDescription>{{ formError }}</AlertDescription>
+                </Alert>
                 <FormField id="user-name" label="Name" required :error="createForm.errors.name">
                     <template #default="{ id, describedBy }">
                         <Input
@@ -457,7 +459,7 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                     </template>
                 </FormField>
                 <fieldset class="space-y-2">
-                    <legend class="text-sm font-medium text-foreground">Roles</legend>
+                    <legend class="text-sm font-medium">Roles</legend>
                     <label
                         v-for="role in roles"
                         :key="role.id"
@@ -475,14 +477,14 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                         {{ createForm.errors.role_ids }}
                     </p>
                 </fieldset>
-                <div class="flex justify-end gap-2 pt-2">
+                <DialogFooter>
                     <Button type="button" variant="outline" :disabled="createForm.processing" @click="closeDialog"
                         >Cancel</Button
                     >
                     <Button type="submit" data-testid="btn-submit-create-user" :disabled="createForm.processing">
                         {{ createForm.processing ? 'Creating…' : 'Create user' }}
                     </Button>
-                </div>
+                </DialogFooter>
             </form>
         </DialogContent>
     </Dialog>
@@ -512,14 +514,14 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                         />
                     </template>
                 </FormField>
-                <div class="flex justify-end gap-2 pt-2">
+                <DialogFooter>
                     <Button type="button" variant="outline" :disabled="profileForm.processing" @click="closeDialog"
                         >Cancel</Button
                     >
                     <Button type="submit" :disabled="profileForm.processing || !profileForm.name.trim()">
                         {{ profileForm.processing ? 'Saving…' : 'Save' }}
                     </Button>
-                </div>
+                </DialogFooter>
             </form>
         </DialogContent>
     </Dialog>
@@ -553,14 +555,14 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                         </NativeSelect>
                     </template>
                 </FormField>
-                <div class="flex justify-end gap-2 pt-2">
+                <DialogFooter>
                     <Button type="button" variant="outline" :disabled="teamForm.processing" @click="closeDialog"
                         >Cancel</Button
                     >
                     <Button type="submit" :disabled="teamForm.processing || teamForm.team_id === null">
                         {{ teamForm.processing ? 'Saving…' : 'Save' }}
                     </Button>
-                </div>
+                </DialogFooter>
             </form>
         </DialogContent>
     </Dialog>
@@ -582,9 +584,9 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                 >
             </DialogHeader>
             <div v-if="dialogUser" class="space-y-4">
-                <Alert v-if="formError" variant="destructive"
-                    ><AlertDescription>{{ formError }}</AlertDescription></Alert
-                >
+                <Alert v-if="formError" variant="destructive">
+                    <AlertDescription>{{ formError }}</AlertDescription>
+                </Alert>
                 <fieldset class="space-y-2">
                     <legend class="sr-only">Roles</legend>
                     <label

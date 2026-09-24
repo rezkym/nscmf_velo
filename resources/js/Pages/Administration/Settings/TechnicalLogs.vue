@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldLabel } from '@/components/ui/field';
+import { Card, CardContent } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { firstFieldError } from '@/lib/apiErrors';
 import { sendJson } from '@/lib/http';
@@ -78,42 +79,55 @@ function confirmed(): void {
                 title="Technical log cleanup"
                 description="How long application technical logs are kept. Business, access and security audits are never deleted by this setting."
             />
-            <form class="space-y-4 panel p-6" @submit.prevent="save">
-                <label class="flex items-center gap-2 text-sm font-medium">
-                    <Checkbox v-model="enabled" data-testid="settings-enabled" />
-                    Delete technical logs automatically
-                </label>
-                <div class="grid grid-cols-2 gap-3">
-                    <Field>
-                        <FieldLabel for="settings-value">Keep logs for</FieldLabel>
-                        <Input
-                            id="settings-value"
-                            v-model="value"
-                            type="text"
-                            inputmode="numeric"
-                            data-testid="settings-value"
-                            :aria-invalid="problem !== null"
-                        />
-                    </Field>
-                    <Field>
-                        <FieldLabel for="settings-unit">Unit</FieldLabel>
-                        <NativeSelect id="settings-unit" class="w-full" v-model="unit" data-testid="settings-unit">
-                            <option value="DAY">Days</option>
-                            <option value="MONTH">Calendar months</option>
-                        </NativeSelect>
-                    </Field>
-                </div>
-                <p v-if="!enabled" class="text-sm text-muted-foreground">
-                    Cleanup is off: technical logs keep growing until it is turned on again. The period above is kept.
-                </p>
-                <p v-if="problem" role="alert" class="text-sm text-destructive">{{ problem }}</p>
-                <Button type="button" data-testid="settings-save" :disabled="saving" @click="save">
-                    {{ saving ? 'Saving…' : 'Save' }}
-                </Button>
-            </form>
-            <Alert v-if="notice"
-                ><AlertTitle>Technical log cleanup</AlertTitle><AlertDescription>{{ notice }}</AlertDescription></Alert
-            >
+            <Card>
+                <CardContent>
+                    <form class="grid gap-5" @submit.prevent="save">
+                        <Field orientation="horizontal">
+                            <Checkbox id="settings-enabled" v-model="enabled" data-testid="settings-enabled" />
+                            <FieldLabel for="settings-enabled">Delete technical logs automatically</FieldLabel>
+                        </Field>
+                        <div class="grid grid-cols-2 gap-4">
+                            <Field>
+                                <FieldLabel for="settings-value">Keep logs for</FieldLabel>
+                                <Input
+                                    id="settings-value"
+                                    v-model="value"
+                                    type="text"
+                                    inputmode="numeric"
+                                    data-testid="settings-value"
+                                    :aria-invalid="problem !== null"
+                                />
+                            </Field>
+                            <Field>
+                                <FieldLabel for="settings-unit">Unit</FieldLabel>
+                                <NativeSelect
+                                    id="settings-unit"
+                                    v-model="unit"
+                                    class="w-full"
+                                    data-testid="settings-unit"
+                                >
+                                    <option value="DAY">Days</option>
+                                    <option value="MONTH">Calendar months</option>
+                                </NativeSelect>
+                            </Field>
+                        </div>
+                        <p v-if="!enabled" class="text-muted-foreground">
+                            Cleanup is off: technical logs keep growing until it is turned on again. The period above is
+                            kept.
+                        </p>
+                        <p v-if="problem" role="alert" class="text-destructive">{{ problem }}</p>
+                        <div>
+                            <Button type="button" data-testid="settings-save" :disabled="saving" @click="save">
+                                {{ saving ? 'Saving…' : 'Save' }}
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
+            <Alert v-if="notice">
+                <AlertTitle>Technical log cleanup</AlertTitle>
+                <AlertDescription>{{ notice }}</AlertDescription>
+            </Alert>
         </div>
         <ReauthenticationDialog
             v-if="reauthOpen"

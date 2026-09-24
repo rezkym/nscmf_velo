@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import SectionCard from '@/components/SectionCard.vue';
 import RoleManager, { type PermissionCatalogItem, type RoleRow } from '@/features/administration/RoleManager.vue';
 import TeamManager, { type Team } from '@/features/administration/TeamManager.vue';
 import UserManager, { type UserRow } from '@/features/administration/UserManager.vue';
@@ -88,27 +89,19 @@ const readinessSummary = computed(() => [
                     :key="title"
                     data-testid="stepper-step"
                     :aria-current="currentStep === index + 1 ? 'step' : undefined"
-                    class="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
-                    :class="
-                        currentStep === index + 1
-                            ? 'border-primary text-foreground'
-                            : 'border-border text-muted-foreground'
-                    "
+                    class="flex items-center gap-2 rounded-lg border bg-card px-3 py-2"
+                    :class="currentStep === index + 1 ? 'border-primary text-heading' : 'text-muted-foreground'"
                 >
                     <span class="font-mono text-xs">{{ index + 1 }}</span>
                     <span class="font-medium">{{ title }}</span>
                 </li>
             </ol>
 
-            <section v-if="currentStep === 1" class="space-y-4 panel p-6">
-                <div class="space-y-1">
-                    <h2 class="text-base font-semibold">Role setup</h2>
-                    <p class="text-sm text-muted-foreground">
-                        Start from the default roles provided by the system, or configure roles and their permissions
-                        yourself.
-                    </p>
-                </div>
-
+            <SectionCard
+                v-if="currentStep === 1"
+                title="Role setup"
+                description="Start from the default roles provided by the system, or configure roles and their permissions yourself."
+            >
                 <RadioGroup v-model="roleMode" aria-label="Role setup" class="flex flex-wrap gap-6">
                     <Field orientation="horizontal" class="w-auto">
                         <RadioGroupItem id="role-mode-default" value="default" data-testid="role-mode-default" />
@@ -122,34 +115,29 @@ const readinessSummary = computed(() => [
 
                 <div v-if="roleMode === 'default'" data-testid="default-roles" class="flex flex-wrap gap-2">
                     <Badge variant="secondary" v-for="role in roles" :key="role.id">{{ role.name }}</Badge>
-                    <p v-if="roles.length === 0" class="text-sm text-muted-foreground">No roles are available yet.</p>
+                    <p v-if="roles.length === 0" class="text-muted-foreground">No roles are available yet.</p>
                 </div>
                 <RoleManager v-else :roles="roles" :permission-catalog="permissionCatalog" />
-            </section>
+            </SectionCard>
 
-            <section v-if="currentStep === 2" class="space-y-4 panel p-6">
-                <div class="space-y-1">
-                    <h2 class="text-base font-semibold">Team setup</h2>
-                    <p class="text-sm text-muted-foreground">
-                        Teams describe where people belong. They do not grant or limit any permission.
-                    </p>
-                </div>
+            <SectionCard
+                v-if="currentStep === 2"
+                title="Team setup"
+                description="Teams describe where people belong. They do not grant or limit any permission."
+            >
                 <TeamManager :teams="teams" />
-            </section>
+            </SectionCard>
 
-            <section v-if="currentStep === 3" class="space-y-4 panel p-6">
-                <div class="space-y-1">
-                    <h2 class="text-base font-semibold">Users and roles</h2>
-                    <p class="text-sm text-muted-foreground">
-                        Create users and give each a team and one or more roles.
-                    </p>
-                </div>
+            <SectionCard
+                v-if="currentStep === 3"
+                title="Users and roles"
+                description="Create users and give each a team and one or more roles."
+            >
                 <UserManager :users="users" :teams="teams" :roles="roles" />
-            </section>
+            </SectionCard>
 
-            <section v-if="currentStep === LAST_STEP" data-testid="step-complete" class="space-y-4 panel p-6">
-                <h2 class="text-base font-semibold">Complete</h2>
-                <ul class="divide-y divide-border text-sm">
+            <SectionCard v-if="currentStep === LAST_STEP" data-testid="step-complete" title="Complete">
+                <ul class="divide-y">
                     <li
                         v-for="item in readinessSummary"
                         :key="item.key"
@@ -173,10 +161,10 @@ const readinessSummary = computed(() => [
                 <Button v-if="readiness.setup_completed" as-child>
                     <Link href="/dashboard" data-testid="btn-go-dashboard"> Go to dashboard </Link>
                 </Button>
-                <p v-else class="text-sm text-muted-foreground">
+                <p v-else class="text-muted-foreground">
                     The dashboard becomes available once the server reports setup as completed.
                 </p>
-            </section>
+            </SectionCard>
 
             <div class="flex justify-between">
                 <Button

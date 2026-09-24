@@ -47,13 +47,13 @@ onBeforeUnmount(() => {
     <Head title="Login - NSCMF" />
 
     <CenteredLayout title="NSCMF Portal" description="Sign in to access your account and workflow approvals">
-        <div class="panel space-y-6 p-6 sm:p-8">
+        <div class="grid gap-6">
             <!-- Generic failure / throttle message; never says which credential was wrong. -->
-            <Alert v-if="errorMessage" variant="destructive" data-testid="auth-error"
-                ><AlertDescription>{{ errorMessage }}</AlertDescription></Alert
-            >
+            <Alert v-if="errorMessage" variant="destructive" data-testid="auth-error">
+                <AlertDescription>{{ errorMessage }}</AlertDescription>
+            </Alert>
 
-            <form class="space-y-5" @submit.prevent="submit">
+            <form class="grid gap-5" @submit.prevent="submit">
                 <FormField id="username" label="Username" required :disabled="form.processing">
                     <template #default="{ id: fieldId, describedBy, disabled }">
                         <Input

@@ -10,6 +10,7 @@ import { NativeSelect } from '@/components/ui/native-select';
 import FormField from '@/components/FormField.vue';
 import { Field, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Card, CardContent } from '@/components/ui/card';
 import { usePermissions } from '@/composables/usePermissions';
 import {
     FAMILY_LABELS,
@@ -69,83 +70,100 @@ function submit(): void {
         <div class="mx-auto max-w-2xl space-y-6">
             <PageHeader title="Create NSCMF" description="Choose the form type. The record starts as a draft." />
 
-            <Alert v-if="!user?.team" variant="warning"
-                ><AlertTitle>Active team required</AlertTitle
-                ><AlertDescription
+            <Alert v-if="!user?.team" variant="warning">
+                <AlertTitle>Active team required</AlertTitle>
+                <AlertDescription
                     >You need an active team to create records. Contact an administrator.</AlertDescription
-                ></Alert
-            >
-
-            <form v-else class="space-y-5 panel p-6" @submit.prevent="submit">
-                <FormField id="family" label="Form family" required>
-                    <template #default="{ id }">
-                        <NativeSelect class="w-full" :id="id" v-model="form.family" :disabled="form.processing">
-                            <option v-for="(label, family) in FAMILY_LABELS" :key="family" :value="family">
-                                {{ label }}
-                            </option>
-                        </NativeSelect>
-                    </template>
-                </FormField>
-
-                <FormField id="subtype" label="Subtype" required>
-                    <template #default="{ id }">
-                        <NativeSelect class="w-full" :id="id" v-model="form.subtype" :disabled="form.processing">
-                            <option v-for="subtype in SUBTYPES_BY_FAMILY[form.family]" :key="subtype" :value="subtype">
-                                {{ SUBTYPE_LABELS[subtype] }}
-                            </option>
-                        </NativeSelect>
-                    </template>
-                </FormField>
-
-                <FieldSet>
-                    <FieldLegend variant="label">Request number</FieldLegend>
-                    <RadioGroup v-model="form.numbering_mode" :disabled="form.processing">
-                        <Field orientation="horizontal">
-                            <RadioGroupItem
-                                id="numbering-automatic"
-                                value="AUTOMATIC"
-                                data-testid="numbering-automatic"
-                            />
-                            <FieldLabel for="numbering-automatic" class="font-normal">
-                                Automatic — assigned by the system when the draft is created
-                            </FieldLabel>
-                        </Field>
-                        <Field orientation="horizontal">
-                            <RadioGroupItem id="numbering-manual" value="MANUAL" data-testid="numbering-manual" />
-                            <FieldLabel for="numbering-manual" class="font-normal"
-                                >Manual — enter your own number</FieldLabel
-                            >
-                        </Field>
-                    </RadioGroup>
-                </FieldSet>
-
-                <FormField
-                    v-if="form.numbering_mode === 'MANUAL'"
-                    id="request-no"
-                    label="Manual request number"
-                    required
-                    :error="requestNoError"
                 >
-                    <template #default="{ id, describedBy }">
-                        <Input
-                            class="font-mono"
-                            :id="id"
-                            v-model="manualRequestNo"
-                            type="text"
-                            maxlength="64"
-                            autocomplete="off"
-                            :aria-describedby="describedBy"
-                            :disabled="form.processing"
-                        />
-                    </template>
-                </FormField>
+            </Alert>
 
-                <div class="flex justify-end border-t border-border pt-4">
-                    <Button type="submit" :disabled="form.processing">
-                        {{ form.processing ? 'Creating…' : 'Create draft' }}
-                    </Button>
-                </div>
-            </form>
+            <Card v-else>
+                <CardContent>
+                    <form class="grid gap-5" @submit.prevent="submit">
+                        <FormField id="family" label="Form family" required>
+                            <template #default="{ id }">
+                                <NativeSelect class="w-full" :id="id" v-model="form.family" :disabled="form.processing">
+                                    <option v-for="(label, family) in FAMILY_LABELS" :key="family" :value="family">
+                                        {{ label }}
+                                    </option>
+                                </NativeSelect>
+                            </template>
+                        </FormField>
+
+                        <FormField id="subtype" label="Subtype" required>
+                            <template #default="{ id }">
+                                <NativeSelect
+                                    class="w-full"
+                                    :id="id"
+                                    v-model="form.subtype"
+                                    :disabled="form.processing"
+                                >
+                                    <option
+                                        v-for="subtype in SUBTYPES_BY_FAMILY[form.family]"
+                                        :key="subtype"
+                                        :value="subtype"
+                                    >
+                                        {{ SUBTYPE_LABELS[subtype] }}
+                                    </option>
+                                </NativeSelect>
+                            </template>
+                        </FormField>
+
+                        <FieldSet>
+                            <FieldLegend variant="label">Request number</FieldLegend>
+                            <RadioGroup v-model="form.numbering_mode" :disabled="form.processing">
+                                <Field orientation="horizontal">
+                                    <RadioGroupItem
+                                        id="numbering-automatic"
+                                        value="AUTOMATIC"
+                                        data-testid="numbering-automatic"
+                                    />
+                                    <FieldLabel for="numbering-automatic" class="font-normal">
+                                        Automatic — assigned by the system when the draft is created
+                                    </FieldLabel>
+                                </Field>
+                                <Field orientation="horizontal">
+                                    <RadioGroupItem
+                                        id="numbering-manual"
+                                        value="MANUAL"
+                                        data-testid="numbering-manual"
+                                    />
+                                    <FieldLabel for="numbering-manual" class="font-normal"
+                                        >Manual — enter your own number</FieldLabel
+                                    >
+                                </Field>
+                            </RadioGroup>
+                        </FieldSet>
+
+                        <FormField
+                            v-if="form.numbering_mode === 'MANUAL'"
+                            id="request-no"
+                            label="Manual request number"
+                            required
+                            :error="requestNoError"
+                        >
+                            <template #default="{ id, describedBy }">
+                                <Input
+                                    class="font-mono"
+                                    :id="id"
+                                    v-model="manualRequestNo"
+                                    type="text"
+                                    maxlength="64"
+                                    autocomplete="off"
+                                    :aria-describedby="describedBy"
+                                    :disabled="form.processing"
+                                />
+                            </template>
+                        </FormField>
+
+                        <div class="flex justify-end border-t pt-4">
+                            <Button type="submit" :disabled="form.processing">
+                                {{ form.processing ? 'Creating…' : 'Create draft' }}
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
         </div>
     </AppLayout>
 </template>

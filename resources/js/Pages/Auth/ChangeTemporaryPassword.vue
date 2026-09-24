@@ -71,12 +71,12 @@ onBeforeUnmount(() => {
         title="Create New Password"
         description="Your account has a mandatory temporary password change required before accessing the system."
     >
-        <div class="panel space-y-6 p-6 sm:p-8">
-            <Alert v-if="activeError" variant="destructive" data-testid="auth-error"
-                ><AlertDescription>{{ activeError }}</AlertDescription></Alert
-            >
+        <div class="grid gap-6">
+            <Alert v-if="activeError" variant="destructive" data-testid="auth-error">
+                <AlertDescription>{{ activeError }}</AlertDescription>
+            </Alert>
 
-            <form class="space-y-5" @submit.prevent="submit">
+            <form class="grid gap-5" @submit.prevent="submit">
                 <FormField
                     id="password"
                     label="New Password"

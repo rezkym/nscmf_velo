@@ -14,8 +14,9 @@ export const alertVariants = cva(
                 default: 'bg-card text-card-foreground',
                 destructive:
                     'text-destructive bg-card *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current',
-                // NSCMF: amber warning tone (07 §7); the text stays readable, the tone marks the edge.
+                // NSCMF status tones (07 §7): the text stays readable, the tone marks the edge and title.
                 warning: 'border-warning/30 bg-warning/5 text-warning *:data-[slot=alert-description]:text-foreground',
+                success: 'border-success/30 bg-success/5 text-success *:data-[slot=alert-description]:text-foreground',
             },
         },
         defaultVariants: {

@@ -85,6 +85,9 @@
     --accent: color-mix(in oklab, var(--brand-200) 30%, #ffffff);
     --accent-foreground: var(--brand-700);
     --destructive: oklch(0.577 0.245 27.325);
+    /* Status tones for badges and alerts (07 §7): readable as text on white and on their own tint. */
+    --success: #047857;
+    --warning: #92400e;
     --border: #e4e9f2;
     --input: #c9d1df;
     --ring: var(--brand-700);
@@ -124,6 +127,8 @@
     --accent: oklch(0.269 0.05 264);
     --accent-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.216);
+    --success: #34d399;
+    --warning: #fbbf24;
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: var(--brand-400);
@@ -141,16 +146,6 @@
     --chart-decisions: #16a0af;
     --chart-status: var(--brand-400);
     --chart-track: oklch(0.269 0 0);
-}
-
-@theme {
-    /* Panels (cards, sections, dialogs) and the thin elevation they share. */
-    --radius-panel: 1.25rem;
-    --shadow-panel: 0 0 0 1px var(--border), 0 1px 2px rgb(9 21 64 / 0.04), 0 4px 16px rgb(9 21 64 / 0.04);
-
-    /* Motion curves: strong ease-out for responses, the drawer curve for the navigation panel. */
-    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @theme inline {
@@ -179,6 +174,8 @@
     --color-accent: var(--accent);
     --color-accent-foreground: var(--accent-foreground);
     --color-destructive: var(--destructive);
+    --color-success: var(--success);
+    --color-warning: var(--warning);
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
@@ -201,14 +198,6 @@
     --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* The one surface every card, section and dialog shares (07 §7.1). Padding stays with the content. */
-@utility panel {
-    border-radius: var(--radius-panel);
-    background-color: var(--color-card);
-    color: var(--color-card-foreground);
-    box-shadow: var(--shadow-panel);
-}
-
 @layer base {
     * {
         @apply border-border outline-ring/50;
@@ -226,7 +215,7 @@
 
     /* A section reached from an in-page link clears the sticky header. */
     section[id] {
-        scroll-margin-top: calc(var(--spacing) * 24);
+        scroll-margin-top: calc(var(--spacing) * 20);
     }
 }
 

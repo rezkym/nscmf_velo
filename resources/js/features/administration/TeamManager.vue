@@ -15,6 +15,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Card } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { usePermissions } from '@/composables/usePermissions';
 import { pageDomainError } from '@/lib/apiErrors';
 
@@ -128,24 +130,24 @@ function confirmLifecycle(entry: { team: Team; action: LifecycleAction }): void 
             <Button type="button" data-testid="create-team-btn" @click="openForm(null)"> Create team </Button>
         </div>
 
-        <div class="overflow-hidden panel">
-            <table class="min-w-full divide-y divide-border text-left text-sm">
-                <thead class="bg-muted text-xs uppercase text-muted-foreground">
-                    <tr>
-                        <th scope="col" class="px-4 py-3">Name</th>
-                        <th scope="col" class="px-4 py-3">Status</th>
-                        <th scope="col" class="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-border">
-                    <tr v-for="team in teams" :key="team.id" :data-testid="`team-row-${team.id}`">
-                        <td class="px-4 py-3 font-medium text-foreground">{{ team.name }}</td>
-                        <td class="px-4 py-3">
+        <Card class="gap-0 overflow-hidden py-0">
+            <Table>
+                <TableHeader class="bg-muted/50">
+                    <TableRow>
+                        <TableHead class="px-4 py-3">Name</TableHead>
+                        <TableHead class="px-4 py-3">Status</TableHead>
+                        <TableHead class="px-4 py-3 text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow v-for="team in teams" :key="team.id" :data-testid="`team-row-${team.id}`">
+                        <TableCell class="px-4 py-3 font-medium">{{ team.name }}</TableCell>
+                        <TableCell class="px-4 py-3">
                             <Badge :variant="team.is_active ? 'success' : 'secondary'">
                                 {{ team.is_active ? 'Active' : 'Inactive' }}
                             </Badge>
-                        </td>
-                        <td class="space-x-1 px-4 py-3 text-right">
+                        </TableCell>
+                        <TableCell class="space-x-1 px-4 py-3 text-right">
                             <Button
                                 type="button"
                                 v-if="can('teams.update')"
@@ -166,14 +168,14 @@ function confirmLifecycle(entry: { team: Team; action: LifecycleAction }): void 
                             >
                                 {{ team.is_active ? 'Deactivate' : 'Reactivate' }}
                             </Button>
-                        </td>
-                    </tr>
-                    <tr v-if="teams.length === 0">
-                        <td colspan="3" class="px-4 py-8 text-center text-muted-foreground">No teams yet.</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+                        </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="teams.length === 0" :colspan="3" class="text-muted-foreground"
+                        >No teams yet.</TableEmpty
+                    >
+                </TableBody>
+            </Table>
+        </Card>
     </div>
 
     <Dialog
@@ -203,14 +205,14 @@ function confirmLifecycle(entry: { team: Team; action: LifecycleAction }): void 
                     </template>
                 </FormField>
 
-                <div class="flex justify-end gap-2 pt-2">
+                <DialogFooter>
                     <Button type="button" variant="outline" :disabled="form.processing" @click="closeForm"
                         >Cancel</Button
                     >
                     <Button type="submit" data-testid="save-team-btn" :disabled="form.processing || !form.name.trim()">
                         {{ form.processing ? 'Saving…' : 'Save' }}
                     </Button>
-                </div>
+                </DialogFooter>
             </form>
         </DialogContent>
     </Dialog>
@@ -230,9 +232,9 @@ function confirmLifecycle(entry: { team: Team; action: LifecycleAction }): void 
                     lifecycleCopy?.description
                 }}</DialogDescription>
             </DialogHeader>
-            <Alert v-if="lifecycleError" variant="destructive"
-                ><AlertDescription>{{ lifecycleError }}</AlertDescription></Alert
-            >
+            <Alert v-if="lifecycleError" variant="destructive">
+                <AlertDescription>{{ lifecycleError }}</AlertDescription>
+            </Alert>
             <DialogFooter>
                 <Button type="button" variant="outline" :disabled="lifecyclePending" @click="closeLifecycle"
                     >Cancel</Button

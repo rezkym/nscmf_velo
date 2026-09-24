@@ -2,6 +2,8 @@
 import { CircleHelp, ShieldAlert, ShieldCheck, ShieldEllipsis } from '@lucide/vue';
 import { computed } from 'vue';
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
 import { formatJakarta } from '@/lib/datetime';
 
 import type { VerificationAnswer } from './verification';
@@ -13,25 +15,25 @@ const OUTCOMES = {
         icon: ShieldCheck,
         title: 'Valid and current',
         text: 'This PDF was issued by NSCMF, has not been changed, and is the current approved version.',
-        tone: 'border-emerald-600/40 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100',
+        variant: 'success',
     },
     VALID_SUPERSEDED: {
         icon: ShieldEllipsis,
         title: 'Valid, but no longer the current version',
         text: 'This PDF was issued by NSCMF and has not been changed, but the request was reopened or re-approved since.',
-        tone: 'border-amber-600/40 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100',
+        variant: 'warning',
     },
     INVALID_MODIFIED: {
         icon: ShieldAlert,
         title: 'Modified after signing',
         text: 'The signature no longer matches the content. Do not rely on this file.',
-        tone: 'border-destructive/40 bg-destructive/10 text-destructive',
+        variant: 'destructive',
     },
     UNKNOWN: {
         icon: CircleHelp,
         title: 'Not recognised',
         text: 'This PDF is not one NSCMF issued and signed. This does not prove the file is harmful or forged.',
-        tone: 'border-border bg-muted text-foreground',
+        variant: 'default',
     },
 } as const;
 
@@ -56,17 +58,20 @@ const issued = computed(() =>
 </script>
 
 <template>
-    <section data-testid="validator-result" role="status" :class="['space-y-3 rounded-lg border p-5', outcome.tone]">
-        <div class="flex items-center gap-3">
-            <component :is="outcome.icon" class="h-6 w-6 shrink-0" aria-hidden="true" />
-            <h2 class="text-lg font-semibold">{{ outcome.title }}</h2>
-        </div>
-        <p class="text-sm">{{ outcome.text }}</p>
-        <dl v-if="issued.length" class="grid gap-2 text-sm sm:grid-cols-2">
-            <div v-for="[label, value] in issued" :key="label">
-                <dt class="text-xs opacity-80">{{ label }}</dt>
-                <dd class="font-medium">{{ value }}</dd>
-            </div>
-        </dl>
-    </section>
+    <!-- Every outcome is reported politely; the title and icon say which one it is. -->
+    <Alert data-testid="validator-result" role="status" :variant="outcome.variant">
+        <component :is="outcome.icon" aria-hidden="true" />
+        <AlertTitle
+            ><h2>{{ outcome.title }}</h2></AlertTitle
+        >
+        <AlertDescription class="grid gap-3">
+            <p>{{ outcome.text }}</p>
+            <dl v-if="issued.length" class="grid gap-2 sm:grid-cols-2">
+                <div v-for="[label, value] in issued" :key="label">
+                    <dt class="text-xs text-muted-foreground">{{ label }}</dt>
+                    <dd class="font-medium">{{ value }}</dd>
+                </div>
+            </dl>
+        </AlertDescription>
+    </Alert>
 </template>

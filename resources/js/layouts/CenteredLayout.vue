@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import BrandMark from '@/components/BrandMark.vue';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 /** Standalone pages outside the authenticated shell: sign-in, password change, public validator. */
 withDefaults(defineProps<{ title: string; description?: string; wide?: boolean }>(), {
@@ -9,14 +10,21 @@ withDefaults(defineProps<{ title: string; description?: string; wide?: boolean }
 </script>
 
 <template>
-    <main class="flex min-h-screen flex-col items-center bg-background px-4 py-12 text-foreground sm:justify-center">
-        <div :class="['w-full space-y-8', wide ? 'max-w-xl' : 'max-w-md']">
-            <div class="space-y-3 text-center">
-                <BrandMark />
-                <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ title }}</h1>
-                <p v-if="description" class="text-sm text-muted-foreground sm:text-base">{{ description }}</p>
-            </div>
-            <slot />
-        </div>
+    <main class="flex min-h-svh flex-col items-center justify-center gap-6 bg-background px-4 py-12 text-foreground">
+        <p class="flex items-center gap-2.5 font-semibold text-heading">
+            <BrandMark />
+            NSCMF
+        </p>
+        <Card :class="['w-full', wide ? 'max-w-xl' : 'max-w-md']">
+            <CardHeader class="text-center">
+                <CardTitle>
+                    <h1 class="text-xl font-semibold">{{ title }}</h1>
+                </CardTitle>
+                <CardDescription v-if="description">{{ description }}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <slot />
+            </CardContent>
+        </Card>
     </main>
 </template>

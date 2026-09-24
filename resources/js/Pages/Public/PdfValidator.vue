@@ -5,6 +5,7 @@ import { ref } from 'vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import PublicVerificationResult from '@/features/exports/PublicVerificationResult.vue';
 import type { VerificationAnswer } from '@/features/exports/verification';
 import CenteredLayout from '@/layouts/CenteredLayout.vue';
@@ -70,18 +71,20 @@ async function verify(): Promise<void> {
         title="Verify an NSCMF PDF"
         description="Check whether a PDF was issued and signed by NSCMF and whether it has been changed since. The file is checked and then discarded; nothing about it is kept on this page."
     >
-        <div class="space-y-6">
-            <form class="panel space-y-4 p-6" @submit.prevent="verify">
-                <label for="validator-file" class="block text-sm font-medium">PDF file</label>
-                <Input
-                    id="validator-file"
-                    type="file"
-                    accept="application/pdf,.pdf"
-                    data-testid="validator-file"
-                    :aria-describedby="problem ? 'validator-problem' : undefined"
-                    @change="choose"
-                />
-                <p v-if="problem" id="validator-problem" role="alert" class="text-sm text-destructive">{{ problem }}</p>
+        <div class="grid gap-6">
+            <form class="grid gap-4" @submit.prevent="verify">
+                <Field :data-invalid="problem ? true : undefined">
+                    <FieldLabel for="validator-file">PDF file</FieldLabel>
+                    <Input
+                        id="validator-file"
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        data-testid="validator-file"
+                        :aria-describedby="problem ? 'validator-problem' : undefined"
+                        @change="choose"
+                    />
+                    <FieldError v-if="problem" id="validator-problem">{{ problem }}</FieldError>
+                </Field>
                 <Button
                     type="button"
                     data-testid="validator-verify"
@@ -91,9 +94,10 @@ async function verify(): Promise<void> {
                     {{ checking ? 'Checking…' : 'Verify PDF' }}
                 </Button>
             </form>
-            <Alert v-if="error" variant="destructive"
-                ><AlertTitle>Not checked</AlertTitle><AlertDescription>{{ error }}</AlertDescription></Alert
-            >
+            <Alert v-if="error" variant="destructive">
+                <AlertTitle>Not checked</AlertTitle>
+                <AlertDescription>{{ error }}</AlertDescription>
+            </Alert>
             <PublicVerificationResult v-if="answer" :answer="answer" />
         </div>
     </CenteredLayout>
