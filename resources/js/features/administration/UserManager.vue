@@ -323,7 +323,7 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                                 Edit
                             </Button>
                             <Button
-                                v-if="can('users.assign_team')"
+                                v-if="can('users.assign_team') || can('teams.assign_users')"
                                 variant="ghost"
                                 size="sm"
                                 :data-testid="`btn-edit-team-${user.id}`"

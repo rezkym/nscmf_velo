@@ -14,7 +14,7 @@ export const APPROVAL_ACTIONS: readonly RecordActionSpec[] = [
     {
         key: 'return-reviewer',
         permission: 'nscmf.approval.return_reviewer',
-        label: 'Return for Reviewer',
+        label: 'Return to Reviewer',
         path: 'approval/return-reviewer',
         consequence: 'The reviewer pool reviews it again; the current Reviewed By is cleared.',
         destination: 'Pending Review',
@@ -24,7 +24,7 @@ export const APPROVAL_ACTIONS: readonly RecordActionSpec[] = [
     {
         key: 'return-requester',
         permission: 'nscmf.approval.return_requester',
-        label: 'Return for Requester',
+        label: 'Return to Requester',
         path: 'approval/return-requester',
         consequence: 'The requester can revise and resubmit this NSCMF.',
         destination: 'Revision Required',

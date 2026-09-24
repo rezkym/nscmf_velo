@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import RequestFeedback from '@/components/RequestFeedback.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -21,6 +21,7 @@ import PurposeImpactSection from '@/features/nscmf/change/PurposeImpactSection.v
 import ResultsSection from '@/features/nscmf/change/ResultsSection.vue';
 import type { DraftHeader } from '@/features/nscmf/draftPayload';
 import type { FieldErrors } from '@/features/nscmf/fieldErrors';
+import { latestReturnReason } from '@/features/nscmf/returnReason';
 import SubmitPanel, { type SaveState } from '@/features/nscmf/SubmitPanel.vue';
 import {
     type ActivationDraftFields,
@@ -139,6 +140,20 @@ const attachmentsEditable = computed(
         ['DRAFT', 'REVISION_REQUIRED'].includes(props.record.business_status) &&
         !props.record.is_archived,
 );
+// Revision Edit shows why the record came back (FE-28). The reason is read from the Timeline,
+// so an actor without the timeline permission still gets the Revision notice, without a reason.
+const revisionReason = ref<string | null>(null);
+const reasonRequest = new AbortController();
+onMounted(async () => {
+    if (props.record.business_status !== 'REVISION_REQUIRED' || !can('nscmf.timeline.view')) return;
+    try {
+        revisionReason.value = await latestReturnReason(props.record.id, reasonRequest.signal);
+    } catch {
+        revisionReason.value = null;
+    }
+});
+onUnmounted(() => reasonRequest.abort());
+
 const attachmentsLocked = computed(() =>
     saveState.value === 'clean' || saveState.value === 'saved'
         ? null
@@ -280,6 +295,7 @@ function signIn(): void {
                     :warnings="warnings"
                     :request-no="record.request_no"
                     :iteration="record.iteration_no ?? null"
+                    :revision-reason="revisionReason"
                     :domain-error="domainError"
                 />
             </section>

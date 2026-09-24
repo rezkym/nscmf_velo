@@ -39,6 +39,8 @@ class HandleInertiaRequests extends Middleware
                         'team_id' => $user->team_id,
                         'team' => $team === null ? null : ['id' => $team->id, 'name' => $team->name, 'is_active' => $team->is_active],
                         'must_change_password' => $user->must_change_password,
+                        // The user's own marker (07 §51), so the shell links protected settings only for them.
+                        'is_protected_superadmin' => $user->is_protected_superadmin,
                     ],
                     'permissions' => $user->getAllPermissions()->pluck('name')->sort()->values()->all(),
                 ];

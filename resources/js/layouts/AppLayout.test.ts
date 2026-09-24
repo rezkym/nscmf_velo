@@ -15,6 +15,7 @@ const mockPageProps = ref<{
             team_id?: number | null;
             team?: { id: number; name: string } | null;
             must_change_password?: boolean;
+            is_protected_superadmin?: boolean;
         } | null;
         permissions?: string[];
         roles?: string[];

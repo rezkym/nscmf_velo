@@ -45,7 +45,8 @@ const navItems = computed(() =>
         {
             label: 'Technical Logs',
             href: '/administration/settings/technical-logs',
-            visible: can('system.settings.manage'),
+            // 07 §51: a protected Core Setting, only for the Protected Superadmin.
+            visible: can('system.settings.manage') && Boolean(user.value?.is_protected_superadmin),
         },
     ].filter((item) => item.visible),
 );

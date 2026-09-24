@@ -125,7 +125,14 @@ describe('Technical Log setting (FE-50)', () => {
         ]);
     });
 
-    it('is linked in the menu only for the settings permission', () => {
+    // 07 §51: only the Protected Superadmin, through system.settings.manage.
+    it('is linked in the menu only for the Protected Superadmin with the settings permission', () => {
+        resetInertia({
+            auth: {
+                user: { id: 1, username: 'superadmin', name: 'Protected Superadmin', is_protected_superadmin: true },
+                permissions: ['system.settings.manage'],
+            },
+        });
         expect(
             mount(AppLayout, { props: { title: 'x' } })
                 .find('a[href="/administration/settings/technical-logs"]')
