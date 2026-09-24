@@ -1,11 +1,18 @@
-import { router, usePage } from '@inertiajs/vue3';
 import { type Ref, computed, getCurrentInstance, onBeforeUnmount, ref, toValue, watch } from 'vue';
-import { isRecordConflictCode, pageDomainError } from '@/lib/apiErrors';
-import { type BusinessStatus, parseApiErrorEnvelope } from './contracts';
-import { buildActivationDraftPayload, buildChangeDraftPayload } from './draftPayload';
+
+import { isRecordConflictCode } from '@/lib/apiErrors';
+import { sendJson } from '@/lib/http';
+import type { RequestFeedbackError, SaveStatus } from '@/types/feedback';
+
+import type { BusinessStatus } from './contracts';
+import {
+    buildActivationDraftPayload,
+    buildChangeDraftPayload,
+    type DraftHeader,
+    normalizeHeader,
+} from './draftPayload';
 import type { ActivationDraftFields, ChangeDraftFields, NscmfFamily } from './types';
 
-import type { RequestFeedbackError, SaveStatus } from '@/types/feedback';
 export type { RequestFeedbackError, SaveStatus };
 
 export interface UseDraftSaveOptions<T extends ActivationDraftFields | ChangeDraftFields> {
@@ -15,6 +22,8 @@ export interface UseDraftSaveOptions<T extends ActivationDraftFields | ChangeDra
     /** Where the record stands, so the Change payload can withhold `results` (12 §28.2). */
     businessStatus: BusinessStatus | Ref<BusinessStatus>;
     fields: Ref<T>;
+    /** The optional header block (12 §26.1); only the keys the page may change. */
+    header?: Ref<DraftHeader>;
     autosaveInterval?: number;
     enabled?: boolean | Ref<boolean>;
     onSuccess?: (newVersion: number) => void;
@@ -30,13 +39,26 @@ export interface UseDraftSaveReturn {
     conflictError: Ref<RequestFeedbackError | null>;
     feedbackError: Ref<RequestFeedbackError | null>;
     validationErrors: Ref<Record<string, string[] | string> | null>;
+    warnings: Ref<string[]>;
     save: () => Promise<void>;
     retry: () => Promise<void>;
     startAutosave: () => void;
     stopAutosave: () => void;
     resolveConflict: (newVersion?: number) => void;
+    resync: (serverVersion: number) => void;
 }
 
+interface SaveResponseBody {
+    data?: { record_version?: unknown };
+    meta?: { warnings?: unknown };
+}
+
+/**
+ * Draft/Revision save over the approved same-origin JSON endpoint PATCH /nscmf/{record}/draft
+ * (12 §4.2, §26): one request at a time, later saves queue behind it, the acknowledged
+ * record_version is adopted (never incremented locally), edits typed while a request is in flight
+ * stay dirty, and a 409 pauses everything until the user refreshes — nothing is replayed.
+ */
 export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields>(
     options: UseDraftSaveOptions<T>,
 ): UseDraftSaveReturn {
@@ -48,70 +70,69 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
     const conflictError = ref<RequestFeedbackError | null>(null);
     const feedbackError = ref<RequestFeedbackError | null>(null);
     const validationErrors = ref<Record<string, string[] | string> | null>(null);
+    const warnings = ref<string[]>([]);
 
-    // Snapshot tracking for dirty state & concurrency
-    const lastSavedSnapshot = ref(JSON.stringify(toValue(options.fields)));
+    function snapshot(): string {
+        return JSON.stringify({ fields: options.fields.value, header: options.header?.value ?? null });
+    }
+
+    const lastSavedSnapshot = ref(snapshot());
+    const isDirty = computed(() => snapshot() !== lastSavedSnapshot.value);
+
     let isRequestInFlight = false;
-    let pendingSavePromise: Promise<void> | null = null;
-    let nextQueuedSaveResolve: (() => void) | null = null;
-    let hasQueuedSave = false;
+    let queued: { promise: Promise<void>; resolve: () => void } | null = null;
     let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
-    const isAutosaveOptionEnabled = computed(() => {
-        if (options.enabled === undefined) return true;
-        return Boolean(toValue(options.enabled));
-    });
     let isAutosaveRunning = Boolean(options.autosaveInterval);
-
-    // Computed dirty state so it updates synchronously on mutation
-    const isDirty = computed(() => {
-        return JSON.stringify(options.fields.value) !== lastSavedSnapshot.value;
-    });
-
-    // Watch fields for dirty detection and autosave scheduling
-    watch(
-        () => JSON.stringify(options.fields.value),
-        // Always reconsidered: an edit that restores the saved value must cancel the timer the
-        // previous keystroke armed, or it would PATCH data the server already has.
-        () => scheduleAutosave(),
-        { flush: 'sync' },
+    const isAutosaveOptionEnabled = computed(() =>
+        options.enabled === undefined ? true : Boolean(toValue(options.enabled)),
     );
 
-    /** Autosave is allowed only while configured, running, enabled, and not blocked by a conflict. */
+    // Always reconsidered: an edit that restores the saved value must cancel the armed timer.
+    watch(snapshot, () => scheduleAutosave(), { flush: 'sync' });
+
     function canAutosave(): boolean {
         return Boolean(
             options.autosaveInterval && isAutosaveRunning && isAutosaveOptionEnabled.value && !isConflict.value,
         );
     }
 
-    function scheduleAutosave(): void {
+    function clearTimer(): void {
         if (autosaveTimer) {
             clearTimeout(autosaveTimer);
             autosaveTimer = null;
         }
+    }
+
+    function scheduleAutosave(): void {
+        clearTimer();
         if (!canAutosave() || !isDirty.value) return;
 
         autosaveTimer = setTimeout(() => {
             // Re-checked on firing: the answer can have changed while the timer was pending.
-            if (canAutosave() && !isRequestInFlight) {
-                void executeSave();
-            }
+            if (canAutosave() && !isRequestInFlight) void executeSave();
         }, options.autosaveInterval);
     }
 
-    function buildPayload(version: number, fieldsData: T) {
-        if (options.family === 'ACTIVATION') {
-            return buildActivationDraftPayload(version, fieldsData as ActivationDraftFields);
-        }
-        return buildChangeDraftPayload(version, fieldsData as ChangeDraftFields, toValue(options.businessStatus));
+    function buildPayload(): Record<string, unknown> {
+        const version = currentVersion.value;
+        const body: Record<string, unknown> =
+            options.family === 'ACTIVATION'
+                ? { ...buildActivationDraftPayload(version, options.fields.value as ActivationDraftFields) }
+                : {
+                      ...buildChangeDraftPayload(
+                          version,
+                          options.fields.value as ChangeDraftFields,
+                          toValue(options.businessStatus),
+                      ),
+                  };
+
+        if (!options.header) return body;
+
+        const familyKey = options.family === 'ACTIVATION' ? 'activation' : 'change';
+        return { record_version: version, header: normalizeHeader(options.header.value), [familyKey]: body[familyKey] };
     }
 
-    /**
-     * Describes a record conflict without overstating it: only NSCMF_VERSION_CONFLICT means a newer
-     * version exists (12 §21). A state or archived conflict gets the server's own message, or a
-     * neutral one, because the remedy is the same refresh but the cause is not.
-     */
     function conflictFeedback(
-        status: number,
         code: string | undefined,
         message: string | undefined,
         context?: Record<string, unknown>,
@@ -120,53 +141,30 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
             code === 'NSCMF_VERSION_CONFLICT'
                 ? 'A newer version of this record exists.'
                 : 'This record changed. Refresh to see the latest version.';
-        return { status, code, message: message || fallback, context };
+        return { status: 409, code, message: message || fallback, context };
     }
 
-    function applyConflict(conflictObj: RequestFeedbackError): void {
-        isConflict.value = true;
-        conflictError.value = conflictObj;
-        feedbackError.value = conflictObj;
+    function fail(error: RequestFeedbackError): void {
         saveStatus.value = 'error';
-        stopAutosave();
-        options.onError?.(conflictObj);
-    }
-
-    function checkPageFlashForConflict(pageOrFlash?: unknown): boolean {
-        let dErr = pageDomainError(pageOrFlash);
-        if (!dErr) {
-            try {
-                dErr = pageDomainError(usePage());
-            } catch {
-                // Not in an Inertia component context.
-            }
-        }
-        if (dErr && isRecordConflictCode(dErr.code)) {
-            applyConflict(conflictFeedback(409, dErr.code, dErr.message));
-            return true;
-        }
-        return false;
+        feedbackError.value = error;
+        options.onError?.(error);
     }
 
     async function executeSave(): Promise<void> {
         if (isRequestInFlight) {
-            hasQueuedSave = true;
-            if (!pendingSavePromise) {
-                pendingSavePromise = new Promise<void>((resolve) => {
-                    nextQueuedSaveResolve = resolve;
-                });
-            }
-            return pendingSavePromise;
+            queued ??= (() => {
+                let resolve: () => void = () => {};
+                const promise = new Promise<void>((done) => (resolve = done));
+                return { promise, resolve };
+            })();
+            return queued.promise;
         }
 
-        if (isConflict.value) {
-            return;
-        }
+        if (isConflict.value) return;
+        clearTimer();
 
-        if (autosaveTimer) {
-            clearTimeout(autosaveTimer);
-            autosaveTimer = null;
-        }
+        const sentSnapshot = snapshot();
+        const payload = buildPayload();
 
         isRequestInFlight = true;
         isSaving.value = true;
@@ -175,193 +173,77 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
         validationErrors.value = null;
 
         try {
-            const snapshotToSave = JSON.stringify(options.fields.value);
+            const result = await sendJson<SaveResponseBody>('PATCH', `/nscmf/${recordId.value}/draft`, payload);
 
-            const payload = buildPayload(currentVersion.value, options.fields.value);
-            const url = `/nscmf/${recordId.value}/draft`;
+            if (result.ok) {
+                const acknowledged = result.body?.data?.record_version;
+                if (typeof acknowledged === 'number') {
+                    currentVersion.value = acknowledged;
+                    options.onSuccess?.(acknowledged);
+                }
+                const serverWarnings = result.body?.meta?.warnings;
+                warnings.value = Array.isArray(serverWarnings)
+                    ? serverWarnings.filter((w): w is string => typeof w === 'string')
+                    : [];
+                lastSavedSnapshot.value = sentSnapshot;
+                // An edit typed while the request was in flight is not saved yet.
+                saveStatus.value = snapshot() === sentSnapshot ? 'saved' : null;
+                return;
+            }
 
-            return new Promise<void>((resolve) => {
-                let settled = false;
-                const finishThisRequest = () => {
-                    if (settled) return;
-                    settled = true;
-                    isRequestInFlight = false;
-                    isSaving.value = false;
-                    resolve();
-                    handleNextQueued();
-                };
+            const { status, error } = result;
+            if (status === 409 || isRecordConflictCode(error?.code)) {
+                const conflict = conflictFeedback(error?.code, error?.message, error?.context);
+                isConflict.value = true;
+                conflictError.value = conflict;
+                stopAutosave();
+                fail(conflict);
+                return;
+            }
 
-                router.patch(url, payload as never, {
-                    onFlash: (flash: unknown) => {
-                        checkPageFlashForConflict(flash);
-                    },
-                    onSuccess: (page: unknown) => {
-                        if (settled) return;
-
-                        if (isConflict.value || checkPageFlashForConflict(page)) {
-                            finishThisRequest();
-                            return;
-                        }
-
-                        const pageObj = page as { props?: { record?: { record_version?: number } } };
-                        const responseRecord = pageObj?.props?.record;
-                        if (responseRecord && typeof responseRecord.record_version === 'number') {
-                            currentVersion.value = responseRecord.record_version;
-                            options.onSuccess?.(responseRecord.record_version);
-                        }
-
-                        lastSavedSnapshot.value = snapshotToSave;
-
-                        // If user modified fields while in-flight, keep dirty and don't falsely claim saved
-                        const currentStr = JSON.stringify(options.fields.value);
-                        if (currentStr !== lastSavedSnapshot.value) {
-                            saveStatus.value = null;
-                        } else {
-                            saveStatus.value = 'saved';
-                        }
-
-                        finishThisRequest();
-                    },
-                    onError: (err: unknown) => {
-                        saveStatus.value = 'error';
-
-                        // The Inertia error bag carries no code; 422 alone identifies validation
-                        // (12 §10, RequestFeedback classifies on status). G07: do not invent a name.
-                        const fieldBag = (err ?? {}) as Record<string, string>;
-                        validationErrors.value = fieldBag;
-                        feedbackError.value = {
-                            status: 422,
-                            errors: fieldBag,
-                        };
-
-                        options.onError?.(feedbackError.value);
-                        finishThisRequest();
-                    },
-                    onHttpException: (response: unknown) => {
-                        saveStatus.value = 'error';
-
-                        const res = response as { status?: number; data?: unknown };
-                        const status = typeof res?.status === 'number' ? res.status : 500;
-
-                        let envelopeData: {
-                            code?: string;
-                            message?: string;
-                            errors?: Record<string, string[] | string>;
-                            context?: Record<string, unknown>;
-                        } | null = null;
-
-                        if (res?.data) {
-                            try {
-                                envelopeData = parseApiErrorEnvelope(res.data);
-                            } catch {
-                                // res.data is not a valid 12 §9 envelope
-                            }
-                        }
-
-                        // res.data may also be an Inertia page carrying flash.domain_error.
-                        const flashedDomainErr = pageDomainError(res?.data);
-
-                        // parseApiErrorEnvelope reports UNKNOWN_ERROR when the body carries no code.
-                        const rawCode = envelopeData?.code;
-                        const envelopeCode = rawCode && rawCode !== 'UNKNOWN_ERROR' ? rawCode : undefined;
-                        const conflictCode = [envelopeCode, flashedDomainErr?.code].find(isRecordConflictCode);
-
-                        if (status === 409 || conflictCode) {
-                            applyConflict(
-                                conflictFeedback(
-                                    409,
-                                    conflictCode ?? envelopeCode ?? flashedDomainErr?.code,
-                                    envelopeData?.message || flashedDomainErr?.message,
-                                    envelopeData?.context,
-                                ),
-                            );
-                            finishThisRequest();
-                            return;
-                        }
-
-                        if (status === 422) {
-                            const errObj: RequestFeedbackError = {
-                                status: 422,
-                                code: envelopeCode,
-                                message: envelopeData?.message || 'Validation failed',
-                                errors: envelopeData?.errors,
-                                context: envelopeData?.context,
-                            };
-                            feedbackError.value = errObj;
-                            if (envelopeData?.errors) {
-                                validationErrors.value = envelopeData.errors;
-                            }
-                            options.onError?.(errObj);
-                            finishThisRequest();
-                            return;
-                        }
-
-                        const errObj: RequestFeedbackError = {
-                            status,
-                            code: envelopeData?.code,
-                            message: envelopeData?.message || 'Server error',
-                            errors: envelopeData?.errors,
-                            context: envelopeData?.context,
-                        };
-
-                        feedbackError.value = errObj;
-                        options.onError?.(errObj);
-                        finishThisRequest();
-                    },
-                    onNetworkError: (error: unknown) => {
-                        saveStatus.value = 'error';
-
-                        const errObj: RequestFeedbackError = {
-                            status: 0,
-                            isNetworkError: true,
-                            message: error instanceof Error ? error.message : 'Network connection lost',
-                        };
-
-                        feedbackError.value = errObj;
-                        options.onError?.(errObj);
-                        finishThisRequest();
-                    },
-                    onFinish: () => {
-                        if (!isRequestInFlight) {
-                            isSaving.value = false;
-                        }
-                    },
+            if (status === 422) {
+                validationErrors.value = error?.errors ?? {};
+                fail({
+                    status,
+                    code: error?.code,
+                    message: error?.message || 'Some fields need to be corrected.',
+                    errors: error?.errors,
+                    context: error?.context,
                 });
+                return;
+            }
+
+            if (status === 0) {
+                fail({ status: 0, isNetworkError: true, message: 'Network connection lost' });
+                return;
+            }
+
+            fail({
+                status,
+                code: error?.code,
+                message: error?.message || 'Server error',
+                errors: error?.errors,
+                context: error?.context,
             });
-        } catch (err) {
+        } finally {
             isRequestInFlight = false;
             isSaving.value = false;
-            saveStatus.value = 'error';
-            handleNextQueued();
-            throw err;
+            runQueued();
         }
     }
 
-    function handleNextQueued(): void {
-        const wasQueued = hasQueuedSave;
-        const resolver = nextQueuedSaveResolve;
-        hasQueuedSave = false;
-        nextQueuedSaveResolve = null;
-        pendingSavePromise = null;
+    function runQueued(): void {
+        const next = queued;
+        queued = null;
+        if (!next) return;
 
-        if (wasQueued && !isConflict.value) {
-            void executeSave().then(() => {
-                resolver?.();
-            });
+        if (isConflict.value) {
+            // A conflict cancels the queued save; whoever awaited it is still released (FE-28 gates Submit on it).
+            next.resolve();
             return;
         }
 
-        // A conflict cancels the queued save, but whoever awaited it still has to be released:
-        // FE-28 AC1 gates Submit on this promise.
-        resolver?.();
-    }
-
-    async function save(): Promise<void> {
-        return executeSave();
-    }
-
-    async function retry(): Promise<void> {
-        return executeSave();
+        void executeSave().then(next.resolve, next.resolve);
     }
 
     function startAutosave(): void {
@@ -371,32 +253,32 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
 
     function stopAutosave(): void {
         isAutosaveRunning = false;
-        if (autosaveTimer) {
-            clearTimeout(autosaveTimer);
-            autosaveTimer = null;
-        }
+        clearTimer();
     }
 
     function resolveConflict(newVersion?: number): void {
+        const latest = conflictError.value?.context?.latest_record_version;
         const resyncVersion =
-            typeof newVersion === 'number'
-                ? newVersion
-                : typeof conflictError.value?.context?.latest_record_version === 'number'
-                  ? conflictError.value.context.latest_record_version
-                  : undefined;
+            typeof newVersion === 'number' ? newVersion : typeof latest === 'number' ? latest : undefined;
         isConflict.value = false;
         conflictError.value = null;
         feedbackError.value = null;
-        if (typeof resyncVersion === 'number') {
-            currentVersion.value = resyncVersion;
-        }
+        if (typeof resyncVersion === 'number') currentVersion.value = resyncVersion;
     }
 
-    if (getCurrentInstance()) {
-        onBeforeUnmount(() => {
-            stopAutosave();
-        });
+    /** After an explicit refresh: the page has reloaded server data into the fields. */
+    function resync(serverVersion: number): void {
+        isConflict.value = false;
+        conflictError.value = null;
+        feedbackError.value = null;
+        validationErrors.value = null;
+        saveStatus.value = null;
+        currentVersion.value = serverVersion;
+        lastSavedSnapshot.value = snapshot();
+        if (options.autosaveInterval) isAutosaveRunning = true;
     }
+
+    if (getCurrentInstance()) onBeforeUnmount(stopAutosave);
 
     return {
         currentVersion,
@@ -407,10 +289,12 @@ export function useDraftSave<T extends ActivationDraftFields | ChangeDraftFields
         conflictError,
         feedbackError,
         validationErrors,
-        save,
-        retry,
+        warnings,
+        save: executeSave,
+        retry: executeSave,
         startAutosave,
         stopAutosave,
         resolveConflict,
+        resync,
     };
 }

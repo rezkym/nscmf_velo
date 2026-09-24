@@ -3,6 +3,16 @@ import { describe, expect, it } from 'vitest';
 import ActionDialog from './ActionDialog.vue';
 
 describe('ActionDialog (FE-04)', () => {
+    it('uses an explicit confirmation label when supplied and keeps Confirm as the default', () => {
+        const named = mount(ActionDialog, {
+            props: { open: true, title: 'Forward', confirmLabel: 'Forward to Approval' },
+        });
+        expect(named.get('[data-test="confirm-button"]').text()).toBe('Forward to Approval');
+        named.unmount();
+        const defaultDialog = mount(ActionDialog, { props: { open: true, title: 'Forward' } });
+        expect(defaultDialog.get('[data-test="confirm-button"]').text()).toBe('Confirm');
+        defaultDialog.unmount();
+    });
     it('AC1: dialog_requires_reason_when_required — reason " " dan 4 chars tidak confirm; 5 meaningful diterima; 2001 ditolak', async () => {
         const wrapper = mount(ActionDialog, {
             props: {
@@ -30,7 +40,7 @@ describe('ActionDialog (FE-04)', () => {
         await textarea.setValue('abcd');
         await confirmBtn.trigger('click');
         expect(wrapper.emitted('confirm')).toBeUndefined();
-        expect(wrapper.text()).toContain('Reason must be at least 5 characters');
+        expect(wrapper.text()).toContain('Reason must be at least 5 characters, not counting spaces');
 
         // 2001 chars
         await textarea.setValue('a'.repeat(2001));
@@ -43,6 +53,22 @@ describe('ActionDialog (FE-04)', () => {
         await confirmBtn.trigger('click');
         expect(wrapper.emitted('confirm')).toBeTruthy();
         expect(wrapper.emitted('confirm')?.[0]).toEqual([{ reason: 'valid reason' }]);
+    });
+
+    // 06 §54 / 12 §39, decided 2026-09-24: five characters other than whitespace.
+    it('does not count spaces towards the five meaningful characters of a reason', async () => {
+        const wrapper = mount(ActionDialog, { props: { open: true, title: 'Return', reasonRequired: true } });
+        const textarea = wrapper.find('textarea');
+        const confirmBtn = wrapper.find('[data-test="confirm-button"]');
+
+        await textarea.setValue('a \t b \n  c');
+        await confirmBtn.trigger('click');
+        expect(wrapper.emitted('confirm')).toBeUndefined();
+        expect(wrapper.text()).toContain('Reason must be at least 5 characters, not counting spaces');
+
+        await textarea.setValue('a b c d e');
+        await confirmBtn.trigger('click');
+        expect(wrapper.emitted('confirm')?.[0]).toEqual([{ reason: 'a b c d e' }]);
     });
 
     it('AC2: dialog_optional_comment_can_be_empty — approve/forward boleh kosong tanpa mengubah aturan return', async () => {

@@ -10,7 +10,7 @@
 > **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `14_Environment_Specification.md`  
 > **Application Style:** Laravel 13 modular monolith + Inertia 3 + Vue 3 + session authentication  
 > **Canonical Application Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-09-23 (G06 byte-limit decision; G01/G03/G07/G09/G12/G14/G19 decisions)
 
 ---
 
@@ -211,8 +211,10 @@ file = PDF binary
 Maximum accepted uploaded PDF size:
 
 ```text
-20 MB
+20,000,000 bytes inclusive (decimal 20 MB)
 ```
+
+This cap counts the uploaded PDF file bytes, not the complete multipart HTTP request body. Zero-byte files are invalid. The public-validator cap is independently confirmed by `10 §73` and equals the attachment cap in `06 §50`.
 
 ### Downloads
 
@@ -280,7 +282,7 @@ collection key = [rows] → persisted set becomes exactly those rows
 Rules:
 
 - each row is identified by its stable natural key — `row_no` for ordered structures, `reference_type` for Activation references, `service_context` for service blocks, `impact_code` for Service Impact;
-- duplicate natural key inside one request → `422 NSCMF_VALIDATION_FAILED`;
+- duplicate natural key inside one request → `422 VALIDATION_FAILED`;
 - natural key outside its schema range (`11` CHECK) → `422`;
 - rows absent from a supplied set are deleted, not retained;
 - `row_no` is client-supplied ordering identity, never a database `id`; database `id` is never accepted as input;
@@ -590,6 +592,28 @@ valid session
 
 **Team is intentionally absent.**
 
+### 17.1 Record Resource Visibility — Confirmed 2026-09-22
+
+"Resource authorization/visibility" for reading an NSCMF record (detail, History, Dashboard lists, queues) is:
+
+```text
+record never submitted (business_status DRAFT or CANCELLED)
+→ visible only to its owner (owner_user_id)
+
+record submitted at least once (any other business_status)
+→ visible to any actor holding the page/read permission (nscmf.view, nscmf.view.history, queue permission)
+```
+
+Rules:
+
+- Team never participates; no Team filter grants or removes visibility;
+- the rule applies to every actor, including the Protected Superadmin — there is no bypass for another user's never-submitted Draft;
+- an invisible record is concealed with `404` (§102);
+- the rule governs every record-scoped read **and action**: an action permission alone (for example `nscmf.archive` or `nscmf.reopen` without any read permission) never reveals a submitted record (enforced 2026-09-24);
+- queue permissions (`nscmf.review`, `nscmf.approve`) additionally restrict each queue to its own state.
+
+Decision owner: project owner (user), 2026-09-22, recorded as gap G19 in the backend microtask register.
+
 ## 18. Permission-Centric Runtime
 
 API MUST use explicit permissions from `04`, including NSCMF, administration, audits, and `system.settings.manage`.
@@ -697,9 +721,44 @@ PATCH /nscmf/{record}/draft
 
 Dedicated validated nested structure maps to typed relational tables; no live JSON business blob; no blind mass assignment.
 
-The exact payload is fixed: §27 for `family=ACTIVATION`, §28 for `family=CHANGE`, under the collection semantics of §7.4.1. Implementations MUST NOT define an alternative shape.
+The exact payload is fixed: §26.1 for the optional record header, §27 for `family=ACTIVATION`, §28 for `family=CHANGE`, under the collection semantics of §7.4.1. Implementations MUST NOT define an alternative shape.
+
+Top-level keys are exactly `record_version` (required), `header` (optional, §26.1), and the family key matching the record (`activation` or `change`, optional). A family key that does not match the record family, or any other top-level key → `422 VALIDATION_FAILED`.
 
 Conflict → `409 NSCMF_VERSION_CONFLICT`.
+
+Success → `200` with the standard envelope (§8):
+
+```json
+{"data":{"id":572,"record_version":9,"business_status":"DRAFT","updated_at":"2026-09-22T10:15:00+07:00"},"meta":{"warnings":[]}}
+```
+
+`data.record_version` is the new authoritative version the client MUST send next. The client re-reads the full form only through the page projection; the save response is not a form projection.
+
+### 26.1 Draft Header Block — Confirmed 2026-09-22
+
+The Draft save carries the editable record header so the Submit-required header date (`06` §21) and Draft number correction (`06` §20) have a transport:
+
+```json
+{
+  "record_version": 8,
+  "header": {
+    "request_date": "2026-09-22",
+    "request_no": "OPS/2026/0042"
+  },
+  "change": { "...": "..." }
+}
+```
+
+Rules:
+
+- `header` omitted → header unchanged; each header key follows §7.4 (omitted → unchanged, `null` → clear where nullable);
+- `request_date`: `YYYY-MM-DD` or `null`; editable while `DRAFT`/`REVISION_REQUIRED`; the not-future rule applies at Submit/Resubmit (`06` §21), not at Draft save;
+- `request_no`: accepted only while the record is `DRAFT` (never submitted) **and** `numbering_mode=MANUAL`; normalized and validated as `06` §19; a normalized value used by another record → `422` with code `REQUEST_NO_CONFLICT` and a field error on `header.request_no` (at Create, §25, the same clash is a field error on `request_no`); any `request_no` key for an Automatic record or after first Submit → `422`; `null` is invalid (Manual number is required);
+- `family`, `subtype`, and `numbering_mode` are not header keys and remain immutable through Draft save;
+- header changes share the same transaction, Business Audit event, and single `record_version` increment as the rest of the save.
+
+Decision owner: project owner (user), 2026-09-22, closing gap G03 of the backend microtask register.
 
 ---
 
@@ -714,7 +773,7 @@ Transport rules:
 - keys are exactly the `11` column names for scalar fields;
 - collections follow §7.4.1 whole-set replacement;
 - Draft `PATCH` MAY omit any key; omission is "unchanged", not "clear";
-- unknown key → `422 NSCMF_VALIDATION_FAILED`; no silent ignore, no mass assignment.
+- unknown key → `422 VALIDATION_FAILED`; no silent ignore, no mass assignment.
 
 ### 27.1 Canonical Activation payload
 
@@ -933,6 +992,16 @@ Request — the only accepted keys:
 
 Any other key — including any planning, header, Service Impact, attachment, or workflow field — is rejected with `422`, never ignored. Successful mutation Business Audits changes and increments parent version.
 
+Success → `200`:
+
+```json
+{"data":{"id":572,"record_version":10,"results":[{"row_no":1,"result_summary":"Modul terpasang, layanan pulih.","performance_information":"Error rate 0 selama 72 jam.","result_status":"SUCCESS"}]},"meta":{"warnings":[]}}
+```
+
+`data.results` is the persisted set after §7.4.1 replacement (discarded not-started rows absent).
+
+Page — confirmed 2026-09-22 (gap G01): there is no separate Result page route. `GET /nscmf/{record}/edit` renders the Result-only editor when the actor is the owner, holds `nscmf.change.result.edit`, and the record is `CHANGE` + `PENDING_REVIEW`; it renders the full Draft editor for an editable own `DRAFT`/`REVISION_REQUIRED`; otherwise it answers `403`/`404` per §102.
+
 ---
 
 # PART I — WORKFLOW ACTION CONTRACT
@@ -1016,7 +1085,7 @@ Mandatory reason; destination REJECTED.
 
 ## 39. Reason / Comment Rules
 
-Mandatory reasons: Reviewer Return/Reject, Approver Returns/Reject, Reopen, Archive, Unarchive. Trimmed minimum 5 meaningful chars, maximum 2000. Forward/Approve comment optional max2000. Cancel reason optional.
+Mandatory reasons: Reviewer Return/Reject, Approver Returns/Reject, Reopen, Archive, Unarchive. Trimmed minimum 5 meaningful chars, maximum 2000. "Meaningful" = characters other than whitespace (decided 2026-09-24): `"a   b"` is refused. Forward/Approve comment optional max2000. Cancel reason optional.
 
 ---
 
@@ -1029,6 +1098,20 @@ POST /nscmf/{record}/reopen
 ```
 
 Source Approved/Rejected, not archived, `nscmf.reopen`, authorized access, mandatory reason. Destination only `REVISION_REQUIRED|PENDING_REVIEW`. Success creates next iteration. CANCELLED never reopen.
+
+Request keys exactly:
+
+```json
+{
+  "record_version": 12,
+  "reason": "Perlu perbaikan pada hasil implementasi.",
+  "destination_status": "REVISION_REQUIRED"
+}
+```
+
+`record_version` is required for optimistic concurrency. `reason` is required, trimmed, and follows §39 (5–2000 meaningful characters). `destination_status` is required and MUST be exactly `REVISION_REQUIRED` or `PENDING_REVIEW`. Any other or additional request key is rejected with `422`; the server does not mass-assign from the request body.
+
+Decision provenance: confirmed by the project owner on 2026-09-22 after the explicit approval `Setujui destination_status (disarankan)`. This closes the Reopen destination decision in G09; the administration and temporary-password decisions in §78 and §96.2 remain unchanged. Sections §41–43 and the other transition contracts are unchanged.
 
 ## 41. Archive
 
@@ -1067,6 +1150,8 @@ GET /approval
 GET /approval/{record}
 GET /history
 ```
+
+`GET /nscmf/{record}/edit` serves both the Draft/Revision editor and the Change Result-only editor (§29).
 
 ## 45. Review Queue
 
@@ -1110,7 +1195,7 @@ Read-only; no secrets.
 
 ## 51. Attachment Eligibility / Limits
 
-Editable context only according to `06`; optional; max10; max20MB; zero-byte reject; locked allowlist.
+Editable context only according to `06`; optional; max10; max20,000,000 bytes/file inclusive; zero-byte reject; locked allowlist.
 
 ## 52. Initiate / Resume
 
@@ -1276,6 +1361,14 @@ GET /nscmf/exports/{export}/download
 
 Requires related-record authorization + `nscmf.export` + READY + unexpired binary. Generated binary retained exactly 168h/7d.
 
+## 69.1 Record Export List — decided 2026-09-24
+
+```http
+GET /nscmf/{record}/exports
+```
+
+So a READY file can be downloaded again until it expires (07 §39) after the requester leaves the page. Requires record visibility (§17.1, else `404`) and `nscmf.export` (else `403`). Returns `200` with `data` = the actor's **own** exports of that record requested within the retention window (`nscmf.exports.retention_hours`, 168 h) and not expired, newest first, each in the §67 poll projection (never a storage key). Other users' exports are never listed. `Cache-Control: no-store, private`.
+
 ## 70. Retry
 
 Failed/expired retry creates new export request and new immutable then-current snapshot.
@@ -1285,9 +1378,12 @@ Failed/expired retry creates new export request and new immutable then-current s
 ```http
 POST /nscmf/exports/bulk
 GET  /nscmf/export-batches/{batch}
+GET  /nscmf/export-batches/{batch}/download
 ```
 
-Each record independently authorized. ZIP/combined package remains intentionally unresolved; no fake package artifact contract.
+Each record independently authorized (at most 100 record IDs; one item result or error per record).
+
+**Packaging — decided 2026-09-24 (G04):** `GET /nscmf/export-batches/{batch}/download` returns one `application/zip` for the batch owner holding `nscmf.export.bulk` and `nscmf.export`. It contains every constituent that is READY, unexpired and still downloadable by the requester, byte-identical to its single download and named `{request_no}.{ext}`; each packaged file is audited as `EXPORT_DOWNLOADED`. Failed, expired or no-longer-visible constituents are left out. A batch with a QUEUED/PROCESSING constituent → `409 EXPORT_NOT_READY`; nothing left to package → `410 EXPORT_EXPIRED`; another user's batch → `404`.
 
 ---
 
@@ -1312,14 +1408,14 @@ Input exactly one PDF:
 
 ```text
 file = PDF binary
-maximum file size = 20 MB
+maximum file size = 20,000,000 bytes inclusive (decimal 20 MB; file bytes only; zero-byte rejected)
 ```
 
 Flow:
 
 ```text
 rate limit / hardening
-→ enforce PDF + 20 MB max
+→ enforce PDF + 20,000,000-byte inclusive file max
 → private temp storage
 → ClamAV CLEAN
 → signature/recognized issuer verification
@@ -1374,6 +1470,22 @@ POST /account/temporary-password/change
 ```
 
 Only when `must_change_password=true`. New password min6/no composition/no MFA. Success hashes new password, clears gate, applies session security, Security Audits safely.
+
+Page and body — confirmed 2026-09-22 (gaps G01/G09):
+
+```http
+GET /account/temporary-password
+```
+
+Renders the mandatory change page. While `must_change_password=true`, every other authenticated page/action except this page, this POST and `POST /logout` redirects (Inertia) or answers `403` (JSON) to it; once cleared, this GET redirects to `/dashboard`.
+
+Request keys exactly:
+
+```json
+{"password":"new-secret","password_confirmation":"new-secret"}
+```
+
+`password` min 6, no composition; `password_confirmation` must match. Success → `303` to `/dashboard`.
 
 ## 79. Sensitive-Action Re-authentication — 15 Minutes
 
@@ -1560,6 +1672,8 @@ PUT /administration/users/{user}/team
 
 Uses canonical policy mapping from `04`; Team change does not grant/revoke Review/Approval, recalculate permission, revoke sessions solely due Team, or rewrite historical record Team metadata.
 
+Permission mapping — confirmed 2026-09-22 (gap G14): the actor needs **either** `users.assign_team` **or** `teams.assign_users`. Request body exactly `{"team_id": <active team id>}`.
+
 ---
 
 # PART Q — ROLE / PERMISSION ADMINISTRATION
@@ -1636,6 +1750,45 @@ POST /administration/teams/{team}/reactivate
 ```
 
 No Team-delete baseline; no permission side effect.
+
+## 96.1 Initial Setup Wizard — Confirmed 2026-09-22 (gaps G01/G12)
+
+```http
+GET /administration/setup
+```
+
+Renders the first-time Setup Wizard for an actor holding `roles.view`, `teams.view`, and `users.view`. The wizard composes the ordinary role (§90–92), Team (§94–96), and user (§81, §86) operations; it has no setup-specific mutation route.
+
+Readiness is **derived from current data**; no setup-completion column or table exists:
+
+```text
+roles_configured = at least one role other than Superadmin has at least one permission
+teams_configured = at least one active Team exists
+users_configured = at least one active user who is not the Protected Superadmin has at least one role
+setup_completed  = roles_configured AND teams_configured AND users_configured
+```
+
+After login, a Protected Superadmin whose installation is not `setup_completed` is redirected from `/dashboard` to `/administration/setup` (BR-SETUP-001). Resuming the wizard is the same derivation; nothing needs to be persisted. Signing readiness is not part of Phase 2 setup readiness.
+
+## 96.2 Administration Request Bodies — Confirmed 2026-09-22 (gap G09)
+
+Exact allowlists; any other key → `422`. Database columns are never mass-assigned.
+
+```text
+POST  /administration/teams                 {"name": string}
+PATCH /administration/teams/{team}          {"name": string}
+POST  /administration/teams/{team}/deactivate | reactivate    {}
+POST  /administration/roles                 {"name": string}
+PATCH /administration/roles/{role}          {"name": string}
+PUT   /administration/roles/{role}/permissions  {"permissions": [permission name, ...]}
+POST  /administration/users                 {"name", "username", "team_id", "role_ids": [role id, ...]}
+PATCH /administration/users/{user}          {"name": string}
+PUT   /administration/users/{user}/roles    {"role_ids": [role id, ...]}
+PUT   /administration/users/{user}/team     {"team_id": active team id}
+POST  /administration/users/{user}/enable | disable | reset-password   {}
+```
+
+Transport: the two actions that reveal a one-time temporary password — `POST /administration/users` and `POST /administration/users/{user}/reset-password` — are **same-origin JSON endpoints** returning exactly the §81/§85 envelopes with `Cache-Control: no-store`; the plaintext never enters the session, flash, redirect, Inertia page props, or browser history. Every other administration action is an Inertia action (§10): `303` back to the page, field errors in the error bag, domain errors (`REAUTH_REQUIRED`, `PROTECTED_RESOURCE`, …) in `flash.domain_error`. JSON variants answer `403 REAUTH_REQUIRED` / `422 VALIDATION_FAILED` with the §9 envelope.
 
 ---
 
@@ -1734,7 +1887,7 @@ Forbidden behavior:
 
 ## 100. Authentication Props
 
-Safe shared auth context may include user, Team display, effective permissions, must-change-password flag. No password hash/session payload/signing private key/Team authorization scope.
+Safe shared auth context may include user, Team display, effective permissions, must-change-password flag, and the signed-in user's own `is_protected_superadmin` marker (added 2026-09-24 so the shell links the Protected-Superadmin-only Core Setting of 07 §51 only for that identity; it is never an authorization input — the server still decides). No password hash/session payload/signing private key/Team authorization scope.
 
 ## 101. Record Action Props
 
@@ -1834,11 +1987,15 @@ Settings cleanup ON/OFF is configuration state, never NSCMF business state.
 ## 109. Authentication / Account
 
 ```text
+GET  /login
 POST /login
 POST /logout
+GET  /account/temporary-password
 POST /account/temporary-password/change
 POST /account/re-authenticate
 ```
+
+`GET /login` renders the login page for guests. `POST /account/re-authenticate` is a same-origin JSON endpoint: success `204`, failure `403 REAUTH_FAILED`, invalid body `422 VALIDATION_FAILED`.
 
 ## 110. NSCMF / Workflow
 
@@ -1892,10 +2049,12 @@ GET    /nscmf/{record}/attachments/{attachment}/download
 
 ```text
 POST /nscmf/{record}/exports
+GET  /nscmf/{record}/exports
 GET  /nscmf/exports/{export}
 GET  /nscmf/exports/{export}/download
 POST /nscmf/exports/bulk
 GET  /nscmf/export-batches/{batch}
+GET  /nscmf/export-batches/{batch}/download
 
 GET  /ispdfvalid
 POST /ispdfvalid/verify
@@ -1904,6 +2063,8 @@ POST /ispdfvalid/verify
 ## 114. Administration
 
 ```text
+GET    /administration/setup
+
 GET    /administration/users
 POST   /administration/users
 PATCH  /administration/users/{user}
@@ -2008,7 +2169,7 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 - never infer authorization from Team;
 - show one-time temporary password only in immediate success context and never offer later retrieval;
 - treat re-auth proof as 15-minute server truth;
-- enforce/display public validator 20 MB max but rely on server as authority;
+- enforce/display public validator 20,000,000-byte inclusive file max but rely on server as authority;
 - display Technical Log setting separately from authoritative audits;
 - never expose absolute local storage path.
 
@@ -2027,7 +2188,7 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 - public minimum disclosure;
 - server-generate temporary password and one-time reveal only;
 - enforce 15-minute re-auth proof;
-- enforce public validator 20 MB max;
+- enforce public validator 20,000,000-byte inclusive file max;
 - protect Technical Log setting and keep audit permanence independent.
 
 ---
@@ -2087,6 +2248,9 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 - [ ] unknown payload key → 422, never silently ignored;
 - [ ] whole save, including collection replacement, is one transaction and one `record_version` increment;
 - [ ] `results` inside the Draft payload while `PENDING_REVIEW` → 422.
+- [ ] `header` omitted leaves `request_date`/`request_no` unchanged; `header.request_date=null` clears the Draft date;
+- [ ] `header.request_no` accepted only for a never-submitted Manual record; clash → 422 `REQUEST_NO_CONFLICT`;
+- [ ] family key not matching the record family → 422.
 
 ## 130. Attachments
 
@@ -2104,7 +2268,7 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 - [ ] immutable snapshot;
 - [ ] no unsigned Approved PDF;
 - [ ] 168h binary expiry;
-- [ ] public no-login max20MB;
+- [ ] public no-login max20,000,000-byte inclusive PDF file size; zero-byte rejected;
 - [ ] CLEAN before verification;
 - [ ] exact final signed-byte hash;
 - [ ] current/superseded/modified/unknown semantics;
@@ -2127,13 +2291,13 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 
 The HTTP contract is approved. The following remain implementation-time/future values rather than missing API semantics:
 
-1. optional bulk export packaging (ZIP/combined packaging) if later approved;
-2. exact operational numeric rate-limit buckets for login/upload/public-validator controls;
+1. ~~optional bulk export packaging~~ — **decided 2026-09-24**: batch ZIP, see §71;
+2. exact operational numeric rate-limit buckets for login/upload/public-validator controls — **provisional values approved 2026-09-23**, tunable in `.env`: upload 120 requests/minute per user, upload finalize 20/minute per user, public validator 10/minute per IP (login stays 5 failures/minute per username+IP); **adopted as the MVP values 2026-09-24 (G05)** — a full record upload fits in half the upload bucket; retune from real production traffic if needed;
 3. official numbering SOP beyond current provisional automatic/manual rules;
 4. exact production Team master data;
-5. concrete signing library/key-container/path/passphrase/rotation mechanics;
+5. concrete signing library/key-container/path/passphrase/rotation mechanics — **decided 2026-09-23**: `ddn/sapp`, PKCS#12 container on private disk (`NSCMF_SIGNING_P12_PATH`), passphrase only from the environment (`NSCMF_SIGNING_P12_PASSPHRASE`), rotation via `php artisan nscmf:signing:activate` (previous certificate retired, never deleted); production key custody remains an operator decision;
 6. notification endpoints/providers if notification is later implemented;
-7. host-specific private storage paths plus measured scanner/renderer timeout and LibreOffice qualification details.
+7. host-specific private storage paths. Scanner/renderer timeouts were **measured and set 2026-09-24 (G15)**: scan 30 s, render 30 s per pass, finalize job 75 s, export job 80 s, `retry_after` 90 s (see `14` §48/§63); re-measure on the release server.
 
 ClamAV placement, LibreOffice as first renderer candidate, signing trust, and the default deployment topology are already defined by `19A`/`20`; API implementation must not treat them as open architecture decisions.
 
@@ -2142,7 +2306,7 @@ No longer TBD:
 ```text
 temporary credential direction = server-generated + one-time admin reveal
 sensitive re-auth proof lifetime = 15 minutes
-public validator maximum upload = 20 MB
+public validator maximum PDF file = 20,000,000 bytes inclusive (decimal 20 MB; not multipart request-body size)
 canonical application timezone = Asia/Jakarta
 initial production storage backend class = persistent Laravel local private storage
 Technical Log cleanup policy/default = Protected-Superadmin setting, ON + 30 DAY by default

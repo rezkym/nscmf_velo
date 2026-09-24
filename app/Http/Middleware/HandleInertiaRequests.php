@@ -4,34 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
-    /**
-     * The root template that's loaded on the first page visit.
-     *
-     * @see https://inertiajs.com/server-side-setup#root-template
-     *
-     * @var string
-     */
     protected $rootView = 'app';
 
     /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     */
-    public function version(Request $request): ?string
-    {
-        return parent::version($request);
-    }
-
-    /**
-     * Define the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
+     * Safe shared auth context (12 §100): no password hash, session payload, protected flag or
+     * Team authorization scope. Permissions are UI hints; every action re-authorizes.
      *
      * @return array<string, mixed>
      */
@@ -39,7 +22,29 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            //
+            'auth' => function () use ($request): array {
+                $user = $request->user();
+
+                if (! $user instanceof User) {
+                    return ['user' => null, 'permissions' => []];
+                }
+
+                $team = $user->team;
+
+                return [
+                    'user' => [
+                        'id' => $user->id,
+                        'username' => $user->username,
+                        'name' => $user->name,
+                        'team_id' => $user->team_id,
+                        'team' => $team === null ? null : ['id' => $team->id, 'name' => $team->name, 'is_active' => $team->is_active],
+                        'must_change_password' => $user->must_change_password,
+                        // The user's own marker (07 §51), so the shell links protected settings only for them.
+                        'is_protected_superadmin' => $user->is_protected_superadmin,
+                    ],
+                    'permissions' => $user->getAllPermissions()->pluck('name')->sort()->values()->all(),
+                ];
+            },
         ];
     }
 }

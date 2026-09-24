@@ -1,12 +1,14 @@
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { lastRequest, pageProps, requests, resetInertia } from '@/testing/inertia';
+import { sendJson } from '@/lib/http';
+import { requests, resetInertia } from '@/testing/inertia';
 
 import Setup, { type SetupReadiness } from './Setup.vue';
 
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
+vi.mock('@/lib/http', () => ({ sendJson: vi.fn() }));
 
 const NOTHING_CONFIGURED: SetupReadiness = {
     roles_configured: false,
@@ -125,13 +127,26 @@ describe('Initial setup wizard (FE-15)', () => {
         await wrapper.get('#user-username').setValue('demo.reviewer');
         await wrapper.get('[role="dialog"] form').trigger('submit');
         await wrapper.get('input[type="password"]').setValue('my-own-password');
+        vi.mocked(sendJson).mockImplementation((_method, url) =>
+            Promise.resolve(
+                url === '/administration/users'
+                    ? {
+                          ok: true,
+                          status: 201,
+                          body: {
+                              data: {
+                                  user: { id: 5, username: 'demo.reviewer' },
+                                  temporary_password: 'test-only-secret',
+                              },
+                              meta: { temporary_password_reveal: 'ONE_TIME_ONLY' },
+                          },
+                      }
+                    : { ok: true, status: 204, body: null },
+            ),
+        );
         await wrapper.get('[role="dialog"] form').trigger('submit');
-        lastRequest('/account/re-authenticate')?.options.onSuccess?.();
-        await nextTick();
-
-        pageProps.flash = { temporary_password: 'test-only-secret' };
-        lastRequest('/administration/users')?.options.onSuccess?.();
-        await nextTick();
+        await flushPromises();
+        expect(wrapper.get('[data-testid="temporary-password-display"]').text()).toBe('test-only-secret');
         await wrapper.get('[data-testid="btn-dismiss-credential"]').trigger('click');
 
         await wrapper.setProps({

@@ -760,6 +760,8 @@ Before staging/production go-live, they MUST be explicitly configured so that:
 
 Exact numeric tuning may be finalized together with `16_Testing_Specification.md` and `20_Deployment_Architecture.md` evidence.
 
+**Set 2026-09-24 from local measurements (G15):** one LibreOffice pass ≈1.7 s, signing ≈0.01 s, whole-file scan of 20 MB ≤1.9 s cold and a dense archive (≈250 MB unpacked) 6.6 s. Configured: `NSCMF_CLAMAV_TIMEOUT_SECONDS=30` (bounds the whole clamd reply), `NSCMF_RENDERER_TIMEOUT_SECONDS=30` per pass (a page-range PDF export runs two passes), `FinalizeAttachmentUpload` 75 s / 3 tries, `GenerateExport` 80 s / 2 tries, database queue `retry_after` 90 s. The invariants (job timeout < `retry_after`; job timeout > its slowest bounded external step; a stuck scanner/renderer is cut off) are tested in `tests/Integration/Operations/WorkerTimeBudgetTest.php`. Re-measure on the release server.
+
 ---
 
 # PART J — PRIVATE STORAGE ENVIRONMENT
@@ -976,6 +978,8 @@ Exact numeric timeout is intentionally selected from real Phase 6 integration me
 
 It MUST be explicitly configured before production rather than relying on an unknown/unbounded process default.
 
+**Set 2026-09-24 (G15):** 30 s for the whole scan including clamd's complete reply (see §48).
+
 ## 64. ClamAV Readiness
 
 Staging/production readiness MUST verify:
@@ -1090,6 +1094,7 @@ NSCMF_RENDERER_DRIVER=
 NSCMF_RENDERER_EXECUTABLE=
 NSCMF_RENDERER_ENDPOINT=
 NSCMF_RENDERER_TIMEOUT_SECONDS=
+NSCMF_RENDERER_FONTS_PATH=
 ```
 
 Only values relevant to the selected adapter are used.
@@ -1109,6 +1114,8 @@ The runtime MUST provide the fonts required by the official workbook for faithfu
 Exact font inventory MUST be derived from the approved workbook/template qualification process.
 
 Missing font/substitution that changes output fidelity is a readiness failure.
+
+Qualified inventory — confirmed by the project owner 2026-09-24 (gap G16): the official workbook `NSCMF-Form-3.0.xlsx` uses exactly **Calibri**, **Aptos Narrow** and **Aptos Display**, and the PDF MUST embed those fonts, with no substitute (for example Carlito). Aptos comes from Microsoft's official Aptos download; Calibri from a licensed Microsoft Office/Windows installation. Font files are licensed and are never committed. `NSCMF_RENDERER_FONTS_PATH` points LibreOffice at the directory holding them, because LibreOffice otherwise may not see user-installed fonts.
 
 ## 75. Renderer Workspace
 
@@ -1646,9 +1653,10 @@ NSCMF_RENDERER_DRIVER=
 NSCMF_RENDERER_EXECUTABLE=
 NSCMF_RENDERER_ENDPOINT=
 NSCMF_RENDERER_TIMEOUT_SECONDS=
+NSCMF_RENDERER_FONTS_PATH=
 ```
 
-Signing-adapter secrets are intentionally not standardized into plaintext `.env.example` fields until the signer/provider mechanism is approved.
+Signing-adapter secrets were intentionally not standardized until the signer mechanism was approved. Since the 2026-09-23 approval (`ddn/sapp`, PKCS#12), `.env.example` names `NSCMF_SIGNING_P12_PATH`, `NSCMF_SIGNING_P12_PASSPHRASE` and `NSCMF_SIGNING_ORGANIZATION` with empty values; real values never enter version control.
 
 ## 119. Locked Values Should Not Be `.env` Toggles
 

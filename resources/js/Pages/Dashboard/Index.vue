@@ -19,6 +19,12 @@ withDefaults(defineProps<{ counts?: DashboardCounts; items?: DashboardItems }>()
 
 const { user, can } = usePermissions();
 
+// Own Drafts and returned records open in the editor; queued records open where they are decided.
+const ownEditHref = (item: RecordSummary): string =>
+    can('nscmf.draft.edit') ? `/nscmf/${item.id}/edit` : `/nscmf/${item.id}`;
+const reviewHref = (item: RecordSummary): string => `/review/${item.id}`;
+const approvalHref = (item: RecordSummary): string => `/approval/${item.id}`;
+
 function reloadCounts(): void {
     router.reload({ only: ['counts'] });
 }
@@ -49,6 +55,7 @@ function reloadCounts(): void {
                     title="My drafts"
                     :state="counts.drafts"
                     :items="items.drafts"
+                    :item-href="ownEditHref"
                     @retry="reloadCounts"
                 />
                 <QueueCard
@@ -56,6 +63,7 @@ function reloadCounts(): void {
                     title="Revision required"
                     :state="counts.revisions"
                     :items="items.revisions"
+                    :item-href="ownEditHref"
                     @retry="reloadCounts"
                 />
                 <QueueCard
@@ -65,6 +73,7 @@ function reloadCounts(): void {
                     href="/review"
                     :state="counts.reviews"
                     :items="items.reviews"
+                    :item-href="reviewHref"
                     @retry="reloadCounts"
                 />
                 <QueueCard
@@ -74,6 +83,7 @@ function reloadCounts(): void {
                     href="/approval"
                     :state="counts.approvals"
                     :items="items.approvals"
+                    :item-href="approvalHref"
                     @retry="reloadCounts"
                 />
             </div>

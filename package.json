@@ -13,6 +13,7 @@
         "test": "vitest run",
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
+        "test:browser-runtime-config": "node --experimental-strip-types --test tests/Browser/runtime-configuration.test.mjs",
         "test:e2e": "playwright test"
     },
     "devDependencies": {

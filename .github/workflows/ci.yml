@@ -33,6 +33,17 @@ jobs:
                     --health-interval=5s
                     --health-timeout=5s
                     --health-retries=30
+            # Real whole-file malware gate for tests/Integration/Malware (BE-090, BE-097).
+            clamav:
+                image: clamav/clamav-debian:1.4
+                ports:
+                    - 3310:3310
+                options: >-
+                    --health-cmd="clamdcheck.sh"
+                    --health-interval=15s
+                    --health-timeout=10s
+                    --health-start-period=180s
+                    --health-retries=20
         steps:
             - name: Checkout
               uses: actions/checkout@v7
@@ -41,7 +52,7 @@ jobs:
               uses: shivammathur/setup-php@v2
               with:
                   php-version: '8.5'
-                  extensions: mbstring, pdo_mysql, intl, zip, fileinfo, dom, curl
+                  extensions: mbstring, pdo_mysql, intl, zip, fileinfo, dom, curl, openssl
                   coverage: pcov
                   tools: composer:v2
 
@@ -60,8 +71,11 @@ jobs:
             - name: PHPStan / Larastan (level max)
               run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 
+            # pcov coverage of this codebase needs more than the default CLI memory limit.
+            # The private official workbook is never in CI, so its export/PDF cases skip there
+            # and are proven on a provisioned runtime instead (BE-113, BE-124).
             - name: Pest with coverage (minimum 80%)
-              run: vendor/bin/pest --coverage --min=80
+              run: php -d memory_limit=2G vendor/bin/pest --coverage --min=80
 
     frontend:
         name: Frontend (ESLint, Prettier, vue-tsc, Vitest + coverage, build)
@@ -101,7 +115,7 @@ jobs:
             mysql:
                 image: mysql:8.4
                 env:
-                    MYSQL_DATABASE: nscmf
+                    MYSQL_DATABASE: nscmf_testing
                     MYSQL_USER: nscmf
                     MYSQL_PASSWORD: ci-disposable-password
                     MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
@@ -135,15 +149,19 @@ jobs:
                   composer install --no-interaction --prefer-dist --no-progress
                   npm ci
 
-            - name: Prepare environment and database
+            # The disposable runtime (nscmf_testing, APP_ENV=testing, isolated storage) is
+            # reset by Playwright's guarded global setup, never by a bare migrate (BE-005).
+            - name: Prepare environment
               run: |
                   cp .env.example .env
                   sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-disposable-password/' .env
                   php artisan key:generate --ansi
-                  php artisan migrate --force
 
             - name: Build frontend
               run: npm run build
+
+            - name: Browser runtime configuration
+              run: npm run test:browser-runtime-config
 
             - name: Install Playwright Chromium
               run: npx playwright install --with-deps chromium

@@ -924,6 +924,8 @@ demo.requester.b
 
 so humans can observe own-record boundaries and distinguish one Requester's records from another.
 
+Exception — confirmed by the project owner 2026-09-24 (gap G20): `DEMO-CHG-008` is owned, cancelled and archived by the Protected Superadmin, because a never-submitted record is visible to its owner only (`12 §17.1`). Creating it needs an active Team (§18), so the local demo dataset gives the Superadmin `Demo Team Gamma` when it has none; production bootstrap is unchanged.
+
 ## 57. Team Snapshot
 
 At NSCMF creation, record `team_id` captures the owner's current Demo Team.

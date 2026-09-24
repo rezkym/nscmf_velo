@@ -1697,7 +1697,7 @@ These are not implementation-agent discretion:
 - exact production Team master data;
 - official Request No organization SOP/sample;
 - notification provider/behavior details;
-- bulk packaging details where still TBD.
+- ~~bulk packaging details where still TBD~~ — decided 2026-09-24: batch ZIP (`12` §71, G04).
 
 ### Rate limiting
 
@@ -1705,13 +1705,13 @@ These are not implementation-agent discretion:
 - exact upload rate-limit numeric bucket;
 - exact public validator rate-limit numeric bucket.
 
-Requirement to rate-limit remains mandatory where specified.
+Requirement to rate-limit remains mandatory where specified. **Decided 2026-09-24 (G05):** the provisional buckets in `12` §133 are the MVP values.
 
 ### ClamAV
 
 - local development placement is private Docker `clamd` when Phase 6 begins;
 - default future server placement is private same-server `clamd` per `20`;
-- finite timeout/capacity tuning must be based on real integration evidence rather than guessed in advance.
+- finite timeout/capacity tuning must be based on real integration evidence rather than guessed in advance. **Measured and set 2026-09-24 (G15):** see `14` §48.
 
 ### Renderer
 

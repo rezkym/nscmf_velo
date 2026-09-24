@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetInertia } from '@/testing/inertia';
 
-import Show, { type NscmfDetailRecord } from './Show.vue';
+import type { NscmfDetailRecord } from '@/features/nscmf/types';
+
+import Show from './Show.vue';
 
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
 
@@ -25,7 +27,7 @@ const BASE: Omit<NscmfDetailRecord, 'family' | 'subtype'> = {
 };
 
 function mountShow(record: NscmfDetailRecord): VueWrapper {
-    return mount(Show, { props: { record } });
+    return mount(Show, { props: { record, attachments: [] } });
 }
 
 function field(wrapper: VueWrapper, key: string): string {
@@ -202,15 +204,15 @@ describe('Record detail (FE-18)', () => {
         expect(wrapper.get('[data-testid="table-results"]').text()).toContain('None');
     });
 
-    it('switches to the Timeline and Attachments tabs, which are not available yet', async () => {
+    it('switches between the tabs; the Timeline needs its own permission', async () => {
         const wrapper = mountShow({ ...BASE, family: 'CHANGE', subtype: 'MAINTENANCE', change: {} });
 
         await wrapper.get('[data-testid="tab-timeline"]').trigger('click');
-        expect(wrapper.get('[data-testid="timeline-stub"]').text()).toContain('not available yet');
+        expect(wrapper.text()).toContain('You do not have permission to view this timeline.');
         expect(wrapper.find('[data-testid="form-detail-section"]').exists()).toBe(false);
 
         await wrapper.get('[data-testid="tab-attachments"]').trigger('click');
-        expect(wrapper.get('[data-testid="attachments-stub"]').text()).toContain('not available yet');
+        expect(wrapper.text()).toContain('No attachments on this record.');
 
         await wrapper.get('[data-testid="tab-form"]').trigger('click');
         expect(wrapper.find('[data-testid="form-detail-section"]').exists()).toBe(true);
@@ -239,5 +241,140 @@ describe('Record detail (FE-18)', () => {
 
         const bareChange = mountShow({ ...BASE, family: 'CHANGE', subtype: 'MAINTENANCE' });
         expect(bareChange.get('[data-testid="field-maintenance_purpose"]').text()).toBe('—');
+    });
+
+    it('FE-34..36: offers the lifecycle actions the server allows on this record', () => {
+        resetInertia({ auth: { permissions: ['nscmf.view', 'nscmf.archive'] } });
+        const wrapper = mountShow({
+            ...BASE,
+            allowed_actions: ['nscmf.archive'],
+            family: 'ACTIVATION',
+            subtype: 'ACTIVATION',
+            activation: {},
+        });
+
+        expect(wrapper.get('[data-testid="lifecycle-archive"]').text()).toBe('Archive');
+    });
+
+    it('FE-38/43: the Timeline and Attachments tabs show the real panels, not placeholders', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(() => new Promise(() => undefined)),
+        );
+        resetInertia({ auth: { permissions: ['nscmf.view', 'nscmf.timeline.view'] } });
+        const wrapper = mountShow({ ...BASE, family: 'ACTIVATION', subtype: 'ACTIVATION', activation: {} });
+
+        await wrapper.get('[data-testid="tab-timeline"]').trigger('click');
+        expect(wrapper.find('[aria-label="Business timeline"]').exists()).toBe(true);
+        await wrapper.get('[data-testid="tab-attachments"]').trigger('click');
+        expect(wrapper.find('[data-testid="attachments-stub"]').exists()).toBe(false);
+        expect(wrapper.text()).toContain('No attachments on this record.');
+        vi.unstubAllGlobals();
+    });
+
+    it('FE-44: offers exports on the record page to actors holding the export permission', () => {
+        resetInertia({ auth: { permissions: ['nscmf.view', 'nscmf.export'] } });
+        const wrapper = mountShow({ ...BASE, family: 'ACTIVATION', subtype: 'ACTIVATION', activation: {} });
+
+        expect(wrapper.get('[data-testid="export-PDF"]').text()).toBe('Export PDF');
+        expect(wrapper.text()).toContain('Approved by Demo Approver.');
+    });
+});
+
+/*
+ * The detail page is where Dashboard and History lead, so it must lead on to the page where the
+ * next step happens (03 UF-DRAFT-003, UF-REVIEW-005; 07 §26, §60, §61). Which step applies is the
+ * server's call through allowed_actions (12 §24); the page never infers it from status alone.
+ */
+describe('Record detail: the way to the next step', () => {
+    const CHANGE = { family: 'CHANGE', subtype: 'MAINTENANCE', change: {} } as const;
+    const hrefs = (wrapper: VueWrapper): (string | undefined)[] =>
+        wrapper.findAll('#main-content a').map((link) => link.attributes('href'));
+
+    beforeEach(() => {
+        resetInertia({ auth: { permissions: ['nscmf.view'] } });
+    });
+
+    it('lets the owner resume a Draft in the editor (UF-DRAFT-003)', () => {
+        const wrapper = mountShow({
+            ...BASE,
+            ...CHANGE,
+            business_status: 'DRAFT',
+            requested_by: null,
+            allowed_actions: ['edit_draft', 'submit'],
+        });
+
+        const link = wrapper.get('[data-testid="next-step-edit"]');
+        expect(link.attributes('href')).toBe('/nscmf/101/edit');
+        expect(link.text()).toBe('Edit Draft');
+    });
+
+    it('lets the owner revise a returned record and resubmit it, on the same record (07 §60; 05 §9)', () => {
+        const wrapper = mountShow({
+            ...BASE,
+            ...CHANGE,
+            business_status: 'REVISION_REQUIRED',
+            allowed_actions: ['edit_draft', 'submit'],
+        });
+
+        const link = wrapper.get('[data-testid="next-step-edit"]');
+        expect(link.attributes('href')).toBe('/nscmf/101/edit');
+        expect(link.text()).toBe('Revise and Resubmit');
+        expect(wrapper.find('[data-testid="next-step-waiting"]').exists()).toBe(false);
+    });
+
+    it('offers Update Result of Changes, not Edit, to the eligible owner at Pending Review (07 §26)', () => {
+        const wrapper = mountShow({
+            ...BASE,
+            ...CHANGE,
+            business_status: 'PENDING_REVIEW',
+            allowed_actions: ['edit_results'],
+        });
+
+        const link = wrapper.get('[data-testid="next-step-results"]');
+        expect(link.attributes('href')).toBe('/nscmf/101/edit');
+        expect(link.text()).toBe('Update Result of Changes');
+        expect(wrapper.find('[data-testid="next-step-edit"]').exists()).toBe(false);
+    });
+
+    it('takes a permitted reviewer to the Review detail, where the review decisions live (07 §30, §61)', () => {
+        const wrapper = mountShow({
+            ...BASE,
+            ...CHANGE,
+            business_status: 'PENDING_REVIEW',
+            allowed_actions: ['nscmf.review.return'],
+        });
+
+        expect(wrapper.get('[data-testid="next-step-review"]').attributes('href')).toBe('/review/101');
+        expect(hrefs(wrapper)).not.toContain('/approval/101');
+    });
+
+    it('takes a permitted approver to the Approval detail (07 §31, §61)', () => {
+        const wrapper = mountShow({
+            ...BASE,
+            ...CHANGE,
+            business_status: 'PENDING_APPROVAL',
+            allowed_actions: ['nscmf.approval.return_requester'],
+        });
+
+        expect(wrapper.get('[data-testid="next-step-approval"]').attributes('href')).toBe('/approval/101');
+        expect(hrefs(wrapper)).not.toContain('/review/101');
+    });
+
+    it('tells anyone else that a returned record is waiting for its requester, and offers no action (05 §30)', () => {
+        const wrapper = mountShow({ ...BASE, ...CHANGE, business_status: 'REVISION_REQUIRED', allowed_actions: [] });
+
+        expect(wrapper.get('[data-testid="next-step-waiting"]').text()).toContain(
+            'Waiting for the requester to revise and resubmit',
+        );
+        expect(hrefs(wrapper)).not.toContain('/nscmf/101/edit');
+    });
+
+    it('offers no next-step link the server did not allow, whatever the status', () => {
+        for (const business_status of ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED'] as const) {
+            const wrapper = mountShow({ ...BASE, ...CHANGE, business_status, allowed_actions: [] });
+
+            expect(hrefs(wrapper)).toEqual(['/history']);
+        }
     });
 });

@@ -174,7 +174,7 @@ describe('Review Queue — Index.vue (FE-30)', () => {
     });
 
     describe('AC2: review_queue_open_has_no_mutation', () => {
-        it('renders View as a Link / anchor pointing to /review/{record}, performing no mutation request', async () => {
+        it('renders View as a Link / anchor pointing to the review detail page (FE-31), performing no mutation request', async () => {
             const wrapper = mountReviewQueue();
 
             const viewLink = wrapper.get('[data-testid="btn-view-101"]');

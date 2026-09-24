@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 import { usePermissions } from '@/composables/usePermissions';
@@ -19,7 +19,7 @@ function toggleSidebar() {
     isSidebarOpen.value = !isSidebarOpen.value;
 }
 
-const { user, can, canAny } = usePermissions();
+const { user, can } = usePermissions();
 
 const mustChangePassword = computed(() => Boolean(user.value?.must_change_password));
 
@@ -31,20 +31,30 @@ const navItems = computed(() =>
         { label: 'Review', href: '/review', visible: can('nscmf.review') },
         { label: 'Approval', href: '/approval', visible: can('nscmf.approve') },
         { label: 'History', href: '/history', visible: can('nscmf.view.history') },
+        // Administration pages from 12 §114; there is no /administration landing route.
+        { label: 'Users', href: '/administration/users', visible: can('users.view') },
+        { label: 'Roles', href: '/administration/roles', visible: can('roles.view') },
+        { label: 'Teams', href: '/administration/teams', visible: can('teams.view') },
         {
-            label: 'Administration',
-            href: '/administration',
-            visible: canAny([
-                'users.view',
-                'roles.view',
-                'teams.view',
-                'system.settings.manage',
-                'audit.access.view',
-                'audit.security.view',
-            ]),
+            label: 'Setup',
+            href: '/administration/setup',
+            visible: can('roles.view') && can('teams.view') && can('users.view'),
+        },
+        { label: 'Access Audit', href: '/administration/audits/access', visible: can('audit.access.view') },
+        { label: 'Security Audit', href: '/administration/audits/security', visible: can('audit.security.view') },
+        {
+            label: 'Technical Logs',
+            href: '/administration/settings/technical-logs',
+            // 07 §51: a protected Core Setting, only for the Protected Superadmin.
+            visible: can('system.settings.manage') && Boolean(user.value?.is_protected_superadmin),
         },
     ].filter((item) => item.visible),
 );
+
+/** POST /logout destroys the server session (12 §77); the server redirects to the login page. */
+function signOut(): void {
+    router.post('/logout');
+}
 </script>
 
 <template>
@@ -111,16 +121,24 @@ const navItems = computed(() =>
                         {{ user.team.name }}
                     </div>
                 </div>
+                <button
+                    type="button"
+                    data-testid="btn-logout"
+                    class="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring"
+                    @click="signOut"
+                >
+                    Sign out
+                </button>
             </div>
         </header>
 
-        <div class="flex flex-1">
-            <!-- Collapsible Sidebar -->
+        <div class="flex flex-1 flex-col md:flex-row">
+            <!-- Collapsible Sidebar: stacked above the content on narrow screens -->
             <aside
                 v-show="isSidebarOpen"
                 id="sidebar-navigation"
                 data-testid="sidebar"
-                class="w-64 flex-shrink-0 border-r border-border bg-card p-4 transition-all"
+                class="w-full flex-shrink-0 border-b border-border bg-card p-4 transition-all md:w-64 md:border-b-0 md:border-r"
                 aria-label="Main Navigation"
             >
                 <nav class="space-y-1" aria-label="Sidebar Menu">
@@ -136,7 +154,7 @@ const navItems = computed(() =>
             </aside>
 
             <!-- Main Content Landmark -->
-            <main id="main-content" class="flex-1 p-6 focus:outline-none" tabindex="-1">
+            <main id="main-content" class="min-w-0 flex-1 p-4 focus:outline-none sm:p-6" tabindex="-1">
                 <slot />
             </main>
         </div>

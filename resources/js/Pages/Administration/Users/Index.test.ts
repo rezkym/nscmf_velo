@@ -1,14 +1,21 @@
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flashDomainError, forms, lastRequest, pageProps, requests, resetInertia } from '@/testing/inertia';
+import { sendJson } from '@/lib/http';
+import { flashDomainError, forms, lastRequest, requests, resetInertia, router } from '@/testing/inertia';
 
 import { type RoleOption, type TeamOption, type UserRow } from '@/features/administration/UserManager.vue';
 
 import Index from './Index.vue';
 
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
+// Create and reset reveal the one-time password over same-origin JSON (12 §96.2); re-auth is JSON too.
+vi.mock('@/lib/http', () => ({ sendJson: vi.fn() }));
+
+const send = vi.mocked(sendJson);
+type JsonResult = Awaited<ReturnType<typeof sendJson>>;
+const jsonReplies = new Map<string, JsonResult>();
 
 const teams: TeamOption[] = [
     { id: 1, name: 'Demo Team Alpha' },
@@ -83,17 +90,25 @@ function formWith(field: string) {
     return form;
 }
 
-/** Fills and submits the re-authentication dialog, then simulates the server accepting it. */
+/** Fills and submits the re-authentication dialog; the JSON endpoint answers 204. */
 async function confirmReauth(wrapper: VueWrapper): Promise<void> {
     await wrapper.get('input[type="password"]').setValue('my-own-password');
     await wrapper.get('[role="dialog"] form').trigger('submit');
-    lastRequest('/account/re-authenticate')?.options.onSuccess?.();
-    await nextTick();
+    await flushPromises();
+}
+
+function jsonCall(url: string): unknown[] | undefined {
+    return send.mock.calls.find((call) => call[1] === url);
 }
 
 describe('User administration (FE-12)', () => {
     beforeEach(() => {
         document.body.innerHTML = '';
+        jsonReplies.clear();
+        send.mockReset();
+        send.mockImplementation((_method, url) =>
+            Promise.resolve(jsonReplies.get(url) ?? { ok: true, status: 204, body: null }),
+        );
     });
 
     it('renders inside the authenticated shell with team, roles and status per user', () => {
@@ -142,20 +157,29 @@ describe('User administration (FE-12)', () => {
         await dialog.get('[data-testid="create-role-option-3"] input').setValue(true);
         await dialog.get('form').trigger('submit');
 
-        expect(lastRequest('/administration/users')).toBeUndefined();
+        expect(jsonCall('/administration/users')).toBeUndefined();
         expect(wrapper.get('[role="dialog"]').text()).toContain('Confirm user creation');
 
+        jsonReplies.set('/administration/users', {
+            ok: true,
+            status: 201,
+            body: {
+                data: {
+                    user: { id: 44, name: 'Demo Reviewer', username: 'demo.reviewer', must_change_password: true },
+                    temporary_password: 'test-only-secret',
+                },
+                meta: { temporary_password_reveal: 'ONE_TIME_ONLY' },
+            },
+        });
         await confirmReauth(wrapper);
 
-        const request = lastRequest('/administration/users');
-        expect(request).toMatchObject({
-            method: 'post',
-            data: { name: 'Demo Reviewer', username: 'demo.reviewer', team_id: 2, role_ids: [3] },
-        });
-
-        pageProps.flash = { temporary_password: 'test-only-secret', username: 'demo.reviewer' };
-        request?.options.onSuccess?.();
-        await nextTick();
+        expect(jsonCall('/administration/users')).toEqual([
+            'POST',
+            '/administration/users',
+            { name: 'Demo Reviewer', username: 'demo.reviewer', team_id: 2, role_ids: [3] },
+        ]);
+        expect(lastRequest('/administration/users')).toBeUndefined();
+        expect(router.reload).toHaveBeenCalledWith({ only: ['users', 'meta'] });
 
         expect(wrapper.get('[data-testid="temporary-password-display"]').text()).toBe('test-only-secret');
 
@@ -173,6 +197,13 @@ describe('User administration (FE-12)', () => {
         const request = lastRequest('/administration/users/2');
         expect(request?.method).toBe('patch');
         expect(request?.data).toEqual({ name: 'Demo Requester A2' });
+    });
+
+    // 04 §265: assigning a user to a Team needs users.assign_team OR teams.assign_users.
+    it('offers the Team assignment to an actor holding only teams.assign_users', () => {
+        const wrapper = mountPage(['users.view', 'teams.assign_users']);
+
+        expect(wrapper.find('[data-testid="btn-edit-team-2"]').exists()).toBe(true);
     });
 
     it('AC4: changes the team without re-authentication and without claiming an access change', async () => {
@@ -227,15 +258,21 @@ describe('User administration (FE-12)', () => {
     it('AC4: resets a password after re-authentication and reveals the new credential for that user', async () => {
         const wrapper = mountPage();
         await wrapper.get('[data-testid="btn-reset-password-2"]').trigger('click');
+        jsonReplies.set('/administration/users/2/reset-password', {
+            ok: true,
+            status: 200,
+            body: {
+                data: { user_id: 2, must_change_password: true, temporary_password: 'test-only-reset' },
+                meta: { temporary_password_reveal: 'ONE_TIME_ONLY' },
+            },
+        });
         await confirmReauth(wrapper);
 
-        const request = lastRequest('/administration/users/2/reset-password');
-        expect(request?.method).toBe('post');
-
-        pageProps.flash = { temporary_password: 'test-only-reset' };
-        request?.options.onSuccess?.();
-        await nextTick();
-
+        expect(jsonCall('/administration/users/2/reset-password')).toEqual([
+            'POST',
+            '/administration/users/2/reset-password',
+            {},
+        ]);
         expect(wrapper.get('[data-testid="temporary-password-display"]').text()).toBe('test-only-reset');
         expect(wrapper.get('[role="dialog"]').text()).toContain('demo.requester.a');
     });
@@ -269,14 +306,45 @@ describe('User administration (FE-12)', () => {
         expect(wrapper.get('[data-testid="users-server-error"]').text()).toBe('Protected identity cannot be changed.');
     });
 
-    it('shows create-form field errors from the server next to the fields', async () => {
+    it('shows create-form field errors from the JSON 422 envelope next to the fields', async () => {
         const wrapper = mountPage();
         await wrapper.get('[data-testid="btn-create-user"]').trigger('click');
-
-        formWith('username').errors = { username: 'The username has already been taken.' };
-        await nextTick();
+        await wrapper.get('#user-name').setValue('Dup');
+        await wrapper.get('#user-username').setValue('demo.requester.a');
+        await wrapper.get('#user-team').setValue('1');
+        await wrapper.get('[role="dialog"] form').trigger('submit');
+        jsonReplies.set('/administration/users', {
+            ok: false,
+            status: 422,
+            error: {
+                code: 'VALIDATION_FAILED',
+                message: 'Some fields need to be corrected.',
+                errors: { username: ['The username has already been taken.'] },
+            },
+        });
+        await confirmReauth(wrapper);
 
         expect(wrapper.get('#user-username-error').text()).toBe('The username has already been taken.');
+        expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
+        expect(formWith('username').username).toBe('demo.requester.a');
+    });
+
+    it('re-opens the password prompt when the JSON create answers REAUTH_REQUIRED', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="btn-create-user"]').trigger('click');
+        await wrapper.get('#user-name').setValue('Late');
+        await wrapper.get('#user-username').setValue('late.user');
+        await wrapper.get('#user-team').setValue('1');
+        await wrapper.get('[role="dialog"] form').trigger('submit');
+        jsonReplies.set('/administration/users', {
+            ok: false,
+            status: 403,
+            error: { code: 'REAUTH_REQUIRED', message: 'Confirm your current password to continue.' },
+        });
+        await confirmReauth(wrapper);
+
+        expect(wrapper.get('[data-testid="reauth-error"]').text()).toContain('Re-authentication is required');
+        expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
     });
 
     it('shows an empty state when there are no users', () => {
@@ -355,14 +423,61 @@ describe('User administration (FE-12)', () => {
         expect(wrapper.get('[data-testid="btn-save-roles"]').text()).toBe('Saving…');
     });
 
-    it('shows nothing when a reset succeeds without the server flashing a credential', async () => {
+    it('shows a JSON reset denial on the page and reveals no credential', async () => {
         const wrapper = mountPage();
         await wrapper.get('[data-testid="btn-reset-password-2"]').trigger('click');
+        jsonReplies.set('/administration/users/2/reset-password', {
+            ok: false,
+            status: 403,
+            error: {
+                code: 'PROTECTED_RESOURCE',
+                message: 'The protected Superadmin password cannot be reset through administration.',
+            },
+        });
         await confirmReauth(wrapper);
 
-        lastRequest('/administration/users/2/reset-password')?.options.onSuccess?.();
-        await nextTick();
-
         expect(wrapper.find('[data-testid="one-time-credential-container"]').exists()).toBe(false);
+        expect(wrapper.get('[data-testid="users-server-error"]').text()).toBe(
+            'The protected Superadmin password cannot be reset through administration.',
+        );
+    });
+
+    it('never reads a credential from flash or page props', async () => {
+        const wrapper = mountPage();
+        await wrapper.get('[data-testid="btn-reset-password-2"]').trigger('click');
+        jsonReplies.set('/administration/users/2/reset-password', {
+            ok: true,
+            status: 200,
+            body: { data: {}, meta: {} },
+        });
+        await confirmReauth(wrapper);
+
+        expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
+    });
+
+    it('offers previous/next pages from the server pagination meta', async () => {
+        resetInertia({ auth: { permissions: ALL_USER_PERMISSIONS } });
+        const wrapper = mount(Index, {
+            props: {
+                users,
+                teams,
+                roles,
+                meta: { current_page: 2, from: 26, last_page: 3, per_page: 25, to: 50, total: 60 },
+            },
+        });
+
+        expect(wrapper.get('[data-testid="users-pagination"]').text()).toContain('26–50 of 60');
+        await wrapper.get('[data-testid="users-page-next"]').trigger('click');
+        expect(router.get).toHaveBeenCalledWith(
+            '/administration/users',
+            { page: 3, per_page: 25 },
+            { preserveScroll: true },
+        );
+        await wrapper.get('[data-testid="users-page-previous"]').trigger('click');
+        expect(router.get).toHaveBeenCalledWith(
+            '/administration/users',
+            { page: 1, per_page: 25 },
+            { preserveScroll: true },
+        );
     });
 });

@@ -98,10 +98,35 @@ describe('Dashboard (FE-16)', () => {
         });
 
         const hrefs = wrapper.findAll('#main-content a').map((link) => link.attributes('href'));
-        expect(hrefs).toEqual(
-            expect.arrayContaining(['/nscmf/create', '/history', '/review', '/approval', '/nscmf/7']),
-        );
+        expect(hrefs).toEqual(expect.arrayContaining(['/nscmf/create', '/history', '/review', '/approval']));
         expect(requests).toHaveLength(0);
+    });
+
+    /*
+     * Each attention card leads to the page where its work is done, not to a read-only detail:
+     * resume a Draft (03 UF-DRAFT-003), revise a returned record (03 UF-REVIEW-005; 07 §60),
+     * decide a review (07 §30) or an approval (07 §31).
+     */
+    it('opens each queued record where its next step happens', () => {
+        const record = (id: number) =>
+            ({ id, request_no: `DEMO-${id}`, family: 'CHANGE', subtype: 'MAINTENANCE' }) as const;
+        const wrapper = mountDashboard(['nscmf.draft.edit', 'nscmf.review', 'nscmf.approve'], {
+            items: { drafts: [record(7)], revisions: [record(8)], reviews: [record(9)], approvals: [record(10)] },
+        });
+
+        const itemHref = (card: string) => wrapper.get(`[data-testid="${card}"] li a`).attributes('href');
+        expect(itemHref('card-drafts')).toBe('/nscmf/7/edit');
+        expect(itemHref('card-revisions')).toBe('/nscmf/8/edit');
+        expect(itemHref('card-reviews')).toBe('/review/9');
+        expect(itemHref('card-approvals')).toBe('/approval/10');
+    });
+
+    it('falls back to the record detail for an own record the actor may not edit', () => {
+        const wrapper = mountDashboard([], {
+            items: { revisions: [{ id: 8, request_no: 'DEMO-8', family: 'CHANGE', subtype: 'MAINTENANCE' }] },
+        });
+
+        expect(wrapper.get('[data-testid="card-revisions"] li a').attributes('href')).toBe('/nscmf/8');
     });
 
     it('asks users without an active team to contact an administrator instead of offering Create', () => {

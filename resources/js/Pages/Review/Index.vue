@@ -183,6 +183,8 @@ function reloadQueue(): void {
                     </div>
                 </template>
 
+                <!-- The record detail page is the destination that exists; the Review detail page
+                     with its actions is FE-31. -->
                 <template #actions="{ item }">
                     <Link
                         :href="`/review/${(item as ReviewQueueItem).id}`"

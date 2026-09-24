@@ -703,8 +703,10 @@ Public verifier accepts:
 
 ```text
 PDF only
-maximum 20 MB per verification upload
+maximum 20,000,000 bytes per PDF file, inclusive (decimal 20 MB)
 ```
+
+The validator's file-byte limit is independently confirmed and equals the attachment limit in `06 §50`. Zero-byte files remain invalid. This limit counts PDF file bytes, not the complete multipart HTTP request body.
 
 Flow requires:
 
@@ -714,7 +716,7 @@ Flow requires:
 - resource/time limits;
 - cleanup afterward.
 
-The 20 MB validator cap is independently confirmed; it happens to equal the normal attachment per-file cap but is not derived from that rule.
+The validator cap is independently confirmed; it happens to equal the normal attachment per-file cap but is not derived from that rule.
 
 ## 74. Layer A — Cryptographic Issuer
 

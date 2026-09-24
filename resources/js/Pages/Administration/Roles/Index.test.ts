@@ -1,4 +1,4 @@
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,6 +9,8 @@ import { type PermissionCatalogItem, type RoleRow } from '@/features/administrat
 import Index from './Index.vue';
 
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
+// Re-authentication is a same-origin JSON endpoint answering 204 (12 §79, §109).
+vi.mock('@/lib/http', () => ({ sendJson: vi.fn(() => Promise.resolve({ ok: true, status: 204, body: null })) }));
 
 const permissionCatalog: PermissionCatalogItem[] = [
     { name: 'nscmf.create', group: 'NSCMF' },
@@ -32,8 +34,7 @@ function mountPage(permissions: string[] = ALL_ROLE_PERMISSIONS): VueWrapper {
 async function confirmReauth(wrapper: VueWrapper): Promise<void> {
     await wrapper.get('input[type="password"]').setValue('my-own-password');
     await wrapper.get('[role="dialog"] form').trigger('submit');
-    lastRequest('/account/re-authenticate')?.options.onSuccess?.();
-    await nextTick();
+    await flushPromises();
 }
 
 describe('Role administration (FE-14)', () => {

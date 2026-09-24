@@ -640,9 +640,11 @@ Missing attachment alone never blocks workflow.
 ## 50. Count / Size
 
 - max10 files/record;
-- max20MB/file;
+- max20 MB/file = **20,000,000 bytes inclusive** (decimal MB; file size MUST be greater than zero and no greater than this value);
 - zero-byte rejected;
-- implicit max total 200MB if all slots used.
+- implicit max total 200,000,000 bytes if all slots used.
+
+This is a per-file byte limit. It does not define a maximum for the complete multipart HTTP request body.
 
 ## 51. Allowed Types
 
@@ -699,7 +701,7 @@ untrusted upload
 | Reviewer Forward | Optional comment | No |
 | Approve | Optional comment | No |
 
-Mandatory reason: trim; minimum5 meaningful chars; max2,000; whitespace-only invalid.
+Mandatory reason: trim; minimum5 meaningful chars; max2,000; whitespace-only invalid. Meaningful = non-whitespace characters (decided 2026-09-24).
 
 ## 55. Cancel Validation
 
@@ -997,7 +999,7 @@ Implementation MUST NOT:
 
 ## 80. Attachment
 
-- [ ] max10 / max20MB / nonzero / allowlist;
+- [ ] max10 / max20,000,000 bytes inclusive / nonzero / allowlist;
 - [ ] no usability before CLEAN;
 - [ ] infected/error/timeout/unavailable fails closed.
 

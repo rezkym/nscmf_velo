@@ -1,75 +1,138 @@
 # NSCMF Digital Form & Workflow System
 
-Internal Laravel 13 / Vue 3 application that replaces the Excel-based NSCMF Form 3.0 process.
+Aplikasi internal Laravel 13 / Vue 3 yang menggantikan proses NSCMF Form 3.0 berbasis Excel.
 
-- Specifications (authoritative): [`project_doc/`](project_doc/)
-- Operational rules for developers and coding agents: [`AGENTS.md`](AGENTS.md)
-- Implementation order: [`project_doc/19_Task_Implementation_Plan.md`](project_doc/19_Task_Implementation_Plan.md)
+- Spesifikasi (otoritas): [`project_doc/`](project_doc/)
+- Aturan developer dan coding agent: [`AGENTS.md`](AGENTS.md)
+- Keputusan dan gap yang masih terbuka: [`microtask_be/06_GAP_DAN_KEPUTUSAN.md`](microtask_be/06_GAP_DAN_KEPUTUSAN.md)
 
-This README only explains how to run the project locally. It does not define product rules.
+README ini hanya menjelaskan cara menjalankan proyek. Aturan produk ada di `project_doc`.
 
-## Requirements
+## 1. Kebutuhan
 
-| Tool         | Version                                                                  |
-| ------------ | ------------------------------------------------------------------------ |
-| PHP          | 8.5 with `pdo_mysql`, `mbstring`, `intl`, `zip`, `fileinfo`, `dom`, `curl` |
-| PHP coverage | `pcov` extension (for local coverage reports)                            |
-| Composer     | 2.x                                                                      |
-| Node.js      | 24 LTS with npm                                                          |
-| Docker       | Runs the local MySQL 8.4 database only                                   |
+| Alat | Versi / catatan |
+| --- | --- |
+| PHP | 8.5 dengan `pdo_mysql`, `mbstring`, `intl`, `zip`, `fileinfo`, `dom`, `curl`, `openssl` |
+| PHP coverage | extension `pcov` |
+| Composer | 2.x |
+| Node.js | 24 LTS + npm |
+| Docker | Hanya untuk MySQL 8.4 dan ClamAV |
+| LibreOffice | Renderer PDF (`brew install --cask libreoffice`) |
+| Font | Calibri, Aptos Narrow, Aptos Display (lihat §3) |
 
-The application runs natively. Docker is used only for local infrastructure (MySQL 8.4 now, ClamAV from Phase 6).
-Redis is not used: session, cache, and queue are database-backed.
+Aplikasi berjalan native. Redis tidak dipakai: session, cache dan queue memakai database.
 
-## First-time setup
+## 2. Persiapan pertama kali
 
 ```bash
 composer install
 npm ci
 
 cp .env.example .env
-# Set DB_PASSWORD in .env to any local password, then:
+# Isi DB_PASSWORD dengan password lokal bebas, lalu:
 php artisan key:generate
 
-docker compose up -d          # MySQL 8.4 with databases nscmf and nscmf_testing
+docker compose up -d mysql clamav   # MySQL 8.4 (nscmf + nscmf_testing) dan ClamAV
 php artisan migrate
+php artisan db:seed                 # data referensi: permission, role, setting
+php artisan nscmf:bootstrap-superadmin
 
 npx playwright install chromium
 ```
 
-`docker/mysql/init/` creates `nscmf_testing` only when the MySQL volume is first created.
+`nscmf:bootstrap-superadmin` membuat akun `superadmin` dan **menampilkan password sementara satu kali saja**. Simpan, lalu ganti saat login pertama. Menjalankannya lagi tidak mereset password.
 
-## Daily development
+ClamAV butuh 1–2 menit setelah container naik sebelum siap (status `healthy` di `docker ps`). Tanpa ClamAV, lampiran tidak bisa dipakai (gagal secara aman).
+
+## 3. Isi `.env` untuk lampiran, PDF dan tanda tangan
+
+| Kunci | Isi |
+| --- | --- |
+| `NSCMF_CLAMAV_HOST` / `NSCMF_CLAMAV_PORT` | `127.0.0.1` / `3310` |
+| `NSCMF_RENDERER_EXECUTABLE` | Path `soffice`, mis. `/opt/homebrew/bin/soffice` |
+| `NSCMF_RENDERER_FONTS_PATH` | Folder font Calibri + Aptos, path absolut, mis. `/Users/<anda>/Library/Fonts` |
+| `NSCMF_SIGNING_P12_PATH` | Lokasi file sertifikat, di luar folder `public`, mis. `storage/app/private/signing/organization.p12` |
+| `NSCMF_SIGNING_P12_PASSPHRASE` | Passphrase acak panjang; hanya di `.env`, tidak pernah di DB atau Git |
+| `NSCMF_PUBLIC_HOST` | Hostname publik validator (kosong = tidak dipisah) |
+| `NSCMF_CLAMAV_TIMEOUT_SECONDS` / `NSCMF_RENDERER_TIMEOUT_SECONDS` | `30` / `30` (hasil ukur G15; jangan dinaikkan tanpa menyesuaikan timeout job) |
+| `UPLOAD_RATE_PER_MINUTE` / `UPLOAD_FINALIZE_PER_MINUTE` / `PDF_VALIDATOR_RATE_PER_MINUTE` | `120` / `20` / `10` (G05) |
+
+Font harus sama persis dengan template, tanpa pengganti:
+
+- **Aptos** (termasuk Aptos Narrow dan Aptos Display): unduh resmi dari Microsoft, <https://www.microsoft.com/download/details.aspx?id=106087>.
+- **Calibri**: dari instalasi Microsoft Office/Windows berlisensi. Di Mac dengan Word ada di `/Applications/Microsoft Word.app/Contents/Resources/DFonts`.
+
+Salin file `.ttf`-nya ke folder `NSCMF_RENDERER_FONTS_PATH`. File font berlisensi, jangan dimasukkan ke Git.
+
+## 4. Provisioning template dan sertifikat
+
+Jalankan sekali, dan ulangi bila template atau sertifikat berganti:
 
 ```bash
-composer dev                  # Laravel server, queue worker, logs, and Vite together
+php artisan nscmf:template:register NSCMF-Form-3.0.xlsx --activate
+php artisan nscmf:signing:activate --generate
 ```
 
-Or run them separately with `php artisan serve` and `npm run dev`.
+- Template `NSCMF-Form-3.0.xlsx` diletakkan di root proyek. File ini privat dan tidak masuk Git. Perintah pertama menyimpannya sebagai versi yang tidak bisa diubah, lengkap dengan hash-nya.
+- `--generate` membuat sertifikat Organisasi self-managed untuk lokal. Untuk produksi, siapkan file `.p12` sendiri lalu jalankan tanpa `--generate`.
 
-## Quality gates
+## 5. Data demo (lokal saja)
 
-The same gates run in GitHub Actions (`.github/workflows/ci.yml`).
+```bash
+php artisan db:seed --class=DemoSeeder
+```
 
-| Check                            | Command                  |
-| -------------------------------- | ------------------------ |
-| PHP formatting (Pint)            | `composer lint`          |
-| PHP static analysis (level max)  | `composer analyse`       |
-| PHP tests (Pest, MySQL 8.4)      | `composer test`          |
-| PHP tests with 80% coverage      | `composer test:coverage` |
-| ESLint                           | `npm run lint`           |
-| Prettier                         | `npm run format:check`   |
-| TypeScript strict (vue-tsc)      | `npm run typecheck`      |
-| Frontend tests (Vitest)          | `npm test`               |
-| Frontend tests with 80% coverage | `npm run test:coverage`  |
-| Browser tests (Playwright)       | `npm run test:e2e`       |
+Butuh `nscmf:bootstrap-superadmin` lebih dulu. Seeder membuat 3 Team demo, 6 akun, dan 20 record `DEMO-*` yang dimainkan lewat workflow sungguhan. Aman dijalankan berulang karena hanya membuat yang belum ada. Di produksi seeder ini ditolak.
 
-PHP tests always use the disposable `nscmf_testing` database and refuse to run against any other database.
-Browser tests start `php artisan serve` on port 8010 against the database in `.env`, so build assets first with `npm run build`.
+| Username | Peran | Password |
+| --- | --- | --- |
+| `demo.requester.a`, `demo.requester.b` | Requester | `password` |
+| `demo.reviewer` | Reviewer | `password` |
+| `demo.approver` | Approver | `password` |
+| `demo.multi` | Reviewer + Approver | `password` |
+| `demo.disabled` | Nonaktif | tidak bisa login |
 
-## Not installed yet
+## 6. Menjalankan aplikasi
 
-These are required later and are intentionally not part of the initial setup:
+```bash
+composer dev            # server Laravel, queue worker, log dan Vite sekaligus
+php artisan schedule:work   # di terminal lain: pembersihan terjadwal
+```
 
-- ClamAV (`clamd`) for attachment malware scanning, added in Phase 6.
-- LibreOffice Headless (PDF renderer candidate) and the Organization PDF signing identity, added in Phase 8.
+Atau jalankan satu per satu: `php artisan serve`, `npm run dev`, `php artisan queue:work`.
+
+Queue worker wajib jalan: scan lampiran dan pembuatan ekspor XLSX/PDF diproses di queue.
+
+Halaman publik validator PDF: `/ispdfvalid`. Hanya halaman ini yang bisa dibuka tanpa login.
+
+## 7. Pemeliharaan
+
+| Perintah | Fungsi |
+| --- | --- |
+| `php artisan nscmf:cleanup uploads` | Hapus sesi upload yang ditinggalkan (terjadwal tiap 15 menit) |
+| `php artisan nscmf:cleanup exports` | Hapus file ekspor kedaluwarsa (tiap jam) |
+| `php artisan nscmf:cleanup runtime` | Hapus workspace render sementara (tiap jam) |
+| `php artisan nscmf:cleanup technical-logs` | Hapus log teknis sesuai setting (harian 01:00 WIB) |
+
+Audit bisnis, akses dan keamanan tidak pernah dihapus otomatis.
+
+## 8. Quality gates
+
+Gate yang sama berjalan di GitHub Actions (`.github/workflows/ci.yml`).
+
+| Pemeriksaan | Perintah |
+| --- | --- |
+| Format PHP (Pint) | `composer lint` |
+| Static analysis PHP (level max) | `composer analyse` |
+| Test PHP (Pest, MySQL 8.4) | `composer test` |
+| Test PHP + coverage 80% | `composer test:coverage` |
+| ESLint | `npm run lint` |
+| Prettier | `npm run format:check` |
+| TypeScript strict (vue-tsc) | `npm run typecheck` |
+| Test frontend (Vitest) | `npm test` |
+| Test frontend + coverage 80% | `npm run test:coverage` |
+| Test browser (Playwright Chromium) | `npm run test:e2e` |
+
+- Test PHP selalu memakai database sekali-pakai `nscmf_testing` dan menolak berjalan di database lain.
+- Test ekspor/PDF butuh `NSCMF-Form-3.0.xlsx`, `soffice` dan font. Tanpa itu, test tersebut di-skip, bukan dihitung lulus.
+- Test browser menjalankan `php artisan serve` di port 8010. Build aset dulu dengan `npm run build`.

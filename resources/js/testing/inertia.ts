@@ -37,6 +37,7 @@ export interface MockForm {
     delete: FormSubmit;
     reset: Mock<(...fields: string[]) => void>;
     clearErrors: Mock<() => void>;
+    setError: Mock<(field: string, message: string) => void>;
 }
 
 export interface RecordedRequest {
@@ -117,6 +118,10 @@ function createForm(initial: Record<string, unknown>): MockForm {
     });
     form.clearErrors = vi.fn(() => {
         form.errors = {};
+    });
+    // Mirrors useForm().setError(field, message) from @inertiajs/vue3.
+    form.setError = vi.fn((field: string, message: string) => {
+        form.errors = { ...form.errors, [field]: message };
     });
 
     forms.push(form);

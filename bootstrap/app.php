@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\EnforceSessionLifetime;
+use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RestrictPublicIngress;
+use App\Support\Http\ErrorEnvelope;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,12 +19,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(RestrictPublicIngress::class);
         $middleware->web(append: [
+            EnforceSessionLifetime::class,
+            EnsurePasswordChanged::class,
             HandleInertiaRequests::class,
         ]);
+        $middleware->redirectGuestsTo('/login');
+        $middleware->redirectUsersTo('/dashboard');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+        $exceptions->render(fn (Throwable $exception, Request $request) => ErrorEnvelope::render($exception, $request));
     })->create();
