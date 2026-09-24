@@ -148,7 +148,7 @@ describe('Bulk export (FE-46)', () => {
         expect(wrapper.find('[data-testid="bulk-export-zip"]').exists()).toBe(false);
         await wrapper.get('[data-testid="bulk-export-start"]').trigger('click');
         await wrapper.get('[data-testid="bulk-export-submit"]').trigger('click');
-        await flushPromises();
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 
         // Still generating: no package offered yet.
         expect(wrapper.find('[data-testid="bulk-export-zip"]').exists()).toBe(false);
