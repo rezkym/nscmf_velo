@@ -74,7 +74,7 @@ None of the planned primary files for FE-31..57 exists. Ownership below follows 
 | 43  | Attachment list/security/download/remove                        | FE-07/18/42; real ClamAV/CLEAN and private download authority.                                    |
 | 44  | Export request panel                                            | FE-07/18; T47-53 XLSX and T54-57 PDF readiness, G10.                                              |
 | 45  | Export lifecycle/private download                               | FE-07/44; T52/T55 real artifact/auth/168h retention.                                              |
-| 46  | Bulk export selection/status                                    | FE-05/37/44/45; exact body/results/partial failure and packaging unresolved G04 (`12:1283-1290`). |
+| 46  | Bulk export selection/status                                    | FE-05/37/44/45; per-record items + server ZIP `GET /nscmf/export-batches/{batch}/download` (G04 CLOSED 2026-09-24). |
 | 47  | PDF trust/signing presentation                                  | FE-18/44/45; DG01/DG02 and T55-57 real renderer/signing evidence.                                 |
 | 48  | Public validator input/page                                     | FE-03/07; T43/T58-60, public-only ingress, G05/G06.                                               |
 | 49  | Four verification outcomes/privacy                              | FE-48; T61 real crypto fixtures/minimal response disclosure.                                      |

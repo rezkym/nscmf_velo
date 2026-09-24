@@ -54,6 +54,8 @@ ClamAV butuh 1–2 menit setelah container naik sebelum siap (status `healthy` d
 | `NSCMF_SIGNING_P12_PATH` | Lokasi file sertifikat, di luar folder `public`, mis. `storage/app/private/signing/organization.p12` |
 | `NSCMF_SIGNING_P12_PASSPHRASE` | Passphrase acak panjang; hanya di `.env`, tidak pernah di DB atau Git |
 | `NSCMF_PUBLIC_HOST` | Hostname publik validator (kosong = tidak dipisah) |
+| `NSCMF_CLAMAV_TIMEOUT_SECONDS` / `NSCMF_RENDERER_TIMEOUT_SECONDS` | `30` / `30` (hasil ukur G15; jangan dinaikkan tanpa menyesuaikan timeout job) |
+| `UPLOAD_RATE_PER_MINUTE` / `UPLOAD_FINALIZE_PER_MINUTE` / `PDF_VALIDATOR_RATE_PER_MINUTE` | `120` / `20` / `10` (G05) |
 
 Font harus sama persis dengan template, tanpa pengganti:
 

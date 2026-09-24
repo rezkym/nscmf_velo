@@ -40,7 +40,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Dampak/task owner: [BE-111](BE-111.md), [BE-112](BE-112.md).
 - Pihak berwenang: Pemilik produk/API.
 - Bukti penutupan: Approved IDs/selection/limits/response/item errors/per-record denial/packaging semantics. Tidak ZIP/select-all/server limit atau partial behavior tebakan.
-- Status: OPEN; approval/measurement/commit sumber belum ada dalam paket ini.
+- Status: **CLOSED 2026-09-24** — keputusan didelegasikan pemilik proyek ke pelaksana: request tetap satu permintaan independen per record (maks. 100 ID, error per item). Paket: `GET /nscmf/export-batches/{batch}/download` mengembalikan satu ZIP berisi setiap file READY dan belum kedaluwarsa yang masih boleh diunduh peminta (byte identik dengan unduhan tunggal, nama `{request_no}.{ext}`, tiap file diaudit `EXPORT_DOWNLOADED`). Item gagal/kedaluwarsa/tidak terlihat tidak ikut; batch yang masih diproses → 409 `EXPORT_NOT_READY`; tidak ada file tersisa → 410 `EXPORT_EXPIRED`; hanya pemilik batch dengan `nscmf.export.bulk` + `nscmf.export`. Test: `tests/Feature/Export/ExportTest.php`, `BulkExportPanel.test.ts`. 12 §71/§133 disinkronkan.
 
 <a id="g05"></a>
 
@@ -50,7 +50,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Dampak/task owner: [BE-028](BE-028.md), [BE-101](BE-101.md), [BE-122](BE-122.md), [BE-148](BE-148.md).
 - Pihak berwenang: Owner security/operasional; user untuk policy approval.
 - Bukti penutupan: Controlled measurements, proposed numeric buckets, abuse/fairness test, accepted config. Test fixture rate bukan production default.
-- Status: OPEN untuk angka final berbasis pengukuran. **Nilai sementara login disetujui 2026-09-22:** 5 percobaan gagal per menit per username+IP, dapat diubah lewat `config/security.php`; bukan kebijakan final. **Nilai sementara upload/validator disetujui 2026-09-23** (lewat `.env`): upload 120/menit per user, finalize 20/menit per user, validator publik 10/menit per IP; 12 §133 disinkronkan.
+- Status: **CLOSED 2026-09-24** — keputusan didelegasikan pemilik proyek ke pelaksana: nilai sementara ditetapkan sebagai nilai MVP: login 5 gagal/menit per username+IP, upload 120/menit per user, finalize 20/menit per user, validator publik 10/menit per IP (tetap dapat diubah lewat `.env`/`config/security.php`). Dasar: satu record penuh (10 file × 20 MB = 10 × (1 start + 4 chunk + 1 status)) muat dalam 60 dari 120 request/menit; bucket per aktor terbukti tidak saling mengganggu. Test: `tests/Feature/Security/RateLimitBudgetTest.php` (lulus sejak awal; mutasi bucket bersama membuatnya gagal). Pengukuran trafik produksi nyata tetap bisa menyetel ulang angka ini.
 
 <a id="g06"></a>
 
@@ -150,7 +150,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Dampak/task owner: [BE-090](BE-090.md), [BE-101](BE-101.md), [BE-148](BE-148.md).
 - Pihak berwenang: Pelaksana integration + reviewer security/owner operasional.
 - Bukti penutupan: Real clamd readiness/definitions, measured finite timeout, job timeout/retry_after consistency and failure evidence. Existing90 scaffold bukan measured policy.
-- Status: OPEN untuk angka final. Bukti lokal 2026-09-23: clamd nyata (`clamav/clamav-debian:1.4`, loopback) CLEAN/EICAR ≈1 s; timeout scan sementara 30 s (`NSCMF_CLAMAV_TIMEOUT_SECONDS`), job timeout 75 s < `retry_after` 90 s.
+- Status: **CLOSED 2026-09-24** — keputusan didelegasikan pemilik proyek ke pelaksana, berdasar pengukuran lokal (macOS arm64, clamd 1.4, LibreOffice 26.8): scan 20 MB ≤1,9 s (dingin), arsip padat ±250 MB terurai 6,6 s; satu pass render ±1,7 s; signing ±0,01 s. Nilai: scan 30 s (seluruh balasan clamd dibatasi satu deadline), render 30 s per pass (turun dari 60 s: ekspor PDF = 2 pass + signing harus < job 80 s), job finalisasi 75 s/3 percobaan, job ekspor 80 s/2 percobaan, `retry_after` 90 s. Temuan yang diperbaiki: clamd yang mengirim byte tanpa henti dulu tidak terpotong; renderer macet melempar exception di luar kontrak. Test: `tests/Integration/Operations/WorkerTimeBudgetTest.php`. Ulangi pengukuran di server Linux saat rilis.
 
 <a id="g16"></a>
 

@@ -1369,9 +1369,12 @@ Failed/expired retry creates new export request and new immutable then-current s
 ```http
 POST /nscmf/exports/bulk
 GET  /nscmf/export-batches/{batch}
+GET  /nscmf/export-batches/{batch}/download
 ```
 
-Each record independently authorized. ZIP/combined package remains intentionally unresolved; no fake package artifact contract.
+Each record independently authorized (at most 100 record IDs; one item result or error per record).
+
+**Packaging — decided 2026-09-24 (G04):** `GET /nscmf/export-batches/{batch}/download` returns one `application/zip` for the batch owner holding `nscmf.export.bulk` and `nscmf.export`. It contains every constituent that is READY, unexpired and still downloadable by the requester, byte-identical to its single download and named `{request_no}.{ext}`; each packaged file is audited as `EXPORT_DOWNLOADED`. Failed, expired or no-longer-visible constituents are left out. A batch with a QUEUED/PROCESSING constituent → `409 EXPORT_NOT_READY`; nothing left to package → `410 EXPORT_EXPIRED`; another user's batch → `404`.
 
 ---
 
@@ -2041,6 +2044,7 @@ GET  /nscmf/exports/{export}
 GET  /nscmf/exports/{export}/download
 POST /nscmf/exports/bulk
 GET  /nscmf/export-batches/{batch}
+GET  /nscmf/export-batches/{batch}/download
 
 GET  /ispdfvalid
 POST /ispdfvalid/verify
@@ -2277,13 +2281,13 @@ Setting OFF means scheduler cleanup Service does not age-delete Technical Logs.
 
 The HTTP contract is approved. The following remain implementation-time/future values rather than missing API semantics:
 
-1. optional bulk export packaging (ZIP/combined packaging) if later approved;
-2. exact operational numeric rate-limit buckets for login/upload/public-validator controls — **provisional values approved 2026-09-23**, tunable in `.env`: upload 120 requests/minute per user, upload finalize 20/minute per user, public validator 10/minute per IP (login stays 5 failures/minute per username+IP); final values remain measurement-based;
+1. ~~optional bulk export packaging~~ — **decided 2026-09-24**: batch ZIP, see §71;
+2. exact operational numeric rate-limit buckets for login/upload/public-validator controls — **provisional values approved 2026-09-23**, tunable in `.env`: upload 120 requests/minute per user, upload finalize 20/minute per user, public validator 10/minute per IP (login stays 5 failures/minute per username+IP); **adopted as the MVP values 2026-09-24 (G05)** — a full record upload fits in half the upload bucket; retune from real production traffic if needed;
 3. official numbering SOP beyond current provisional automatic/manual rules;
 4. exact production Team master data;
 5. concrete signing library/key-container/path/passphrase/rotation mechanics — **decided 2026-09-23**: `ddn/sapp`, PKCS#12 container on private disk (`NSCMF_SIGNING_P12_PATH`), passphrase only from the environment (`NSCMF_SIGNING_P12_PASSPHRASE`), rotation via `php artisan nscmf:signing:activate` (previous certificate retired, never deleted); production key custody remains an operator decision;
 6. notification endpoints/providers if notification is later implemented;
-7. host-specific private storage paths plus measured scanner/renderer timeout and LibreOffice qualification details.
+7. host-specific private storage paths. Scanner/renderer timeouts were **measured and set 2026-09-24 (G15)**: scan 30 s, render 30 s per pass, finalize job 75 s, export job 80 s, `retry_after` 90 s (see `14` §48/§63); re-measure on the release server.
 
 ClamAV placement, LibreOffice as first renderer candidate, signing trust, and the default deployment topology are already defined by `19A`/`20`; API implementation must not treat them as open architecture decisions.
 

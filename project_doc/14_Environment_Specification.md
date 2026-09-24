@@ -760,6 +760,8 @@ Before staging/production go-live, they MUST be explicitly configured so that:
 
 Exact numeric tuning may be finalized together with `16_Testing_Specification.md` and `20_Deployment_Architecture.md` evidence.
 
+**Set 2026-09-24 from local measurements (G15):** one LibreOffice pass ≈1.7 s, signing ≈0.01 s, whole-file scan of 20 MB ≤1.9 s cold and a dense archive (≈250 MB unpacked) 6.6 s. Configured: `NSCMF_CLAMAV_TIMEOUT_SECONDS=30` (bounds the whole clamd reply), `NSCMF_RENDERER_TIMEOUT_SECONDS=30` per pass (a page-range PDF export runs two passes), `FinalizeAttachmentUpload` 75 s / 3 tries, `GenerateExport` 80 s / 2 tries, database queue `retry_after` 90 s. The invariants (job timeout < `retry_after`; job timeout > its slowest bounded external step; a stuck scanner/renderer is cut off) are tested in `tests/Integration/Operations/WorkerTimeBudgetTest.php`. Re-measure on the release server.
+
 ---
 
 # PART J — PRIVATE STORAGE ENVIRONMENT
@@ -975,6 +977,8 @@ A finite scanner timeout is mandatory.
 Exact numeric timeout is intentionally selected from real Phase 6 integration measurements rather than guessed in advance.
 
 It MUST be explicitly configured before production rather than relying on an unknown/unbounded process default.
+
+**Set 2026-09-24 (G15):** 30 s for the whole scan including clamd's complete reply (see §48).
 
 ## 64. ClamAV Readiness
 
