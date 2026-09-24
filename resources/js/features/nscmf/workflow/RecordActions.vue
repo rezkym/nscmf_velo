@@ -246,6 +246,7 @@ function refresh(): void {
             :open="true"
             :title="selected.label"
             :confirm-label="selected.label"
+            :destructive="selected.variant === 'destructive'"
             :request-no="requestNo"
             :reason-required="selected.input === 'reason'"
             :optional-label="selected.input === 'comment' ? 'Comment' : 'Reason'"

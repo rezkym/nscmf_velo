@@ -24,6 +24,8 @@ export interface ActionDialogProps {
     consequence?: string;
     destination?: string;
     confirmLabel?: string;
+    /** A destructive action confirms with the destructive button; anything else with the primary one. */
+    destructive?: boolean;
     /** Label of the optional text when no reason is required. */
     optionalLabel?: string;
     triggerElement?: HTMLElement | null;
@@ -37,6 +39,7 @@ const props = withDefaults(defineProps<ActionDialogProps>(), {
     consequence: undefined,
     destination: undefined,
     confirmLabel: 'Confirm',
+    destructive: false,
     optionalLabel: 'Comment',
     triggerElement: null,
 });
@@ -155,7 +158,13 @@ watch(
                 >
                     Cancel
                 </Button>
-                <Button type="button" data-test="confirm-button" :disabled="pending" @click="handleConfirm">
+                <Button
+                    type="button"
+                    data-test="confirm-button"
+                    :variant="destructive ? 'destructive' : 'default'"
+                    :disabled="pending"
+                    @click="handleConfirm"
+                >
                     {{ pending ? 'Submitting...' : confirmLabel }}
                 </Button>
             </DialogFooter>
