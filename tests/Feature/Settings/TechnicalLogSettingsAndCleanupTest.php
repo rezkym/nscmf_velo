@@ -161,3 +161,15 @@ it('schedules every cleanup through the console kernel', function (): void {
         expect($schedule)->toContain($command);
     }
 });
+
+it('runs a cleanup through the scheduled command and rejects an unknown target', function (): void {
+    Storage::fake('nscmf_runtime_tmp');
+    $disk = Storage::disk('nscmf_runtime_tmp');
+    $disk->makeDirectory('validator/abandoned');
+    touch($disk->path('validator/abandoned'), time() - 3600);
+
+    expect(Artisan::call('nscmf:cleanup', ['target' => 'runtime']))->toBe(0)
+        ->and(Artisan::output())->toContain('Cleaned 1 item(s).')
+        ->and($disk->directories('validator'))->toBe([])
+        ->and(Artisan::call('nscmf:cleanup', ['target' => 'audits']))->toBe(1);
+});
