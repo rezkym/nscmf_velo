@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\Support\Actors;
 use Tests\Support\Records;
 
@@ -272,4 +274,75 @@ it('creates one independently authorized request per record in a bulk export', f
     assert(is_int($batchId));
     signIn($owner)->getJson("/nscmf/export-batches/{$batchId}")->assertOk()->assertJsonCount(1, 'data.exports');
     signIn(Actors::requester())->getJson("/nscmf/export-batches/{$batchId}")->assertNotFound();
+})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+
+/** @return array<string, string> member name => bytes of a ZIP response body */
+function zipEntries(string $body): array
+{
+    $path = tempnam(sys_get_temp_dir(), 'nscmf-batch-');
+    file_put_contents($path, $body);
+    $zip = new ZipArchive;
+    $zip->open($path);
+    $entries = [];
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $name = (string) $zip->getNameIndex($i);
+        $entries[$name] = (string) $zip->getFromName($name);
+    }
+    $zip->close();
+    unlink($path);
+
+    return $entries;
+}
+
+it('packages a settled bulk export as one ZIP of the files the requester may still download (G04)', function (): void {
+    registerTemplate();
+    $owner = Actors::requester();
+    $first = Records::create($owner, 'CHANGE', 'MAINTENANCE', ['request_no' => 'CHG-A/1', 'request_no_normalized' => 'chg-a/1']);
+    $second = Records::create($owner, 'CHANGE', 'MAINTENANCE', ['request_no' => 'CHG-B', 'request_no_normalized' => 'chg-b']);
+    $failing = Records::create($owner, 'CHANGE', 'MAINTENANCE', ['request_no' => 'CHG-C', 'request_no_normalized' => 'chg-c']);
+    $batchId = signIn($owner)->postJson('/nscmf/exports/bulk', ['format' => 'XLSX', 'record_ids' => [$first, $second, $failing]])->json('data.id');
+    assert(is_int($batchId));
+    $exportOf = fn (int $record): int => (int) DB::table('nscmf_export_requests')->where('nscmf_record_id', $record)->value('id');
+
+    // Nothing is packaged while any file is still being generated.
+    app(ExportGenerationService::class)->generate($exportOf($first));
+    signIn($owner)->getJson("/nscmf/export-batches/{$batchId}/download")->assertConflict()->assertJsonPath('code', 'EXPORT_NOT_READY');
+
+    app(ExportGenerationService::class)->generate($exportOf($second));
+    app(ExportGenerationService::class)->fail($exportOf($failing), 'EXPORT_FAILED', 'Broken.');
+
+    $response = signIn($owner)->get("/nscmf/export-batches/{$batchId}/download")->assertOk()
+        ->assertHeader('Content-Type', 'application/zip')
+        ->assertHeader('Cache-Control', 'no-store, private')
+        ->assertHeader('X-Content-Type-Options', 'nosniff');
+    expect((string) $response->headers->get('Content-Disposition'))->toContain("nscmf-exports-{$batchId}.zip");
+
+    $entries = zipEntries($response->streamedContent());
+    $artifact = fn (int $record): string => (string) Storage::disk('nscmf_private')->get((string) DB::table('nscmf_export_artifacts')
+        ->where('export_request_id', $exportOf($record))->value('private_object_key'));
+    expect(array_keys($entries))->toEqualCanonicalizing(['CHG-A-1.xlsx', 'CHG-B.xlsx'])
+        ->and($entries['CHG-A-1.xlsx'])->toBe($artifact($first))
+        ->and($entries['CHG-B.xlsx'])->toBe($artifact($second))
+        ->and(DB::table('access_audit_events')->where('event_type', 'EXPORT_DOWNLOADED')->pluck('nscmf_record_id')->all())
+        ->toEqualCanonicalizing([$first, $second]);
+
+    // Another actor learns nothing, and bulk export stays a separate permission.
+    signIn(Actors::requester())->getJson("/nscmf/export-batches/{$batchId}/download")->assertNotFound();
+    $owner->roles->each(fn (Role $role) => $role->revokePermissionTo('nscmf.export.bulk'));
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+    signIn($owner->refresh())->getJson("/nscmf/export-batches/{$batchId}/download")->assertForbidden();
+})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+
+it('leaves expired files out of a batch ZIP and refuses one with nothing left to download (G04)', function (): void {
+    registerTemplate();
+    $owner = Actors::requester();
+    $recordId = Records::create($owner);
+    $batchId = signIn($owner)->postJson('/nscmf/exports/bulk', ['format' => 'XLSX', 'record_ids' => [$recordId]])->json('data.id');
+    assert(is_int($batchId));
+    app(ExportGenerationService::class)->generate((int) soleValue('nscmf_export_requests', 'id'));
+
+    travel(168)->hours();
+    travel(1)->seconds();
+    signIn($owner)->getJson("/nscmf/export-batches/{$batchId}/download")->assertStatus(410)->assertJsonPath('code', 'EXPORT_EXPIRED');
+    expect(DB::table('access_audit_events')->where('event_type', 'EXPORT_DOWNLOADED')->count())->toBe(0);
 })->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
