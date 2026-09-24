@@ -138,6 +138,7 @@ test('AC3: an attachment is scanned before download, and an Approved PDF is sign
     const requester = createBrowserUser({ roles: ['Requester'], team: true });
     const reviewer = createBrowserUser({ roles: ['Reviewer'], team: true });
     const approver = createBrowserUser({ roles: ['Approver'], team: true });
+    const reopener = createBrowserUser({ permissions: ['nscmf.view', 'nscmf.view.history', 'nscmf.reopen'] });
 
     // Attachment: uploaded in chunks, scanned by the real clamd, only then downloadable.
     await loginToDashboard(page, requester.username, requester.password);
@@ -185,6 +186,31 @@ test('AC3: an attachment is scanned before download, and an Approved PDF is sign
     await page.getByTestId('validator-file').setInputFiles(pdfPath);
     await page.getByTestId('validator-verify').click();
     await expect(page.getByTestId('validator-result')).toContainText('Valid and current', { timeout: 30_000 });
+
+    // 07 §39: back on the record later, the READY file is still offered until it expires.
+    await page.goto('/dashboard');
+    await openFromHistory(page, recordPath);
+    const kept = page.locator('[data-testid^="export-job-"]').first();
+    await expect(kept).toContainText('Ready');
+    await expect(kept).toContainText('Available until');
+    const again = page.waitForEvent('download');
+    await page.locator('[data-testid^="export-download-"]').first().click();
+    expect((await again).suggestedFilename()).toMatch(/\.pdf$/);
+    await signOut(page);
+
+    // 12 §73: once the record is reopened, the same genuine PDF verifies as superseded.
+    await loginToDashboard(page, reopener.username, reopener.password);
+    await openFromHistory(page, recordPath);
+    await page.getByTestId('lifecycle-reopen-review').click();
+    await confirmDialog(page, 'Recheck after the audit.');
+    await expect(page.getByTestId('business-status-badge')).toHaveText('Pending Review');
+    await signOut(page);
+    await page.goto('/ispdfvalid');
+    await page.getByTestId('validator-file').setInputFiles(pdfPath);
+    await page.getByTestId('validator-verify').click();
+    await expect(page.getByTestId('validator-result')).toContainText('Valid, but no longer the current version', {
+        timeout: 30_000,
+    });
 });
 
 test('AC4: the protected setting needs a fresh password, and a cancelled prompt changes nothing', async ({ page }) => {
