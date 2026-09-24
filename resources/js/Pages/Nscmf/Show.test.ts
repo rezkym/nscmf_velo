@@ -280,3 +280,101 @@ describe('Record detail (FE-18)', () => {
         expect(wrapper.text()).toContain('Approved by Demo Approver.');
     });
 });
+
+/*
+ * The detail page is where Dashboard and History lead, so it must lead on to the page where the
+ * next step happens (03 UF-DRAFT-003, UF-REVIEW-005; 07 §26, §60, §61). Which step applies is the
+ * server's call through allowed_actions (12 §24); the page never infers it from status alone.
+ */
+describe('Record detail: the way to the next step', () => {
+    const CHANGE = { family: 'CHANGE', subtype: 'MAINTENANCE', change: {} } as const;
+    const hrefs = (wrapper: VueWrapper): (string | undefined)[] =>
+        wrapper.findAll('#main-content a').map((link) => link.attributes('href'));
+
+    beforeEach(() => {
+        resetInertia({ auth: { permissions: ['nscmf.view'] } });
+    });
+
+    it('lets the owner resume a Draft in the editor (UF-DRAFT-003)', () => {
+        const wrapper = mountShow({
+            ...BASE,
+            ...CHANGE,
+            business_status: 'DRAFT',
+            requested_by: null,
+            allowed_actions: ['edit_draft', 'submit'],
+        });
+
+        const link = wrapper.get('[data-testid="next-step-edit"]');
+        expect(link.attributes('href')).toBe('/nscmf/101/edit');
+        expect(link.text()).toBe('Edit Draft');
+    });
+
+    it('lets the owner revise a returned record and resubmit it, on the same record (07 §60; 05 §9)', () => {
+        const wrapper = mountShow({
+            ...BASE,
+            ...CHANGE,
+            business_status: 'REVISION_REQUIRED',
+            allowed_actions: ['edit_draft', 'submit'],
+        });
+
+        const link = wrapper.get('[data-testid="next-step-edit"]');
+        expect(link.attributes('href')).toBe('/nscmf/101/edit');
+        expect(link.text()).toBe('Revise and Resubmit');
+        expect(wrapper.find('[data-testid="next-step-waiting"]').exists()).toBe(false);
+    });
+
+    it('offers Update Result of Changes, not Edit, to the eligible owner at Pending Review (07 §26)', () => {
+        const wrapper = mountShow({
+            ...BASE,
+            ...CHANGE,
+            business_status: 'PENDING_REVIEW',
+            allowed_actions: ['edit_results'],
+        });
+
+        const link = wrapper.get('[data-testid="next-step-results"]');
+        expect(link.attributes('href')).toBe('/nscmf/101/edit');
+        expect(link.text()).toBe('Update Result of Changes');
+        expect(wrapper.find('[data-testid="next-step-edit"]').exists()).toBe(false);
+    });
+
+    it('takes a permitted reviewer to the Review detail, where the review decisions live (07 §30, §61)', () => {
+        const wrapper = mountShow({
+            ...BASE,
+            ...CHANGE,
+            business_status: 'PENDING_REVIEW',
+            allowed_actions: ['nscmf.review.return'],
+        });
+
+        expect(wrapper.get('[data-testid="next-step-review"]').attributes('href')).toBe('/review/101');
+        expect(hrefs(wrapper)).not.toContain('/approval/101');
+    });
+
+    it('takes a permitted approver to the Approval detail (07 §31, §61)', () => {
+        const wrapper = mountShow({
+            ...BASE,
+            ...CHANGE,
+            business_status: 'PENDING_APPROVAL',
+            allowed_actions: ['nscmf.approval.return_requester'],
+        });
+
+        expect(wrapper.get('[data-testid="next-step-approval"]').attributes('href')).toBe('/approval/101');
+        expect(hrefs(wrapper)).not.toContain('/review/101');
+    });
+
+    it('tells anyone else that a returned record is waiting for its requester, and offers no action (05 §30)', () => {
+        const wrapper = mountShow({ ...BASE, ...CHANGE, business_status: 'REVISION_REQUIRED', allowed_actions: [] });
+
+        expect(wrapper.get('[data-testid="next-step-waiting"]').text()).toContain(
+            'Waiting for the requester to revise and resubmit',
+        );
+        expect(hrefs(wrapper)).not.toContain('/nscmf/101/edit');
+    });
+
+    it('offers no next-step link the server did not allow, whatever the status', () => {
+        for (const business_status of ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED'] as const) {
+            const wrapper = mountShow({ ...BASE, ...CHANGE, business_status, allowed_actions: [] });
+
+            expect(hrefs(wrapper)).toEqual(['/history']);
+        }
+    });
+});
