@@ -7,7 +7,6 @@ import {
     LayoutDashboard,
     ListChecks,
     LogOut,
-    Menu,
     ScrollText,
     Settings2,
     ShieldAlert,
@@ -16,12 +15,25 @@ import {
     Users,
     UsersRound,
 } from '@lucide/vue';
-import { computed, ref, type Component } from 'vue';
+import { computed, type Component } from 'vue';
 
 import BrandMark from '@/components/BrandMark.vue';
-import { useFocusTrap } from '@/composables/useFocusTrap';
+import { Separator } from '@/components/ui/separator';
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupLabel,
+    SidebarHeader,
+    SidebarInset,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarProvider,
+    SidebarTrigger,
+} from '@/components/ui/sidebar';
 import { usePermissions } from '@/composables/usePermissions';
-import { cn } from '@/lib/utils';
 
 const props = withDefaults(defineProps<{ title?: string }>(), { title: 'NSCMF' });
 
@@ -95,16 +107,6 @@ function isCurrent(href: string): boolean {
     return path === href || path.startsWith(`${href}/`);
 }
 
-// Below the desktop breakpoint the sidebar is a panel over the page (design/plan.md §3).
-const isMenuOpen = ref(false);
-const sidebar = ref<HTMLElement | null>(null);
-
-function closeMenu(): void {
-    isMenuOpen.value = false;
-}
-
-useFocusTrap(sidebar, () => isMenuOpen.value, { onEscape: closeMenu });
-
 /** POST /logout destroys the server session (12 §77); the server redirects to the login page. */
 function signOut(): void {
     router.post('/logout');
@@ -122,119 +124,73 @@ function signOut(): void {
         <slot />
     </div>
 
-    <div v-else class="min-h-screen bg-background text-foreground lg:flex">
+    <!-- On narrow screens the shadcn Sidebar becomes a panel over the page (design/plan.md §3). -->
+    <SidebarProvider v-else>
         <a
             href="#main-content"
-            class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
         >
             Skip to main content
         </a>
 
-        <div
-            v-if="isMenuOpen"
-            data-testid="sidebar-backdrop"
-            aria-hidden="true"
-            class="fixed inset-0 z-40 bg-brand-950/40 transition-opacity duration-300 ease-out starting:opacity-0 lg:hidden"
-            @click="closeMenu"
-        />
-
-        <aside
-            id="sidebar-navigation"
-            ref="sidebar"
-            data-testid="sidebar"
-            aria-label="Main Navigation"
-            :class="
-                cn(
-                    'fixed inset-y-0 left-0 z-50 w-64 flex-col border-r border-sidebar-border bg-sidebar',
-                    // Only the narrow-screen panel slides in; the desktop sidebar never animates on page load.
-                    'transition-transform duration-300 ease-drawer max-lg:starting:-translate-x-full',
-                    'lg:sticky lg:top-0 lg:z-auto lg:flex lg:h-screen lg:shrink-0',
-                    isMenuOpen ? 'flex' : 'hidden',
-                )
-            "
-        >
-            <div class="flex h-18 items-center gap-3 px-6">
-                <BrandMark />
-                <div class="leading-tight">
-                    <p class="font-semibold tracking-tight text-heading">NSCMF</p>
-                    <p class="text-xs text-muted-foreground">Digital Form &amp; Workflow</p>
+        <Sidebar>
+            <SidebarHeader>
+                <div class="flex items-center gap-2.5 px-2 py-1.5">
+                    <BrandMark />
+                    <div class="grid leading-tight">
+                        <span class="font-semibold text-heading">NSCMF</span>
+                        <span class="text-xs text-muted-foreground">Digital Form &amp; Workflow</span>
+                    </div>
                 </div>
-            </div>
+            </SidebarHeader>
 
-            <nav class="flex-1 space-y-6 overflow-y-auto px-4 py-4" aria-label="Sidebar Menu">
-                <div v-for="group in navGroups" :key="group.label" class="space-y-1">
-                    <p class="px-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {{ group.label }}
-                    </p>
-                    <Link
-                        v-for="item in group.items"
-                        :key="item.href"
-                        :href="item.href"
-                        :aria-current="isCurrent(item.href) ? 'page' : undefined"
-                        :class="
-                            cn(
-                                'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150',
-                                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                                isCurrent(item.href)
-                                    ? 'bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:inset-y-2 before:-left-4 before:w-1 before:rounded-r-full before:bg-sidebar-primary'
-                                    : 'text-sidebar-foreground hover:bg-muted hover:text-heading',
-                            )
-                        "
-                    >
-                        <component
-                            :is="item.icon"
-                            class="size-[18px] shrink-0"
-                            :stroke-width="1.75"
-                            aria-hidden="true"
-                        />
-                        {{ item.label }}
-                    </Link>
-                </div>
-            </nav>
+            <SidebarContent>
+                <nav aria-label="Sidebar Menu">
+                    <SidebarGroup v-for="group in navGroups" :key="group.label">
+                        <SidebarGroupLabel>{{ group.label }}</SidebarGroupLabel>
+                        <SidebarMenu>
+                            <SidebarMenuItem v-for="item in group.items" :key="item.href">
+                                <SidebarMenuButton as-child :is-active="isCurrent(item.href)">
+                                    <Link :href="item.href" :aria-current="isCurrent(item.href) ? 'page' : undefined">
+                                        <component :is="item.icon" aria-hidden="true" />
+                                        <span>{{ item.label }}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroup>
+                </nav>
+            </SidebarContent>
 
             <!-- Team is profile information only, never an access hint (07 §6). -->
-            <div v-if="user" class="space-y-2 border-t border-sidebar-border p-4">
-                <div class="min-w-0 px-3">
-                    <p class="truncate text-sm font-medium text-heading">{{ user.name }}</p>
-                    <p v-if="user.team" class="truncate text-xs text-muted-foreground">{{ user.team.name }}</p>
+            <SidebarFooter v-if="user">
+                <div data-testid="sidebar-user" class="grid px-2 py-1.5 leading-tight">
+                    <span class="truncate text-sm font-medium text-heading">{{ user.name }}</span>
+                    <span v-if="user.team" class="truncate text-xs text-muted-foreground">{{ user.team.name }}</span>
                 </div>
-                <button
-                    type="button"
-                    data-testid="btn-logout"
-                    class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors duration-150 hover:bg-muted hover:text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    @click="signOut"
-                >
-                    <LogOut class="size-[18px]" :stroke-width="1.75" aria-hidden="true" />
-                    Sign out
-                </button>
-            </div>
-        </aside>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton type="button" data-testid="btn-logout" @click="signOut">
+                            <LogOut aria-hidden="true" />
+                            <span>Sign out</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarFooter>
+        </Sidebar>
 
-        <div class="flex min-w-0 flex-1 flex-col">
+        <SidebarInset id="main-content" tabindex="-1" class="min-w-0 focus:outline-none">
             <header
-                class="sticky top-0 z-30 flex h-18 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur sm:px-6 lg:px-8"
+                class="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/90 px-4 backdrop-blur sm:px-6"
             >
-                <button
-                    type="button"
-                    data-testid="sidebar-toggle"
-                    :aria-expanded="isMenuOpen ? 'true' : 'false'"
-                    aria-controls="sidebar-navigation"
-                    aria-label="Open navigation menu"
-                    class="-ml-1 inline-flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-card hover:text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
-                    @click="isMenuOpen = !isMenuOpen"
-                >
-                    <Menu class="size-5" :stroke-width="1.75" aria-hidden="true" />
-                </button>
-                <p class="flex min-w-0 items-baseline gap-2 text-sm">
-                    <span class="font-semibold text-heading lg:hidden">NSCMF</span>
-                    <span class="text-muted-foreground lg:hidden" aria-hidden="true">/</span>
-                    <span class="truncate font-medium text-foreground">{{ props.title }}</span>
-                </p>
+                <SidebarTrigger data-testid="sidebar-toggle" class="-ml-1" />
+                <Separator orientation="vertical" class="mr-1 data-[orientation=vertical]:h-4" />
+                <p class="truncate text-sm font-medium text-heading">{{ props.title }}</p>
             </header>
 
-            <main id="main-content" class="min-w-0 flex-1 p-4 focus:outline-none sm:p-6 lg:p-8" tabindex="-1">
+            <div class="flex-1 p-4 sm:p-6 lg:p-8">
                 <slot />
-            </main>
-        </div>
-    </div>
+            </div>
+        </SidebarInset>
+    </SidebarProvider>
 </template>

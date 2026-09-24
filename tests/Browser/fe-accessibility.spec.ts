@@ -117,7 +117,7 @@ test('on a phone the navigation opens as a panel, takes focus, closes on Escape 
     await page.keyboard.press('Enter');
     await expect(menu).toHaveAttribute('aria-expanded', 'true');
     await expect(navigation).toBeVisible();
-    await expect(page.locator('#sidebar-navigation :focus')).toHaveCount(1);
+    await expect(page.getByRole('dialog').locator(':focus')).toHaveCount(1);
 
     await page.keyboard.press('Escape');
     await expect(navigation).toBeHidden();
