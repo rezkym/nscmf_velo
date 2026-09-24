@@ -1,6 +1,6 @@
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type JsonResult, sendJson } from '@/lib/http';
 import { flashDomainError, pageProps, resetInertia, router } from '@/testing/inertia';
@@ -14,6 +14,9 @@ vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inert
 vi.mock('@/lib/http', () => ({ sendJson: vi.fn() }));
 
 const send = vi.mocked(sendJson);
+
+// Every editor is unmounted after its test, so no timer or request of one test runs into the next.
+enableAutoUnmount(afterEach);
 
 function changeRecord(overrides: Partial<NscmfDetailRecord> = {}): NscmfDetailRecord {
     return {
