@@ -36,6 +36,13 @@ interface ExportRepository
 
     public function lockRequest(int $exportId): ExportRequest;
 
+    /**
+     * One requester's exports of one record requested after $since and not expired, newest first.
+     *
+     * @return list<ExportRequest>
+     */
+    public function recentOwnRequests(int $recordId, int $userId, CarbonImmutable $since, CarbonImmutable $now): array;
+
     /** @param array<string, mixed> $attributes */
     public function updateRequest(ExportRequest $request, array $attributes): void;
 

@@ -131,6 +131,27 @@ final readonly class ExportService
         ];
     }
 
+    /**
+     * The actor's own exports of one record still inside the retention window, so a READY file
+     * can be downloaded again until it expires (07 §39, §57).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function recent(User $actor, int $recordId): array
+    {
+        $record = $this->records->find($recordId);
+        if ($record === null || ! RecordAccess::isVisibleTo($record, $actor->id)) {
+            throw DomainRuleException::notFound();
+        }
+        if (! $actor->can('nscmf.export')) {
+            throw DomainRuleException::forbidden();
+        }
+        $now = CarbonImmutable::now();
+        $since = $now->subHours(config()->integer('nscmf.exports.retention_hours'));
+
+        return array_map(self::project(...), $this->exports->recentOwnRequests($record->id, $actor->id, $since, $now));
+    }
+
     /** @return array<string, mixed> */
     public function show(User $actor, int $exportId): array
     {

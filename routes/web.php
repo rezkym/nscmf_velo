@@ -84,6 +84,7 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/nscmf/{record}/attachments/{attachment}', [AttachmentController::class, 'destroy'])->whereNumber(['record', 'attachment'])->name('nscmf.attachments.destroy');
     Route::controller(ExportController::class)->group(function (): void {
         Route::post('/nscmf/{record}/exports', 'store')->whereNumber('record')->name('nscmf.exports.store');
+        Route::get('/nscmf/{record}/exports', 'index')->whereNumber('record')->name('nscmf.exports.index');
         Route::post('/nscmf/exports/bulk', 'bulk')->name('nscmf.exports.bulk');
         Route::get('/nscmf/exports/{export}', 'show')->whereNumber('export')->name('nscmf.exports.show');
         Route::get('/nscmf/exports/{export}/download', 'download')->whereNumber('export')->name('nscmf.exports.download');

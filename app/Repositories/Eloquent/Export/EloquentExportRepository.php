@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Eloquent\Export;
 
+use App\Domain\Export\ExportStatus;
 use App\Models\Export\ExportArtifact;
 use App\Models\Export\ExportBatch;
 use App\Models\Export\ExportRequest;
@@ -54,6 +55,21 @@ final class EloquentExportRepository implements ExportRepository
     public function findRequest(int $exportId): ?ExportRequest
     {
         return ExportRequest::query()->with(['snapshot.templateVersion', 'artifact', 'issuance'])->find($exportId);
+    }
+
+    public function recentOwnRequests(int $recordId, int $userId, CarbonImmutable $since, CarbonImmutable $now): array
+    {
+        return array_values(ExportRequest::query()
+            ->with(['snapshot.templateVersion', 'artifact', 'issuance'])
+            ->where('nscmf_record_id', $recordId)
+            ->where('requested_by_user_id', $userId)
+            ->where('requested_at', '>', $since)
+            ->where('status', '!=', ExportStatus::EXPIRED)
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', $now))
+            ->orderByDesc('requested_at')
+            ->orderByDesc('id')
+            ->get()
+            ->all());
     }
 
     public function lockRequest(int $exportId): ExportRequest

@@ -462,6 +462,7 @@ it('lists the actor\'s own exports of a record still inside the 168-hour window,
         ->assertJsonMissingPath('data.1.private_object_key');
 
     travel(168)->hours();
+    travel(1)->seconds();
     signIn($owner)->getJson("/nscmf/{$recordId}/exports")->assertOk()->assertJsonCount(0, 'data');
 });
 

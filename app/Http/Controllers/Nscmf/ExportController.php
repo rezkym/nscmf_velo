@@ -22,6 +22,11 @@ final class ExportController extends Controller
         return self::json(ExportService::project($this->exports->request(self::actor($request), $record, $request->exportFormat())), 202);
     }
 
+    public function index(Request $request, int $record): JsonResponse
+    {
+        return response()->json(['data' => $this->exports->recent(self::actor($request), $record)])->header('Cache-Control', 'no-store, private');
+    }
+
     public function bulk(RequestExportRequest $request): JsonResponse
     {
         return self::json($this->exports->bulk(self::actor($request), $request->exportFormat(), $request->recordIds()), 202);

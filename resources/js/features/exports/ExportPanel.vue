@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 import Alert from '@/components/ui/Alert.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -14,7 +14,8 @@ import { EXPORT_STATUS_LABELS, failureMessage, isSettled, type ExportJob } from 
 
 /**
  * Export of one record from the official template (12 §64–71). Each click is a new request the
- * server freezes into its own snapshot; the page follows only the jobs it started here.
+ * server freezes into its own snapshot. On opening, the panel also lists the actor's exports the
+ * server still keeps for this record, so a READY file stays downloadable until it expires (07 §39).
  */
 const props = withDefaults(
     defineProps<{
@@ -71,6 +72,23 @@ async function request(format: ExportJob['format']): Promise<void> {
     put(result.body.data);
     if (!isSettled(result.body.data)) void follow(result.body.data.id);
 }
+
+async function loadRecent(): Promise<void> {
+    try {
+        const result = await sendJson<{ data: ExportJob[] }>('GET', `/nscmf/${props.recordId}/exports`);
+        if (!active || !result.ok || !result.body) return;
+        // Oldest first, so each put() lands newest on top, the order the server sent.
+        for (const job of [...result.body.data].reverse()) {
+            put(job);
+            if (!isSettled(job)) void follow(job.id);
+        }
+    } catch {
+        // No list means only the jobs started here are shown; requesting still works.
+    }
+}
+onMounted(() => {
+    if (can('nscmf.export')) void loadRecent();
+});
 
 async function download(job: ExportJob): Promise<void> {
     const result = await sendJson<{ data: ExportJob }>('GET', `/nscmf/exports/${job.id}`);
