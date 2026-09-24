@@ -210,6 +210,20 @@ describe('Export status (FE-45)', () => {
         expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
+    it('AC4: a late PROCESSING answer to the download re-check leaves the settled job as it was', async () => {
+        respond(202, { data: job({ status: 'READY', download_url: '/nscmf/exports/31/download' }) });
+        respond(200, { data: job({ status: 'PROCESSING' }) });
+        const wrapper = mountPanel();
+        await wrapper.get('[data-testid="export-XLSX"]').trigger('click');
+        await flushPromises();
+        await wrapper.get('[data-testid="export-download-31"]').trigger('click');
+        await flushPromises();
+
+        expect(navigate).not.toHaveBeenCalled();
+        expect(wrapper.get('[data-testid="export-job-31"]').text()).toContain('Ready');
+        expect(wrapper.get('[data-testid="export-job-31"]').text()).not.toContain('Processing');
+    });
+
     it('stops polling when unmounted', async () => {
         fetchMock.mockImplementation(() =>
             Promise.resolve(

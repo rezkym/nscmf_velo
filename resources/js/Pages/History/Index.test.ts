@@ -72,6 +72,14 @@ describe('History (FE-37)', () => {
         expect(wrapper.get('a[href="/nscmf/5"]').text()).toBe('DEMO-ACT-005');
     });
 
+    it('AC1: an unset archived flag still means the active view when another filter changes', async () => {
+        const wrapper = mountHistory({ archived: null });
+        expect(wrapper.get<HTMLSelectElement>('[data-testid="filter-archived"]').element.value).toBe('0');
+        await wrapper.get('[data-testid="filter-family"]').setValue('CHANGE');
+
+        expect(lastRequest('/history')?.data).toMatchObject({ family: 'CHANGE', archived: 0 });
+    });
+
     it('AC1: switching to the archived view asks the server for it', async () => {
         const wrapper = mountHistory();
         await wrapper.get('[data-testid="filter-archived"]').setValue('1');

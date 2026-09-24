@@ -122,6 +122,10 @@ describe('Bulk export (FE-46)', () => {
                 items: [exportJob(40, 5, 'QUEUED'), exportJob(41, 8, 'QUEUED')],
             },
         });
+        // First poll: one file is ready while the other is still being generated.
+        respond(200, {
+            data: { id: 3, format: 'XLSX', exports: [exportJob(40, 5, 'READY'), exportJob(41, 8, 'PROCESSING')] },
+        });
         let release: () => void = () => undefined;
         fetchMock.mockImplementationOnce(
             () =>
@@ -145,9 +149,10 @@ describe('Bulk export (FE-46)', () => {
         expect(wrapper.find('[data-testid="bulk-export-zip"]').exists()).toBe(false);
         await wrapper.get('[data-testid="bulk-export-start"]').trigger('click');
         await wrapper.get('[data-testid="bulk-export-submit"]').trigger('click');
-        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+        expect(wrapper.get('[data-testid="bulk-item-5"]').text()).toContain('Ready');
 
-        // Still generating: no package offered yet.
+        // One file ready, one still generating: no package offered yet.
         expect(wrapper.find('[data-testid="bulk-export-zip"]').exists()).toBe(false);
 
         release();
