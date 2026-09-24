@@ -125,7 +125,7 @@ function filter(key: 'event_type' | 'outcome' | 'occurred_from' | 'occurred_to',
 
 <template>
     <div class="space-y-4">
-        <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Audit filters" @submit.prevent>
+        <form class="panel grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Audit filters" @submit.prevent>
             <label class="space-y-1 text-sm">
                 <span class="block text-muted-foreground">Event</span>
                 <select

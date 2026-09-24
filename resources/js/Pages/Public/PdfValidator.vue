@@ -4,6 +4,7 @@ import { ref } from 'vue';
 
 import Alert from '@/components/ui/Alert.vue';
 import Button from '@/components/ui/Button.vue';
+import { fileInputClass } from '@/components/ui/control';
 import PublicVerificationResult from '@/features/exports/PublicVerificationResult.vue';
 import type { VerificationAnswer } from '@/features/exports/verification';
 import CenteredLayout from '@/layouts/CenteredLayout.vue';
@@ -77,7 +78,7 @@ async function verify(): Promise<void> {
                     type="file"
                     accept="application/pdf,.pdf"
                     data-testid="validator-file"
-                    class="block w-full text-sm text-muted-foreground file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent-foreground hover:file:bg-accent/70"
+                    :class="fileInputClass"
                     :aria-describedby="problem ? 'validator-problem' : undefined"
                     @change="choose"
                 />

@@ -165,7 +165,11 @@ const row = (item: unknown) => item as HistoryItem;
                 description="Every NSCMF record you may see. Archived records are a separate view."
             />
 
-            <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="History filters" @submit.prevent>
+            <form
+                class="panel grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3"
+                aria-label="History filters"
+                @submit.prevent
+            >
                 <label class="space-y-1 text-sm">
                     <span class="block text-muted-foreground">View</span>
                     <select
@@ -287,9 +291,11 @@ const row = (item: unknown) => item as HistoryItem;
                     />
                 </template>
                 <template #cell-request_no="{ item }">
-                    <Link :href="`/nscmf/${row(item).id}`" class="font-medium text-primary hover:underline">{{
-                        row(item).request_no
-                    }}</Link>
+                    <Link
+                        :href="`/nscmf/${row(item).id}`"
+                        class="whitespace-nowrap font-medium text-primary hover:underline"
+                        >{{ row(item).request_no }}</Link
+                    >
                 </template>
                 <template #cell-subtype="{ item }">
                     {{ FAMILY_LABELS[row(item).family] }} · {{ SUBTYPE_LABELS[row(item).subtype] }}

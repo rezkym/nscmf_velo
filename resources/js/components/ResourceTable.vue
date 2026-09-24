@@ -172,7 +172,7 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
             </div>
 
             <div class="flex items-center gap-2">
-                <label for="table-per-page" class="text-sm text-muted-foreground">Per page</label>
+                <label for="table-per-page" class="whitespace-nowrap text-sm text-muted-foreground">Per page</label>
                 <select
                     id="table-per-page"
                     data-testid="table-per-page-select"

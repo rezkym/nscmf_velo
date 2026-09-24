@@ -3,6 +3,7 @@ import { router } from '@inertiajs/vue3';
 import { computed, onUnmounted, ref, watch } from 'vue';
 
 import Button from '@/components/ui/Button.vue';
+import { fileInputClass } from '@/components/ui/control';
 
 import AttachmentList, { type AttachmentItem } from './AttachmentList.vue';
 import { fileProblem, type AttachmentPolicy } from './attachmentPolicy';
@@ -93,7 +94,7 @@ onUnmounted(() => {
                 data-testid="attachment-input"
                 :accept="accept"
                 :disabled="pickerDisabled"
-                class="block w-full text-sm"
+                :class="fileInputClass"
                 @change="pick"
             />
             <p v-if="!policy" class="text-sm text-muted-foreground">Attachments are not available right now.</p>

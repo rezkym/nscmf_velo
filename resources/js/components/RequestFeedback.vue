@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+import { buttonVariants } from '@/components/ui/button';
+
 import type { RequestFeedbackError, SaveStatus } from '@/types/feedback';
 
 export type { RequestFeedbackError, SaveStatus };
@@ -126,7 +128,7 @@ function handleLogin(): void {
                 <button
                     type="button"
                     data-testid="feedback-login-btn"
-                    class="rounded bg-amber-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
                     @click="handleLogin"
                 >
                     Sign in again
@@ -152,7 +154,7 @@ function handleLogin(): void {
                 <button
                     type="button"
                     data-testid="feedback-refresh-btn"
-                    class="rounded bg-brand-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-950 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
                     @click="handleRefresh"
                 >
                     Refresh
@@ -215,7 +217,7 @@ function handleLogin(): void {
                 <button
                     type="button"
                     data-testid="feedback-retry-btn"
-                    class="rounded bg-amber-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
                     @click="handleRetry"
                 >
                     Retry
@@ -240,7 +242,7 @@ function handleLogin(): void {
                 <button
                     type="button"
                     data-testid="feedback-retry-btn"
-                    class="rounded bg-brand-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-950 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
                     @click="handleRetry"
                 >
                     Retry
@@ -263,7 +265,7 @@ function handleLogin(): void {
                 <button
                     type="button"
                     data-testid="feedback-retry-btn"
-                    class="rounded bg-amber-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
                     @click="handleRetry"
                 >
                     Retry

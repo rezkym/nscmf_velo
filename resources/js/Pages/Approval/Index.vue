@@ -115,7 +115,9 @@ function reloadQueue(): void {
                 @update:query="onQueryChange"
             >
                 <template #cell-request_no="{ item }">
-                    <span class="font-medium text-foreground">{{ (item as ApprovalQueueItem).request_no }}</span>
+                    <span class="whitespace-nowrap font-medium text-heading">{{
+                        (item as ApprovalQueueItem).request_no
+                    }}</span>
                 </template>
 
                 <template #cell-requester="{ item }">

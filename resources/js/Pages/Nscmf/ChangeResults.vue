@@ -45,6 +45,7 @@ export function buildChangeResultsPayload(recordVersion: number, results: Change
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
+import PageHeader from '@/components/PageHeader.vue';
 import Alert from '@/components/ui/Alert.vue';
 import Button from '@/components/ui/Button.vue';
 import { buttonVariants } from '@/components/ui/button';
@@ -318,22 +319,22 @@ function handleRefresh(): void {
 <template>
     <AppLayout :title="record.request_no">
         <div class="mx-auto max-w-5xl space-y-6">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="space-y-1">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <h1 data-testid="request-no" class="text-xl font-semibold text-foreground">
-                            {{ record.request_no }}
-                        </h1>
-                        <StatusBadge data-testid="business-status-badge" :status="record.business_status" />
-                    </div>
+            <PageHeader :title="record.request_no">
+                <template #title>
+                    <span data-testid="request-no" class="break-all">{{ record.request_no }}</span>
+                </template>
+                <div class="flex flex-wrap items-center gap-2">
+                    <StatusBadge data-testid="business-status-badge" :status="record.business_status" />
                     <p data-testid="family-subtype" class="text-sm text-muted-foreground">
                         {{ FAMILY_LABELS[record.family] }} · {{ SUBTYPE_LABELS[record.subtype] }}
                     </p>
                 </div>
-                <Link :href="`/nscmf/${record.id}`" :class="buttonVariants({ variant: 'secondary' })">
-                    Back to detail
-                </Link>
-            </div>
+                <template #actions>
+                    <Link :href="`/nscmf/${record.id}`" :class="buttonVariants({ variant: 'secondary' })">
+                        Back to detail
+                    </Link>
+                </template>
+            </PageHeader>
 
             <!-- Ineligibility warning alert -->
             <Alert

@@ -144,7 +144,9 @@ function reloadQueue(): void {
                 @update:query="onQueryChange"
             >
                 <template #cell-request_no="{ item }">
-                    <span class="font-medium text-foreground">{{ (item as ReviewQueueItem).request_no }}</span>
+                    <span class="whitespace-nowrap font-medium text-heading">{{
+                        (item as ReviewQueueItem).request_no
+                    }}</span>
                 </template>
 
                 <template #cell-family_subtype="{ item }">
