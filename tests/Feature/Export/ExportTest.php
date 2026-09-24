@@ -374,3 +374,32 @@ it('reports the snapshot an export is bound to, unaffected by later edits (FE-44
         ->assertJsonPath('data.snapshot.record_version', $version)
         ->assertJsonMissingPath('data.snapshot.snapshot_json');
 })->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+
+it('finishes an export whose previous attempt was interrupted instead of leaving it PROCESSING (14 §48)', function (): void {
+    registerTemplate();
+    $owner = Actors::requester();
+    $recordId = Records::create($owner);
+    $exportId = signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->json('data.id');
+    assert(is_int($exportId));
+    // The first attempt claimed the export, then its worker was killed before storing anything.
+    DB::table('nscmf_export_requests')->where('id', $exportId)->update(['status' => 'PROCESSING', 'started_at' => now()->subMinutes(2)]);
+
+    app(ExportGenerationService::class)->generate($exportId);
+
+    signIn($owner)->getJson("/nscmf/exports/{$exportId}")->assertJsonPath('data.status', 'READY');
+    expect(DB::table('nscmf_export_artifacts')->where('export_request_id', $exportId)->count())->toBe(1);
+})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+
+it('fails an export safely once its job has no attempts left (12 §66)', function (): void {
+    registerTemplate();
+    $owner = Actors::requester();
+    $recordId = Records::create($owner);
+    $exportId = signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->json('data.id');
+    assert(is_int($exportId));
+
+    (new GenerateExport($exportId))->failed(new RuntimeException('disk /var/secret full'));
+
+    signIn($owner)->getJson("/nscmf/exports/{$exportId}")->assertJsonPath('data.status', 'FAILED')
+        ->assertJsonPath('data.download_url', null);
+    expect((string) DB::table('nscmf_export_requests')->where('id', $exportId)->value('failure_summary'))->not->toContain('/var/secret');
+})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
