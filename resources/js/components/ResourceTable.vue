@@ -1,5 +1,10 @@
 <script setup lang="ts">
+import { Search } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
+
+import Alert from '@/components/ui/Alert.vue';
+import { buttonVariants } from '@/components/ui/button';
+import { controlClass } from '@/components/ui/control';
 
 export interface ColumnDef {
     key: string;
@@ -146,18 +151,23 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
 </script>
 
 <template>
-    <div class="resource-table-container space-y-4">
+    <div class="resource-table-container panel overflow-hidden">
         <!-- Controls: Search & Per Page -->
-        <div class="flex flex-wrap items-center justify-between gap-4">
-            <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
+            <div class="relative w-full sm:w-72">
                 <label for="table-search" class="sr-only">Search</label>
+                <Search
+                    class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                    :stroke-width="1.75"
+                    aria-hidden="true"
+                />
                 <input
                     id="table-search"
                     v-model="searchInput"
                     type="search"
                     data-testid="table-search-input"
                     placeholder="Search…"
-                    class="rounded border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    :class="[controlClass, 'pl-9']"
                 />
             </div>
 
@@ -167,7 +177,7 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
                     id="table-per-page"
                     data-testid="table-per-page-select"
                     :value="query?.per_page ?? 25"
-                    class="rounded border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    :class="[controlClass, 'w-auto']"
                     @change="onPerPageChange(($event.target as HTMLSelectElement).value)"
                 >
                     <option :value="10">10</option>
@@ -183,43 +193,38 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
             v-if="loading"
             data-testid="table-loading-state"
             aria-busy="true"
-            class="rounded bg-accent p-3 text-sm text-accent-foreground"
+            class="border-b border-border px-4 py-3 text-sm text-muted-foreground"
         >
             Loading…
         </div>
 
         <!-- Error state -->
-        <div
-            v-if="error"
-            data-testid="table-error-state"
-            role="alert"
-            class="rounded bg-destructive/10 p-4 text-sm text-destructive"
-        >
-            {{ error }}
+        <div v-if="error" data-testid="table-error-state" role="alert" class="p-4">
+            <Alert variant="error">{{ error }}</Alert>
         </div>
 
         <!-- Table View -->
         <div data-testid="table-scroll-container" class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-border text-left text-sm">
+            <table class="min-w-full text-left text-sm">
                 <caption class="sr-only">
                     {{
                         caption
                     }}
                 </caption>
-                <thead class="bg-muted text-xs uppercase text-muted-foreground">
+                <thead class="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                         <th
                             v-for="col in columns"
                             :key="col.key"
                             :data-testid="`header-${col.key}`"
                             :aria-sort="getHeaderAriaSort(col)"
-                            class="px-4 py-3"
+                            class="whitespace-nowrap px-4 py-3 font-medium"
                         >
                             <button
                                 v-if="col.sortable"
                                 type="button"
                                 :data-testid="`sort-button-${col.key}`"
-                                class="flex items-center gap-1 font-semibold hover:text-primary focus:outline-none"
+                                class="inline-flex items-center gap-1 rounded-sm font-medium uppercase tracking-wide transition-colors duration-150 hover:text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 @click="onSortChange(col.key)"
                             >
                                 {{ col.label }}
@@ -229,16 +234,16 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
                             </button>
                             <span v-else>{{ col.label }}</span>
                         </th>
-                        <th v-if="$slots.actions" class="px-4 py-3 text-right">Actions</th>
+                        <th v-if="$slots.actions" class="px-4 py-3 text-right font-medium">Actions</th>
                     </tr>
                 </thead>
-                <tbody v-if="!error && currentItems.length > 0" class="divide-y divide-border bg-card">
+                <tbody v-if="!error && currentItems.length > 0" class="divide-y divide-border">
                     <tr
                         v-for="(item, idx) in currentItems"
                         :key="typeof item.id === 'string' || typeof item.id === 'number' ? item.id : idx"
-                        class="hover:bg-muted/50"
+                        class="transition-colors duration-150 hover:bg-muted/50"
                     >
-                        <td v-for="col in columns" :key="col.key" class="px-4 py-3">
+                        <td v-for="col in columns" :key="col.key" class="px-4 py-3 align-middle">
                             <slot :name="`cell-${col.key}`" :item="item" :value="item[col.key]">
                                 {{ item[col.key] }}
                             </slot>
@@ -255,13 +260,13 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
         <div
             v-if="!error && currentItems.length === 0"
             data-testid="table-empty-state"
-            class="py-8 text-center text-sm text-muted-foreground"
+            class="px-4 py-12 text-center text-sm text-muted-foreground"
         >
             {{ emptyText }}
         </div>
 
         <!-- Pagination Bar -->
-        <div class="flex items-center justify-between border-t border-border pt-3">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
             <div class="text-sm text-muted-foreground">
                 Page {{ currentPage }} of {{ lastPage }} ({{ meta?.total ?? 0 }}
                 total)
@@ -271,7 +276,7 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
                     type="button"
                     data-testid="pagination-prev"
                     :disabled="isPrevDisabled"
-                    class="rounded border border-input px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
                     @click="onPageChange(currentPage - 1)"
                 >
                     Previous
@@ -280,7 +285,7 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
                     type="button"
                     data-testid="pagination-next"
                     :disabled="isNextDisabled"
-                    class="rounded border border-input px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
                     @click="onPageChange(currentPage + 1)"
                 >
                     Next

@@ -32,14 +32,17 @@ useFocusTrap(panel, () => props.open, {
 </script>
 
 <template>
-    <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div
+        v-if="open"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-brand-950/40 p-4 transition-opacity duration-200 ease-out starting:opacity-0"
+    >
         <div
             ref="panel"
             role="dialog"
             aria-modal="true"
             :aria-labelledby="titleId"
             :aria-describedby="description ? descriptionId : undefined"
-            class="max-h-[90vh] w-full overflow-y-auto rounded-lg border border-border bg-background p-6 shadow-lg"
+            class="panel max-h-[90vh] w-full overflow-y-auto p-6 shadow-xl transition-[opacity,scale] duration-200 ease-out starting:scale-96 starting:opacity-0"
             :class="wide ? 'max-w-2xl' : 'max-w-lg'"
         >
             <div class="mb-4 space-y-1">

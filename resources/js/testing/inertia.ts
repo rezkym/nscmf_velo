@@ -140,7 +140,8 @@ export const inertiaModule = {
     }),
     router,
     useForm: (initial: Record<string, unknown>) => createForm(initial),
-    usePage: () => ({ props: pageProps, flash: pageFlash }),
+    // Real Inertia pages always carry their URL; the shell reads it to mark the current link.
+    usePage: () => ({ props: pageProps, flash: pageFlash, url: '/' }),
 };
 
 export function resetInertia(props: Record<string, unknown> = {}, flash: Record<string, unknown> = {}): void {

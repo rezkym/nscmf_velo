@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
+import Alert from '@/components/ui/Alert.vue';
+import Button from '@/components/ui/Button.vue';
+import { controlClass } from '@/components/ui/control';
 import { useFocusTrap } from '@/composables/useFocusTrap';
 
 export interface ActionDialogProps {
@@ -99,17 +102,17 @@ watch(
 <template>
     <div
         v-if="open"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-brand-950/40 p-4 transition-opacity duration-200 ease-out starting:opacity-0"
         role="dialog"
         aria-modal="true"
         aria-labelledby="action-dialog-title"
     >
         <div
             ref="panelRef"
-            class="w-full max-w-lg rounded-lg bg-background p-6 shadow-lg border border-border space-y-4"
+            class="panel w-full max-w-lg space-y-4 p-6 shadow-xl transition-[opacity,scale] duration-200 ease-out starting:scale-96 starting:opacity-0"
         >
             <div class="space-y-1">
-                <h2 id="action-dialog-title" class="text-lg font-semibold text-foreground">
+                <h2 id="action-dialog-title" class="text-lg font-semibold">
                     {{ title }}
                 </h2>
                 <p v-if="requestNo" class="text-sm text-muted-foreground">Request No: {{ requestNo }}</p>
@@ -121,13 +124,7 @@ watch(
 
             <div v-if="destination" class="text-sm text-muted-foreground">Target: {{ destination }}</div>
 
-            <div
-                v-if="error"
-                role="alert"
-                class="rounded-md bg-destructive/15 p-3 text-sm text-destructive border border-destructive/20"
-            >
-                {{ error }}
-            </div>
+            <Alert v-if="error" variant="error">{{ error }}</Alert>
 
             <div class="space-y-2">
                 <label for="dialog-reason" class="block text-sm font-medium text-foreground">
@@ -138,7 +135,7 @@ watch(
                     id="dialog-reason"
                     ref="textareaRef"
                     v-model="reason"
-                    class="w-full min-h-[100px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    :class="[controlClass, 'min-h-[100px]']"
                     :disabled="pending"
                     :placeholder="
                         reasonRequired ? 'Enter reason...' : `Enter optional ${optionalLabel.toLowerCase()}...`
@@ -150,24 +147,12 @@ watch(
             </div>
 
             <div class="flex justify-end gap-3 pt-2">
-                <button
-                    type="button"
-                    data-test="cancel-button"
-                    class="px-4 py-2 text-sm font-medium border rounded-md hover:bg-accent disabled:opacity-50"
-                    :disabled="pending"
-                    @click="handleCancel"
-                >
+                <Button variant="secondary" data-test="cancel-button" :disabled="pending" @click="handleCancel">
                     Cancel
-                </button>
-                <button
-                    type="button"
-                    data-test="confirm-button"
-                    class="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
-                    :disabled="pending"
-                    @click="handleConfirm"
-                >
+                </Button>
+                <Button data-test="confirm-button" :disabled="pending" @click="handleConfirm">
                     {{ pending ? 'Submitting...' : confirmLabel }}
-                </button>
+                </Button>
             </div>
         </div>
     </div>

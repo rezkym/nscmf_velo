@@ -1,3 +1,5 @@
+import type { Tone } from '@/components/ui/tone';
+
 import type { BusinessStatus } from './contracts';
 
 // Canonical closed sets (06 §15-16, 11 §13, 12 §27-28). Wire values are uppercase.
@@ -36,6 +38,17 @@ export const STATUS_LABELS: Record<BusinessStatus, string> = {
     REJECTED: 'Rejected',
     APPROVED: 'Approved',
     CANCELLED: 'Cancelled',
+};
+
+/** Presentation tone of each business status (07 §7); always shown together with its label. */
+export const STATUS_TONES: Record<BusinessStatus, Tone> = {
+    DRAFT: 'neutral',
+    PENDING_REVIEW: 'info',
+    REVISION_REQUIRED: 'warning',
+    PENDING_APPROVAL: 'info',
+    REJECTED: 'destructive',
+    APPROVED: 'success',
+    CANCELLED: 'neutral',
 };
 
 /** Record summary row (12 §23); only the fields list views need. */

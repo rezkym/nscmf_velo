@@ -5,50 +5,58 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* NSCMF brand palette (07_UI_UX_Specification.md §7) mapped onto shadcn-vue neutral tokens. */
+/*
+ * NSCMF design tokens. Brand palette from 07_UI_UX_Specification.md §7; canvas, surface and text
+ * neutrals from §7.1. Every screen reads these tokens instead of repeating raw values.
+ */
 :root {
     --brand-950: #091540;
     --brand-700: #1b2cc1;
     --brand-400: #7692ff;
     --brand-200: #abd2fa;
 
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
+    --background: #f5f7fb;
+    --foreground: #202939;
+    --heading: var(--brand-950);
+    --card: #ffffff;
+    --card-foreground: #202939;
+    --popover: #ffffff;
+    --popover-foreground: #202939;
     --primary: var(--brand-700);
-    --primary-foreground: oklch(1 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --primary-foreground: #ffffff;
+    --secondary: #eef2fa;
+    --secondary-foreground: var(--brand-950);
+    --muted: #f0f3f9;
+    --muted-foreground: #5b6575;
+    --accent: color-mix(in oklab, var(--brand-200) 30%, #ffffff);
+    --accent-foreground: var(--brand-700);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: var(--brand-400);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
-    --radius: 0.625rem;
-    --sidebar: var(--brand-950);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: var(--brand-400);
-    --sidebar-primary-foreground: var(--brand-950);
-    --sidebar-accent: oklch(0.269 0.05 264);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: var(--brand-400);
+    --border: #e4e9f2;
+    --input: #c9d1df;
+    --ring: var(--brand-700);
+    --radius: 0.75rem;
+    --sidebar: #ffffff;
+    --sidebar-foreground: #5b6575;
+    --sidebar-primary: var(--brand-700);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--brand-700);
+    --sidebar-border: #e4e9f2;
+    --sidebar-ring: var(--brand-700);
+
+    /* Dashboard chart series (07 §17.1); colour follows the metric in every view. Validated for
+       colour-vision deficiency against the card surface; values are always shown as text too. */
+    --chart-created: #7692ff;
+    --chart-submitted: #3a55e6;
+    --chart-decisions: #18a0b0;
+    --chart-status: var(--brand-700);
+    --chart-track: #e8edf6;
 }
 
 .dark {
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
+    --heading: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.205 0 0);
@@ -59,25 +67,36 @@
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);
     --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
+    --accent: oklch(0.269 0.05 264);
     --accent-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: var(--brand-400);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
     --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.708 0 0);
     --sidebar-primary: var(--brand-400);
     --sidebar-primary-foreground: var(--brand-950);
-    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent: oklch(0.269 0.05 264);
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: var(--brand-400);
+
+    --chart-created: #7288ec;
+    --chart-submitted: #3149d6;
+    --chart-decisions: #16a0af;
+    --chart-status: var(--brand-400);
+    --chart-track: oklch(0.269 0 0);
+}
+
+@theme {
+    /* Panels (cards, sections, dialogs) and the thin elevation they share. */
+    --radius-panel: 1.25rem;
+    --shadow-panel: 0 0 0 1px var(--border), 0 1px 2px rgb(9 21 64 / 0.04), 0 4px 16px rgb(9 21 64 / 0.04);
+
+    /* Motion curves: strong ease-out for responses, the drawer curve for the navigation panel. */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @theme inline {
@@ -92,6 +111,7 @@
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
+    --color-heading: var(--heading);
     --color-card: var(--card);
     --color-card-foreground: var(--card-foreground);
     --color-popover: var(--popover);
@@ -108,11 +128,11 @@
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
-    --color-chart-1: var(--chart-1);
-    --color-chart-2: var(--chart-2);
-    --color-chart-3: var(--chart-3);
-    --color-chart-4: var(--chart-4);
-    --color-chart-5: var(--chart-5);
+    --color-chart-created: var(--chart-created);
+    --color-chart-submitted: var(--chart-submitted);
+    --color-chart-decisions: var(--chart-decisions);
+    --color-chart-status: var(--chart-status);
+    --color-chart-track: var(--chart-track);
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
     --radius-lg: var(--radius);
@@ -127,13 +147,27 @@
     --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* The one surface every card, section and dialog shares (07 §7.1). Padding stays with the content. */
+@utility panel {
+    border-radius: var(--radius-panel);
+    background-color: var(--color-card);
+    color: var(--color-card-foreground);
+    box-shadow: var(--shadow-panel);
+}
+
 @layer base {
     * {
         @apply border-border outline-ring/50;
     }
 
     body {
-        @apply bg-background text-foreground;
+        @apply bg-background text-foreground antialiased;
+    }
+
+    h1,
+    h2,
+    h3 {
+        @apply text-heading;
     }
 }
 
