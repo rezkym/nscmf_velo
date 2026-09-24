@@ -13,6 +13,7 @@ use App\Repositories\Contracts\Audit\BusinessAuditRepository;
 use App\Repositories\Contracts\Audit\SecurityAuditRepository;
 use App\Repositories\Contracts\Export\ExportRepository;
 use App\Repositories\Contracts\Export\SigningCertificateRepository;
+use App\Repositories\Contracts\Nscmf\DashboardMetricsRepository;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Repositories\Contracts\Nscmf\NumberSequenceRepository;
 use App\Repositories\Contracts\Nscmf\RecordEvidenceRepository;
@@ -28,6 +29,7 @@ use App\Repositories\Eloquent\Audit\EloquentBusinessAuditRepository;
 use App\Repositories\Eloquent\Audit\EloquentSecurityAuditRepository;
 use App\Repositories\Eloquent\Export\EloquentExportRepository;
 use App\Repositories\Eloquent\Export\EloquentSigningCertificateRepository;
+use App\Repositories\Eloquent\Nscmf\EloquentDashboardMetricsRepository;
 use App\Repositories\Eloquent\Nscmf\EloquentNscmfRepository;
 use App\Repositories\Eloquent\Nscmf\EloquentRecordEvidenceRepository;
 use App\Repositories\Eloquent\Nscmf\EloquentWorkflowRepository;
@@ -50,6 +52,7 @@ class RepositoryServiceProvider extends ServiceProvider
         TeamRepository::class => EloquentTeamRepository::class,
         SigningCertificateRepository::class => EloquentSigningCertificateRepository::class,
         NscmfRepository::class => EloquentNscmfRepository::class,
+        DashboardMetricsRepository::class => EloquentDashboardMetricsRepository::class,
         RecordEvidenceRepository::class => EloquentRecordEvidenceRepository::class,
         NumberSequenceRepository::class => MySqlNumberSequenceRepository::class,
         WorkflowRepository::class => EloquentWorkflowRepository::class,

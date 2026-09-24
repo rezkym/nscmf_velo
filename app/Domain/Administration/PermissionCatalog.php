@@ -35,6 +35,7 @@ final class PermissionCatalog
             'nscmf.export',
             'nscmf.export.bulk',
             'nscmf.timeline.view',
+            'nscmf.analytics.view',
             'nscmf.review',
             'nscmf.review.forward',
             'nscmf.review.return',

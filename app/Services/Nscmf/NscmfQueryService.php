@@ -14,8 +14,10 @@ use App\Domain\Shared\DomainRuleException;
 use App\Models\Nscmf\NscmfRecord;
 use App\Models\Team;
 use App\Models\User;
+use App\Repositories\Contracts\Nscmf\DashboardMetricsRepository;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Services\Audit\AccessAuditService;
+use Carbon\CarbonImmutable;
 
 /**
  * Authorized record read projections (12 §23–24): the family form data in the same canonical shape
@@ -32,12 +34,18 @@ final readonly class NscmfQueryService
 
     private const int DASHBOARD_ITEMS = 5;
 
+    /** Dashboard analytics window (12 §44.1): four consecutive 7-day buckets ending today. */
+    private const int ANALYTICS_WEEKS = 4;
+
+    private const int DAYS_PER_WEEK = 7;
+
     private const array REVIEW_ACTIONS = ['nscmf.review.return', 'nscmf.review.reject', 'nscmf.review.forward'];
 
     private const array APPROVAL_ACTIONS = ['nscmf.approve', 'nscmf.approval.return_reviewer', 'nscmf.approval.return_requester', 'nscmf.approval.reject'];
 
     public function __construct(
         private NscmfRepository $records,
+        private DashboardMetricsRepository $metrics,
         private AccessAuditService $accessAudit,
     ) {}
 
@@ -244,7 +252,81 @@ final readonly class NscmfQueryService
             $items['approvals'] = $this->summaries($this->records->recentByStatus(NscmfStatus::PENDING_APPROVAL, self::DASHBOARD_ITEMS));
         }
 
-        return ['counts' => $counts, 'items' => $items];
+        return ['counts' => $counts, 'items' => $items, 'analytics' => $this->analytics($actor)];
+    }
+
+    /**
+     * Dashboard analytics (12 §44.1): the actor's own records always; the organization only with
+     * both permissions (04 §12.1), otherwise the key is absent rather than zero-filled.
+     *
+     * @return array<string, mixed>
+     */
+    private function analytics(User $actor): array
+    {
+        $through = CarbonImmutable::today();
+        $from = $through->subDays(self::ANALYTICS_WEEKS * self::DAYS_PER_WEEK - 1);
+
+        $analytics = [
+            'period' => ['from' => $from->toDateString(), 'through' => $through->toDateString(), 'timezone' => $through->timezoneName],
+            'mine' => self::metricsSummary(
+                $from,
+                [
+                    'created' => $this->metrics->createdPerDay($actor->id, $from, $through),
+                    'first_submitted' => $this->metrics->firstSubmittedPerDay($actor->id, $from, $through),
+                    'approval_decisions' => $this->metrics->approvalDecisionsPerDay($actor->id, $from, $through),
+                ],
+                $this->metrics->activeStatusCounts($actor->id),
+                NscmfStatus::cases(),
+            ),
+        ];
+
+        if ($actor->can('nscmf.analytics.view') && $actor->can('nscmf.view.history')) {
+            $analytics['organization'] = self::metricsSummary(
+                $from,
+                [
+                    'first_submitted' => $this->metrics->firstSubmittedPerDay(null, $from, $through),
+                    'approval_decisions' => $this->metrics->approvalDecisionsPerDay(null, $from, $through),
+                ],
+                $this->metrics->activeStatusCounts(null),
+                // The organization set only holds submitted records (12 §17.1).
+                array_values(array_filter(NscmfStatus::cases(), fn (NscmfStatus $status): bool => ! $status->isNeverSubmitted())),
+            );
+        }
+
+        return $analytics;
+    }
+
+    /**
+     * Folds per-day counts into the period total and the weekly buckets, and lists every given
+     * status with its count, zero included.
+     *
+     * @param  array<string, array<string, int>>  $perDay  metric name => counts keyed by `Y-m-d`
+     * @param  array<string, int>  $statusCounts
+     * @param  list<NscmfStatus>  $statuses
+     * @return array<string, mixed>
+     */
+    private static function metricsSummary(CarbonImmutable $from, array $perDay, array $statusCounts, array $statuses): array
+    {
+        $weekly = [];
+        for ($week = 0; $week < self::ANALYTICS_WEEKS; $week++) {
+            $weekFrom = $from->addDays($week * self::DAYS_PER_WEEK)->toDateString();
+            $weekThrough = $from->addDays(($week + 1) * self::DAYS_PER_WEEK - 1)->toDateString();
+            $bucket = ['from' => $weekFrom, 'through' => $weekThrough];
+            foreach ($perDay as $metric => $days) {
+                $inWeek = array_filter($days, fn (string $day): bool => $day >= $weekFrom && $day <= $weekThrough, ARRAY_FILTER_USE_KEY);
+                $bucket[$metric] = array_sum($inWeek);
+            }
+            $weekly[] = $bucket;
+        }
+
+        return [
+            'totals_28d' => array_map(fn (array $days): int => array_sum($days), $perDay),
+            'weekly' => $weekly,
+            'active_status_counts' => array_map(
+                fn (NscmfStatus $status): array => ['status' => $status->value, 'count' => $statusCounts[$status->value] ?? 0],
+                $statuses,
+            ),
+        ];
     }
 
     /**
