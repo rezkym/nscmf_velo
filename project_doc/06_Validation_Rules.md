@@ -701,7 +701,7 @@ untrusted upload
 | Reviewer Forward | Optional comment | No |
 | Approve | Optional comment | No |
 
-Mandatory reason: trim; minimum5 meaningful chars; max2,000; whitespace-only invalid.
+Mandatory reason: trim; minimum5 meaningful chars; max2,000; whitespace-only invalid. Meaningful = non-whitespace characters (decided 2026-09-24).
 
 ## 55. Cancel Validation
 

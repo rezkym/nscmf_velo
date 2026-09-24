@@ -528,7 +528,7 @@ If useful, user-facing export detail MAY show record version / requested time.
 
 ## 41. Ready / Expiry
 
-READY shows format/download/time/`Available until`. Re-download until 168h. Expired offers Generate new export if eligible.
+READY shows format/download/time/`Available until`. Re-download until 168h. Expired offers Generate new export if eligible. The record's export panel lists the actor's retained exports on opening (12 §69.1), so leaving the page never loses a READY file.
 
 ## 42. Signing UX
 

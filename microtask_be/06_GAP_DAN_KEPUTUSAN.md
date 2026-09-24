@@ -199,4 +199,20 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Sumber: `17 §36, §49, §981` vs `12 §17.1` (record DRAFT/CANCELLED hanya terlihat pemilik).
 - Status: **CLOSED 2026-09-24** — keputusan pemilik: DEMO-CHG-008 dibuat, dibatalkan dan diarsipkan oleh Protected Superadmin sebagai pemiliknya. Karena pembuatan record butuh Team aktif (17 §18), data demo memberi Superadmin Demo Team Gamma (hanya di data demo lokal).
 
+<a id="g21"></a>
+
+## G21 — Audit E2E 2026-09-24: navigasi, akses ulang ekspor, alasan bermakna
+
+- Sumber: audit menyeluruh spesifikasi terhadap BE/FE setelah laporan pemilik (requester tidak bisa merevisi record yang dikembalikan).
+- Status: **CLOSED 2026-09-24** oleh pemilik proyek:
+  1. Akses ulang ekspor lewat endpoint baru `GET /nscmf/{record}/exports` (12 §69.1): ekspor milik actor untuk record itu dalam jendela retensi 168 jam, terbaru dulu.
+  2. "5 karakter bermakna" (06 §54, 12 §39) = 5 karakter selain whitespace.
+- Diterapkan sekaligus, tanpa keputusan baru, karena sudah tertulis di spesifikasi:
+  - visibilitas 12 §17.1 untuk semua aksi (izin aksi saja tidak membuka record);
+  - guard tujuan Reopen di service;
+  - target date yang diubah selama revisi wajib hari ini/ke depan saat Resubmit (06 §40);
+  - flag `is_protected_superadmin` milik user sendiri di shared props (12 §100) untuk menu 07 §51.
+- Temuan audit yang **tidak** diubah karena sudah sesuai: `results` di Draft save saat PENDING_REVIEW tetap `422` (12 §26, checklist 12); Superadmin non-pemilik tidak punya aksi pada REVISION_REQUIRED (05 §9, §30; 04 §10).
+- Bukti: `handoff/2026-09-24-e2e-gap-closure.md`.
+
 Removed concerns dari19A/20 tidak menjadi gap: HA/Redis/DR/backup/load/SLA architecture/automatedCD/publicCA/multi-server. Actual hostname/provider/Linux/path baru dicatat ketika deployment sungguhan diperintahkan; tidak memilih server sekarang.

@@ -609,6 +609,7 @@ Rules:
 - Team never participates; no Team filter grants or removes visibility;
 - the rule applies to every actor, including the Protected Superadmin — there is no bypass for another user's never-submitted Draft;
 - an invisible record is concealed with `404` (§102);
+- the rule governs every record-scoped read **and action**: an action permission alone (for example `nscmf.archive` or `nscmf.reopen` without any read permission) never reveals a submitted record (enforced 2026-09-24);
 - queue permissions (`nscmf.review`, `nscmf.approve`) additionally restrict each queue to its own state.
 
 Decision owner: project owner (user), 2026-09-22, recorded as gap G19 in the backend microtask register.
@@ -1084,7 +1085,7 @@ Mandatory reason; destination REJECTED.
 
 ## 39. Reason / Comment Rules
 
-Mandatory reasons: Reviewer Return/Reject, Approver Returns/Reject, Reopen, Archive, Unarchive. Trimmed minimum 5 meaningful chars, maximum 2000. Forward/Approve comment optional max2000. Cancel reason optional.
+Mandatory reasons: Reviewer Return/Reject, Approver Returns/Reject, Reopen, Archive, Unarchive. Trimmed minimum 5 meaningful chars, maximum 2000. "Meaningful" = characters other than whitespace (decided 2026-09-24): `"a   b"` is refused. Forward/Approve comment optional max2000. Cancel reason optional.
 
 ---
 
@@ -1359,6 +1360,14 @@ GET /nscmf/exports/{export}/download
 ```
 
 Requires related-record authorization + `nscmf.export` + READY + unexpired binary. Generated binary retained exactly 168h/7d.
+
+## 69.1 Record Export List — decided 2026-09-24
+
+```http
+GET /nscmf/{record}/exports
+```
+
+So a READY file can be downloaded again until it expires (07 §39) after the requester leaves the page. Requires record visibility (§17.1, else `404`) and `nscmf.export` (else `403`). Returns `200` with `data` = the actor's **own** exports of that record requested within the retention window (`nscmf.exports.retention_hours`, 168 h) and not expired, newest first, each in the §67 poll projection (never a storage key). Other users' exports are never listed. `Cache-Control: no-store, private`.
 
 ## 70. Retry
 
@@ -1878,7 +1887,7 @@ Forbidden behavior:
 
 ## 100. Authentication Props
 
-Safe shared auth context may include user, Team display, effective permissions, must-change-password flag. No password hash/session payload/signing private key/Team authorization scope.
+Safe shared auth context may include user, Team display, effective permissions, must-change-password flag, and the signed-in user's own `is_protected_superadmin` marker (added 2026-09-24 so the shell links the Protected-Superadmin-only Core Setting of 07 §51 only for that identity; it is never an authorization input — the server still decides). No password hash/session payload/signing private key/Team authorization scope.
 
 ## 101. Record Action Props
 
@@ -2040,6 +2049,7 @@ GET    /nscmf/{record}/attachments/{attachment}/download
 
 ```text
 POST /nscmf/{record}/exports
+GET  /nscmf/{record}/exports
 GET  /nscmf/exports/{export}
 GET  /nscmf/exports/{export}/download
 POST /nscmf/exports/bulk

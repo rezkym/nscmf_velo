@@ -36,6 +36,12 @@ Masalah yang **hanya ketahuan setelah CI dijalankan dengan cara ini**, dan sekar
 
 Gate lokal penuh (dengan workbook resmi, LibreOffice, dan ClamAV asli) lulus semua. Angkanya ada di `2026-09-24-decisions-and-verification.md` dan laporan sesi.
 
+## Koreksi setelah record ini ditulis (audit E2E, 2026-09-24)
+
+Record ini sempat menyatakan journey end-to-end sudah terbukti. **Klaim itu keliru.** Requester tidak bisa mencapai halaman edit dari UI, jadi tidak bisa merevisi record yang dikembalikan, melanjutkan Draft, atau mengisi Result. Celah ini lolos karena journey Chromium membuka `/nscmf/{id}/edit` secara langsung dan tidak pernah mengklik tombol.
+
+Celah tersebut, beserta 12 temuan lain, sudah ditutup dan dibuktikan dengan journey yang hanya memakai klik. Rinciannya dan angka gate terbaru ada di `2026-09-24-e2e-gap-closure.md`. Semua angka gate di atas berasal dari sebelum koreksi ini.
+
 ## Periksa silang 18 §48 (Work is NOT done when…)
 
 | # | Kondisi | Status |
