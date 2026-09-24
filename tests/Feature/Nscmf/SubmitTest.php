@@ -236,3 +236,55 @@ it('accepts optional network values that are well formed', function (): void {
 
     signIn($owner)->post("/nscmf/{$recordId}/submit", ['record_version' => 2])->assertStatus(303);
 });
+
+/*
+ * 06 §40: "Revision/Reopen: unchanged previously accepted past target MAY remain. If changed in
+ * revision, new value must be today/future at Resubmit."
+ */
+it('accepts an unchanged past target date at Resubmit but refuses a new past one', function (string $newDate, bool $accepted): void {
+    $owner = Actors::requester();
+    $recordId = prepareRecord($owner, 'CHANGE', 'MAINTENANCE', submittableChange());
+    signIn($owner)->post("/nscmf/{$recordId}/submit", ['record_version' => 2])->assertStatus(303);
+    signIn(Actors::reviewer())->post("/nscmf/{$recordId}/review/return", ['record_version' => 3, 'reason' => 'Add the contact phone.'])->assertStatus(303);
+
+    // The accepted target 2026-09-30 is now in the past.
+    travelTo(CarbonImmutable::parse('2026-10-05 09:00:00', 'Asia/Jakarta'));
+    signIn($owner)->patchJson("/nscmf/{$recordId}/draft", [
+        'record_version' => 4,
+        'change' => [...submittableChange(), 'target_execution_date' => $newDate],
+    ])->assertOk();
+
+    $response = signIn($owner)->from("/nscmf/{$recordId}/edit")->post("/nscmf/{$recordId}/submit", ['record_version' => Records::version($recordId)]);
+
+    if ($accepted) {
+        $response->assertSessionHasNoErrors();
+        expect(DB::table('nscmf_records')->where('id', $recordId)->value('business_status'))->toBe('PENDING_REVIEW');
+    } else {
+        $response->assertSessionHasErrors(['change.target_execution_date']);
+        expect(DB::table('nscmf_records')->where('id', $recordId)->value('business_status'))->toBe('REVISION_REQUIRED');
+    }
+})->with([
+    'unchanged accepted past date' => ['2026-09-30', true],
+    'changed to another past date' => ['2026-10-01', false],
+    'changed to a future date' => ['2026-10-10', true],
+    'changed to today' => ['2026-10-05', true],
+]);
+
+it('treats a target date changed during revision and then restored as unchanged', function (): void {
+    $owner = Actors::requester();
+    $recordId = prepareRecord($owner, 'CHANGE', 'MAINTENANCE', submittableChange());
+    signIn($owner)->post("/nscmf/{$recordId}/submit", ['record_version' => 2])->assertStatus(303);
+    signIn(Actors::reviewer())->post("/nscmf/{$recordId}/review/return", ['record_version' => 3, 'reason' => 'Add the contact phone.'])->assertStatus(303);
+    travelTo(CarbonImmutable::parse('2026-10-05 09:00:00', 'Asia/Jakarta'));
+
+    foreach (['2026-10-20', '2026-09-30'] as $date) {
+        signIn($owner)->patchJson("/nscmf/{$recordId}/draft", [
+            'record_version' => Records::version($recordId),
+            'change' => [...submittableChange(), 'target_execution_date' => $date],
+        ])->assertOk();
+    }
+
+    signIn($owner)->from("/nscmf/{$recordId}/edit")->post("/nscmf/{$recordId}/submit", ['record_version' => Records::version($recordId)])
+        ->assertSessionHasNoErrors();
+    expect(DB::table('nscmf_records')->where('id', $recordId)->value('business_status'))->toBe('PENDING_REVIEW');
+});
