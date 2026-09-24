@@ -51,8 +51,8 @@ it('keeps Service Impact codes as form values, never permissions', function (): 
 it('materializes the exact permission catalog without wildcards or session permissions', function (): void {
     $all = PermissionCatalog::all();
 
-    expect($all)->toHaveCount(41)
-        ->and($all)->toContain('nscmf.change.result.edit', 'users.assign_team', 'teams.assign_users', 'system.settings.manage')
+    expect($all)->toHaveCount(42)
+        ->and($all)->toContain('nscmf.change.result.edit', 'nscmf.analytics.view', 'users.assign_team', 'teams.assign_users', 'system.settings.manage')
         ->and($all)->not->toContain('roles.archive')
         ->and($all)->not->toContain('session.login')
         ->and($all)->not->toContain('session.logout')
@@ -60,7 +60,7 @@ it('materializes the exact permission catalog without wildcards or session permi
         ->and($all)->toBe(array_values(array_unique($all)));
 });
 
-it('defines the four default role bundles from 04 §33–36', function (): void {
+it('defines the four default role bundles from 04 §33–36, analytics for Superadmin only (04 §12.1)', function (): void {
     $bundles = PermissionCatalog::defaultRoleBundles();
 
     expect(array_keys($bundles))->toBe(['Superadmin', 'Requester', 'Reviewer', 'Approver'])

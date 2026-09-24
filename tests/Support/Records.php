@@ -82,6 +82,21 @@ final class Records
             ]);
     }
 
+    /** Reopens an approved record into iteration 2 and approves it again, as Reopen + a new approval would. */
+    public static function reapproved(int $recordId, User $reopener, User $approver): void
+    {
+        $previous = DB::table('nscmf_records')->where('id', $recordId)->value('current_workflow_iteration_id');
+        $iterationId = (int) DB::table('nscmf_workflow_iterations')->insertGetId([
+            'nscmf_record_id' => $recordId, 'iteration_no' => 2, 'predecessor_iteration_id' => $previous,
+            'started_via' => 'REOPEN', 'started_by_user_id' => $reopener->id, 'started_at' => now(),
+            'reviewed_by_user_id' => $approver->id, 'reviewed_at' => now(),
+            'approved_by_user_id' => $approver->id, 'approved_at' => now(),
+            'closed_status' => 'APPROVED', 'closed_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('nscmf_workflow_iterations')->where('id', $previous)->update(['superseded_at' => now()]);
+        DB::table('nscmf_records')->where('id', $recordId)->update(['current_workflow_iteration_id' => $iterationId]);
+    }
+
     public static function version(int $recordId): int
     {
         $version = DB::table('nscmf_records')->where('id', $recordId)->value('record_version');
