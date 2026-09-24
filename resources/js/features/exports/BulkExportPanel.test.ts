@@ -114,7 +114,71 @@ describe('Bulk export (FE-46)', () => {
         expect(fetchMock.mock.calls[1]?.[0]).toBe('/nscmf/export-batches/3');
     });
 
-    it('AC4: offers no ZIP or download-all', () => {
-        expect(mountPanel().text()).not.toMatch(/zip|download all/i);
+    it('AC4: offers the server ZIP only once every file settled and at least one is ready (G04)', async () => {
+        respond(202, {
+            data: {
+                id: 3,
+                format: 'XLSX',
+                items: [
+                    { record_id: 5, ...exportJob(40, 5, 'QUEUED') },
+                    { record_id: 8, ...exportJob(41, 8, 'QUEUED') },
+                ],
+            },
+        });
+        let release: () => void = () => undefined;
+        fetchMock.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    release = () =>
+                        resolve(
+                            new Response(
+                                JSON.stringify({
+                                    data: {
+                                        id: 3,
+                                        format: 'XLSX',
+                                        exports: [exportJob(40, 5, 'READY'), exportJob(41, 8, 'FAILED')],
+                                    },
+                                }),
+                                { status: 200, headers: { 'Content-Type': 'application/json' } },
+                            ),
+                        );
+                }),
+        );
+        const wrapper = mountPanel();
+        expect(wrapper.find('[data-testid="bulk-export-zip"]').exists()).toBe(false);
+        await wrapper.get('[data-testid="bulk-export-start"]').trigger('click');
+        await wrapper.get('[data-testid="bulk-export-submit"]').trigger('click');
+        await flushPromises();
+
+        // Still generating: no package offered yet.
+        expect(wrapper.find('[data-testid="bulk-export-zip"]').exists()).toBe(false);
+
+        release();
+        await vi.waitFor(() => expect(wrapper.find('[data-testid="bulk-export-zip"]').exists()).toBe(true));
+        const zip = wrapper.get('[data-testid="bulk-export-zip"]');
+        expect(zip.attributes('href')).toBe('/nscmf/export-batches/3/download');
+        expect(zip.text()).toMatch(/zip/i);
+        // The package holds only the ready file; the failed one is not presented as included.
+        expect(wrapper.text()).toMatch(/1 ready file/i);
+        expect(wrapper.text()).not.toMatch(/all .*(succeeded|exported)/i);
+    });
+
+    it('AC4: never offers a package when no file became ready', async () => {
+        respond(202, {
+            data: {
+                id: 4,
+                format: 'XLSX',
+                items: [
+                    { record_id: 5, ...exportJob(40, 5, 'FAILED') },
+                    { record_id: 8, error: { code: 'FORBIDDEN', message: 'You cannot export this record.' } },
+                ],
+            },
+        });
+        const wrapper = mountPanel();
+        await wrapper.get('[data-testid="bulk-export-start"]').trigger('click');
+        await wrapper.get('[data-testid="bulk-export-submit"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.find('[data-testid="bulk-export-zip"]').exists()).toBe(false);
     });
 });
