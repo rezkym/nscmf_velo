@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted, ref } from 'vue';
+import { computed, onUnmounted, ref } from 'vue';
 
 import Alert from '@/components/ui/Alert.vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -13,7 +13,7 @@ type BulkItem = { record_id: number } & (ExportJob | { error: { code: string; me
 
 /**
  * Export of an explicit selection (12 §71): one independently authorized request per record.
- * Packaging (ZIP, download-all) is not decided (G04), so each file is downloaded on its own.
+ * Once every file settled, the server packages the ready ones as one ZIP (G04).
  */
 const props = withDefaults(defineProps<{ selected: { id: number; request_no: string }[]; pollMs?: number }>(), {
     pollMs: 2000,
@@ -31,6 +31,13 @@ let active = true;
 onUnmounted(() => (active = false));
 
 const isJob = (item: BulkItem): item is { record_id: number } & ExportJob => !('error' in item);
+const jobs = computed(() => items.value.filter(isJob));
+const readyCount = computed(() => jobs.value.filter((job) => job.status === 'READY').length);
+const packageUrl = computed(() =>
+    batchId.value !== null && readyCount.value > 0 && jobs.value.every(isSettled)
+        ? `/nscmf/export-batches/${batchId.value}/download`
+        : null,
+);
 
 async function follow(): Promise<void> {
     while (active && batchId.value !== null && items.value.some((item) => isJob(item) && !isSettled(item))) {
@@ -106,8 +113,8 @@ async function submit(): Promise<void> {
             class="space-y-2 rounded-md border border-border p-3 text-sm"
         >
             <p>
-                Export {{ selected.length }} records as {{ format }}? Each record is checked on its own and gets its own
-                file.
+                Export {{ selected.length }} records as {{ format }}? Each record is checked on its own; ready files can
+                be downloaded one by one or together as a ZIP.
             </p>
             <p class="break-words text-muted-foreground">
                 {{ selected.map((record) => record.request_no).join(', ') }}
@@ -118,6 +125,15 @@ async function submit(): Promise<void> {
             </div>
         </div>
         <Alert v-if="error" variant="error" title="Bulk export not started">{{ error }}</Alert>
+        <p v-if="packageUrl" class="flex flex-wrap items-center gap-2 text-sm">
+            <a :href="packageUrl" data-testid="bulk-export-zip" class="font-medium text-primary hover:underline"
+                >Download ZIP</a
+            >
+            <span class="text-muted-foreground"
+                >{{ readyCount }} ready {{ readyCount === 1 ? 'file' : 'files' }}; failed or refused records are not
+                included.</span
+            >
+        </p>
         <ul v-if="items.length" class="divide-y divide-border text-sm">
             <li
                 v-for="item in items"
