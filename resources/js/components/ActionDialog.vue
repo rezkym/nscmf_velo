@@ -48,8 +48,9 @@ function validate(): boolean {
             validationError.value = 'Reason is required';
             return false;
         }
-        if (trimmed.length < 5) {
-            validationError.value = 'Reason must be at least 5 characters';
+        // 06 §54: five meaningful characters, i.e. characters other than whitespace.
+        if (trimmed.replace(/\s+/gu, '').length < 5) {
+            validationError.value = 'Reason must be at least 5 characters, not counting spaces';
             return false;
         }
         if (trimmed.length > 2000) {
