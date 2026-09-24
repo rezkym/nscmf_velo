@@ -242,13 +242,16 @@ describe('Dashboard (FE-16)', () => {
             const wrapper = mountDashboard([], {
                 analytics: { period: PERIOD, mine: MINE, organization: ORGANIZATION },
             });
-            const organization = wrapper.get('[data-testid="analytics-scope"] button:last-child');
+            const scope = wrapper.get('[data-testid="analytics-scope"]');
+            expect(scope.attributes('role')).toBe('tablist');
+            expect(scope.attributes('aria-label')).toBe('Analytics scope');
+            const organization = scope.get('[role="tab"]:last-child');
             expect(organization.text()).toBe('Organization');
-            expect(organization.attributes('aria-pressed')).toBe('false');
+            expect(organization.attributes('aria-selected')).toBe('false');
 
-            await organization.trigger('click');
+            await organization.trigger('mousedown', { button: 0 });
 
-            expect(organization.attributes('aria-pressed')).toBe('true');
+            expect(organization.attributes('aria-selected')).toBe('true');
             const activity = wrapper.get('[data-testid="activity-panel"]');
             expect(activity.get('[data-testid="activity-legend"]').text()).not.toContain('Created');
             expect(activity.findAll('[data-testid="activity-total"]').map((total) => total.text())).toEqual([
