@@ -76,6 +76,14 @@ describe('Record detail (FE-18)', () => {
         expect(wrapper.get('[data-testid="signoff-approved-by"]').text()).toContain('—');
     });
 
+    it('shows each sign-off time as Jakarta wall time, not a raw timestamp', () => {
+        const wrapper = mountShow({ ...BASE, family: 'CHANGE', subtype: 'UPGRADE', change: {} });
+
+        expect(wrapper.get('[data-testid="signoff-requested-by"]').text()).toContain('2026-09-02 09:00 WIB');
+        expect(wrapper.get('[data-testid="signoff-approved-by"]').text()).toContain('2026-09-04 11:00 WIB');
+        expect(wrapper.text()).not.toContain('T09:00:00');
+    });
+
     it('AC3: shows the human approver without implying a signed PDF', () => {
         const wrapper = mountShow({ ...BASE, family: 'CHANGE', subtype: 'UPGRADE', change: {} });
 
