@@ -401,5 +401,6 @@ it('fails an export safely once its job has no attempts left (12 §66)', functio
 
     signIn($owner)->getJson("/nscmf/exports/{$exportId}")->assertJsonPath('data.status', 'FAILED')
         ->assertJsonPath('data.download_url', null);
-    expect((string) DB::table('nscmf_export_requests')->where('id', $exportId)->value('failure_summary'))->not->toContain('/var/secret');
+    $summary = DB::table('nscmf_export_requests')->where('id', $exportId)->value('failure_summary');
+    expect(is_string($summary) && ! str_contains($summary, '/var/secret'))->toBeTrue();
 })->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');

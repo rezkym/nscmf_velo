@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\Actors;
@@ -25,7 +26,7 @@ it('opens a submitted record for any reviewer, whatever their Team', function ()
             ->component('Review/Show', false)
             ->where('record.id', $recordId)
             ->where('record.business_status', 'PENDING_REVIEW')
-            ->where('record.allowed_actions', fn (mixed $actions): bool => collect($actions)->contains('nscmf.review.forward'))
+            ->where('record.allowed_actions', fn (Collection $actions): bool => $actions->contains('nscmf.review.forward'))
             ->has('record.forward_readiness.ready')
             ->has('attachments'));
 });
