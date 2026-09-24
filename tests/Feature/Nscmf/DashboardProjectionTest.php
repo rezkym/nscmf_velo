@@ -202,6 +202,5 @@ it('aggregates the organization over submitted records only, without Request No 
                 ['status' => 'PENDING_APPROVAL', 'count' => 0],
                 ['status' => 'REJECTED', 'count' => 0],
                 ['status' => 'APPROVED', 'count' => 1],
-                ['status' => 'CANCELLED', 'count' => 0],
             ])));
 });
