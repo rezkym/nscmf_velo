@@ -161,7 +161,7 @@ describe('History (FE-37)', () => {
 
         resetInertia({ auth: { permissions: ['nscmf.view.history', 'nscmf.export', 'nscmf.export.bulk'] } });
         const wrapper = mountHistory();
-        await wrapper.get('[data-testid="select-5"]').setValue(true);
+        await wrapper.get('[data-testid="select-5"]').trigger('click');
         expect(wrapper.get('[data-testid="bulk-export"]').text()).toContain('1 selected');
 
         await wrapper.setProps({ items: [ITEMS[1]!] });

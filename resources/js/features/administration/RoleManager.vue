@@ -3,12 +3,20 @@ import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 import ReauthenticationDialog from '@/components/ReauthenticationDialog.vue';
-import { controlClass } from '@/components/ui/control';
-import Alert from '@/components/ui/Alert.vue';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import FormField from '@/components/ui/FormField.vue';
-import Modal from '@/components/ui/Modal.vue';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import FormField from '@/components/FormField.vue';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { usePermissions } from '@/composables/usePermissions';
 import { pageDomainError } from '@/lib/apiErrors';
 import { groupBy, toggleItem } from '@/lib/utils';
@@ -122,7 +130,7 @@ function savePermissions(role: RoleRow): void {
 <template>
     <div class="space-y-4">
         <div v-if="can('roles.create')" class="flex justify-end">
-            <Button data-testid="create-role-btn" @click="openNameForm(null)"> Create role </Button>
+            <Button type="button" data-testid="create-role-btn" @click="openNameForm(null)"> Create role </Button>
         </div>
 
         <div class="overflow-hidden panel">
@@ -146,6 +154,7 @@ function savePermissions(role: RoleRow): void {
                         <td class="whitespace-nowrap px-4 py-3 text-right">
                             <template v-if="!role.is_protected">
                                 <Button
+                                    type="button"
                                     v-if="can('roles.update')"
                                     variant="ghost"
                                     size="sm"
@@ -155,6 +164,7 @@ function savePermissions(role: RoleRow): void {
                                     Rename
                                 </Button>
                                 <Button
+                                    type="button"
                                     v-if="can('permissions.assign')"
                                     variant="ghost"
                                     size="sm"
@@ -174,82 +184,108 @@ function savePermissions(role: RoleRow): void {
         </div>
     </div>
 
-    <Modal
+    <Dialog
         :open="isNameFormOpen"
-        :title="renamingRole ? 'Rename role' : 'Create role'"
-        :busy="nameForm.processing"
-        @close="closeNameForm"
+        @update:open="
+            (open) => {
+                if (!open && !nameForm.processing) closeNameForm();
+            }
+        "
     >
-        <form class="space-y-4" @submit.prevent="submitNameForm">
-            <FormField id="role-name" label="Name" required :error="nameForm.errors.name">
-                <template #default="{ id, describedBy }">
-                    <input
-                        :id="id"
-                        v-model="nameForm.name"
-                        type="text"
-                        maxlength="255"
-                        required
-                        :aria-describedby="describedBy"
-                        :disabled="nameForm.processing"
-                        :class="controlClass"
-                    />
-                </template>
-            </FormField>
-            <div class="flex justify-end gap-2 pt-2">
-                <Button variant="secondary" :disabled="nameForm.processing" @click="closeNameForm">Cancel</Button>
-                <Button
-                    type="submit"
-                    data-testid="save-role-btn"
-                    :disabled="nameForm.processing || !nameForm.name.trim()"
-                >
-                    {{ nameForm.processing ? 'Saving…' : 'Save' }}
-                </Button>
-            </div>
-        </form>
-    </Modal>
+        <DialogContent :show-close-button="!nameForm.processing">
+            <DialogHeader>
+                <DialogTitle>{{ renamingRole ? 'Rename role' : 'Create role' }}</DialogTitle>
+            </DialogHeader>
+            <form class="space-y-4" @submit.prevent="submitNameForm">
+                <FormField id="role-name" label="Name" required :error="nameForm.errors.name">
+                    <template #default="{ id, describedBy }">
+                        <Input
+                            :id="id"
+                            v-model="nameForm.name"
+                            type="text"
+                            maxlength="255"
+                            required
+                            :aria-describedby="describedBy"
+                            :disabled="nameForm.processing"
+                        />
+                    </template>
+                </FormField>
+                <div class="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" :disabled="nameForm.processing" @click="closeNameForm"
+                        >Cancel</Button
+                    >
+                    <Button
+                        type="submit"
+                        data-testid="save-role-btn"
+                        :disabled="nameForm.processing || !nameForm.name.trim()"
+                    >
+                        {{ nameForm.processing ? 'Saving…' : 'Save' }}
+                    </Button>
+                </div>
+            </form>
+        </DialogContent>
+    </Dialog>
 
-    <Modal
+    <Dialog
         :open="permissionsRole !== null && !isReauthOpen"
-        :title="`Permissions for ${permissionsRole?.name ?? ''}`"
-        description="Saving changes access for everyone with this role and signs them out of active sessions."
-        :busy="permissionsForm.processing"
-        wide
-        @close="closePermissions"
+        @update:open="
+            (open) => {
+                if (!open && !permissionsForm.processing) closePermissions();
+            }
+        "
     >
-        <div class="space-y-4">
-            <Alert v-if="permissionsError" variant="error">{{ permissionsError }}</Alert>
-            <fieldset v-for="(items, group) in permissionGroups" :key="group" class="space-y-2">
-                <legend class="text-xs font-semibold uppercase text-muted-foreground">{{ group }}</legend>
-                <label v-for="item in items" :key="item.name" class="flex items-start gap-2 text-sm">
-                    <input
-                        type="checkbox"
-                        class="mt-0.5"
-                        :value="item.name"
-                        :checked="permissionsForm.permissions.includes(item.name)"
-                        @change="permissionsForm.permissions = toggleItem(permissionsForm.permissions, item.name)"
-                    />
-                    <span>
-                        <span class="font-mono text-foreground">{{ item.name }}</span>
-                        <span v-if="item.description" class="block text-xs text-muted-foreground">
-                            {{ item.description }}
+        <DialogContent class="sm:max-w-2xl" :show-close-button="!permissionsForm.processing">
+            <DialogHeader>
+                <DialogTitle>{{ `Permissions for ${permissionsRole?.name ?? ''}` }}</DialogTitle>
+                <DialogDescription
+                    >Saving changes access for everyone with this role and signs them out of active
+                    sessions.</DialogDescription
+                >
+            </DialogHeader>
+            <div class="space-y-4">
+                <Alert v-if="permissionsError" variant="destructive"
+                    ><AlertDescription>{{ permissionsError }}</AlertDescription></Alert
+                >
+                <fieldset v-for="(items, group) in permissionGroups" :key="group" class="space-y-2">
+                    <legend class="text-xs font-semibold uppercase text-muted-foreground">{{ group }}</legend>
+                    <label v-for="item in items" :key="item.name" class="flex items-start gap-2 text-sm">
+                        <Checkbox
+                            class="mt-0.5"
+                            :data-testid="`permission-${item.name}`"
+                            :model-value="permissionsForm.permissions.includes(item.name)"
+                            @update:model-value="
+                                permissionsForm.permissions = toggleItem(permissionsForm.permissions, item.name)
+                            "
+                        />
+                        <span>
+                            <span class="font-mono text-foreground">{{ item.name }}</span>
+                            <span v-if="item.description" class="block text-xs text-muted-foreground">
+                                {{ item.description }}
+                            </span>
                         </span>
-                    </span>
-                </label>
-            </fieldset>
-        </div>
-        <template #footer>
-            <Button variant="secondary" :disabled="permissionsForm.processing" @click="closePermissions">
-                Cancel
-            </Button>
-            <Button
-                data-testid="save-permissions-btn"
-                :disabled="permissionsForm.processing"
-                @click="requestSavePermissions"
-            >
-                {{ permissionsForm.processing ? 'Saving…' : 'Save permissions' }}
-            </Button>
-        </template>
-    </Modal>
+                    </label>
+                </fieldset>
+            </div>
+            <DialogFooter>
+                <Button
+                    type="button"
+                    variant="outline"
+                    :disabled="permissionsForm.processing"
+                    @click="closePermissions"
+                >
+                    Cancel
+                </Button>
+                <Button
+                    type="button"
+                    data-testid="save-permissions-btn"
+                    :disabled="permissionsForm.processing"
+                    @click="requestSavePermissions"
+                >
+                    {{ permissionsForm.processing ? 'Saving…' : 'Save permissions' }}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 
     <ReauthenticationDialog
         v-if="permissionsRole"

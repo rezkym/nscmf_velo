@@ -18,7 +18,7 @@ export const APPROVAL_ACTIONS: readonly RecordActionSpec[] = [
         path: 'approval/return-reviewer',
         consequence: 'The reviewer pool reviews it again; the current Reviewed By is cleared.',
         destination: 'Pending Review',
-        variant: 'secondary',
+        variant: 'outline',
         input: 'reason',
     },
     {
@@ -28,7 +28,7 @@ export const APPROVAL_ACTIONS: readonly RecordActionSpec[] = [
         path: 'approval/return-requester',
         consequence: 'The requester can revise and resubmit this NSCMF.',
         destination: 'Revision Required',
-        variant: 'secondary',
+        variant: 'outline',
         input: 'reason',
     },
     {

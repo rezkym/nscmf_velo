@@ -2,9 +2,10 @@
 import { Link, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import { controlClass } from '@/components/ui/control';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 import { formatJakarta } from '@/lib/datetime';
 
 /** The server's echo of the accepted audit query (12 §13, §49–50). */
@@ -128,45 +129,43 @@ function filter(key: 'event_type' | 'outcome' | 'occurred_from' | 'occurred_to',
         <form class="panel grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Audit filters" @submit.prevent>
             <label class="space-y-1 text-sm">
                 <span class="block text-muted-foreground">Event</span>
-                <select
+                <NativeSelect
+                    class="w-full"
                     data-testid="audit-filter-event"
-                    :class="controlClass"
-                    :value="query.event_type ?? ''"
+                    :model-value="query.event_type ?? ''"
                     @change="filter('event_type', $event)"
                 >
                     <option value="">All events</option>
                     <option v-for="event in events" :key="event" :value="event">{{ label(event) }}</option>
-                </select>
+                </NativeSelect>
             </label>
             <label v-if="kind === 'security'" class="space-y-1 text-sm">
                 <span class="block text-muted-foreground">Outcome</span>
-                <select
+                <NativeSelect
+                    class="w-full"
                     data-testid="audit-filter-outcome"
-                    :class="controlClass"
-                    :value="query.outcome ?? ''"
+                    :model-value="query.outcome ?? ''"
                     @change="filter('outcome', $event)"
                 >
                     <option value="">All outcomes</option>
                     <option v-for="outcome in OUTCOMES" :key="outcome" :value="outcome">{{ label(outcome) }}</option>
-                </select>
+                </NativeSelect>
             </label>
             <label class="space-y-1 text-sm">
                 <span class="block text-muted-foreground">From</span>
-                <input
+                <Input
                     type="date"
                     data-testid="audit-filter-from"
-                    :class="controlClass"
-                    :value="query.occurred_from ?? ''"
+                    :model-value="query.occurred_from ?? ''"
                     @change="filter('occurred_from', $event)"
                 />
             </label>
             <label class="space-y-1 text-sm">
                 <span class="block text-muted-foreground">To</span>
-                <input
+                <Input
                     type="date"
                     data-testid="audit-filter-to"
-                    :class="controlClass"
-                    :value="query.occurred_to ?? ''"
+                    :model-value="query.occurred_to ?? ''"
                     @change="filter('occurred_to', $event)"
                 />
             </label>
@@ -198,7 +197,8 @@ function filter(key: 'event_type' | 'outcome' | 'occurred_from' | 'occurred_to',
 
         <nav aria-label="Audit pages" class="flex items-center justify-between gap-3">
             <Button
-                variant="secondary"
+                type="button"
+                variant="outline"
                 data-testid="audit-previous"
                 :disabled="meta.current_page <= 1"
                 @click="visit({ page: meta.current_page - 1 })"
@@ -208,7 +208,8 @@ function filter(key: 'event_type' | 'outcome' | 'occurred_from' | 'occurred_to',
                 >Page {{ meta.current_page }} of {{ Math.max(1, meta.last_page) }} · {{ meta.total }} events</span
             >
             <Button
-                variant="secondary"
+                type="button"
+                variant="outline"
                 data-testid="audit-next"
                 :disabled="meta.current_page >= meta.last_page"
                 @click="visit({ page: meta.current_page + 1 })"

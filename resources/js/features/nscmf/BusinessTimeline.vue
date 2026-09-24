@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-import Alert from '@/components/ui/Alert.vue';
-import Button from '@/components/ui/Button.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/composables/usePermissions';
 import { formatJakarta } from '@/lib/datetime';
 import { sendJson } from '@/lib/http';
@@ -99,10 +99,12 @@ onUnmounted(() => controller.abort());
     <section v-else aria-label="Business timeline" :aria-busy="loading" class="space-y-4 panel p-6">
         <div class="flex items-center justify-between gap-3">
             <h2 class="font-semibold">Business timeline</h2>
-            <Button variant="secondary" :disabled="loading" @click="load(page)">Refresh timeline</Button>
+            <Button type="button" variant="outline" :disabled="loading" @click="load(page)">Refresh timeline</Button>
         </div>
         <p v-if="loading" role="status" class="text-sm text-muted-foreground">Loading timeline…</p>
-        <Alert v-if="error" variant="error" title="Timeline unavailable">{{ error }}</Alert>
+        <Alert v-if="error" variant="destructive"
+            ><AlertTitle>Timeline unavailable</AlertTitle><AlertDescription>{{ error }}</AlertDescription></Alert
+        >
         <p v-else-if="!loading && entries.length === 0" class="text-sm text-muted-foreground">
             No business events recorded.
         </p>
@@ -143,9 +145,13 @@ onUnmounted(() => controller.abort());
             </ol>
         </section>
         <nav v-if="lastPage > 1" aria-label="Timeline pages" class="flex items-center justify-between gap-3">
-            <Button variant="secondary" :disabled="loading || page <= 1" @click="load(page - 1)">Previous</Button>
+            <Button type="button" variant="outline" :disabled="loading || page <= 1" @click="load(page - 1)"
+                >Previous</Button
+            >
             <span class="text-sm">Page {{ page }} of {{ lastPage }}</span>
-            <Button variant="secondary" :disabled="loading || page >= lastPage" @click="load(page + 1)">Next</Button>
+            <Button type="button" variant="outline" :disabled="loading || page >= lastPage" @click="load(page + 1)"
+                >Next</Button
+            >
         </nav>
     </section>
 </template>

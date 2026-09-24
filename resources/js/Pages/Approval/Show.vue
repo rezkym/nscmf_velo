@@ -4,7 +4,7 @@ import AttachmentPanel from '@/features/attachments/AttachmentPanel.vue';
 import { router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
-import Button from '@/components/ui/Button.vue';
+import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/composables/usePermissions';
 import RecordDetail from '@/features/nscmf/RecordDetail.vue';
 import type { NscmfDetailRecord } from '@/features/nscmf/types';
@@ -27,7 +27,7 @@ const permitted = computed(() => APPROVAL_ACTIONS.some((action) => can(action.pe
                 <section aria-label="Approval actions" class="space-y-3 panel p-5">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <h2 class="font-semibold">Approval</h2>
-                        <Button variant="secondary" @click="router.reload()">Refresh details</Button>
+                        <Button type="button" variant="outline" @click="router.reload()">Refresh details</Button>
                     </div>
                     <p v-if="!approvable" class="text-sm text-muted-foreground">
                         This record is no longer available for approval. Its current details are shown below.

@@ -3,12 +3,21 @@ import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 import ReauthenticationDialog from '@/components/ReauthenticationDialog.vue';
-import { controlClass } from '@/components/ui/control';
-import Alert from '@/components/ui/Alert.vue';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import FormField from '@/components/ui/FormField.vue';
-import Modal from '@/components/ui/Modal.vue';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import FormField from '@/components/FormField.vue';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { usePermissions } from '@/composables/usePermissions';
 import OneTimeCredential from '@/features/administration/OneTimeCredential.vue';
 import {
@@ -272,10 +281,14 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
 <template>
     <div class="space-y-4">
         <div v-if="can('users.create')" class="flex justify-end">
-            <Button data-testid="btn-create-user" @click="openDialog({ kind: 'create' })"> Create user </Button>
+            <Button type="button" data-testid="btn-create-user" @click="openDialog({ kind: 'create' })">
+                Create user
+            </Button>
         </div>
 
-        <Alert v-if="pageError" variant="error" data-testid="users-server-error">{{ pageError }}</Alert>
+        <Alert v-if="pageError" variant="destructive" data-testid="users-server-error"
+            ><AlertDescription>{{ pageError }}</AlertDescription></Alert
+        >
 
         <div class="overflow-x-auto panel">
             <table class="min-w-full divide-y divide-border text-left text-sm">
@@ -303,17 +316,20 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                         </td>
                         <td class="px-4 py-3">
                             <div v-if="user.roles.length > 0" class="flex flex-wrap gap-1">
-                                <Badge v-for="role in user.roles" :key="role.id">{{ role.name }}</Badge>
+                                <Badge variant="secondary" v-for="role in user.roles" :key="role.id">{{
+                                    role.name
+                                }}</Badge>
                             </div>
                             <span v-else class="text-muted-foreground">No roles</span>
                         </td>
                         <td class="px-4 py-3">
-                            <Badge :variant="user.is_active ? 'success' : 'neutral'">
+                            <Badge :variant="user.is_active ? 'success' : 'secondary'">
                                 {{ user.is_active ? 'Active' : 'Disabled' }}
                             </Badge>
                         </td>
                         <td class="whitespace-nowrap px-4 py-3 text-right">
                             <Button
+                                type="button"
                                 v-if="can('users.update')"
                                 variant="ghost"
                                 size="sm"
@@ -323,6 +339,7 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                                 Edit
                             </Button>
                             <Button
+                                type="button"
                                 v-if="can('users.assign_team') || can('teams.assign_users')"
                                 variant="ghost"
                                 size="sm"
@@ -333,6 +350,7 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                             </Button>
                             <template v-if="!user.is_protected_superadmin">
                                 <Button
+                                    type="button"
                                     v-if="can('users.assign_roles')"
                                     variant="ghost"
                                     size="sm"
@@ -342,6 +360,7 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                                     Roles
                                 </Button>
                                 <Button
+                                    type="button"
                                     v-if="can('users.reset_password')"
                                     variant="ghost"
                                     size="sm"
@@ -351,6 +370,7 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                                     Reset password
                                 </Button>
                                 <Button
+                                    type="button"
                                     v-if="user.is_active && can('users.disable')"
                                     variant="ghost"
                                     size="sm"
@@ -360,6 +380,7 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
                                     Disable
                                 </Button>
                                 <Button
+                                    type="button"
                                     v-if="!user.is_active && can('users.enable')"
                                     variant="ghost"
                                     size="sm"
@@ -380,181 +401,225 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
     </div>
 
     <!-- The form dialog steps aside while re-authentication is asked, so only one dialog traps focus. -->
-    <Modal
+    <Dialog
         :open="dialog?.kind === 'create' && !isReauthOpen"
-        title="Create user"
-        description="The server generates the temporary password; you cannot set one here."
-        :busy="createForm.processing"
-        @close="closeDialog"
+        @update:open="
+            (open) => {
+                if (!open && !createForm.processing) closeDialog();
+            }
+        "
     >
-        <form class="space-y-4" @submit.prevent="requestSensitive({ kind: 'create' })">
-            <Alert v-if="formError" variant="error">{{ formError }}</Alert>
-            <FormField id="user-name" label="Name" required :error="createForm.errors.name">
-                <template #default="{ id, describedBy }">
-                    <input
-                        :id="id"
-                        v-model="createForm.name"
-                        type="text"
-                        maxlength="150"
-                        :aria-describedby="describedBy"
-                        :class="controlClass"
-                    />
-                </template>
-            </FormField>
-            <FormField id="user-username" label="Username" required :error="createForm.errors.username">
-                <template #default="{ id, describedBy }">
-                    <input
-                        :id="id"
-                        v-model="createForm.username"
-                        type="text"
-                        maxlength="150"
-                        autocomplete="off"
-                        :aria-describedby="describedBy"
-                        :class="controlClass"
-                    />
-                </template>
-            </FormField>
-            <FormField id="user-team" label="Team" required :error="createForm.errors.team_id">
-                <template #default="{ id, describedBy }">
-                    <select
-                        :id="id"
-                        v-model.number="createForm.team_id"
-                        :aria-describedby="describedBy"
-                        :class="controlClass"
-                    >
-                        <option :value="null" disabled>Select a team</option>
-                        <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
-                    </select>
-                </template>
-            </FormField>
-            <fieldset class="space-y-2">
-                <legend class="text-sm font-medium text-foreground">Roles</legend>
-                <label
-                    v-for="role in roles"
-                    :key="role.id"
-                    :data-testid="`create-role-option-${role.id}`"
-                    class="flex items-center gap-2 text-sm"
+        <DialogContent :show-close-button="!createForm.processing">
+            <DialogHeader>
+                <DialogTitle>Create user</DialogTitle>
+                <DialogDescription
+                    >The server generates the temporary password; you cannot set one here.</DialogDescription
                 >
-                    <input
-                        type="checkbox"
-                        :checked="createForm.role_ids.includes(role.id)"
-                        @change="createForm.role_ids = toggleItem(createForm.role_ids, role.id)"
-                    />
-                    {{ role.name }}
-                    <Badge v-if="role.is_protected" variant="warning">Protected</Badge>
-                </label>
-                <p v-if="createForm.errors.role_ids" class="text-xs text-destructive">
-                    {{ createForm.errors.role_ids }}
-                </p>
-            </fieldset>
-            <div class="flex justify-end gap-2 pt-2">
-                <Button variant="secondary" :disabled="createForm.processing" @click="closeDialog">Cancel</Button>
-                <Button type="submit" data-testid="btn-submit-create-user" :disabled="createForm.processing">
-                    {{ createForm.processing ? 'Creating…' : 'Create user' }}
-                </Button>
-            </div>
-        </form>
-    </Modal>
+            </DialogHeader>
+            <form class="space-y-4" @submit.prevent="requestSensitive({ kind: 'create' })">
+                <Alert v-if="formError" variant="destructive"
+                    ><AlertDescription>{{ formError }}</AlertDescription></Alert
+                >
+                <FormField id="user-name" label="Name" required :error="createForm.errors.name">
+                    <template #default="{ id, describedBy }">
+                        <Input
+                            :id="id"
+                            v-model="createForm.name"
+                            type="text"
+                            maxlength="150"
+                            :aria-describedby="describedBy"
+                        />
+                    </template>
+                </FormField>
+                <FormField id="user-username" label="Username" required :error="createForm.errors.username">
+                    <template #default="{ id, describedBy }">
+                        <Input
+                            :id="id"
+                            v-model="createForm.username"
+                            type="text"
+                            maxlength="150"
+                            autocomplete="off"
+                            :aria-describedby="describedBy"
+                        />
+                    </template>
+                </FormField>
+                <FormField id="user-team" label="Team" required :error="createForm.errors.team_id">
+                    <template #default="{ id, describedBy }">
+                        <NativeSelect
+                            class="w-full"
+                            :id="id"
+                            v-model.number="createForm.team_id"
+                            :aria-describedby="describedBy"
+                        >
+                            <option :value="null" disabled>Select a team</option>
+                            <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
+                        </NativeSelect>
+                    </template>
+                </FormField>
+                <fieldset class="space-y-2">
+                    <legend class="text-sm font-medium text-foreground">Roles</legend>
+                    <label
+                        v-for="role in roles"
+                        :key="role.id"
+                        :data-testid="`create-role-option-${role.id}`"
+                        class="flex items-center gap-2 text-sm"
+                    >
+                        <Checkbox
+                            :model-value="createForm.role_ids.includes(role.id)"
+                            @update:model-value="createForm.role_ids = toggleItem(createForm.role_ids, role.id)"
+                        />
+                        {{ role.name }}
+                        <Badge v-if="role.is_protected" variant="warning">Protected</Badge>
+                    </label>
+                    <p v-if="createForm.errors.role_ids" class="text-xs text-destructive">
+                        {{ createForm.errors.role_ids }}
+                    </p>
+                </fieldset>
+                <div class="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" :disabled="createForm.processing" @click="closeDialog"
+                        >Cancel</Button
+                    >
+                    <Button type="submit" data-testid="btn-submit-create-user" :disabled="createForm.processing">
+                        {{ createForm.processing ? 'Creating…' : 'Create user' }}
+                    </Button>
+                </div>
+            </form>
+        </DialogContent>
+    </Dialog>
 
-    <Modal
+    <Dialog
         :open="dialog?.kind === 'profile'"
-        title="Edit user"
-        :description="dialogUser?.username"
-        :busy="profileForm.processing"
-        @close="closeDialog"
+        @update:open="
+            (open) => {
+                if (!open && !profileForm.processing) closeDialog();
+            }
+        "
     >
-        <form v-if="dialogUser" class="space-y-4" @submit.prevent="submitProfile(dialogUser)">
-            <FormField id="profile-name" label="Name" required :error="profileForm.errors.name">
-                <template #default="{ id, describedBy }">
-                    <input
-                        :id="id"
-                        v-model="profileForm.name"
-                        type="text"
-                        maxlength="150"
-                        :aria-describedby="describedBy"
-                        :class="controlClass"
-                    />
-                </template>
-            </FormField>
-            <div class="flex justify-end gap-2 pt-2">
-                <Button variant="secondary" :disabled="profileForm.processing" @click="closeDialog">Cancel</Button>
-                <Button type="submit" :disabled="profileForm.processing || !profileForm.name.trim()">
-                    {{ profileForm.processing ? 'Saving…' : 'Save' }}
-                </Button>
-            </div>
-        </form>
-    </Modal>
-
-    <Modal
-        :open="dialog?.kind === 'team'"
-        title="Change team"
-        description="The team is organizational information only; changing it does not change permissions."
-        :busy="teamForm.processing"
-        @close="closeDialog"
-    >
-        <form v-if="dialogUser" class="space-y-4" @submit.prevent="submitTeam(dialogUser)">
-            <FormField id="user-team-assignment" label="Team" required :error="teamForm.errors.team_id">
-                <template #default="{ id, describedBy }">
-                    <select
-                        :id="id"
-                        v-model.number="teamForm.team_id"
-                        :aria-describedby="describedBy"
-                        :class="controlClass"
+        <DialogContent :show-close-button="!profileForm.processing">
+            <DialogHeader>
+                <DialogTitle>Edit user</DialogTitle>
+                <DialogDescription v-if="dialogUser?.username">{{ dialogUser?.username }}</DialogDescription>
+            </DialogHeader>
+            <form v-if="dialogUser" class="space-y-4" @submit.prevent="submitProfile(dialogUser)">
+                <FormField id="profile-name" label="Name" required :error="profileForm.errors.name">
+                    <template #default="{ id, describedBy }">
+                        <Input
+                            :id="id"
+                            v-model="profileForm.name"
+                            type="text"
+                            maxlength="150"
+                            :aria-describedby="describedBy"
+                        />
+                    </template>
+                </FormField>
+                <div class="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" :disabled="profileForm.processing" @click="closeDialog"
+                        >Cancel</Button
                     >
-                        <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
-                    </select>
-                </template>
-            </FormField>
-            <div class="flex justify-end gap-2 pt-2">
-                <Button variant="secondary" :disabled="teamForm.processing" @click="closeDialog">Cancel</Button>
-                <Button type="submit" :disabled="teamForm.processing || teamForm.team_id === null">
-                    {{ teamForm.processing ? 'Saving…' : 'Save' }}
-                </Button>
-            </div>
-        </form>
-    </Modal>
+                    <Button type="submit" :disabled="profileForm.processing || !profileForm.name.trim()">
+                        {{ profileForm.processing ? 'Saving…' : 'Save' }}
+                    </Button>
+                </div>
+            </form>
+        </DialogContent>
+    </Dialog>
 
-    <Modal
-        :open="dialog?.kind === 'roles' && !isReauthOpen"
-        :title="`Roles for ${dialogUser?.name ?? ''}`"
-        description="Changing roles changes access immediately and signs the user out of all active sessions."
-        :busy="rolesForm.processing"
-        @close="closeDialog"
+    <Dialog
+        :open="dialog?.kind === 'team'"
+        @update:open="
+            (open) => {
+                if (!open && !teamForm.processing) closeDialog();
+            }
+        "
     >
-        <div v-if="dialogUser" class="space-y-4">
-            <Alert v-if="formError" variant="error">{{ formError }}</Alert>
-            <fieldset class="space-y-2">
-                <legend class="sr-only">Roles</legend>
-                <label
-                    v-for="role in roles"
-                    :key="role.id"
-                    :data-testid="`role-option-${role.id}`"
-                    class="flex items-center gap-2 text-sm"
+        <DialogContent :show-close-button="!teamForm.processing">
+            <DialogHeader>
+                <DialogTitle>Change team</DialogTitle>
+                <DialogDescription
+                    >The team is organizational information only; changing it does not change
+                    permissions.</DialogDescription
                 >
-                    <input
-                        type="checkbox"
-                        :checked="rolesForm.role_ids.includes(role.id)"
-                        @change="rolesForm.role_ids = toggleItem(rolesForm.role_ids, role.id)"
-                    />
-                    {{ role.name }}
-                    <Badge v-if="role.is_protected" variant="warning">Protected</Badge>
-                </label>
-                <p v-if="rolesForm.errors.role_ids" class="text-xs text-destructive">
-                    {{ rolesForm.errors.role_ids }}
-                </p>
-            </fieldset>
-        </div>
-        <template #footer>
-            <Button variant="secondary" :disabled="rolesForm.processing" @click="closeDialog">Cancel</Button>
-            <Button
-                data-testid="btn-save-roles"
-                :disabled="rolesForm.processing || !dialogUser"
-                @click="dialogUser && requestSensitive({ kind: 'roles', user: dialogUser })"
-            >
-                {{ rolesForm.processing ? 'Saving…' : 'Save roles' }}
-            </Button>
-        </template>
-    </Modal>
+            </DialogHeader>
+            <form v-if="dialogUser" class="space-y-4" @submit.prevent="submitTeam(dialogUser)">
+                <FormField id="user-team-assignment" label="Team" required :error="teamForm.errors.team_id">
+                    <template #default="{ id, describedBy }">
+                        <NativeSelect
+                            class="w-full"
+                            :id="id"
+                            v-model.number="teamForm.team_id"
+                            :aria-describedby="describedBy"
+                        >
+                            <option v-for="team in teams" :key="team.id" :value="team.id">{{ team.name }}</option>
+                        </NativeSelect>
+                    </template>
+                </FormField>
+                <div class="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" :disabled="teamForm.processing" @click="closeDialog"
+                        >Cancel</Button
+                    >
+                    <Button type="submit" :disabled="teamForm.processing || teamForm.team_id === null">
+                        {{ teamForm.processing ? 'Saving…' : 'Save' }}
+                    </Button>
+                </div>
+            </form>
+        </DialogContent>
+    </Dialog>
+
+    <Dialog
+        :open="dialog?.kind === 'roles' && !isReauthOpen"
+        @update:open="
+            (open) => {
+                if (!open && !rolesForm.processing) closeDialog();
+            }
+        "
+    >
+        <DialogContent :show-close-button="!rolesForm.processing">
+            <DialogHeader>
+                <DialogTitle>{{ `Roles for ${dialogUser?.name ?? ''}` }}</DialogTitle>
+                <DialogDescription
+                    >Changing roles changes access immediately and signs the user out of all active
+                    sessions.</DialogDescription
+                >
+            </DialogHeader>
+            <div v-if="dialogUser" class="space-y-4">
+                <Alert v-if="formError" variant="destructive"
+                    ><AlertDescription>{{ formError }}</AlertDescription></Alert
+                >
+                <fieldset class="space-y-2">
+                    <legend class="sr-only">Roles</legend>
+                    <label
+                        v-for="role in roles"
+                        :key="role.id"
+                        :data-testid="`role-option-${role.id}`"
+                        class="flex items-center gap-2 text-sm"
+                    >
+                        <Checkbox
+                            :model-value="rolesForm.role_ids.includes(role.id)"
+                            @update:model-value="rolesForm.role_ids = toggleItem(rolesForm.role_ids, role.id)"
+                        />
+                        {{ role.name }}
+                        <Badge v-if="role.is_protected" variant="warning">Protected</Badge>
+                    </label>
+                    <p v-if="rolesForm.errors.role_ids" class="text-xs text-destructive">
+                        {{ rolesForm.errors.role_ids }}
+                    </p>
+                </fieldset>
+            </div>
+            <DialogFooter>
+                <Button type="button" variant="outline" :disabled="rolesForm.processing" @click="closeDialog"
+                    >Cancel</Button
+                >
+                <Button
+                    type="button"
+                    data-testid="btn-save-roles"
+                    :disabled="rolesForm.processing || !dialogUser"
+                    @click="dialogUser && requestSensitive({ kind: 'roles', user: dialogUser })"
+                >
+                    {{ rolesForm.processing ? 'Saving…' : 'Save roles' }}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 
     <ReauthenticationDialog
         v-if="pendingAction"

@@ -4,10 +4,9 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
 import RequestFeedback from '@/components/RequestFeedback.vue';
-import Button from '@/components/ui/Button.vue';
-import { buttonVariants } from '@/components/ui/button';
-import { controlClass } from '@/components/ui/control';
-import FormField from '@/components/ui/FormField.vue';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import FormField from '@/components/FormField.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import type { AttachmentItem } from '@/features/attachments/AttachmentList.vue';
 import AttachmentPanel from '@/features/attachments/AttachmentPanel.vue';
@@ -193,10 +192,15 @@ const form = ref<HTMLElement | null>(null);
                     <StatusBadge :status="record.business_status" />
                 </div>
                 <template #actions>
-                    <Link :href="`/nscmf/${record.id}`" :class="buttonVariants({ variant: 'secondary' })"
+                    <Link :href="`/nscmf/${record.id}`" :class="buttonVariants({ variant: 'outline' })"
                         >View record</Link
                     >
-                    <Button data-testid="btn-save-draft" :disabled="draft.isSaving.value" @click="saveNow">
+                    <Button
+                        type="button"
+                        data-testid="btn-save-draft"
+                        :disabled="draft.isSaving.value"
+                        @click="saveNow"
+                    >
                         {{ draft.isSaving.value ? 'Saving…' : 'Save draft' }}
                     </Button>
                 </template>
@@ -219,7 +223,8 @@ const form = ref<HTMLElement | null>(null);
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <FormField id="request_no" label="Request number" :error="fieldErrors['header.request_no']">
                                 <template #default="{ id, describedBy }">
-                                    <input
+                                    <Input
+                                        class="font-mono"
                                         v-if="canCorrectNumber"
                                         :id="id"
                                         v-model="header.request_no"
@@ -228,7 +233,6 @@ const form = ref<HTMLElement | null>(null);
                                         maxlength="64"
                                         autocomplete="off"
                                         :aria-describedby="describedBy"
-                                        :class="[controlClass, 'font-mono']"
                                     />
                                     <p v-else :id="id" class="font-mono text-sm text-foreground">
                                         {{ record.request_no }}
@@ -242,13 +246,13 @@ const form = ref<HTMLElement | null>(null);
                                 :error="fieldErrors['header.request_date']"
                             >
                                 <template #default="{ id, describedBy }">
-                                    <input
+                                    <Input
                                         :id="id"
-                                        v-model="header.request_date"
+                                        :model-value="header.request_date ?? ''"
                                         data-testid="draft-request-date"
                                         type="date"
                                         :aria-describedby="describedBy"
-                                        :class="controlClass"
+                                        @update:model-value="header.request_date = String($event)"
                                     />
                                 </template>
                             </FormField>

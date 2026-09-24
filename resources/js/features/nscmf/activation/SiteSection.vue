@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from '@/components/ui/Button.vue';
+import { Button } from '@/components/ui/button';
 
 import DraftField from '../DraftField.vue';
 import DraftNumberField from '../DraftNumberField.vue';
@@ -38,6 +38,7 @@ function popError(key: keyof PopSiteBlock): string | undefined {
             <div class="flex items-center justify-between gap-4">
                 <h2 class="text-base font-semibold">Customer site (direct)</h2>
                 <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     data-testid="btn-clear-direct-site"
@@ -166,6 +167,7 @@ function popError(key: keyof PopSiteBlock): string | undefined {
             <div class="flex items-center justify-between gap-4">
                 <h2 class="text-base font-semibold">Customer site at POP</h2>
                 <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     data-testid="btn-clear-pop-site"

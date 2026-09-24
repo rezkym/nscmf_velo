@@ -107,10 +107,11 @@ test('an admin creates a Team and a user; the one-time password is revealed once
     expect(response.headers()['cache-control']).toContain('no-store');
     const secret = await page.getByTestId('temporary-password-display').innerText();
     expect(secret.length).toBeGreaterThanOrEqual(12);
-    await expect(page.getByRole('cell', { name: 'chromium.person' })).toBeVisible();
 
+    // The modal credential dialog hides the page behind it from assistive technology until dismissed.
     await page.getByTestId('btn-dismiss-credential').click();
     await expect(page.getByText(secret)).toHaveCount(0);
+    await expect(page.getByRole('cell', { name: 'chromium.person' })).toBeVisible();
 
     await page.reload();
     await expect(page.getByText(secret)).toHaveCount(0);

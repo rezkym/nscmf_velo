@@ -57,11 +57,11 @@ describe('PurposeImpactSection (FE-24)', () => {
     it('AC2: keeps a selected impact without a description and asks for one only for Other', async () => {
         const wrapper = mountSection();
 
-        await wrapper.get('[data-testid="impact-NOC15"]').setValue(true);
+        await wrapper.get('[data-testid="impact-NOC15"]').trigger('click');
         expect(lastModel(wrapper).service_impacts).toEqual([{ impact_code: 'NOC15', other_description: null }]);
         expect(wrapper.find('#impact-OTHER-description').exists()).toBe(false);
 
-        await wrapper.get('[data-testid="impact-OTHER"]').setValue(true);
+        await wrapper.get('[data-testid="impact-OTHER"]').trigger('click');
         expect(wrapper.get('#impact-OTHER-description').attributes('maxlength')).toBe('500');
     });
 
@@ -73,7 +73,7 @@ describe('PurposeImpactSection (FE-24)', () => {
             ],
         });
 
-        await wrapper.get('[data-testid="impact-NOC15"]').setValue(false);
+        await wrapper.get('[data-testid="impact-NOC15"]').trigger('click');
 
         expect(lastModel(wrapper).service_impacts).toEqual([
             { impact_code: 'OTHER', other_description: 'Demo impact' },
@@ -174,7 +174,7 @@ describe('PurposeImpactSection (FE-24)', () => {
 
         for (const code of ['NOC23', 'NOC361', 'REGIONAL', 'POP', 'CUSTOMER']) {
             const wrapper = mountSection();
-            await wrapper.get(`[data-testid="impact-${code}"]`).setValue(true);
+            await wrapper.get(`[data-testid="impact-${code}"]`).trigger('click');
             expect(lastModel(wrapper).service_impacts).toEqual([{ impact_code: code, other_description: null }]);
         }
     });

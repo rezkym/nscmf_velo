@@ -2,9 +2,9 @@
 import { Link } from '@inertiajs/vue3';
 import { onMounted, onUnmounted, ref } from 'vue';
 
-import Alert from '@/components/ui/Alert.vue';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/composables/usePermissions';
 import type { BusinessStatus } from '@/features/nscmf/contracts';
 import { formatJakarta } from '@/lib/datetime';
@@ -108,10 +108,20 @@ async function download(job: ExportJob): Promise<void> {
                 <p class="text-sm text-muted-foreground">Official NSCMF Form 3.0 as Excel or PDF.</p>
             </div>
             <div class="flex gap-2">
-                <Button variant="secondary" data-testid="export-XLSX" :disabled="requesting" @click="request('XLSX')"
+                <Button
+                    type="button"
+                    variant="outline"
+                    data-testid="export-XLSX"
+                    :disabled="requesting"
+                    @click="request('XLSX')"
                     >Export XLSX</Button
                 >
-                <Button variant="secondary" data-testid="export-PDF" :disabled="requesting" @click="request('PDF')"
+                <Button
+                    type="button"
+                    variant="outline"
+                    data-testid="export-PDF"
+                    :disabled="requesting"
+                    @click="request('PDF')"
                     >Export PDF</Button
                 >
             </div>
@@ -120,7 +130,9 @@ async function download(job: ExportJob): Promise<void> {
             Approved by {{ approvedBy ?? '—' }}.
             <Link href="/ispdfvalid" class="text-primary hover:underline">Verify a PDF</Link>
         </p>
-        <Alert v-if="error" variant="error" title="Export not started">{{ error }}</Alert>
+        <Alert v-if="error" variant="destructive"
+            ><AlertTitle>Export not started</AlertTitle><AlertDescription>{{ error }}</AlertDescription></Alert
+        >
         <ul v-if="jobs.length" class="divide-y divide-border">
             <li
                 v-for="job in jobs"
@@ -131,7 +143,7 @@ async function download(job: ExportJob): Promise<void> {
                 <div class="space-y-1">
                     <p class="flex items-center gap-2 font-medium">
                         {{ job.format }}
-                        <Badge :variant="job.status === 'READY' ? 'success' : 'neutral'">{{
+                        <Badge :variant="job.status === 'READY' ? 'success' : 'secondary'">{{
                             EXPORT_STATUS_LABELS[job.status]
                         }}</Badge>
                     </p>
@@ -157,6 +169,7 @@ async function download(job: ExportJob): Promise<void> {
                     </p>
                 </div>
                 <Button
+                    type="button"
                     v-if="job.status === 'READY' && job.download_url"
                     size="sm"
                     :data-testid="`export-download-${job.id}`"

@@ -2,8 +2,8 @@
 import { router } from '@inertiajs/vue3';
 import { computed, onUnmounted, ref, watch } from 'vue';
 
-import Button from '@/components/ui/Button.vue';
-import { fileInputClass } from '@/components/ui/control';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 import AttachmentList, { type AttachmentItem } from './AttachmentList.vue';
 import { fileProblem, type AttachmentPolicy } from './attachmentPolicy';
@@ -88,13 +88,12 @@ onUnmounted(() => {
 
         <div v-if="editable" class="space-y-2">
             <label for="attachment-input" class="block text-sm font-medium">Add a file</label>
-            <input
+            <Input
                 id="attachment-input"
                 type="file"
                 data-testid="attachment-input"
                 :accept="accept"
                 :disabled="pickerDisabled"
-                :class="fileInputClass"
                 @change="pick"
             />
             <p v-if="!policy" class="text-sm text-muted-foreground">Attachments are not available right now.</p>
@@ -131,6 +130,7 @@ onUnmounted(() => {
                 />
                 <p v-if="upload.state.message" role="status" class="text-xs">{{ upload.state.message }}</p>
                 <Button
+                    type="button"
                     v-if="['uploading', 'interrupted', 'cancel-failed'].includes(upload.state.phase)"
                     variant="ghost"
                     size="sm"

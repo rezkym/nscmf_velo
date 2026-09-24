@@ -1,4 +1,4 @@
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -85,7 +85,7 @@ describe('Team administration (FE-11)', () => {
         expect(request).toMatchObject({ method: 'patch', data: { name: 'Demo Team Alpha Renamed' } });
 
         request?.options.onSuccess?.();
-        await nextTick();
+        await flushPromises();
         expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
     });
 
@@ -120,7 +120,7 @@ describe('Team administration (FE-11)', () => {
         await nextTick();
 
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-        await nextTick();
+        await flushPromises();
 
         expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
         expect(requests).toHaveLength(0);
@@ -142,7 +142,7 @@ describe('Team administration (FE-11)', () => {
 
         request?.options.onSuccess?.();
         request?.options.onFinish?.();
-        await nextTick();
+        await flushPromises();
         expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
     });
 

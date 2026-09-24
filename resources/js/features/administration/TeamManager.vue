@@ -2,12 +2,19 @@
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
-import { controlClass } from '@/components/ui/control';
-import Alert from '@/components/ui/Alert.vue';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import FormField from '@/components/ui/FormField.vue';
-import Modal from '@/components/ui/Modal.vue';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import FormField from '@/components/FormField.vue';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { usePermissions } from '@/composables/usePermissions';
 import { pageDomainError } from '@/lib/apiErrors';
 
@@ -118,7 +125,7 @@ function confirmLifecycle(entry: { team: Team; action: LifecycleAction }): void 
 <template>
     <div class="space-y-4">
         <div v-if="can('teams.create')" class="flex justify-end">
-            <Button data-testid="create-team-btn" @click="openForm(null)"> Create team </Button>
+            <Button type="button" data-testid="create-team-btn" @click="openForm(null)"> Create team </Button>
         </div>
 
         <div class="overflow-hidden panel">
@@ -134,12 +141,13 @@ function confirmLifecycle(entry: { team: Team; action: LifecycleAction }): void 
                     <tr v-for="team in teams" :key="team.id" :data-testid="`team-row-${team.id}`">
                         <td class="px-4 py-3 font-medium text-foreground">{{ team.name }}</td>
                         <td class="px-4 py-3">
-                            <Badge :variant="team.is_active ? 'success' : 'neutral'">
+                            <Badge :variant="team.is_active ? 'success' : 'secondary'">
                                 {{ team.is_active ? 'Active' : 'Inactive' }}
                             </Badge>
                         </td>
                         <td class="space-x-1 px-4 py-3 text-right">
                             <Button
+                                type="button"
                                 v-if="can('teams.update')"
                                 variant="ghost"
                                 size="sm"
@@ -149,6 +157,7 @@ function confirmLifecycle(entry: { team: Team; action: LifecycleAction }): void 
                                 Edit
                             </Button>
                             <Button
+                                type="button"
                                 v-if="can('teams.archive')"
                                 variant="ghost"
                                 size="sm"
@@ -167,56 +176,77 @@ function confirmLifecycle(entry: { team: Team; action: LifecycleAction }): void 
         </div>
     </div>
 
-    <Modal
+    <Dialog
         :open="isFormOpen"
-        :title="editingTeam ? 'Edit team' : 'Create team'"
-        :busy="form.processing"
-        @close="closeForm"
+        @update:open="
+            (open) => {
+                if (!open && !form.processing) closeForm();
+            }
+        "
     >
-        <form class="space-y-4" @submit.prevent="submitForm">
-            <FormField id="team-name" label="Name" required :error="form.errors.name">
-                <template #default="{ id, describedBy }">
-                    <input
-                        :id="id"
-                        v-model="form.name"
-                        type="text"
-                        maxlength="150"
-                        required
-                        :aria-describedby="describedBy"
-                        :disabled="form.processing"
-                        :class="controlClass"
-                    />
-                </template>
-            </FormField>
+        <DialogContent :show-close-button="!form.processing">
+            <DialogHeader>
+                <DialogTitle>{{ editingTeam ? 'Edit team' : 'Create team' }}</DialogTitle>
+            </DialogHeader>
+            <form class="space-y-4" @submit.prevent="submitForm">
+                <FormField id="team-name" label="Name" required :error="form.errors.name">
+                    <template #default="{ id, describedBy }">
+                        <Input
+                            :id="id"
+                            v-model="form.name"
+                            type="text"
+                            maxlength="150"
+                            required
+                            :aria-describedby="describedBy"
+                            :disabled="form.processing"
+                        />
+                    </template>
+                </FormField>
 
-            <div class="flex justify-end gap-2 pt-2">
-                <Button variant="secondary" :disabled="form.processing" @click="closeForm">Cancel</Button>
-                <Button type="submit" data-testid="save-team-btn" :disabled="form.processing || !form.name.trim()">
-                    {{ form.processing ? 'Saving…' : 'Save' }}
-                </Button>
-            </div>
-        </form>
-    </Modal>
+                <div class="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" :disabled="form.processing" @click="closeForm"
+                        >Cancel</Button
+                    >
+                    <Button type="submit" data-testid="save-team-btn" :disabled="form.processing || !form.name.trim()">
+                        {{ form.processing ? 'Saving…' : 'Save' }}
+                    </Button>
+                </div>
+            </form>
+        </DialogContent>
+    </Dialog>
 
-    <Modal
+    <Dialog
         :open="lifecycle !== null"
-        :title="lifecycleCopy?.title ?? ''"
-        :description="lifecycleCopy?.description"
-        :busy="lifecyclePending"
-        @close="closeLifecycle"
+        @update:open="
+            (open) => {
+                if (!open && !lifecyclePending) closeLifecycle();
+            }
+        "
     >
-        <Alert v-if="lifecycleError" variant="error">{{ lifecycleError }}</Alert>
-
-        <template #footer>
-            <Button variant="secondary" :disabled="lifecyclePending" @click="closeLifecycle">Cancel</Button>
-            <Button
-                v-if="lifecycle"
-                data-testid="confirm-lifecycle-action"
-                :disabled="lifecyclePending"
-                @click="confirmLifecycle(lifecycle)"
+        <DialogContent :show-close-button="!lifecyclePending">
+            <DialogHeader>
+                <DialogTitle>{{ lifecycleCopy?.title ?? '' }}</DialogTitle>
+                <DialogDescription v-if="lifecycleCopy?.description">{{
+                    lifecycleCopy?.description
+                }}</DialogDescription>
+            </DialogHeader>
+            <Alert v-if="lifecycleError" variant="destructive"
+                ><AlertDescription>{{ lifecycleError }}</AlertDescription></Alert
             >
-                {{ lifecyclePending ? 'Saving…' : 'Confirm' }}
-            </Button>
-        </template>
-    </Modal>
+            <DialogFooter>
+                <Button type="button" variant="outline" :disabled="lifecyclePending" @click="closeLifecycle"
+                    >Cancel</Button
+                >
+                <Button
+                    type="button"
+                    v-if="lifecycle"
+                    data-testid="confirm-lifecycle-action"
+                    :disabled="lifecyclePending"
+                    @click="confirmLifecycle(lifecycle)"
+                >
+                    {{ lifecyclePending ? 'Saving…' : 'Confirm' }}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 </template>

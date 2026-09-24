@@ -3,8 +3,8 @@ import { router } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 
 import ActionDialog from '@/components/ActionDialog.vue';
-import Alert from '@/components/ui/Alert.vue';
-import Button from '@/components/ui/Button.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button, type ButtonVariants } from '@/components/ui/button';
 import { usePermissions } from '@/composables/usePermissions';
 import { isRecordConflictCode, pageDomainError } from '@/lib/apiErrors';
 
@@ -21,7 +21,7 @@ export interface RecordActionSpec {
     path: string;
     consequence: string;
     destination?: string;
-    variant?: 'primary' | 'secondary' | 'destructive';
+    variant?: ButtonVariants['variant'];
     /** reason: mandatory 5..2000; comment: optional; optional-reason: optional `reason` field. */
     input: 'reason' | 'comment' | 'optional-reason';
     payload?: Record<string, string>;
@@ -204,9 +204,10 @@ function refresh(): void {
     <div ref="actionsRegion" :data-testid="`${testidPrefix}-actions`" class="space-y-3" tabindex="-1">
         <div v-if="visible().length" class="flex flex-wrap gap-3">
             <Button
+                type="button"
                 v-for="action in visible()"
                 :key="action.key"
-                :variant="action.variant ?? 'primary'"
+                :variant="action.variant"
                 :data-testid="`${testidPrefix}-${action.key}`"
                 :disabled="!available(action)"
                 :aria-describedby="action.unavailableReason ? `${testidPrefix}-${action.key}-reason` : undefined"
@@ -224,12 +225,15 @@ function refresh(): void {
                 {{ action.unavailableReason }}
             </p>
         </template>
-        <Alert v-if="conflict" variant="error" title="Record changed" class="space-y-2">
-            <p>{{ error }}</p>
-            <Button variant="secondary" :data-testid="`${testidPrefix}-refresh`" @click="refresh"
-                >Refresh record</Button
-            >
-        </Alert>
+        <Alert v-if="conflict" variant="destructive" class="space-y-2"
+            ><AlertTitle>Record changed</AlertTitle
+            ><AlertDescription
+                ><p>{{ error }}</p>
+                <Button type="button" variant="outline" :data-testid="`${testidPrefix}-refresh`" @click="refresh"
+                    >Refresh record</Button
+                ></AlertDescription
+            ></Alert
+        >
         <ActionDialog
             v-if="selected"
             :key="selected.key"

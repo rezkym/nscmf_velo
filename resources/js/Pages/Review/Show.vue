@@ -3,7 +3,7 @@ import type { AttachmentItem } from '@/features/attachments/AttachmentList.vue';
 import AttachmentPanel from '@/features/attachments/AttachmentPanel.vue';
 import { router } from '@inertiajs/vue3';
 
-import Button from '@/components/ui/Button.vue';
+import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/composables/usePermissions';
 import RecordDetail from '@/features/nscmf/RecordDetail.vue';
 import ReviewActions from '@/features/nscmf/workflow/ReviewActions.vue';
@@ -25,7 +25,7 @@ const { can } = usePermissions();
                 <section aria-label="Review actions" class="space-y-3 panel p-5">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <h2 class="font-semibold">Review</h2>
-                        <Button variant="secondary" @click="router.reload()">Refresh details</Button>
+                        <Button type="button" variant="outline" @click="router.reload()">Refresh details</Button>
                     </div>
                     <p
                         v-if="record.is_archived || record.business_status !== 'PENDING_REVIEW'"

@@ -46,7 +46,7 @@ describe('Technical Log setting (FE-50)', () => {
     it('shows the current server setting without writing anything on open', () => {
         const wrapper = mountPage();
 
-        expect(wrapper.get<HTMLInputElement>('[data-testid="settings-enabled"]').element.checked).toBe(true);
+        expect(wrapper.get('[data-testid="settings-enabled"]').attributes('aria-checked')).toBe('true');
         expect(wrapper.get<HTMLInputElement>('[data-testid="settings-value"]').element.value).toBe('30');
         expect(wrapper.get<HTMLSelectElement>('[data-testid="settings-unit"]').element.value).toBe('DAY');
         expect(fetchMock).not.toHaveBeenCalled();
@@ -62,7 +62,7 @@ describe('Technical Log setting (FE-50)', () => {
 
     it('AC2: turning cleanup off keeps the period and warns about storage; the exact wire names are sent', async () => {
         const wrapper = mountPage({ automatic_cleanup_enabled: true, retention_value: 3, retention_unit: 'MONTH' });
-        await wrapper.get('[data-testid="settings-enabled"]').setValue(false);
+        await wrapper.get('[data-testid="settings-enabled"]').trigger('click');
         expect(wrapper.text()).toMatch(/technical logs keep growing/i);
         expect(wrapper.get<HTMLInputElement>('[data-testid="settings-value"]').element.value).toBe('3');
 
@@ -101,6 +101,7 @@ describe('Technical Log setting (FE-50)', () => {
         expect(password).not.toBeNull();
         password!.value = 'secret-password';
         password!.dispatchEvent(new Event('input'));
+        await flushPromises();
         document.body.querySelector<HTMLFormElement>('[role="dialog"] form')?.dispatchEvent(new Event('submit'));
         await flushPromises();
 
@@ -118,11 +119,9 @@ describe('Technical Log setting (FE-50)', () => {
         const wrapper = mountPage();
 
         expect(wrapper.text()).not.toMatch(/purge|audit retention|password policy|mfa|attachment/i);
-        expect(wrapper.findAll('input, select').map((field) => field.attributes('data-testid'))).toEqual([
-            'settings-enabled',
-            'settings-value',
-            'settings-unit',
-        ]);
+        expect(
+            wrapper.findAll('input, select, [role="checkbox"]').map((field) => field.attributes('data-testid')),
+        ).toEqual(['settings-enabled', 'settings-value', 'settings-unit']);
     });
 
     // 07 §51: only the Protected Superadmin, through system.settings.manage.

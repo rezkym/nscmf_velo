@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue';
 
-import Alert from '@/components/ui/Alert.vue';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import { controlClass } from '@/components/ui/control';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { NativeSelect } from '@/components/ui/native-select';
 import { usePermissions } from '@/composables/usePermissions';
 import { sendJson } from '@/lib/http';
 
@@ -91,12 +91,13 @@ async function submit(): Promise<void> {
             <span class="text-sm font-medium">{{ selected.length }} selected</span>
             <label class="flex items-center gap-2 text-sm">
                 Format
-                <select v-model="format" data-testid="bulk-export-format" :class="[controlClass, 'w-auto']">
+                <NativeSelect v-model="format" data-testid="bulk-export-format">
                     <option value="XLSX">XLSX</option>
                     <option value="PDF">PDF</option>
-                </select>
+                </NativeSelect>
             </label>
             <Button
+                type="button"
                 size="sm"
                 data-testid="bulk-export-start"
                 :disabled="selected.length === 0 || sending"
@@ -117,11 +118,17 @@ async function submit(): Promise<void> {
                 {{ selected.map((record) => record.request_no).join(', ') }}
             </p>
             <div class="flex gap-2">
-                <Button size="sm" data-testid="bulk-export-submit" :disabled="sending" @click="submit">Export</Button>
-                <Button size="sm" variant="ghost" :disabled="sending" @click="confirming = false">Back</Button>
+                <Button type="button" size="sm" data-testid="bulk-export-submit" :disabled="sending" @click="submit"
+                    >Export</Button
+                >
+                <Button type="button" size="sm" variant="ghost" :disabled="sending" @click="confirming = false"
+                    >Back</Button
+                >
             </div>
         </div>
-        <Alert v-if="error" variant="error" title="Bulk export not started">{{ error }}</Alert>
+        <Alert v-if="error" variant="destructive"
+            ><AlertTitle>Bulk export not started</AlertTitle><AlertDescription>{{ error }}</AlertDescription></Alert
+        >
         <p v-if="packageUrl" class="flex flex-wrap items-center gap-2 text-sm">
             <a :href="packageUrl" data-testid="bulk-export-zip" class="font-medium text-primary hover:underline"
                 >Download ZIP</a
@@ -141,7 +148,7 @@ async function submit(): Promise<void> {
                 <span class="font-medium">{{ names[item.record_id] ?? `#${item.record_id}` }}</span>
                 <span v-if="!isJob(item)" class="text-destructive">{{ item.error.message }}</span>
                 <span v-else class="flex items-center gap-2">
-                    <Badge :variant="item.status === 'READY' ? 'success' : 'neutral'">{{
+                    <Badge :variant="item.status === 'READY' ? 'success' : 'secondary'">{{
                         EXPORT_STATUS_LABELS[item.status]
                     }}</Badge>
                     <span v-if="item.status === 'FAILED'" class="text-xs text-destructive">{{

@@ -154,7 +154,7 @@ describe('User administration (FE-12)', () => {
         await dialog.get('#user-name').setValue('Demo Reviewer');
         await dialog.get('#user-username').setValue('demo.reviewer');
         await dialog.get('#user-team').setValue('2');
-        await dialog.get('[data-testid="create-role-option-3"] input').setValue(true);
+        await dialog.get('[data-testid="create-role-option-3"] [role="checkbox"]').trigger('click');
         await dialog.get('form').trigger('submit');
 
         expect(jsonCall('/administration/users')).toBeUndefined();
@@ -224,7 +224,7 @@ describe('User administration (FE-12)', () => {
     it('AC4: replaces roles only after re-authentication and explains session revocation', async () => {
         const wrapper = mountPage();
         await wrapper.get('[data-testid="btn-edit-roles-2"]').trigger('click');
-        await wrapper.get('[data-testid="role-option-3"] input').setValue(true);
+        await wrapper.get('[data-testid="role-option-3"] [role="checkbox"]').trigger('click');
         await wrapper.get('[data-testid="btn-save-roles"]').trigger('click');
 
         expect(lastRequest('/administration/users/2/roles')).toBeUndefined();
@@ -361,7 +361,7 @@ describe('User administration (FE-12)', () => {
         await confirmReauth(wrapper);
 
         lastRequest('/administration/users/2/roles')?.options.onSuccess?.();
-        await nextTick();
+        await flushPromises();
 
         expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
     });

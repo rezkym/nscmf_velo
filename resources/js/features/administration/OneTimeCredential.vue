@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
-import Alert from '@/components/ui/Alert.vue';
-import Button from '@/components/ui/Button.vue';
-import Modal from '@/components/ui/Modal.vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
 /**
  * Shows a server-generated temporary password exactly once. The parent owns the secret and must
@@ -40,47 +47,60 @@ async function copyPassword(password: string): Promise<void> {
 </script>
 
 <template>
-    <Modal
+    <Dialog
         :open="open"
-        title="Temporary password"
-        data-testid="one-time-credential-container"
-        :description="username ? `For ${username}` : undefined"
-        @close="emit('dismiss')"
+        @update:open="
+            (open) => {
+                if (!open) emit('dismiss');
+            }
+        "
     >
-        <div v-if="temporaryPassword" class="space-y-4">
-            <div class="flex items-center gap-2">
-                <code
-                    data-testid="temporary-password-display"
-                    class="flex-1 select-all break-all rounded-md border border-border bg-muted px-3 py-2 font-mono text-sm"
-                    >{{ temporaryPassword }}</code
+        <DialogContent data-testid="one-time-credential-container">
+            <DialogHeader>
+                <DialogTitle>Temporary password</DialogTitle>
+                <DialogDescription v-if="username ? `For ${username}` : undefined">{{
+                    username ? `For ${username}` : undefined
+                }}</DialogDescription>
+            </DialogHeader>
+            <div v-if="temporaryPassword" class="space-y-4">
+                <div class="flex items-center gap-2">
+                    <code
+                        data-testid="temporary-password-display"
+                        class="flex-1 select-all break-all rounded-md border border-border bg-muted px-3 py-2 font-mono text-sm"
+                        >{{ temporaryPassword }}</code
+                    >
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        data-testid="btn-copy-credential"
+                        @click="copyPassword(temporaryPassword)"
+                    >
+                        {{ copyState === 'copied' ? 'Copied' : 'Copy' }}
+                    </Button>
+                </div>
+
+                <Alert v-if="copyState === 'failed'" variant="destructive" data-testid="clipboard-feedback"
+                    ><AlertDescription>Copy failed. Select the password and copy it manually.</AlertDescription></Alert
                 >
-                <Button
-                    variant="secondary"
-                    size="sm"
-                    data-testid="btn-copy-credential"
-                    @click="copyPassword(temporaryPassword)"
+
+                <Alert variant="warning"
+                    ><AlertDescription
+                        >This password is shown only once and cannot be retrieved later. Give it to the user through an
+                        internal channel; they must replace it at their first sign-in.</AlertDescription
+                    ></Alert
                 >
-                    {{ copyState === 'copied' ? 'Copied' : 'Copy' }}
-                </Button>
             </div>
 
-            <Alert v-if="copyState === 'failed'" variant="error" data-testid="clipboard-feedback">
-                Copy failed. Select the password and copy it manually.
-            </Alert>
-
-            <Alert variant="warning">
-                This password is shown only once and cannot be retrieved later. Give it to the user through an internal
-                channel; they must replace it at their first sign-in.
-            </Alert>
-        </div>
-
-        <Alert v-else variant="info" data-testid="credential-lost-advisory">
-            This temporary password is no longer available and cannot be shown again. Reset password again to generate a
-            new one.
-        </Alert>
-
-        <template #footer>
-            <Button data-testid="btn-dismiss-credential" @click="emit('dismiss')">Done</Button>
-        </template>
-    </Modal>
+            <Alert v-else data-testid="credential-lost-advisory"
+                ><AlertDescription
+                    >This temporary password is no longer available and cannot be shown again. Reset password again to
+                    generate a new one.</AlertDescription
+                ></Alert
+            >
+            <DialogFooter>
+                <Button type="button" data-testid="btn-dismiss-credential" @click="emit('dismiss')">Done</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 </template>

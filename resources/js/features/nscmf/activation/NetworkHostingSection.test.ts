@@ -65,11 +65,11 @@ describe('NetworkHostingSection (FE-22)', () => {
         expect(isRequired(wrapper, 'hosting_platform')).toBe(false);
         expect(isRequired(wrapper, 'hosting_capacity_gb')).toBe(false);
 
-        await wrapper.get('[data-testid="migrate_domain"]').setValue(true);
+        await wrapper.get('[data-testid="migrate_domain"]').trigger('click');
         expect(lastModel(wrapper).migrate_domain).toBe(true);
         expect(isRequired(wrapper, 'domain_name_1')).toBe(true);
 
-        await wrapper.get('[data-testid="migrate_hosting"]').setValue(true);
+        await wrapper.get('[data-testid="migrate_hosting"]').trigger('click');
         expect(isRequired(wrapper, 'hosting_platform')).toBe(true);
         expect(isRequired(wrapper, 'hosting_capacity_gb')).toBe(true);
     });
@@ -77,7 +77,7 @@ describe('NetworkHostingSection (FE-22)', () => {
     it('AC2: never fills a domain or a platform on the user behalf', async () => {
         const wrapper = mountSection();
 
-        await wrapper.get('[data-testid="migrate_hosting"]').setValue(true);
+        await wrapper.get('[data-testid="migrate_hosting"]').trigger('click');
 
         expect(lastModel(wrapper)).toEqual({ migrate_hosting: true });
     });
@@ -133,8 +133,8 @@ describe('NetworkHostingSection (FE-22)', () => {
         expect(wrapper.get<HTMLTextAreaElement>('#lan_ip_allocation').element.value).toBe('10.10.0.0/24');
         expect(wrapper.get<HTMLInputElement>('#mx_primary').element.value).toBe('10 mail.example.com');
         expect(wrapper.get<HTMLInputElement>('#hosting_capacity_gb').element.value).toBe('50');
-        expect(wrapper.get<HTMLInputElement>('[data-testid="migrate_domain"]').element.checked).toBe(true);
-        expect(wrapper.get<HTMLInputElement>('[data-testid="migrate_hosting"]').element.checked).toBe(false);
+        expect(wrapper.get('[data-testid="migrate_domain"]').attributes('aria-checked')).toBe('true');
+        expect(wrapper.get('[data-testid="migrate_hosting"]').attributes('aria-checked')).toBe('false');
         expect(wrapper.get<HTMLInputElement>('#secondary_upstream').element.value).toBe('');
     });
 
@@ -178,7 +178,7 @@ describe('NetworkHostingSection (FE-22)', () => {
         expect(lastModel(capacity)).toEqual({ hosting_capacity_gb: 50 });
 
         const domain = mountSection({ migrate_domain: true });
-        await domain.get('[data-testid="migrate_domain"]').setValue(false);
+        await domain.get('[data-testid="migrate_domain"]').trigger('click');
         expect(lastModel(domain)).toEqual({ migrate_domain: false });
     });
 

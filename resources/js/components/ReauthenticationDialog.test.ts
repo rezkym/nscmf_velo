@@ -181,6 +181,7 @@ describe('ReauthenticationDialog.vue (FE-10)', () => {
         expect(wrapper.emitted('cancel')).toBeTruthy();
 
         await wrapper.setProps({ open: false });
+        await flushPromises();
         expect(focusSpy).toHaveBeenCalled();
         wrapper.unmount();
     });
@@ -194,13 +195,13 @@ describe('ReauthenticationDialog.vue (FE-10)', () => {
 
         confirmBtn.focus();
         const forward = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
-        window.dispatchEvent(forward);
+        confirmBtn.dispatchEvent(forward);
         expect(document.activeElement).toBe(passwordInput);
         expect(forward.defaultPrevented).toBe(true);
 
         passwordInput.focus();
         const backward = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
-        window.dispatchEvent(backward);
+        passwordInput.dispatchEvent(backward);
         expect(document.activeElement).toBe(confirmBtn);
         wrapper.unmount();
     });

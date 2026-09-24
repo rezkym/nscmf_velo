@@ -2,9 +2,10 @@
 import { Search } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 
-import Alert from '@/components/ui/Alert.vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { buttonVariants } from '@/components/ui/button';
-import { controlClass } from '@/components/ui/control';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
 
 export interface ColumnDef {
     key: string;
@@ -161,30 +162,28 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
                     :stroke-width="1.75"
                     aria-hidden="true"
                 />
-                <input
+                <Input
                     id="table-search"
                     v-model="searchInput"
                     type="search"
                     data-testid="table-search-input"
                     placeholder="Search…"
-                    :class="[controlClass, 'pl-9']"
                 />
             </div>
 
             <div class="flex items-center gap-2">
                 <label for="table-per-page" class="whitespace-nowrap text-sm text-muted-foreground">Per page</label>
-                <select
+                <NativeSelect
                     id="table-per-page"
                     data-testid="table-per-page-select"
-                    :value="query?.per_page ?? 25"
-                    :class="[controlClass, 'w-auto']"
+                    :model-value="query?.per_page ?? 25"
                     @change="onPerPageChange(($event.target as HTMLSelectElement).value)"
                 >
                     <option :value="10">10</option>
                     <option :value="25">25</option>
                     <option :value="50">50</option>
                     <option :value="100">100</option>
-                </select>
+                </NativeSelect>
             </div>
         </div>
 
@@ -200,7 +199,9 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
 
         <!-- Error state -->
         <div v-if="error" data-testid="table-error-state" role="alert" class="p-4">
-            <Alert variant="error">{{ error }}</Alert>
+            <Alert variant="destructive"
+                ><AlertDescription>{{ error }}</AlertDescription></Alert
+            >
         </div>
 
         <!-- Table View -->
@@ -276,7 +277,7 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
                     type="button"
                     data-testid="pagination-prev"
                     :disabled="isPrevDisabled"
-                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
+                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
                     @click="onPageChange(currentPage - 1)"
                 >
                     Previous
@@ -285,7 +286,7 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
                     type="button"
                     data-testid="pagination-next"
                     :disabled="isNextDisabled"
-                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
+                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
                     @click="onPageChange(currentPage + 1)"
                 >
                     Next

@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
-import { controlClass } from '@/components/ui/control';
-import Alert from '@/components/ui/Alert.vue';
-import Button from '@/components/ui/Button.vue';
-import FormField from '@/components/ui/FormField.vue';
-import Modal from '@/components/ui/Modal.vue';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import FormField from '@/components/FormField.vue';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { firstFieldError } from '@/lib/apiErrors';
 import { sendJson } from '@/lib/http';
 
@@ -31,7 +38,6 @@ const emit = defineEmits<{
     (e: 'cancel'): void;
 }>();
 
-const passwordInputRef = ref<HTMLInputElement | null>(null);
 const currentPassword = ref('');
 const processing = ref(false);
 /** The outcome of this dialog's own submission; it replaces whatever the parent passed in. */
@@ -83,12 +89,18 @@ function handleCancel(): void {
 
 watch(
     () => props.open,
-    (isOpen) => {
+    () => {
         currentPassword.value = '';
         submitError.value = null;
-        if (isOpen) void nextTick(() => passwordInputRef.value?.focus());
     },
 );
+
+/** The dialog opens on the password field; closing returns focus to the control that asked for it. */
+function returnFocus(event: Event): void {
+    if (!props.triggerElement) return;
+    event.preventDefault();
+    props.triggerElement.focus();
+}
 
 onBeforeUnmount(() => {
     currentPassword.value = '';
@@ -96,48 +108,60 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <Modal
+    <Dialog
         :open="open"
-        :title="targetActionTitle"
-        :description="targetActionDescription"
-        :busy="processing"
-        :return-focus-to="triggerElement"
-        @close="handleCancel"
+        @update:open="
+            (open) => {
+                if (!open && !processing) handleCancel();
+            }
+        "
     >
-        <form class="space-y-4" @submit.prevent="void submit()">
-            <Alert v-if="displayError" variant="error" data-testid="reauth-error">{{ displayError }}</Alert>
+        <DialogContent :show-close-button="false" @close-auto-focus="returnFocus">
+            <DialogHeader>
+                <DialogTitle>{{ targetActionTitle }}</DialogTitle>
+                <DialogDescription v-if="targetActionDescription">{{ targetActionDescription }}</DialogDescription>
+            </DialogHeader>
+            <form class="space-y-4" @submit.prevent="void submit()">
+                <Alert v-if="displayError" variant="destructive" data-testid="reauth-error"
+                    ><AlertDescription>{{ displayError }}</AlertDescription></Alert
+                >
 
-            <FormField
-                id="current_password"
-                label="Current Password"
-                required
-                :disabled="processing"
-                help="Enter your existing account password to confirm"
-            >
-                <template #default="{ id: fieldId, describedBy, disabled }">
-                    <input
-                        :id="fieldId"
-                        ref="passwordInputRef"
-                        v-model="currentPassword"
-                        type="password"
-                        name="current_password"
-                        autocomplete="current-password"
-                        required
-                        :disabled="disabled"
-                        :aria-describedby="describedBy"
-                        :class="controlClass"
-                    />
-                </template>
-            </FormField>
+                <FormField
+                    id="current_password"
+                    label="Current Password"
+                    required
+                    :disabled="processing"
+                    help="Enter your existing account password to confirm"
+                >
+                    <template #default="{ id: fieldId, describedBy, disabled }">
+                        <Input
+                            :id="fieldId"
+                            v-model="currentPassword"
+                            type="password"
+                            name="current_password"
+                            autocomplete="current-password"
+                            required
+                            :disabled="disabled"
+                            :aria-describedby="describedBy"
+                        />
+                    </template>
+                </FormField>
 
-            <div class="flex justify-end gap-2 pt-2">
-                <Button variant="secondary" data-test="cancel-button" :disabled="processing" @click="handleCancel">
-                    Cancel
-                </Button>
-                <Button type="submit" data-test="confirm-button" :disabled="processing || !currentPassword">
-                    {{ processing ? 'Verifying…' : 'Confirm' }}
-                </Button>
-            </div>
-        </form>
-    </Modal>
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        data-test="cancel-button"
+                        :disabled="processing"
+                        @click="handleCancel"
+                    >
+                        Cancel
+                    </Button>
+                    <Button type="submit" data-test="confirm-button" :disabled="processing || !currentPassword">
+                        {{ processing ? 'Verifying…' : 'Confirm' }}
+                    </Button>
+                </DialogFooter>
+            </form>
+        </DialogContent>
+    </Dialog>
 </template>

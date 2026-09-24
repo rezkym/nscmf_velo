@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Badge from '@/components/ui/Badge.vue';
+import { Badge } from '@/components/ui/badge';
 
 import type { BusinessStatus } from './contracts';
 import { STATUS_LABELS, STATUS_TONES } from './types';
@@ -9,5 +9,5 @@ defineProps<{ status: BusinessStatus }>();
 
 <template>
     <!-- An unexpected value is shown as sent rather than hidden. -->
-    <Badge :variant="STATUS_TONES[status] ?? 'neutral'">{{ STATUS_LABELS[status] ?? status }}</Badge>
+    <Badge :variant="STATUS_TONES[status] ?? 'secondary'">{{ STATUS_LABELS[status] ?? status }}</Badge>
 </template>

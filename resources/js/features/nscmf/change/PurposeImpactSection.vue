@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import Badge from '@/components/ui/Badge.vue';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 
 import DraftField from '../DraftField.vue';
 import { fieldError, type FieldErrors } from '../fieldErrors';
@@ -86,7 +87,7 @@ function otherIndex(): number {
         <section class="space-y-4 panel p-6">
             <div class="flex items-center gap-2">
                 <h2 class="text-base font-semibold">Facing challenges</h2>
-                <Badge data-testid="requirement-facing_challenges">
+                <Badge variant="secondary" data-testid="requirement-facing_challenges">
                     {{ subtype === 'MAINTENANCE' ? 'Optional' : 'Required' }}
                 </Badge>
             </div>
@@ -119,7 +120,7 @@ function otherIndex(): number {
         <section class="space-y-4 panel p-6">
             <div class="flex items-center gap-2">
                 <h2 class="text-base font-semibold">Identified problems</h2>
-                <Badge data-testid="requirement-identified_problems">Required</Badge>
+                <Badge variant="secondary" data-testid="requirement-identified_problems">Required</Badge>
             </div>
 
             <RepeatableRows
@@ -150,7 +151,7 @@ function otherIndex(): number {
         <section class="space-y-4 panel p-6">
             <div class="flex items-center gap-2">
                 <h2 class="text-base font-semibold">Service impact</h2>
-                <Badge data-testid="requirement-service_impacts">Required</Badge>
+                <Badge variant="secondary" data-testid="requirement-service_impacts">Required</Badge>
             </div>
 
             <div class="space-y-2">
@@ -159,12 +160,11 @@ function otherIndex(): number {
                     :key="code"
                     class="flex items-center gap-2 text-sm"
                 >
-                    <input
-                        type="checkbox"
+                    <Checkbox
                         :data-testid="`impact-${code}`"
-                        :checked="isSelected(code)"
+                        :model-value="isSelected(code)"
                         :disabled="disabled"
-                        @change="toggleImpact(code, ($event.target as HTMLInputElement).checked)"
+                        @update:model-value="toggleImpact(code, $event === true)"
                     />
                     {{ label }}
                 </label>

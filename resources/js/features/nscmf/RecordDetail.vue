@@ -3,7 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
-import Badge from '@/components/ui/Badge.vue';
+import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import DetailList, { type DetailItem } from '@/features/nscmf/DetailList.vue';
 import DetailTable from '@/features/nscmf/DetailTable.vue';
@@ -259,7 +259,7 @@ const NUMBERED_TEXT = [
                 </p>
             </div>
             <template #actions>
-                <Link :href="backHref" :class="buttonVariants({ variant: 'secondary' })">{{ backLabel }}</Link>
+                <Link :href="backHref" :class="buttonVariants({ variant: 'outline' })">{{ backLabel }}</Link>
             </template>
         </PageHeader>
 

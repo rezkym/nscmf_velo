@@ -65,7 +65,7 @@ describe('Create NSCMF (FE-17)', () => {
 
     it('AC2: rejects manual numbers that are too short, too long or contain spaces, before any request', async () => {
         const wrapper = mountCreate();
-        await wrapper.get('[data-testid="numbering-manual"]').setValue(true);
+        await wrapper.get('[data-testid="numbering-manual"]').trigger('click');
 
         for (const invalid of ['AB', 'A'.repeat(65), 'AB CD']) {
             await wrapper.get('#request-no').setValue(invalid);
@@ -77,7 +77,7 @@ describe('Create NSCMF (FE-17)', () => {
 
     it('AC2: accepts trimmed manual numbers of 3 and 64 characters', async () => {
         const wrapper = mountCreate();
-        await wrapper.get('[data-testid="numbering-manual"]').setValue(true);
+        await wrapper.get('[data-testid="numbering-manual"]').trigger('click');
 
         await wrapper.get('#request-no').setValue('  ABC  ');
         await submit(wrapper);
@@ -94,7 +94,7 @@ describe('Create NSCMF (FE-17)', () => {
 
     it('AC2: shows a request number conflict from the server next to the field', async () => {
         const wrapper = mountCreate();
-        await wrapper.get('[data-testid="numbering-manual"]').setValue(true);
+        await wrapper.get('[data-testid="numbering-manual"]').trigger('click');
 
         const form = forms[0];
         if (!form) throw new Error('create form missing');
@@ -126,10 +126,10 @@ describe('Create NSCMF (FE-17)', () => {
 
     it('AC4: switching back to automatic numbering drops the manual number', async () => {
         const wrapper = mountCreate();
-        await wrapper.get('[data-testid="numbering-manual"]').setValue(true);
+        await wrapper.get('[data-testid="numbering-manual"]').trigger('click');
         await wrapper.get('#request-no').setValue('DEMO-ACT-099');
 
-        await wrapper.get('[data-testid="numbering-automatic"]').setValue(true);
+        await wrapper.get('[data-testid="numbering-automatic"]').trigger('click');
         await submit(wrapper);
 
         expect(lastRequest('/nscmf')?.data).toMatchObject({ numbering_mode: 'AUTOMATIC', request_no: null });

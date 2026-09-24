@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import Alert from '@/components/ui/Alert.vue';
-import { controlClass } from '@/components/ui/control';
-import FormField from '@/components/ui/FormField.vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { NativeSelect } from '@/components/ui/native-select';
+import FormField from '@/components/FormField.vue';
 import { computed } from 'vue';
 
 import DraftField from '../DraftField.vue';
@@ -144,19 +144,19 @@ const announcementWarning = computed<string | null>(() => {
                     :error="error('monitoring_period_unit')"
                 >
                     <template #default="{ id, describedBy }">
-                        <select
+                        <NativeSelect
+                            class="w-full"
                             :id="id"
-                            :value="model.monitoring_period_unit ?? ''"
+                            :model-value="model.monitoring_period_unit ?? ''"
                             :disabled="disabled"
                             :aria-describedby="describedBy"
-                            :class="controlClass"
                             @change="onUnitChange"
                         >
                             <option value="">Not selected</option>
                             <option v-for="(label, unit) in MONITORING_UNIT_LABELS" :key="unit" :value="unit">
                                 {{ label }}
                             </option>
-                        </select>
+                        </NativeSelect>
                     </template>
                 </FormField>
             </div>
@@ -185,25 +185,25 @@ const announcementWarning = computed<string | null>(() => {
                 :error="error('announcement_timing')"
             >
                 <template #default="{ id, describedBy }">
-                    <select
+                    <NativeSelect
+                        class="w-full sm:max-w-md"
                         :id="id"
-                        :value="model.announcement_timing ?? ''"
+                        :model-value="model.announcement_timing ?? ''"
                         :disabled="disabled"
                         :aria-describedby="describedBy"
-                        :class="[controlClass, 'sm:max-w-md']"
                         @change="onTimingChange"
                     >
                         <option value="">Not selected</option>
                         <option v-for="(label, timing) in ANNOUNCEMENT_TIMING_LABELS" :key="timing" :value="timing">
                             {{ label }}
                         </option>
-                    </select>
+                    </NativeSelect>
                 </template>
             </FormField>
 
-            <Alert v-if="announcementWarning" variant="warning" data-testid="announcement-warning">
-                {{ announcementWarning }}
-            </Alert>
+            <Alert v-if="announcementWarning" variant="warning" data-testid="announcement-warning"
+                ><AlertDescription>{{ announcementWarning }}</AlertDescription></Alert
+            >
         </section>
     </div>
 </template>

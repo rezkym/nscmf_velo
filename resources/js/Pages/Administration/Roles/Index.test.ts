@@ -60,8 +60,13 @@ describe('Role administration (FE-14)', () => {
         await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
 
         const dialog = wrapper.get('[role="dialog"]');
-        const offered = dialog.findAll('input[type="checkbox"]').map((input) => input.attributes('value'));
-        expect(offered).toEqual(['nscmf.create', 'nscmf.view', 'nscmf.review', 'users.view']);
+        const offered = dialog.findAll('[role="checkbox"]').map((box) => box.attributes('data-testid'));
+        expect(offered).toEqual([
+            'permission-nscmf.create',
+            'permission-nscmf.view',
+            'permission-nscmf.review',
+            'permission-users.view',
+        ]);
         expect(dialog.text()).toContain('Review');
         expect(dialog.text()).not.toContain('roles.archive');
         expect(dialog.text()).not.toContain('*');
@@ -116,8 +121,8 @@ describe('Role administration (FE-14)', () => {
     it('AC3: saves the permission set only after re-authentication', async () => {
         const wrapper = mountPage();
         await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
-        await wrapper.get('input[value="nscmf.review"]').setValue(true);
-        await wrapper.get('input[value="nscmf.view"]').setValue(false);
+        await wrapper.get('[data-testid="permission-nscmf.review"]').trigger('click');
+        await wrapper.get('[data-testid="permission-nscmf.view"]').trigger('click');
         await wrapper.get('[data-testid="save-permissions-btn"]').trigger('click');
 
         expect(lastRequest('/administration/roles/2/permissions')).toBeUndefined();
@@ -134,18 +139,18 @@ describe('Role administration (FE-14)', () => {
     it('AC3: does not submit when re-authentication is cancelled and keeps the selection', async () => {
         const wrapper = mountPage();
         await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
-        await wrapper.get('input[value="users.view"]').setValue(true);
+        await wrapper.get('[data-testid="permission-users.view"]').trigger('click');
         await wrapper.get('[data-testid="save-permissions-btn"]').trigger('click');
         await wrapper.get('[data-test="cancel-button"]').trigger('click');
 
         expect(requests).toHaveLength(0);
-        expect(wrapper.get<HTMLInputElement>('input[value="users.view"]').element.checked).toBe(true);
+        expect(wrapper.get('[data-testid="permission-users.view"]').attributes('aria-checked')).toBe('true');
     });
 
     it('AC4: keeps the selection and shows the error when the server rejects a protected resource', async () => {
         const wrapper = mountPage();
         await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
-        await wrapper.get('input[value="users.view"]').setValue(true);
+        await wrapper.get('[data-testid="permission-users.view"]').trigger('click');
         await wrapper.get('[data-testid="save-permissions-btn"]').trigger('click');
         await confirmReauth(wrapper);
 
@@ -153,7 +158,7 @@ describe('Role administration (FE-14)', () => {
 
         const dialog = wrapper.get('[role="dialog"]');
         expect(dialog.get('[role="alert"]').text()).toBe('This role is protected.');
-        expect(wrapper.get<HTMLInputElement>('input[value="users.view"]').element.checked).toBe(true);
+        expect(wrapper.get('[data-testid="permission-users.view"]').attributes('aria-checked')).toBe('true');
     });
 
     it('asks for the password again when the server reports an expired re-authentication', async () => {
@@ -188,7 +193,7 @@ describe('Role administration (FE-14)', () => {
 
         form.processing = false;
         lastRequest('/administration/roles/2/permissions')?.options.onSuccess?.();
-        await nextTick();
+        await flushPromises();
         expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
     });
 

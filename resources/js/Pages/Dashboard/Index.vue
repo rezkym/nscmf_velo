@@ -100,7 +100,7 @@ function reloadCounts(): void {
                             You need an active team to create records. Contact an administrator.
                         </p>
                     </template>
-                    <Link href="/history" :class="buttonVariants({ variant: 'secondary' })">History</Link>
+                    <Link href="/history" :class="buttonVariants({ variant: 'outline' })">History</Link>
                 </template>
             </PageHeader>
 

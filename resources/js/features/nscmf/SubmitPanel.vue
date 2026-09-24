@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 
-import Alert from '@/components/ui/Alert.vue';
-import Button from '@/components/ui/Button.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/composables/usePermissions';
 import type { BusinessStatus } from './contracts';
 import StatusBadge from './StatusBadge.vue';
@@ -220,14 +220,19 @@ function handleSubmit(): void {
         </div>
 
         <!-- Revision Notice (Shown in Revision Mode with reviewer return reason) -->
-        <Alert v-if="isRevisionMode" data-testid="revision-notice" variant="info" title="Revision Required">
-            <p v-if="revisionReason"><span class="font-medium">Return Reason:</span> {{ revisionReason }}</p>
-        </Alert>
+        <Alert v-if="isRevisionMode" data-testid="revision-notice"
+            ><AlertTitle>Revision Required</AlertTitle
+            ><AlertDescription
+                ><p v-if="revisionReason">
+                    <span class="font-medium">Return Reason:</span> {{ revisionReason }}
+                </p></AlertDescription
+            ></Alert
+        >
 
         <!-- Domain Error Alert (403/409/422/etc) -->
-        <Alert v-if="domainError?.message" data-testid="domain-error-alert" variant="error">
-            {{ domainError.message }}
-        </Alert>
+        <Alert v-if="domainError?.message" data-testid="domain-error-alert" variant="destructive"
+            ><AlertDescription>{{ domainError.message }}</AlertDescription></Alert
+        >
 
         <!-- Error Summary (Focus summary first, links to target fields) -->
         <div
@@ -256,18 +261,23 @@ function handleSubmit(): void {
         </div>
 
         <!-- Warning Summary (Visually distinct from error, non-blocking) -->
-        <Alert v-if="warnings.length > 0" data-testid="warning-summary" variant="warning" title="Submission Warnings">
-            <ul class="list-disc list-inside space-y-1">
-                <li v-for="(warn, idx) in warnings" :key="idx" data-testid="warning-summary-item">
-                    {{ warn }}
-                </li>
-            </ul>
-        </Alert>
+        <Alert v-if="warnings.length > 0" data-testid="warning-summary" variant="warning"
+            ><AlertTitle>Submission Warnings</AlertTitle
+            ><AlertDescription
+                ><ul class="list-disc list-inside space-y-1">
+                    <li v-for="(warn, idx) in warnings" :key="idx" data-testid="warning-summary-item">
+                        {{ warn }}
+                    </li>
+                </ul></AlertDescription
+            ></Alert
+        >
 
         <div v-if="saveBlockingMessage" data-testid="save-blocking-message" class="text-sm text-destructive">
             {{ saveBlockingMessage }}
         </div>
 
-        <Button data-testid="submit-button" :disabled="!canSubmit" @click="handleSubmit"> Submit for Review </Button>
+        <Button type="button" data-testid="submit-button" :disabled="!canSubmit" @click="handleSubmit">
+            Submit for Review
+        </Button>
     </div>
 </template>

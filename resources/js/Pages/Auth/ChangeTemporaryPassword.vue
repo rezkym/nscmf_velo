@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { Lock } from '@lucide/vue';
 import { computed, onBeforeUnmount, ref } from 'vue';
 
-import Alert from '@/components/ui/Alert.vue';
-import Button from '@/components/ui/Button.vue';
-import { controlClass } from '@/components/ui/control';
-import FormField from '@/components/ui/FormField.vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import FormField from '@/components/FormField.vue';
 import CenteredLayout from '@/layouts/CenteredLayout.vue';
 
 // Local view-model per G09 / API contract §78
@@ -73,7 +72,9 @@ onBeforeUnmount(() => {
         description="Your account has a mandatory temporary password change required before accessing the system."
     >
         <div class="panel space-y-6 p-6 sm:p-8">
-            <Alert v-if="activeError" variant="error" data-testid="auth-error">{{ activeError }}</Alert>
+            <Alert v-if="activeError" variant="destructive" data-testid="auth-error"
+                ><AlertDescription>{{ activeError }}</AlertDescription></Alert
+            >
 
             <form class="space-y-5" @submit.prevent="submit">
                 <FormField
@@ -84,49 +85,33 @@ onBeforeUnmount(() => {
                     :disabled="form.processing"
                 >
                     <template #default="{ id: fieldId, describedBy, disabled }">
-                        <div class="relative">
-                            <Lock
-                                class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                                :stroke-width="1.75"
-                                aria-hidden="true"
-                            />
-                            <input
-                                :id="fieldId"
-                                v-model="form.password"
-                                type="password"
-                                name="password"
-                                autocomplete="new-password"
-                                required
-                                :disabled="disabled"
-                                :aria-describedby="describedBy"
-                                :class="[controlClass, 'pl-9']"
-                                placeholder="Enter new password"
-                            />
-                        </div>
+                        <Input
+                            :id="fieldId"
+                            v-model="form.password"
+                            type="password"
+                            name="password"
+                            autocomplete="new-password"
+                            required
+                            :disabled="disabled"
+                            :aria-describedby="describedBy"
+                            placeholder="Enter new password"
+                        />
                     </template>
                 </FormField>
 
                 <FormField id="password_confirmation" label="Confirm New Password" required :disabled="form.processing">
                     <template #default="{ id: fieldId, describedBy, disabled }">
-                        <div class="relative">
-                            <Lock
-                                class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                                :stroke-width="1.75"
-                                aria-hidden="true"
-                            />
-                            <input
-                                :id="fieldId"
-                                v-model="form.password_confirmation"
-                                type="password"
-                                name="password_confirmation"
-                                autocomplete="new-password"
-                                required
-                                :disabled="disabled"
-                                :aria-describedby="describedBy"
-                                :class="[controlClass, 'pl-9']"
-                                placeholder="Confirm new password"
-                            />
-                        </div>
+                        <Input
+                            :id="fieldId"
+                            v-model="form.password_confirmation"
+                            type="password"
+                            name="password_confirmation"
+                            autocomplete="new-password"
+                            required
+                            :disabled="disabled"
+                            :aria-describedby="describedBy"
+                            placeholder="Confirm new password"
+                        />
                     </template>
                 </FormField>
 

@@ -2,7 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { ChevronRight } from '@lucide/vue';
 
-import Badge from '@/components/ui/Badge.vue';
+import { Badge } from '@/components/ui/badge';
 import { SUBTYPE_LABELS } from '@/features/nscmf/types';
 
 import { type AttentionEntry, QUEUE_TITLES } from './queues';

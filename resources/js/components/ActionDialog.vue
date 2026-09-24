@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
-import Alert from '@/components/ui/Alert.vue';
-import Button from '@/components/ui/Button.vue';
-import { controlClass } from '@/components/ui/control';
-import { useFocusTrap } from '@/composables/useFocusTrap';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
+import { Textarea } from '@/components/ui/textarea';
 
 export interface ActionDialogProps {
     open: boolean;
@@ -40,8 +48,6 @@ const emit = defineEmits<{
 
 const reason = ref('');
 const validationError = ref<string | null>(null);
-const textareaRef = ref<HTMLTextAreaElement | null>(null);
-const panelRef = ref<HTMLElement | null>(null);
 
 function validate(): boolean {
     const trimmed = reason.value.trim();
@@ -83,13 +89,17 @@ function handleCancel(): void {
     emit('cancel');
 }
 
-useFocusTrap(panelRef, () => props.open, {
-    onEscape: () => {
-        if (!props.pending) handleCancel();
-    },
-    initialFocus: textareaRef,
-    returnFocusTo: () => props.triggerElement,
-});
+/** Closing by Escape, the overlay or the close button is a cancel, except while the action is in flight. */
+function onOpenChange(open: boolean): void {
+    if (!open && !props.pending) handleCancel();
+}
+
+/** The dialog opens on the text field; closing returns focus to the action that opened it. */
+function returnFocus(event: Event): void {
+    if (!props.triggerElement) return;
+    event.preventDefault();
+    props.triggerElement.focus();
+}
 
 watch(
     () => props.open,
@@ -100,60 +110,55 @@ watch(
 </script>
 
 <template>
-    <div
-        v-if="open"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-brand-950/40 p-4 transition-opacity duration-200 ease-out starting:opacity-0"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="action-dialog-title"
-    >
-        <div
-            ref="panelRef"
-            class="panel w-full max-w-lg space-y-4 p-6 shadow-xl transition-[opacity,scale] duration-200 ease-out starting:scale-96 starting:opacity-0"
-        >
-            <div class="space-y-1">
-                <h2 id="action-dialog-title" class="text-lg font-semibold">
-                    {{ title }}
-                </h2>
-                <p v-if="requestNo" class="text-sm text-muted-foreground">Request No: {{ requestNo }}</p>
+    <Dialog :open="open" @update:open="onOpenChange">
+        <DialogContent :show-close-button="false" @close-auto-focus="returnFocus">
+            <DialogHeader>
+                <DialogTitle>{{ title }}</DialogTitle>
+                <DialogDescription v-if="requestNo">Request No: {{ requestNo }}</DialogDescription>
+            </DialogHeader>
+
+            <div v-if="consequence || destination" class="space-y-1 text-muted-foreground">
+                <p v-if="consequence">{{ consequence }}</p>
+                <p v-if="destination">Target: {{ destination }}</p>
             </div>
 
-            <div v-if="consequence" class="text-sm text-muted-foreground">
-                {{ consequence }}
-            </div>
+            <Alert v-if="error" variant="destructive">
+                <AlertDescription>{{ error }}</AlertDescription>
+            </Alert>
 
-            <div v-if="destination" class="text-sm text-muted-foreground">Target: {{ destination }}</div>
-
-            <Alert v-if="error" variant="error">{{ error }}</Alert>
-
-            <div class="space-y-2">
-                <label for="dialog-reason" class="block text-sm font-medium text-foreground">
+            <Field :data-invalid="validationError ? true : undefined">
+                <FieldLabel for="dialog-reason">
                     {{ reasonRequired ? 'Reason' : `${optionalLabel} (optional)` }}
-                    <span v-if="reasonRequired" class="text-destructive">*</span>
-                </label>
-                <textarea
+                    <span v-if="reasonRequired" class="text-destructive" aria-hidden="true">*</span>
+                </FieldLabel>
+                <Textarea
                     id="dialog-reason"
-                    ref="textareaRef"
                     v-model="reason"
-                    :class="[controlClass, 'min-h-[100px]']"
+                    class="min-h-24"
                     :disabled="pending"
+                    :aria-invalid="validationError ? true : undefined"
+                    :aria-describedby="validationError ? 'dialog-reason-error' : undefined"
                     :placeholder="
                         reasonRequired ? 'Enter reason...' : `Enter optional ${optionalLabel.toLowerCase()}...`
                     "
-                ></textarea>
-                <p v-if="validationError" class="text-xs text-destructive">
-                    {{ validationError }}
-                </p>
-            </div>
+                />
+                <FieldError v-if="validationError" id="dialog-reason-error">{{ validationError }}</FieldError>
+            </Field>
 
-            <div class="flex justify-end gap-3 pt-2">
-                <Button variant="secondary" data-test="cancel-button" :disabled="pending" @click="handleCancel">
+            <DialogFooter>
+                <Button
+                    type="button"
+                    variant="outline"
+                    data-test="cancel-button"
+                    :disabled="pending"
+                    @click="handleCancel"
+                >
                     Cancel
                 </Button>
-                <Button data-test="confirm-button" :disabled="pending" @click="handleConfirm">
+                <Button type="button" data-test="confirm-button" :disabled="pending" @click="handleConfirm">
                     {{ pending ? 'Submitting...' : confirmLabel }}
                 </Button>
-            </div>
-        </div>
-    </div>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 </template>

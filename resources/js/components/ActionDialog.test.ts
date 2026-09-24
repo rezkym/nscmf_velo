@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import ActionDialog from './ActionDialog.vue';
 
@@ -152,14 +152,17 @@ describe('ActionDialog (FE-04)', () => {
         expect(wrapper.emitted('confirm')).toBeUndefined();
 
         await wrapper.setProps({ open: false });
+        await flushPromises();
         expect(document.activeElement).toBe(trigger);
 
         // Re-open and cancel with Escape key
         await wrapper.setProps({ open: true });
+        await flushPromises();
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
         expect(wrapper.emitted('cancel')?.length).toBe(2);
 
         await wrapper.setProps({ open: false });
+        await flushPromises();
         expect(document.activeElement).toBe(trigger);
 
         wrapper.unmount();
@@ -184,7 +187,7 @@ describe('ActionDialog (FE-04)', () => {
         confirmBtn.focus();
         expect(document.activeElement).toBe(confirmBtn);
         const forwardEvent = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
-        window.dispatchEvent(forwardEvent);
+        confirmBtn.dispatchEvent(forwardEvent);
         expect(document.activeElement).toBe(textarea);
         expect(forwardEvent.defaultPrevented).toBe(true);
 
@@ -197,7 +200,7 @@ describe('ActionDialog (FE-04)', () => {
             bubbles: true,
             cancelable: true,
         });
-        window.dispatchEvent(backwardEvent);
+        textarea.dispatchEvent(backwardEvent);
         expect(document.activeElement).toBe(confirmBtn);
         expect(backwardEvent.defaultPrevented).toBe(true);
 

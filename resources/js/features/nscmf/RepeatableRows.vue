@@ -2,7 +2,7 @@
 import { X } from '@lucide/vue';
 import { computed } from 'vue';
 
-import Button from '@/components/ui/Button.vue';
+import { Button } from '@/components/ui/button';
 
 const rows = defineModel<T[]>({ required: true });
 
@@ -46,6 +46,7 @@ function updateRow(index: number, patch: Partial<T>): void {
                 <slot :row="row" :index="index" :update="(patch: Partial<T>) => updateRow(index, patch)" />
             </div>
             <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 class="mt-1"
@@ -58,7 +59,14 @@ function updateRow(index: number, patch: Partial<T>): void {
             </Button>
         </div>
 
-        <Button variant="secondary" size="sm" data-testid="btn-add-row" :disabled="disabled || atMax" @click="addRow">
+        <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-testid="btn-add-row"
+            :disabled="disabled || atMax"
+            @click="addRow"
+        >
             {{ addLabel }}
         </Button>
     </div>

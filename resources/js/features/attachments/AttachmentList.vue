@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { sendJson } from '@/lib/http';
 
 export interface AttachmentItem {
@@ -85,8 +85,9 @@ async function remove(attachment: AttachmentItem): Promise<void> {
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <Button
+                    type="button"
                     v-if="downloadable(attachment)"
-                    variant="secondary"
+                    variant="outline"
                     size="sm"
                     :data-testid="`attachment-download-${attachment.id}`"
                     :disabled="busy !== null || revoked.includes(attachment.id)"
@@ -97,6 +98,7 @@ async function remove(attachment: AttachmentItem): Promise<void> {
                 <template v-if="manageable">
                     <template v-if="confirming === attachment.id">
                         <Button
+                            type="button"
                             variant="destructive"
                             size="sm"
                             :data-testid="`attachment-confirm-remove-${attachment.id}`"
@@ -104,11 +106,17 @@ async function remove(attachment: AttachmentItem): Promise<void> {
                             @click="remove(attachment)"
                             >Confirm remove</Button
                         >
-                        <Button variant="ghost" size="sm" :disabled="busy !== null" @click="confirming = null"
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            :disabled="busy !== null"
+                            @click="confirming = null"
                             >Keep</Button
                         >
                     </template>
                     <Button
+                        type="button"
                         v-else
                         variant="ghost"
                         size="sm"

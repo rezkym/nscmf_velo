@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { controlClass } from '@/components/ui/control';
-import FormField from '@/components/ui/FormField.vue';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import FormField from '@/components/FormField.vue';
 import { toNullableText } from '@/lib/formInputs';
 
 const value = defineModel<string | null>({ required: true });
@@ -32,30 +33,28 @@ function onInput(event: Event): void {
 <template>
     <FormField :id="id" :label="label" :help="help" :error="error" :required="required">
         <template #default="{ id: controlId, describedBy }">
-            <textarea
+            <Textarea
                 v-if="rows"
                 :id="controlId"
                 :data-error-path="errorPath"
                 :data-error-wire-path="errorWirePath"
-                :value="value ?? ''"
+                :model-value="value ?? ''"
                 :rows="rows"
                 :maxlength="maxlength"
                 :disabled="disabled"
                 :aria-describedby="describedBy"
-                :class="controlClass"
                 @input="onInput"
             />
-            <input
+            <Input
                 v-else
                 :id="controlId"
                 :data-error-path="errorPath"
                 :data-error-wire-path="errorWirePath"
                 :type="type"
-                :value="value ?? ''"
+                :model-value="value ?? ''"
                 :maxlength="maxlength"
                 :disabled="disabled"
                 :aria-describedby="describedBy"
-                :class="controlClass"
                 @input="onInput"
             />
         </template>

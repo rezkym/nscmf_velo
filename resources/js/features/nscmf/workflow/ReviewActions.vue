@@ -38,7 +38,7 @@ const actions = computed<RecordActionSpec[]>(() =>
                   path: 'review/return',
                   consequence: 'The requester can revise and resubmit this NSCMF.',
                   destination: 'Revision Required',
-                  variant: 'secondary',
+                  variant: 'outline',
                   input: 'reason',
               },
               {

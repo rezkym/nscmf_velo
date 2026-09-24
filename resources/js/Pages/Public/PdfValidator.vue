@@ -2,9 +2,9 @@
 import { Head } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
-import Alert from '@/components/ui/Alert.vue';
-import Button from '@/components/ui/Button.vue';
-import { fileInputClass } from '@/components/ui/control';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import PublicVerificationResult from '@/features/exports/PublicVerificationResult.vue';
 import type { VerificationAnswer } from '@/features/exports/verification';
 import CenteredLayout from '@/layouts/CenteredLayout.vue';
@@ -73,21 +73,27 @@ async function verify(): Promise<void> {
         <div class="space-y-6">
             <form class="panel space-y-4 p-6" @submit.prevent="verify">
                 <label for="validator-file" class="block text-sm font-medium">PDF file</label>
-                <input
+                <Input
                     id="validator-file"
                     type="file"
                     accept="application/pdf,.pdf"
                     data-testid="validator-file"
-                    :class="fileInputClass"
                     :aria-describedby="problem ? 'validator-problem' : undefined"
                     @change="choose"
                 />
                 <p v-if="problem" id="validator-problem" role="alert" class="text-sm text-destructive">{{ problem }}</p>
-                <Button data-testid="validator-verify" :disabled="!file || !!problem || checking" @click="verify">
+                <Button
+                    type="button"
+                    data-testid="validator-verify"
+                    :disabled="!file || !!problem || checking"
+                    @click="verify"
+                >
                     {{ checking ? 'Checking…' : 'Verify PDF' }}
                 </Button>
             </form>
-            <Alert v-if="error" variant="error" title="Not checked">{{ error }}</Alert>
+            <Alert v-if="error" variant="destructive"
+                ><AlertTitle>Not checked</AlertTitle><AlertDescription>{{ error }}</AlertDescription></Alert
+            >
             <PublicVerificationResult v-if="answer" :answer="answer" />
         </div>
     </CenteredLayout>

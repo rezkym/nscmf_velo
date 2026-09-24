@@ -128,7 +128,7 @@ function handleLogin(): void {
                 <button
                     type="button"
                     data-testid="feedback-login-btn"
-                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
+                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
                     @click="handleLogin"
                 >
                     Sign in again
@@ -154,7 +154,7 @@ function handleLogin(): void {
                 <button
                     type="button"
                     data-testid="feedback-refresh-btn"
-                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
+                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
                     @click="handleRefresh"
                 >
                     Refresh
@@ -217,7 +217,7 @@ function handleLogin(): void {
                 <button
                     type="button"
                     data-testid="feedback-retry-btn"
-                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
+                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
                     @click="handleRetry"
                 >
                     Retry
@@ -242,7 +242,7 @@ function handleLogin(): void {
                 <button
                     type="button"
                     data-testid="feedback-retry-btn"
-                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
+                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
                     @click="handleRetry"
                 >
                     Retry
@@ -265,7 +265,7 @@ function handleLogin(): void {
                 <button
                     type="button"
                     data-testid="feedback-retry-btn"
-                    :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
+                    :class="buttonVariants({ variant: 'outline', size: 'sm' })"
                     @click="handleRetry"
                 >
                     Retry

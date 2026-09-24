@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 
@@ -153,7 +153,7 @@ describe('ReviewActions (FE-31)', () => {
 
             confirm.focus();
             const forwardTab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
-            window.dispatchEvent(forwardTab);
+            confirm.dispatchEvent(forwardTab);
             expect(forwardTab.defaultPrevented).toBe(true);
             expect(document.activeElement).toBe(textarea);
             const backwardTab = new KeyboardEvent('keydown', {
@@ -162,7 +162,7 @@ describe('ReviewActions (FE-31)', () => {
                 bubbles: true,
                 cancelable: true,
             });
-            window.dispatchEvent(backwardTab);
+            textarea.dispatchEvent(backwardTab);
             expect(backwardTab.defaultPrevented).toBe(true);
             expect(document.activeElement).toBe(confirm);
 
@@ -170,8 +170,8 @@ describe('ReviewActions (FE-31)', () => {
                 await dialog.get('[data-test="cancel-button"]').trigger('click');
             } else {
                 window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-                await nextTick();
             }
+            await flushPromises();
             expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
             expect(document.activeElement).toBe(trigger);
             expect(requests).toHaveLength(0);

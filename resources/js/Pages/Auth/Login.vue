@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { Lock, LogIn, User } from '@lucide/vue';
 import { computed, onBeforeUnmount } from 'vue';
 
-import Alert from '@/components/ui/Alert.vue';
-import Button from '@/components/ui/Button.vue';
-import { controlClass } from '@/components/ui/control';
-import FormField from '@/components/ui/FormField.vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import FormField from '@/components/FormField.vue';
 import CenteredLayout from '@/layouts/CenteredLayout.vue';
 
 const form = useForm({
@@ -50,60 +49,45 @@ onBeforeUnmount(() => {
     <CenteredLayout title="NSCMF Portal" description="Sign in to access your account and workflow approvals">
         <div class="panel space-y-6 p-6 sm:p-8">
             <!-- Generic failure / throttle message; never says which credential was wrong. -->
-            <Alert v-if="errorMessage" variant="error" data-testid="auth-error">{{ errorMessage }}</Alert>
+            <Alert v-if="errorMessage" variant="destructive" data-testid="auth-error"
+                ><AlertDescription>{{ errorMessage }}</AlertDescription></Alert
+            >
 
             <form class="space-y-5" @submit.prevent="submit">
                 <FormField id="username" label="Username" required :disabled="form.processing">
                     <template #default="{ id: fieldId, describedBy, disabled }">
-                        <div class="relative">
-                            <User
-                                class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                                :stroke-width="1.75"
-                                aria-hidden="true"
-                            />
-                            <input
-                                :id="fieldId"
-                                v-model="form.username"
-                                type="text"
-                                name="username"
-                                autocomplete="username"
-                                required
-                                :disabled="disabled"
-                                :aria-describedby="describedBy"
-                                :class="[controlClass, 'pl-9']"
-                                placeholder="Enter your username"
-                            />
-                        </div>
+                        <Input
+                            :id="fieldId"
+                            v-model="form.username"
+                            type="text"
+                            name="username"
+                            autocomplete="username"
+                            required
+                            :disabled="disabled"
+                            :aria-describedby="describedBy"
+                            placeholder="Enter your username"
+                        />
                     </template>
                 </FormField>
 
                 <FormField id="password" label="Password" required :disabled="form.processing">
                     <template #default="{ id: fieldId, describedBy, disabled }">
-                        <div class="relative">
-                            <Lock
-                                class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                                :stroke-width="1.75"
-                                aria-hidden="true"
-                            />
-                            <input
-                                :id="fieldId"
-                                v-model="form.password"
-                                type="password"
-                                name="password"
-                                autocomplete="current-password"
-                                required
-                                :disabled="disabled"
-                                :aria-describedby="describedBy"
-                                :class="[controlClass, 'pl-9']"
-                                placeholder="Enter your password"
-                            />
-                        </div>
+                        <Input
+                            :id="fieldId"
+                            v-model="form.password"
+                            type="password"
+                            name="password"
+                            autocomplete="current-password"
+                            required
+                            :disabled="disabled"
+                            :aria-describedby="describedBy"
+                            placeholder="Enter your password"
+                        />
                     </template>
                 </FormField>
 
                 <Button type="submit" class="w-full" :disabled="form.processing">
-                    <LogIn class="size-4" :stroke-width="2" aria-hidden="true" />
-                    <span>{{ form.processing ? 'Signing in...' : 'Sign in' }}</span>
+                    {{ form.processing ? 'Signing in…' : 'Sign in' }}
                 </Button>
             </form>
         </div>

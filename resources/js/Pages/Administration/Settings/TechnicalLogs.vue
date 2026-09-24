@@ -3,9 +3,11 @@ import { ref } from 'vue';
 
 import ReauthenticationDialog from '@/components/ReauthenticationDialog.vue';
 import PageHeader from '@/components/PageHeader.vue';
-import Alert from '@/components/ui/Alert.vue';
-import Button from '@/components/ui/Button.vue';
-import { controlClass } from '@/components/ui/control';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Checkbox } from '@/components/ui/checkbox';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { firstFieldError } from '@/lib/apiErrors';
 import { sendJson } from '@/lib/http';
@@ -77,27 +79,26 @@ function confirmed(): void {
             />
             <form class="space-y-4 panel p-6" @submit.prevent="save">
                 <label class="flex items-center gap-2 text-sm font-medium">
-                    <input v-model="enabled" type="checkbox" data-testid="settings-enabled" />
+                    <Checkbox v-model="enabled" data-testid="settings-enabled" />
                     Delete technical logs automatically
                 </label>
                 <div class="grid grid-cols-2 gap-3">
                     <label class="space-y-1 text-sm">
                         <span class="block text-muted-foreground">Keep logs for</span>
-                        <input
+                        <Input
                             v-model="value"
                             type="text"
                             inputmode="numeric"
                             data-testid="settings-value"
-                            :class="controlClass"
                             :aria-invalid="problem !== null"
                         />
                     </label>
                     <label class="space-y-1 text-sm">
                         <span class="block text-muted-foreground">Unit</span>
-                        <select v-model="unit" data-testid="settings-unit" :class="controlClass">
+                        <NativeSelect class="w-full" v-model="unit" data-testid="settings-unit">
                             <option value="DAY">Days</option>
                             <option value="MONTH">Calendar months</option>
-                        </select>
+                        </NativeSelect>
                     </label>
                 </div>
                 <p v-if="!enabled" class="text-sm text-muted-foreground">
@@ -108,7 +109,9 @@ function confirmed(): void {
                     {{ saving ? 'Saving…' : 'Save' }}
                 </Button>
             </form>
-            <Alert v-if="notice" variant="info" title="Technical log cleanup">{{ notice }}</Alert>
+            <Alert v-if="notice"
+                ><AlertTitle>Technical log cleanup</AlertTitle><AlertDescription>{{ notice }}</AlertDescription></Alert
+            >
         </div>
         <ReauthenticationDialog
             v-if="reauthOpen"

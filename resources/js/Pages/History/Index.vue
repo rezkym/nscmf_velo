@@ -4,9 +4,11 @@ import { computed, ref, watch } from 'vue';
 
 import ResourceTable, { type ColumnDef, type TableQuery } from '@/components/ResourceTable.vue';
 import PageHeader from '@/components/PageHeader.vue';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import { controlClass } from '@/components/ui/control';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { usePermissions } from '@/composables/usePermissions';
 import BulkExportPanel from '@/features/exports/BulkExportPanel.vue';
 import type { BusinessStatus, PaginationMeta } from '@/features/nscmf/contracts';
@@ -20,6 +22,7 @@ import {
 } from '@/features/nscmf/types';
 import StatusBadge from '@/features/nscmf/StatusBadge.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { toggleItem } from '@/lib/utils';
 
 export interface HistoryItem extends Record<string, unknown> {
     id: number;
@@ -172,39 +175,36 @@ const row = (item: unknown) => item as HistoryItem;
             >
                 <label class="space-y-1 text-sm">
                     <span class="block text-muted-foreground">View</span>
-                    <select
-                        data-testid="filter-archived"
-                        :class="controlClass"
+                    <NativeSelect
                         class="w-full"
-                        :value="query.archived ? '1' : '0'"
+                        data-testid="filter-archived"
+                        :model-value="query.archived ? '1' : '0'"
                         @change="filter({ archived: selectValue($event) === '1' })"
                     >
                         <option value="0">Active records</option>
                         <option value="1">Archived records</option>
-                    </select>
+                    </NativeSelect>
                 </label>
                 <label class="space-y-1 text-sm">
                     <span class="block text-muted-foreground">Family</span>
-                    <select
-                        data-testid="filter-family"
-                        :class="controlClass"
+                    <NativeSelect
                         class="w-full"
-                        :value="query.family ?? ''"
+                        data-testid="filter-family"
+                        :model-value="query.family ?? ''"
                         @change="filter({ family: selectValue($event) as NscmfFamily | null, subtype: null })"
                     >
                         <option value="">All families</option>
                         <option v-for="(label, family) in FAMILY_LABELS" :key="family" :value="family">
                             {{ label }}
                         </option>
-                    </select>
+                    </NativeSelect>
                 </label>
                 <label class="space-y-1 text-sm">
                     <span class="block text-muted-foreground">Subtype</span>
-                    <select
-                        data-testid="filter-subtype"
-                        :class="controlClass"
+                    <NativeSelect
                         class="w-full"
-                        :value="query.subtype ?? ''"
+                        data-testid="filter-subtype"
+                        :model-value="query.subtype ?? ''"
                         :disabled="subtypes.length === 0"
                         @change="filter({ subtype: selectValue($event) as NscmfSubtype | null })"
                     >
@@ -212,42 +212,37 @@ const row = (item: unknown) => item as HistoryItem;
                         <option v-for="subtype in subtypes" :key="subtype" :value="subtype">
                             {{ SUBTYPE_LABELS[subtype] }}
                         </option>
-                    </select>
+                    </NativeSelect>
                 </label>
                 <label class="space-y-1 text-sm">
                     <span class="block text-muted-foreground">Status</span>
-                    <select
-                        data-testid="filter-status"
-                        :class="controlClass"
+                    <NativeSelect
                         class="w-full"
-                        :value="query.business_status ?? ''"
+                        data-testid="filter-status"
+                        :model-value="query.business_status ?? ''"
                         @change="filter({ business_status: selectValue($event) as BusinessStatus | null })"
                     >
                         <option value="">All statuses</option>
                         <option v-for="(label, status) in STATUS_LABELS" :key="status" :value="status">
                             {{ label }}
                         </option>
-                    </select>
+                    </NativeSelect>
                 </label>
                 <label class="space-y-1 text-sm">
                     <span class="block text-muted-foreground">Request date from</span>
-                    <input
+                    <Input
                         type="date"
                         data-testid="filter-date-from"
-                        :class="controlClass"
-                        class="w-full"
-                        :value="query.request_date_from ?? ''"
+                        :model-value="query.request_date_from ?? ''"
                         @change="filter({ request_date_from: selectValue($event) })"
                     />
                 </label>
                 <label class="space-y-1 text-sm">
                     <span class="block text-muted-foreground">Request date to</span>
-                    <input
+                    <Input
                         type="date"
                         data-testid="filter-date-to"
-                        :class="controlClass"
-                        class="w-full"
-                        :value="query.request_date_to ?? ''"
+                        :model-value="query.request_date_to ?? ''"
                         @change="filter({ request_date_to: selectValue($event) })"
                     />
                 </label>
@@ -260,6 +255,7 @@ const row = (item: unknown) => item as HistoryItem;
             >
                 Also filtered by {{ informational.join(', ') }} (information only, not access).
                 <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     data-testid="clear-informational"
@@ -282,12 +278,11 @@ const row = (item: unknown) => item as HistoryItem;
                 @update:query="onTableQuery"
             >
                 <template #cell-select="{ item }">
-                    <input
-                        v-model="selectedIds"
-                        type="checkbox"
-                        :value="row(item).id"
+                    <Checkbox
+                        :model-value="selectedIds.includes(row(item).id)"
                         :data-testid="`select-${row(item).id}`"
                         :aria-label="`Select ${row(item).request_no}`"
+                        @update:model-value="selectedIds = toggleItem(selectedIds, row(item).id)"
                     />
                 </template>
                 <template #cell-request_no="{ item }">

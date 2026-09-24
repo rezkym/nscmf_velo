@@ -3,7 +3,7 @@ import { router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
-import Button from '@/components/ui/Button.vue';
+import { Button } from '@/components/ui/button';
 import UserManager, { type RoleOption, type TeamOption, type UserRow } from '@/features/administration/UserManager.vue';
 import type { PaginationMeta } from '@/features/nscmf/contracts';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -48,7 +48,8 @@ function goToPage(page: number): void {
                 <span>{{ range }}</span>
                 <div class="flex gap-2">
                     <Button
-                        variant="secondary"
+                        type="button"
+                        variant="outline"
                         data-testid="users-page-previous"
                         :disabled="meta.current_page <= 1"
                         @click="goToPage(meta.current_page - 1)"
@@ -56,7 +57,8 @@ function goToPage(page: number): void {
                         Previous
                     </Button>
                     <Button
-                        variant="secondary"
+                        type="button"
+                        variant="outline"
                         data-testid="users-page-next"
                         :disabled="meta.current_page >= meta.last_page"
                         @click="goToPage(meta.current_page + 1)"

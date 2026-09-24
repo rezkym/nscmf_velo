@@ -106,7 +106,7 @@ describe('Initial setup wizard (FE-15)', () => {
         expect(wrapper.get('[data-testid="default-roles"]').text()).toContain('Requester');
         expect(wrapper.find('[data-testid="create-role-btn"]').exists()).toBe(false);
 
-        await wrapper.get('[data-testid="role-mode-manual"]').setValue(true);
+        await wrapper.get('[data-testid="role-mode-manual"]').trigger('click');
         expect(wrapper.find('[data-testid="create-role-btn"]').exists()).toBe(true);
         expect(requests).toHaveLength(0);
     });
@@ -191,10 +191,10 @@ describe('Initial setup wizard (FE-15)', () => {
     it('returns to the default roles after choosing the manual path', async () => {
         const wrapper = mountSetup();
 
-        await wrapper.get('[data-testid="role-mode-manual"]').setValue(true);
+        await wrapper.get('[data-testid="role-mode-manual"]').trigger('click');
         expect(wrapper.find('[data-testid="default-roles"]').exists()).toBe(false);
 
-        await wrapper.get('[data-testid="role-mode-default"]').setValue(true);
+        await wrapper.get('[data-testid="role-mode-default"]').trigger('click');
         expect(wrapper.get('[data-testid="default-roles"]').text()).toContain('Superadmin');
         expect(requests).toHaveLength(0);
     });

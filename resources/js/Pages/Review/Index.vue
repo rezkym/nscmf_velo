@@ -3,9 +3,8 @@ import { Link, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import { buttonVariants } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
 import ResourceTable, { type ColumnDef, type TableQuery } from '@/components/ResourceTable.vue';
 import type { BusinessStatus, PaginationMeta } from '@/features/nscmf/contracts';
 import { FAMILY_LABELS, type NscmfFamily, type NscmfSubtype, SUBTYPE_LABELS } from '@/features/nscmf/types';
@@ -127,7 +126,9 @@ function reloadQueue(): void {
                 description="Requests waiting for review. Eligibility is permission-based and shared across teams."
             >
                 <template #actions>
-                    <Button data-testid="btn-refresh-queue" variant="secondary" @click="reloadQueue"> Refresh </Button>
+                    <Button type="button" data-testid="btn-refresh-queue" variant="outline" @click="reloadQueue">
+                        Refresh
+                    </Button>
                 </template>
             </PageHeader>
 
@@ -171,7 +172,7 @@ function reloadQueue(): void {
                         <Badge
                             v-if="(item as ReviewQueueItem).is_archived"
                             :data-testid="`archived-badge-${(item as ReviewQueueItem).id}`"
-                            variant="neutral"
+                            variant="secondary"
                         >
                             Archived
                         </Badge>
@@ -184,7 +185,7 @@ function reloadQueue(): void {
                     <Link
                         :href="`/review/${(item as ReviewQueueItem).id}`"
                         :data-testid="`btn-view-${(item as ReviewQueueItem).id}`"
-                        :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
+                        :class="buttonVariants({ variant: 'outline', size: 'sm' })"
                     >
                         View
                     </Link>

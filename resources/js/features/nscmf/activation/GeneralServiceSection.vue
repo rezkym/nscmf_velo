@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import { controlClass } from '@/components/ui/control';
-import FormField from '@/components/ui/FormField.vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { NativeSelect } from '@/components/ui/native-select';
+import FormField from '@/components/FormField.vue';
+import { Checkbox } from '@/components/ui/checkbox';
 import { computed } from 'vue';
 
 import DraftField from '../DraftField.vue';
@@ -171,12 +172,11 @@ function onStatusChange(context: ServiceContext, event: Event): void {
             <div class="space-y-3">
                 <div v-for="(label, type) in REFERENCE_TYPE_LABELS" :key="type" class="space-y-2">
                     <label class="flex items-center gap-2 text-sm">
-                        <input
-                            type="checkbox"
+                        <Checkbox
                             :data-testid="`reference-${type}`"
-                            :checked="isSelected(type)"
+                            :model-value="isSelected(type)"
                             :disabled="disabled"
-                            @change="toggleReference(type, ($event.target as HTMLInputElement).checked)"
+                            @update:model-value="toggleReference(type, $event === true)"
                         />
                         {{ label }}
                     </label>
@@ -201,11 +201,12 @@ function onStatusChange(context: ServiceContext, event: Event): void {
             <div class="flex items-center justify-between gap-4">
                 <div class="flex items-center gap-2">
                     <h2 class="text-base font-semibold">{{ service.title }}</h2>
-                    <Badge :data-testid="`requirement-${service.key}`">
+                    <Badge variant="secondary" :data-testid="`requirement-${service.key}`">
                         {{ REQUIRED_BLOCKS[subtype][service.context] ? 'Required' : 'Optional' }}
                     </Badge>
                 </div>
                 <Button
+                    type="button"
                     variant="ghost"
                     size="sm"
                     :data-testid="`btn-clear-service-${service.key}`"
@@ -237,21 +238,21 @@ function onStatusChange(context: ServiceContext, event: Event): void {
                     :error="error('service_blocks', blockIndex(service.context), 'service_status')"
                 >
                     <template #default="{ id, describedBy }">
-                        <select
+                        <NativeSelect
+                            class="w-full"
                             :id="id"
                             :data-error-path="`activation.service_blocks.${service.context}.service_status`"
                             :data-error-wire-path="blockPath(service.context, 'service_status')"
-                            :value="block(service.context)?.service_status ?? ''"
+                            :model-value="block(service.context)?.service_status ?? ''"
                             :disabled="disabled"
                             :aria-describedby="describedBy"
-                            :class="controlClass"
                             @change="onStatusChange(service.context, $event)"
                         >
                             <option value="">Not selected</option>
                             <option v-for="(label, status) in SERVICE_STATUS_LABELS" :key="status" :value="status">
                                 {{ label }}
                             </option>
-                        </select>
+                        </NativeSelect>
                     </template>
                 </FormField>
 

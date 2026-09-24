@@ -3,10 +3,13 @@ import { useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
-import Alert from '@/components/ui/Alert.vue';
-import Button from '@/components/ui/Button.vue';
-import { controlClass } from '@/components/ui/control';
-import FormField from '@/components/ui/FormField.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
+import FormField from '@/components/FormField.vue';
+import { Field, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { usePermissions } from '@/composables/usePermissions';
 import {
     FAMILY_LABELS,
@@ -66,54 +69,55 @@ function submit(): void {
         <div class="mx-auto max-w-2xl space-y-6">
             <PageHeader title="Create NSCMF" description="Choose the form type. The record starts as a draft." />
 
-            <Alert v-if="!user?.team" variant="warning" title="Active team required">
-                You need an active team to create records. Contact an administrator.
-            </Alert>
+            <Alert v-if="!user?.team" variant="warning"
+                ><AlertTitle>Active team required</AlertTitle
+                ><AlertDescription
+                    >You need an active team to create records. Contact an administrator.</AlertDescription
+                ></Alert
+            >
 
             <form v-else class="space-y-5 panel p-6" @submit.prevent="submit">
                 <FormField id="family" label="Form family" required>
                     <template #default="{ id }">
-                        <select :id="id" v-model="form.family" :disabled="form.processing" :class="controlClass">
+                        <NativeSelect class="w-full" :id="id" v-model="form.family" :disabled="form.processing">
                             <option v-for="(label, family) in FAMILY_LABELS" :key="family" :value="family">
                                 {{ label }}
                             </option>
-                        </select>
+                        </NativeSelect>
                     </template>
                 </FormField>
 
                 <FormField id="subtype" label="Subtype" required>
                     <template #default="{ id }">
-                        <select :id="id" v-model="form.subtype" :disabled="form.processing" :class="controlClass">
+                        <NativeSelect class="w-full" :id="id" v-model="form.subtype" :disabled="form.processing">
                             <option v-for="subtype in SUBTYPES_BY_FAMILY[form.family]" :key="subtype" :value="subtype">
                                 {{ SUBTYPE_LABELS[subtype] }}
                             </option>
-                        </select>
+                        </NativeSelect>
                     </template>
                 </FormField>
 
-                <fieldset class="space-y-2">
-                    <legend class="text-sm font-medium text-foreground">Request number</legend>
-                    <label class="flex items-center gap-2 text-sm">
-                        <input
-                            v-model="form.numbering_mode"
-                            type="radio"
-                            value="AUTOMATIC"
-                            data-testid="numbering-automatic"
-                            :disabled="form.processing"
-                        />
-                        Automatic — assigned by the system when the draft is created
-                    </label>
-                    <label class="flex items-center gap-2 text-sm">
-                        <input
-                            v-model="form.numbering_mode"
-                            type="radio"
-                            value="MANUAL"
-                            data-testid="numbering-manual"
-                            :disabled="form.processing"
-                        />
-                        Manual — enter your own number
-                    </label>
-                </fieldset>
+                <FieldSet>
+                    <FieldLegend variant="label">Request number</FieldLegend>
+                    <RadioGroup v-model="form.numbering_mode" :disabled="form.processing">
+                        <Field orientation="horizontal">
+                            <RadioGroupItem
+                                id="numbering-automatic"
+                                value="AUTOMATIC"
+                                data-testid="numbering-automatic"
+                            />
+                            <FieldLabel for="numbering-automatic" class="font-normal">
+                                Automatic — assigned by the system when the draft is created
+                            </FieldLabel>
+                        </Field>
+                        <Field orientation="horizontal">
+                            <RadioGroupItem id="numbering-manual" value="MANUAL" data-testid="numbering-manual" />
+                            <FieldLabel for="numbering-manual" class="font-normal"
+                                >Manual — enter your own number</FieldLabel
+                            >
+                        </Field>
+                    </RadioGroup>
+                </FieldSet>
 
                 <FormField
                     v-if="form.numbering_mode === 'MANUAL'"
@@ -123,7 +127,8 @@ function submit(): void {
                     :error="requestNoError"
                 >
                     <template #default="{ id, describedBy }">
-                        <input
+                        <Input
+                            class="font-mono"
                             :id="id"
                             v-model="manualRequestNo"
                             type="text"
@@ -131,7 +136,6 @@ function submit(): void {
                             autocomplete="off"
                             :aria-describedby="describedBy"
                             :disabled="form.processing"
-                            :class="[controlClass, 'font-mono']"
                         />
                     </template>
                 </FormField>

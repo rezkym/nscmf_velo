@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { controlClass } from '@/components/ui/control';
-import FormField from '@/components/ui/FormField.vue';
+import { Input } from '@/components/ui/input';
+import FormField from '@/components/FormField.vue';
 import { toNullableNumber } from '@/lib/formInputs';
 
 const value = defineModel<number | null>({ required: true });
@@ -28,16 +28,15 @@ function onInput(event: Event): void {
     <FormField :id="id" :label="label" :help="help" :error="error" :required="required">
         <template #default="{ id: controlId, describedBy }">
             <div class="flex items-center gap-2">
-                <input
+                <Input
                     :id="controlId"
                     type="number"
                     inputmode="decimal"
                     :min="min"
                     :max="max"
-                    :value="value ?? ''"
+                    :model-value="value ?? ''"
                     :disabled="disabled"
                     :aria-describedby="describedBy"
-                    :class="controlClass"
                     @input="onInput"
                 />
                 <span v-if="suffix" class="shrink-0 text-sm text-muted-foreground">{{ suffix }}</span>

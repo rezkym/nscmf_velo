@@ -46,9 +46,8 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
-import Alert from '@/components/ui/Alert.vue';
-import Button from '@/components/ui/Button.vue';
-import { buttonVariants } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button, buttonVariants } from '@/components/ui/button';
 import RequestFeedback from '@/components/RequestFeedback.vue';
 // Types come from their canonical module, not through the SFC: a type re-exported from a .vue file
 // resolves to `any` for eslint, which is what the suppression here used to paper over.
@@ -330,22 +329,20 @@ function handleRefresh(): void {
                     </p>
                 </div>
                 <template #actions>
-                    <Link :href="`/nscmf/${record.id}`" :class="buttonVariants({ variant: 'secondary' })">
+                    <Link :href="`/nscmf/${record.id}`" :class="buttonVariants({ variant: 'outline' })">
                         Back to detail
                     </Link>
                 </template>
             </PageHeader>
 
             <!-- Ineligibility warning alert -->
-            <Alert
-                v-if="!isEligible"
-                variant="warning"
-                data-testid="ineligible-alert"
-                title="Result editing unavailable"
+            <Alert v-if="!isEligible" variant="warning" data-testid="ineligible-alert"
+                ><AlertTitle>Result editing unavailable</AlertTitle
+                ><AlertDescription
+                    >Result of changes can only be updated by the record owner while in Pending Review for Change
+                    records with the required permission.</AlertDescription
+                ></Alert
             >
-                Result of changes can only be updated by the record owner while in Pending Review for Change records
-                with the required permission.
-            </Alert>
 
             <!-- Read-only Planning and General context -->
             <section class="space-y-4 panel p-6">

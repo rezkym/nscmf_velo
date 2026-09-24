@@ -58,7 +58,7 @@ describe('GeneralServiceSection (FE-20)', () => {
     it('AC2: keeps a reference selected without a specification', async () => {
         const wrapper = mountSection();
 
-        await wrapper.get('[data-testid="reference-OTHER"]').setValue(true);
+        await wrapper.get('[data-testid="reference-OTHER"]').trigger('click');
 
         expect(lastModel(wrapper).references).toEqual([{ reference_type: 'OTHER', specification: null }]);
         expect(wrapper.get<HTMLInputElement>('#reference-OTHER-specification').element.value).toBe('');
@@ -72,10 +72,10 @@ describe('GeneralServiceSection (FE-20)', () => {
             ],
         });
 
-        expect(wrapper.get<HTMLInputElement>('[data-testid="reference-IWO"]').element.checked).toBe(true);
+        expect(wrapper.get('[data-testid="reference-IWO"]').attributes('aria-checked')).toBe('true');
         expect(wrapper.get<HTMLInputElement>('#reference-OTHER-specification').element.value).toBe('Demo note');
 
-        await wrapper.get('[data-testid="reference-IWO"]').setValue(false);
+        await wrapper.get('[data-testid="reference-IWO"]').trigger('click');
 
         expect(lastModel(wrapper).references).toEqual([{ reference_type: 'OTHER', specification: 'Demo note' }]);
     });
@@ -208,7 +208,7 @@ describe('GeneralServiceSection (FE-20)', () => {
     it('selects every reference type on its own', async () => {
         for (const type of ['IWO', 'VELOSHIP', 'TICKET', 'OTHER']) {
             const wrapper = mountSection();
-            await wrapper.get(`[data-testid="reference-${type}"]`).setValue(true);
+            await wrapper.get(`[data-testid="reference-${type}"]`).trigger('click');
             expect(lastModel(wrapper).references).toEqual([{ reference_type: type, specification: null }]);
         }
     });

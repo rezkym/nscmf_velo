@@ -1,4 +1,4 @@
-import type { Tone } from '@/components/ui/tone';
+import type { BadgeVariants } from '@/components/ui/badge';
 
 import type { BusinessStatus } from './contracts';
 
@@ -41,14 +41,14 @@ export const STATUS_LABELS: Record<BusinessStatus, string> = {
 };
 
 /** Presentation tone of each business status (07 §7); always shown together with its label. */
-export const STATUS_TONES: Record<BusinessStatus, Tone> = {
-    DRAFT: 'neutral',
+export const STATUS_TONES: Record<BusinessStatus, BadgeVariants['variant']> = {
+    DRAFT: 'secondary',
     PENDING_REVIEW: 'info',
     REVISION_REQUIRED: 'warning',
     PENDING_APPROVAL: 'info',
     REJECTED: 'destructive',
     APPROVED: 'success',
-    CANCELLED: 'neutral',
+    CANCELLED: 'secondary',
 };
 
 /** Record summary row (12 §23); only the fields list views need. */

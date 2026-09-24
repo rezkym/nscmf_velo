@@ -44,7 +44,7 @@ const actions = computed<RecordActionSpec[]>(() => {
                 path: 'reopen',
                 consequence: REOPEN_CONSEQUENCE,
                 destination: 'Revision Required',
-                variant: 'secondary',
+                variant: 'outline',
                 input: 'reason',
                 payload: { destination_status: 'REVISION_REQUIRED' },
             },
@@ -55,7 +55,7 @@ const actions = computed<RecordActionSpec[]>(() => {
                 path: 'reopen',
                 consequence: REOPEN_CONSEQUENCE,
                 destination: 'Pending Review',
-                variant: 'secondary',
+                variant: 'outline',
                 input: 'reason',
                 payload: { destination_status: 'PENDING_REVIEW' },
             },
@@ -72,7 +72,7 @@ const actions = computed<RecordActionSpec[]>(() => {
                       label: 'Unarchive',
                       path: 'unarchive',
                       consequence: `The record returns to the default History view. The status stays ${label}.`,
-                      variant: 'secondary',
+                      variant: 'outline',
                       input: 'reason',
                   }
                 : {
@@ -81,7 +81,7 @@ const actions = computed<RecordActionSpec[]>(() => {
                       label: 'Archive',
                       path: 'archive',
                       consequence: `The status stays ${label}. The record leaves the default History view; it is not deleted.`,
-                      variant: 'secondary',
+                      variant: 'outline',
                       input: 'reason',
                   },
         );

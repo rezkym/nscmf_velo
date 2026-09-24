@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Checkbox } from '@/components/ui/checkbox';
+
 import DraftField from '../DraftField.vue';
 import DraftNumberField from '../DraftNumberField.vue';
 import { fieldError, type FieldErrors } from '../fieldErrors';
@@ -178,22 +180,20 @@ function text(key: keyof NetworkFields): string | null {
 
             <div class="space-y-2">
                 <label class="flex items-center gap-2 text-sm">
-                    <input
-                        type="checkbox"
+                    <Checkbox
                         data-testid="migrate_domain"
-                        :checked="model.migrate_domain === true"
+                        :model-value="model.migrate_domain === true"
                         :disabled="disabled"
-                        @change="update({ migrate_domain: ($event.target as HTMLInputElement).checked })"
+                        @update:model-value="update({ migrate_domain: $event === true })"
                     />
                     Migrate domain
                 </label>
                 <label class="flex items-center gap-2 text-sm">
-                    <input
-                        type="checkbox"
+                    <Checkbox
                         data-testid="migrate_hosting"
-                        :checked="model.migrate_hosting === true"
+                        :model-value="model.migrate_hosting === true"
                         :disabled="disabled"
-                        @change="update({ migrate_hosting: ($event.target as HTMLInputElement).checked })"
+                        @update:model-value="update({ migrate_hosting: $event === true })"
                     />
                     Migrate hosting
                 </label>

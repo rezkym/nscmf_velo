@@ -4,8 +4,7 @@ import { computed } from 'vue';
 
 import ResourceTable, { type ColumnDef, type TableQuery } from '@/components/ResourceTable.vue';
 import PageHeader from '@/components/PageHeader.vue';
-import Button from '@/components/ui/Button.vue';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import type { BusinessStatus, PaginationMeta } from '@/features/nscmf/contracts';
 import StatusBadge from '@/features/nscmf/StatusBadge.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -98,7 +97,9 @@ function reloadQueue(): void {
                 description="Requests waiting for approval. Eligibility is permission-based and shared across teams."
             >
                 <template #actions>
-                    <Button data-testid="btn-refresh-queue" variant="secondary" @click="reloadQueue"> Refresh </Button>
+                    <Button type="button" data-testid="btn-refresh-queue" variant="outline" @click="reloadQueue">
+                        Refresh
+                    </Button>
                 </template>
             </PageHeader>
 
@@ -136,7 +137,7 @@ function reloadQueue(): void {
                     <Link
                         :href="`/approval/${(item as ApprovalQueueItem).id}`"
                         :data-testid="`btn-view-${(item as ApprovalQueueItem).id}`"
-                        :class="buttonVariants({ variant: 'secondary', size: 'sm' })"
+                        :class="buttonVariants({ variant: 'outline', size: 'sm' })"
                     >
                         View
                     </Link>

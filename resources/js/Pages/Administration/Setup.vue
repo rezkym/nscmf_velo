@@ -3,9 +3,10 @@ import { Link } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 import PageHeader from '@/components/PageHeader.vue';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
-import { buttonVariants } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import RoleManager, { type PermissionCatalogItem, type RoleRow } from '@/features/administration/RoleManager.vue';
 import TeamManager, { type Team } from '@/features/administration/TeamManager.vue';
 import UserManager, { type UserRow } from '@/features/administration/UserManager.vue';
@@ -108,19 +109,19 @@ const readinessSummary = computed(() => [
                     </p>
                 </div>
 
-                <div class="flex flex-wrap gap-4 text-sm">
-                    <label class="flex items-center gap-2">
-                        <input v-model="roleMode" type="radio" value="default" data-testid="role-mode-default" />
-                        Use the default roles
-                    </label>
-                    <label class="flex items-center gap-2">
-                        <input v-model="roleMode" type="radio" value="manual" data-testid="role-mode-manual" />
-                        Configure roles manually
-                    </label>
-                </div>
+                <RadioGroup v-model="roleMode" aria-label="Role setup" class="flex flex-wrap gap-6">
+                    <Field orientation="horizontal" class="w-auto">
+                        <RadioGroupItem id="role-mode-default" value="default" data-testid="role-mode-default" />
+                        <FieldLabel for="role-mode-default" class="font-normal">Use the default roles</FieldLabel>
+                    </Field>
+                    <Field orientation="horizontal" class="w-auto">
+                        <RadioGroupItem id="role-mode-manual" value="manual" data-testid="role-mode-manual" />
+                        <FieldLabel for="role-mode-manual" class="font-normal">Configure roles manually</FieldLabel>
+                    </Field>
+                </RadioGroup>
 
                 <div v-if="roleMode === 'default'" data-testid="default-roles" class="flex flex-wrap gap-2">
-                    <Badge v-for="role in roles" :key="role.id">{{ role.name }}</Badge>
+                    <Badge variant="secondary" v-for="role in roles" :key="role.id">{{ role.name }}</Badge>
                     <p v-if="roles.length === 0" class="text-sm text-muted-foreground">No roles are available yet.</p>
                 </div>
                 <RoleManager v-else :roles="roles" :permission-catalog="permissionCatalog" />
@@ -184,7 +185,8 @@ const readinessSummary = computed(() => [
 
             <div class="flex justify-between">
                 <Button
-                    variant="secondary"
+                    type="button"
+                    variant="outline"
                     data-testid="btn-prev-step"
                     :disabled="currentStep === 1"
                     @click="currentStep--"
@@ -192,6 +194,7 @@ const readinessSummary = computed(() => [
                     Back
                 </Button>
                 <Button
+                    type="button"
                     v-if="currentStep < LAST_STEP"
                     data-testid="btn-next-step"
                     :disabled="!canAdvance"
