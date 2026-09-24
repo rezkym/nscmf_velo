@@ -430,3 +430,48 @@ it('refuses to build a file from a snapshot that no longer matches its hash (11 
     signIn($owner)->getJson("/nscmf/exports/{$exportId}")->assertJsonPath('data.status', 'FAILED')->assertJsonPath('data.download_url', null);
     expect(DB::table('nscmf_export_artifacts')->count())->toBe(0);
 });
+
+/*
+ * Re-download until 168 h (07 §39 "READY shows format/download/time/Available until. Re-download
+ * until 168h"; 07 §57 durable READY/Failed state). Decided 2026-09-24: GET /nscmf/{record}/exports
+ * lists the actor's own exports of that record still inside the retention window, newest first.
+ */
+it('lists the actor\'s own exports of a record still inside the 168-hour window, newest first', function (): void {
+    registerPipelineTemplate();
+    $owner = Actors::requester();
+    $recordId = Records::create($owner);
+    Records::submitted($recordId, $owner);
+    $ready = signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->json('data.id');
+    assert(is_int($ready));
+    app(ExportGenerationService::class)->generate($ready);
+    travel(1)->minutes();
+    $failed = signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->json('data.id');
+    assert(is_int($failed));
+    (new GenerateExport($failed))->failed(new RuntimeException('boom'));
+    $someoneElse = Actors::reviewer();
+    signIn($someoneElse)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->assertAccepted();
+
+    signIn($owner)->getJson("/nscmf/{$recordId}/exports")->assertOk()
+        ->assertHeader('Cache-Control', 'no-store, private')
+        ->assertJsonCount(2, 'data')
+        ->assertJsonPath('data.0.id', $failed)
+        ->assertJsonPath('data.0.status', 'FAILED')
+        ->assertJsonPath('data.1.id', $ready)
+        ->assertJsonPath('data.1.status', 'READY')
+        ->assertJsonPath('data.1.download_url', "/nscmf/exports/{$ready}/download")
+        ->assertJsonMissingPath('data.1.private_object_key');
+
+    travel(168)->hours();
+    signIn($owner)->getJson("/nscmf/{$recordId}/exports")->assertOk()->assertJsonCount(0, 'data');
+});
+
+it('refuses the export list without the export permission or for a record the actor cannot see', function (): void {
+    $owner = Actors::requester();
+    $draftId = Records::create($owner);
+
+    signIn(Actors::reviewer())->getJson("/nscmf/{$draftId}/exports")->assertNotFound();
+    signIn($owner)->getJson('/nscmf/999999/exports')->assertNotFound();
+
+    Records::submitted($draftId, $owner);
+    signIn(Actors::user(['nscmf.view']))->getJson("/nscmf/{$draftId}/exports")->assertForbidden();
+});

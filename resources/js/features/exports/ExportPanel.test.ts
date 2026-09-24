@@ -8,7 +8,12 @@ import ExportPanel from './ExportPanel.vue';
 vi.mock('@inertiajs/vue3', async () => (await import('@/testing/inertia')).inertiaModule);
 
 const fetchMock = vi.fn();
+// GET /nscmf/{record}/exports, the list the panel loads when it opens; answered on its own so the
+// request/poll/download exchanges below stay exactly as they are asserted.
+const listMock = vi.fn();
 const navigate = vi.fn();
+const isList = (url: unknown, init: unknown) =>
+    /^\/nscmf\/\d+\/exports$/.test(String(url)) && ((init as RequestInit | undefined)?.method ?? 'GET') === 'GET';
 
 function job(overrides: Record<string, unknown> = {}) {
     return {
@@ -26,10 +31,12 @@ function job(overrides: Record<string, unknown> = {}) {
     };
 }
 
+function json(status: number, body: unknown): Response {
+    return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
 function respond(status: number, body: unknown): void {
-    fetchMock.mockResolvedValueOnce(
-        new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }),
-    );
+    fetchMock.mockResolvedValueOnce(json(status, body));
 }
 
 function mountPanel(props: Record<string, unknown> = {}) {
@@ -51,8 +58,12 @@ function calls(): [string, string][] {
 
 beforeEach(() => {
     fetchMock.mockReset();
+    listMock.mockReset();
+    listMock.mockImplementation(() => Promise.resolve(json(200, { data: [] })));
     navigate.mockReset();
-    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('fetch', (url: unknown, init: unknown) =>
+        isList(url, init) ? listMock(url, init) : fetchMock(url, init),
+    );
     resetInertia({ auth: { permissions: ['nscmf.view', 'nscmf.export'] } });
 });
 enableAutoUnmount(afterEach);
@@ -281,5 +292,60 @@ describe('Approved PDF trust (FE-47)', () => {
 
         expect(wrapper.text()).not.toContain('/var/keys');
         expect(wrapper.text()).toContain('The export could not be generated.');
+    });
+});
+
+/*
+ * 07 §39: READY can be downloaded again until it expires (168 h); 07 §57: READY/Failed is a durable,
+ * visible state. Leaving the page must not lose the way back to a file (GET /nscmf/{record}/exports).
+ */
+describe('Export re-access after leaving the page', () => {
+    it('shows the exports the server still keeps for this record when the panel opens', async () => {
+        listMock.mockReset();
+        listMock.mockResolvedValueOnce(
+            json(200, {
+                data: [
+                    job({ id: 41, status: 'FAILED', failure_code: 'EXPORT_FAILED' }),
+                    job({
+                        id: 40,
+                        status: 'READY',
+                        expires_at: '2026-10-01T01:00:00+00:00',
+                        download_url: '/nscmf/exports/40/download',
+                    }),
+                ],
+            }),
+        );
+        const wrapper = mountPanel();
+        await flushPromises();
+
+        expect(listMock.mock.calls.map(([url]) => String(url))).toEqual(['/nscmf/5/exports']);
+        expect(wrapper.get('[data-testid="export-job-40"]').text()).toContain('Available until');
+        expect(wrapper.find('[data-testid="export-download-40"]').exists()).toBe(true);
+        expect(wrapper.get('[data-testid="export-job-41"]').text()).toContain('Failed');
+        expect(wrapper.findAll('li').map((item) => item.attributes('data-testid'))).toEqual([
+            'export-job-41',
+            'export-job-40',
+        ]);
+    });
+
+    it('keeps following a listed export that is still being generated', async () => {
+        listMock.mockReset();
+        listMock.mockResolvedValueOnce(json(200, { data: [job({ id: 42, status: 'PROCESSING' })] }));
+        respond(200, { data: job({ id: 42, status: 'READY', download_url: '/nscmf/exports/42/download' }) });
+        const wrapper = mountPanel();
+        await flushPromises();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await flushPromises();
+
+        expect(calls()).toEqual([['GET', '/nscmf/exports/42']]);
+        expect(wrapper.find('[data-testid="export-download-42"]').exists()).toBe(true);
+    });
+
+    it('asks nothing without the export permission', async () => {
+        resetInertia({ auth: { permissions: ['nscmf.view'] } });
+        mountPanel();
+        await flushPromises();
+
+        expect(listMock).not.toHaveBeenCalled();
     });
 });
