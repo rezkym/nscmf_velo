@@ -1,7 +1,7 @@
 import { sendJson } from '@/lib/http';
 
 interface TimelinePage {
-    data: { to_status: string | null; reason: string | null }[];
+    data: { from_status: string | null; to_status: string | null; reason: string | null }[];
     meta: { current_page: number; last_page: number };
 }
 
@@ -20,7 +20,10 @@ export async function latestReturnReason(recordId: number, signal?: AbortSignal)
         );
         if (!result.ok || !result.body) return null;
 
-        const entry = result.body.data.find((event) => event.to_status === 'REVISION_REQUIRED');
+        // A transition into revision; saves made while in revision stay REVISION_REQUIRED → REVISION_REQUIRED.
+        const entry = result.body.data.find(
+            (event) => event.to_status === 'REVISION_REQUIRED' && event.from_status !== 'REVISION_REQUIRED',
+        );
         if (entry) return entry.reason;
         if (result.body.meta.current_page >= result.body.meta.last_page) return null;
     }
