@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
+import PageHeader from '@/components/PageHeader.vue';
 import Badge from '@/components/ui/Badge.vue';
 import { buttonVariants } from '@/components/ui/button';
 import DetailList, { type DetailItem } from '@/features/nscmf/DetailList.vue';
@@ -17,6 +18,7 @@ import {
     SERVICE_STATUS_LABELS,
     SUBTYPE_LABELS,
 } from '@/features/nscmf/types';
+import { formatJakarta } from '@/lib/datetime';
 
 export type { NscmfDetailRecord };
 
@@ -244,21 +246,22 @@ const NUMBERED_TEXT = [
 
 <template>
     <div class="mx-auto max-w-5xl space-y-6">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="space-y-1">
-                <div class="flex flex-wrap items-center gap-2">
-                    <h1 data-testid="request-no" class="text-xl font-semibold text-foreground">
-                        {{ record.request_no }}
-                    </h1>
-                    <StatusBadge data-testid="business-status-badge" :status="record.business_status" />
-                    <Badge v-if="record.is_archived" variant="warning" data-testid="archived-badge">Archived</Badge>
-                </div>
+        <PageHeader :title="record.request_no">
+            <template #title>
+                <span data-testid="request-no" class="break-all">{{ record.request_no }}</span>
+            </template>
+            <div class="flex flex-wrap items-center gap-2">
+                <StatusBadge data-testid="business-status-badge" :status="record.business_status" />
+                <!-- Archived is its own flag, never a business status (07 §33). -->
+                <Badge v-if="record.is_archived" variant="warning" data-testid="archived-badge">Archived</Badge>
                 <p data-testid="family-subtype" class="text-sm text-muted-foreground">
                     {{ FAMILY_LABELS[record.family] }} · {{ SUBTYPE_LABELS[record.subtype] }}
                 </p>
             </div>
-            <Link :href="backHref" :class="buttonVariants({ variant: 'secondary' })">{{ backLabel }}</Link>
-        </div>
+            <template #actions>
+                <Link :href="backHref" :class="buttonVariants({ variant: 'secondary' })">{{ backLabel }}</Link>
+            </template>
+        </PageHeader>
 
         <section class="space-y-4 panel p-6">
             <DetailList :items="summary" />
@@ -266,7 +269,7 @@ const NUMBERED_TEXT = [
                 <div v-for="signoff in signoffs" :key="signoff.testid" :data-testid="signoff.testid">
                     <dt class="text-xs text-muted-foreground">{{ signoff.label }}</dt>
                     <dd class="text-sm text-foreground">{{ display(signoff.person?.name) }}</dd>
-                    <dd class="text-xs text-muted-foreground">{{ display(signoff.at) }}</dd>
+                    <dd class="text-xs text-muted-foreground">{{ formatJakarta(signoff.at) }}</dd>
                 </div>
             </dl>
         </section>

@@ -26,10 +26,12 @@ const waitingForRequester = computed(() => props.record.business_status === 'REV
 </script>
 
 <template>
-    <div
+    <section
         v-if="canEdit || canUpdateResults || canReview || canApprove || waitingForRequester"
-        class="flex flex-wrap items-center gap-2"
+        aria-label="Next step"
+        class="panel flex flex-wrap items-center gap-x-4 gap-y-3 p-4 sm:px-6"
     >
+        <p class="text-sm font-medium text-heading">Next step</p>
         <Link v-if="canEdit" data-testid="next-step-edit" :href="editPath" :class="buttonVariants()">
             {{ record.business_status === 'REVISION_REQUIRED' ? 'Revise and Resubmit' : 'Edit Draft' }}
         </Link>
@@ -50,5 +52,5 @@ const waitingForRequester = computed(() => props.record.business_status === 'REV
         <p v-if="waitingForRequester" data-testid="next-step-waiting" class="text-sm text-muted-foreground">
             Waiting for the requester to revise and resubmit this record.
         </p>
-    </div>
+    </section>
 </template>
