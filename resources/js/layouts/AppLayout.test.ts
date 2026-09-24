@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { mount } from '@vue/test-utils';
-import { ref } from 'vue';
-import { describe, expect, it, vi } from 'vitest';
+import { nextTick, ref } from 'vue';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import AppLayout from './AppLayout.vue';
 
@@ -36,6 +36,8 @@ const mockPageProps = ref<{
     },
 });
 
+const mockUrl = ref('/dashboard');
+
 const routerPost = vi.fn();
 
 vi.mock('@inertiajs/vue3', async () => {
@@ -58,6 +60,7 @@ vi.mock('@inertiajs/vue3', async () => {
         }),
         usePage: () => ({
             props: mockPageProps.value,
+            url: mockUrl.value,
         }),
     };
 });
@@ -251,57 +254,112 @@ describe('AppLayout.vue', () => {
         expect(routerPost).toHaveBeenCalledWith('/logout');
     });
 
-    // AC4: shell_is_keyboard_operable
-    // skip link, toggle aria-expanded, focus menu mobile dan title bekerja
-    it('AC4: shell_is_keyboard_operable — provides skip link, accessible landmarks, and keyboard operable sidebar toggle', async () => {
+    // AC4: shell_is_keyboard_operable — skip link, landmarks, title, and the narrow-screen navigation panel
+    it('AC4: shell_is_keyboard_operable — provides skip link, accessible landmarks and the page title', () => {
         mockPageProps.value = {
             auth: {
-                user: {
-                    id: 1,
-                    username: 'demo.user',
-                    name: 'Demo User',
-                    team_id: 1,
-                    team: { id: 1, name: 'Team Alpha' },
-                    must_change_password: false,
-                },
+                user: { id: 1, username: 'demo.user', name: 'Demo User', must_change_password: false },
                 permissions: ['nscmf.create', 'nscmf.review'],
-                roles: ['Requester', 'Reviewer'],
             },
         };
 
         const wrapper = mount(AppLayout, {
             props: { title: 'Dashboard' },
-            slots: {
-                default: '<p>Main content area</p>',
-            },
+            slots: { default: '<p>Main content area</p>' },
         });
 
-        // 1. Skip to main content link exists and targets #main-content
         const skipLink = wrapper.find('a[href="#main-content"]');
         expect(skipLink.exists()).toBe(true);
         expect(skipLink.text()).toMatch(/skip to content|skip to main/i);
+        expect(wrapper.find('main#main-content').exists()).toBe(true);
+        expect(wrapper.findComponent(Head).props('title')).toBe('Dashboard');
+    });
 
-        // 2. Main content landmark with id="main-content"
-        const main = wrapper.find('main#main-content');
-        expect(main.exists()).toBe(true);
+    describe('navigation panel on narrow screens', () => {
+        afterEach(() => {
+            document.body.innerHTML = '';
+        });
 
-        // 3. Document title set through Inertia Head
-        const head = wrapper.findComponent(Head);
-        expect(head.exists()).toBe(true);
-        expect(head.props('title')).toBe('Dashboard');
+        function mountShell() {
+            mockPageProps.value = {
+                auth: {
+                    user: { id: 1, username: 'demo.user', name: 'Demo User', must_change_password: false },
+                    permissions: ['nscmf.view.history'],
+                },
+            };
+            return mount(AppLayout, { props: { title: 'Dashboard' }, attachTo: document.body });
+        }
 
-        // 4. Sidebar toggle button with aria-expanded and aria-controls
-        const toggleBtn = wrapper.find('[data-testid="sidebar-toggle"]');
-        expect(toggleBtn.exists()).toBe(true);
-        expect(toggleBtn.attributes('aria-expanded')).toBe('true');
+        it('opens from the menu button and moves focus into the panel', async () => {
+            const wrapper = mountShell();
+            const toggle = wrapper.get('[data-testid="sidebar-toggle"]');
 
-        // Click toggle button collapses sidebar
-        await toggleBtn.trigger('click');
-        expect(toggleBtn.attributes('aria-expanded')).toBe('false');
+            expect(toggle.attributes('aria-controls')).toBe('sidebar-navigation');
+            expect(toggle.attributes('aria-expanded')).toBe('false');
 
-        // Click toggle button re-expands sidebar
-        await toggleBtn.trigger('click');
-        expect(toggleBtn.attributes('aria-expanded')).toBe('true');
+            (toggle.element as HTMLElement).focus();
+            await toggle.trigger('click');
+            await nextTick();
+
+            expect(toggle.attributes('aria-expanded')).toBe('true');
+            expect(wrapper.get('#sidebar-navigation').element.contains(document.activeElement)).toBe(true);
+        });
+
+        it('closes with Escape and returns focus to the menu button', async () => {
+            const wrapper = mountShell();
+            const toggle = wrapper.get('[data-testid="sidebar-toggle"]');
+            (toggle.element as HTMLElement).focus();
+            await toggle.trigger('click');
+            await nextTick();
+
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+            await nextTick();
+
+            expect(toggle.attributes('aria-expanded')).toBe('false');
+            expect(document.activeElement).toBe(toggle.element);
+        });
+
+        it('closes from the backdrop', async () => {
+            const wrapper = mountShell();
+            await wrapper.get('[data-testid="sidebar-toggle"]').trigger('click');
+
+            await wrapper.get('[data-testid="sidebar-backdrop"]').trigger('click');
+
+            expect(wrapper.get('[data-testid="sidebar-toggle"]').attributes('aria-expanded')).toBe('false');
+        });
+    });
+
+    it('marks the link of the current page, including its sub-pages', () => {
+        mockUrl.value = '/review/12';
+        mockPageProps.value = {
+            auth: {
+                user: { id: 1, username: 'demo.user', name: 'Demo User', must_change_password: false },
+                permissions: ['nscmf.review'],
+            },
+        };
+
+        const links = mount(AppLayout, { props: { title: 'Review' } }).findAll('nav a');
+        const current = links.filter((link) => link.attributes('aria-current') === 'page');
+
+        expect(current.map((link) => link.attributes('href'))).toEqual(['/review']);
+        mockUrl.value = '/dashboard';
+    });
+
+    it('groups administration links under their own heading only when there are any', () => {
+        const navFor = (permissions: string[]) => {
+            mockPageProps.value = {
+                auth: {
+                    user: { id: 1, username: 'demo.user', name: 'Demo User', must_change_password: false },
+                    permissions,
+                },
+            };
+            return mount(AppLayout, { props: { title: 'Dashboard' } })
+                .get('nav')
+                .text();
+        };
+
+        expect(navFor(['nscmf.view.history'])).not.toContain('Administration');
+        expect(navFor(['users.view'])).toContain('Administration');
     });
 
     // Detail requirement: Setup/temp-password gate does not show normal shell
@@ -332,18 +390,25 @@ describe('AppLayout.vue', () => {
         expect(wrapper.text()).toContain('Must change password form');
     });
 
-    it('shows the page title next to the product name, and only when it adds something', () => {
+    it('names the current page in the header and shows who is signed in', () => {
         mockPageProps.value = {
             auth: {
-                user: { id: 1, username: 'demo.requester.a', name: 'Demo Requester A', must_change_password: false },
+                user: {
+                    id: 1,
+                    username: 'demo.requester.a',
+                    name: 'Demo Requester A',
+                    team: { id: 1, name: 'Team Alpha' },
+                    must_change_password: false,
+                },
                 permissions: [],
             },
         };
 
-        const titled = mount(AppLayout, { props: { title: 'Dashboard' } });
-        expect(titled.get('header').text()).toContain('/ Dashboard');
+        const wrapper = mount(AppLayout, { props: { title: 'History' } });
 
-        const untitled = mount(AppLayout, { props: { title: 'NSCMF' } });
-        expect(untitled.get('header').text()).not.toContain('/');
+        expect(wrapper.get('header').text()).toContain('History');
+        expect(wrapper.get('[data-testid="sidebar"]').text()).toContain('Demo Requester A');
+        // Team is profile information only, never an access hint (07 §6).
+        expect(wrapper.get('[data-testid="sidebar"]').text()).toContain('Team Alpha');
     });
 });
