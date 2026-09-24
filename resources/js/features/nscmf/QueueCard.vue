@@ -51,11 +51,12 @@ const emit = defineEmits<{ retry: [] }>();
         </p>
 
         <ul v-if="items.length > 0" class="space-y-1 border-t border-border pt-3 text-sm">
-            <li v-for="item in items" :key="item.id" class="flex items-center justify-between gap-2">
-                <Link :href="itemHref(item)" class="truncate font-medium text-foreground hover:underline">
+            <li v-for="item in items" :key="item.id" class="flex flex-col">
+                <!-- The Request No is what the user clicks: it never shrinks; the context text wraps. -->
+                <Link :href="itemHref(item)" class="break-all font-medium text-foreground hover:underline">
                     {{ item.request_no }}
                 </Link>
-                <span class="shrink-0 text-xs text-muted-foreground">
+                <span class="text-xs text-muted-foreground">
                     {{ SUBTYPE_LABELS[item.subtype] }}<template v-if="item.team"> · {{ item.team.name }}</template>
                 </span>
             </li>
