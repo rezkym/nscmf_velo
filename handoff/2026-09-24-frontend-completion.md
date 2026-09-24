@@ -58,7 +58,7 @@ Semua layar di `microtask_fe/04_TRACEABILITY.md` sudah punya halaman dan test:
 | FE-39 | `features/audits/AuditLog.test.ts` | Hanya field yang di-whitelist yang dirender |
 | FE-40–43 | `features/attachments/*.test.ts`, `Pages/Nscmf/Edit.test.ts` | Picker dikunci selama form belum disimpan (lampiran mengubah `record_version`) |
 | FE-44–47 | `features/exports/ExportPanel.test.ts` | Konteks snapshot (versi/iterasi) tidak ditampilkan: proyeksi BE tidak menyediakannya |
-| FE-46 | `features/exports/BulkExportPanel.test.ts` | Satu request per record; tanpa ZIP (G04 masih terbuka) |
+| FE-46 | `features/exports/BulkExportPanel.test.ts` | Satu request per record; ZIP server ditambahkan setelah G04 ditutup (lihat [handoff keputusan](2026-09-24-decisions-and-verification.md)) |
 | FE-48–49 | `Pages/Public/PdfValidator.test.ts` | Halaman publik tanpa shell aplikasi; `sendForm` multipart |
 | FE-50 | `Pages/Administration/Settings/TechnicalLogs.test.ts` | Setelah re-auth tidak menyimpan otomatis; pengguna menekan Save lagi |
 | FE-51 | `tests/Browser/fe-accessibility.spec.ts` | Dua temuan nyata: overflow di 320 px dan reduced motion (keduanya diperbaiki) |
@@ -88,8 +88,7 @@ Semua layar di `microtask_fe/04_TRACEABILITY.md` sudah punya halaman dan test:
 
 - Tidak ada modul yang diklaim **Feature Done**. DoD (18) mensyaratkan human review, security review (auth, lampiran, validator publik, setting), dan CI.
 - Keputusan terbuka:
-  - G04: kemasan bulk export
-  - G05/G15: angka final rate limit dan timeout
+  - ~~G04, G05/G15~~: ditutup, lihat [handoff keputusan](2026-09-24-decisions-and-verification.md)
   - kustodi kunci signing produksi
 - Menu "Technical Logs" tampil untuk pemegang `system.settings.manage`. Hanya Protected Superadmin yang bisa menyimpan, dan itu ditegakkan server.
 - Level 3 (rilis/production-ready) **tidak diklaim**.

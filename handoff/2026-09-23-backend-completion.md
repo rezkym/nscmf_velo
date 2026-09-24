@@ -49,8 +49,8 @@ HTTPS/sesi, MySQL 8.4 persisten, storage privat persisten, clamd privat, worker+
 
 G10, G16 dan G20 ditutup 2026-09-24 oleh keputusan pemilik (lihat register gap).
 
-1. **G04 — kemasan bulk export:** saat ini satu request per record; ZIP/gabungan belum diputuskan.
-2. **G05/G15 — angka final** rate limit dan timeout scan/render (nilai sementara sudah aktif).
+1. ~~**G04 — kemasan bulk export**~~: ditutup 2026-09-24 (ZIP batch).
+2. ~~**G05/G15 — angka final**~~: ditutup 2026-09-24 (diukur, lihat `handoff/2026-09-24-decisions-and-verification.md`).
 3. **Kustodi kunci signing produksi** dan hostname publik validator: keputusan operator saat rilis.
 4. G11 (notifikasi) dan G13 (data Team produksi) tetap deferred.
 
