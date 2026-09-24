@@ -154,3 +154,14 @@ describe('Approval detail (FE-33)', () => {
         expect(wrapper.get('#main-content a[href="/approval"]').text()).toBe('Back to approval queue');
     });
 });
+
+describe('Approval detail: decision labels', () => {
+    it('uses the explicit labels of 07 §62 for the four decisions', () => {
+        const wrapper = mountShow();
+
+        expect(wrapper.get('[data-testid="approval-approve"]').text()).toBe('Approve NSCMF');
+        expect(wrapper.get('[data-testid="approval-return-reviewer"]').text()).toBe('Return to Reviewer');
+        expect(wrapper.get('[data-testid="approval-return-requester"]').text()).toBe('Return to Requester');
+        expect(wrapper.get('[data-testid="approval-reject"]').text()).toBe('Reject NSCMF');
+    });
+});

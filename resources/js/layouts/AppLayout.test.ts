@@ -200,6 +200,34 @@ describe('AppLayout.vue', () => {
         ).toEqual(['/administration/audits/access']);
     });
 
+    // 07 §51: the protected Core Setting is only for the Protected Superadmin; holding
+    // system.settings.manage alone (for example through a copied Superadmin role) is not enough.
+    it('links Technical Logs only for the Protected Superadmin holding the settings permission', () => {
+        const hrefsFor = (isProtected: boolean, permissions: string[]) => {
+            mockPageProps.value = {
+                auth: {
+                    user: {
+                        id: 1,
+                        username: 'admin',
+                        name: 'Admin',
+                        team_id: null,
+                        team: null,
+                        must_change_password: false,
+                        is_protected_superadmin: isProtected,
+                    },
+                    permissions,
+                },
+            };
+            return mount(AppLayout, { props: { title: 'Administration' } })
+                .findAllComponents(Link)
+                .map((link) => link.props('href'));
+        };
+
+        expect(hrefsFor(true, ['system.settings.manage'])).toContain('/administration/settings/technical-logs');
+        expect(hrefsFor(false, ['system.settings.manage'])).not.toContain('/administration/settings/technical-logs');
+        expect(hrefsFor(true, [])).not.toContain('/administration/settings/technical-logs');
+    });
+
     it('signs out with a POST to /logout', async () => {
         routerPost.mockClear();
         mockPageProps.value = {

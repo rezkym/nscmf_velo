@@ -199,6 +199,13 @@ describe('User administration (FE-12)', () => {
         expect(request?.data).toEqual({ name: 'Demo Requester A2' });
     });
 
+    // 04 §265: assigning a user to a Team needs users.assign_team OR teams.assign_users.
+    it('offers the Team assignment to an actor holding only teams.assign_users', () => {
+        const wrapper = mountPage(['users.view', 'teams.assign_users']);
+
+        expect(wrapper.find('[data-testid="btn-edit-team-2"]').exists()).toBe(true);
+    });
+
     it('AC4: changes the team without re-authentication and without claiming an access change', async () => {
         const wrapper = mountPage();
         await wrapper.get('[data-testid="btn-edit-team-2"]').trigger('click');

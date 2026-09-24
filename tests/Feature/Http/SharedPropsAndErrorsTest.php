@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Administration\PermissionCatalog;
 use App\Domain\Shared\DomainRuleException;
 use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia;
@@ -30,7 +31,22 @@ it('shares only the safe auth context and effective permissions', function (): v
         ->where('auth.permissions', ['nscmf.create', 'nscmf.view'])
         ->missing('auth.user.password')
         ->missing('auth.user.remember_token')
-        ->missing('auth.user.is_protected_superadmin')
+        ->where('auth.user.is_protected_superadmin', false)
+        ->etc());
+});
+
+// 07 §51: Technical Log settings exist only for the Protected Superadmin, so the shell needs to
+// know whether the signed-in user is that identity. It is the user's own marker, never a grant.
+it('tells the Protected Superadmin, and only them, that they are the protected identity', function (): void {
+    $superadmin = Actors::superadmin();
+    signIn($superadmin)->get('/administration/users')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('auth.user.is_protected_superadmin', true)
+        ->etc());
+
+    $admin = Actors::user(PermissionCatalog::all());
+    signIn($admin)->get('/administration/users')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('auth.user.is_protected_superadmin', false)
+        ->where('auth.permissions', fn ($permissions): bool => collect($permissions)->contains('system.settings.manage'))
         ->etc());
 });
 

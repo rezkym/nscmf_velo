@@ -6,13 +6,21 @@ import Welcome from './Welcome.vue';
 
 // Inertia's Head needs a running Inertia app; replace it with a prop-capturing stand-in.
 vi.mock('@inertiajs/vue3', async () => {
-    const { defineComponent } = await import('vue');
+    const { defineComponent, h } = await import('vue');
 
     return {
         Head: defineComponent({
             name: 'InertiaHead',
             props: { title: { type: String, required: true } },
             setup: () => () => null,
+        }),
+        Link: defineComponent({
+            name: 'InertiaLink',
+            props: { href: { type: String, required: true } },
+            setup:
+                (props, { slots }) =>
+                () =>
+                    h('a', { href: props.href }, slots.default?.()),
         }),
     };
 });
@@ -28,5 +36,12 @@ describe('Welcome page', () => {
         const wrapper = mount(Welcome, { props: { appName: 'NSCMF' } });
 
         expect(wrapper.findComponent(Head).props('title')).toBe('Welcome');
+    });
+
+    // The root page is the internal entry point (07 §13 Login); it must not be a dead end.
+    it('leads visitors on to sign in', () => {
+        const wrapper = mount(Welcome, { props: { appName: 'NSCMF' } });
+
+        expect(wrapper.get('a[href="/login"]').text()).toBe('Sign in');
     });
 });

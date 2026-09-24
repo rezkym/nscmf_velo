@@ -293,3 +293,87 @@ describe('Nscmf/Edit.vue — attachments (FE-40, FE-43)', () => {
         expect(router.reload).toHaveBeenCalledWith();
     });
 });
+
+/*
+ * Revision Edit (07 §12 screen 9; FE-28: "Revision menampilkan alasan return"): the requester
+ * revises because of a reason, so the editor shows the reason of the latest return to
+ * REVISION_REQUIRED. The reason lives in the Business Timeline (07 §36; 12 §33).
+ */
+describe('Nscmf/Edit.vue — the return reason in Revision mode', () => {
+    const event = (id: number, to_status: string | null, reason: string | null) => ({
+        id,
+        event_type: to_status === null ? 'DRAFT_SAVED' : 'REVIEW_RETURNED',
+        actor: 'Reviewer',
+        iteration_no: 1,
+        from_status: null,
+        to_status,
+        reason,
+        comment: null,
+        version_before: null,
+        version_after: null,
+        occurred_at: '2026-09-24T10:00:00+07:00',
+        changes: [],
+    });
+    const page = (data: ReturnType<typeof event>[], current: number, last: number) => ({
+        ok: true as const,
+        status: 200,
+        body: { data, meta: { current_page: current, last_page: last, total: data.length } },
+    });
+
+    function mountRevision(permissions: string[]): VueWrapper {
+        resetInertia({ auth: { user: { id: 9, username: 'owner', name: 'Owner' }, permissions }, errors: {} });
+        return mount(Edit, {
+            props: { record: changeRecord({ business_status: 'REVISION_REQUIRED', iteration_no: 1 }), warnings: [] },
+            attachTo: document.body,
+        });
+    }
+
+    beforeEach(() => {
+        document.body.innerHTML = '';
+        send.mockReset();
+    });
+
+    it('shows the reason of the latest return, even when later saves pushed it to an older page', async () => {
+        reply(page([event(9, null, null), event(8, null, null)], 1, 2));
+        reply(
+            page(
+                [
+                    event(7, 'REVISION_REQUIRED', 'Fix the rollback steps.'),
+                    event(3, 'REVISION_REQUIRED', 'Old reason.'),
+                ],
+                2,
+                2,
+            ),
+        );
+
+        const wrapper = mountRevision(['nscmf.draft.edit', 'nscmf.submit', 'nscmf.timeline.view']);
+        await flushPromises();
+
+        const notice = wrapper.get('[data-testid="revision-notice"]').text();
+        expect(notice).toContain('Fix the rollback steps.');
+        expect(notice).not.toContain('Old reason.');
+        expect(send.mock.calls.map((call) => [call[0], call[1]])).toEqual([
+            ['GET', '/nscmf/7/timeline?page=1&per_page=25'],
+            ['GET', '/nscmf/7/timeline?page=2&per_page=25'],
+        ]);
+    });
+
+    it('still marks Revision mode, without asking, when the actor may not read the timeline', async () => {
+        const wrapper = mountRevision(['nscmf.draft.edit', 'nscmf.submit']);
+        await flushPromises();
+
+        expect(wrapper.get('[data-testid="revision-notice"]').text()).toContain('Revision Required');
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it('never asks for a reason while editing a Draft', async () => {
+        resetInertia({
+            auth: { user: { id: 9, username: 'owner', name: 'Owner' }, permissions: ['nscmf.timeline.view'] },
+            errors: {},
+        });
+        mount(Edit, { props: { record: changeRecord(), warnings: [] }, attachTo: document.body });
+        await flushPromises();
+
+        expect(send).not.toHaveBeenCalled();
+    });
+});
