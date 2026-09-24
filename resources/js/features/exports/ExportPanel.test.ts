@@ -94,6 +94,30 @@ describe('Export request (FE-44)', () => {
         expect(wrapper.get('[data-testid="export-job-31"]').text()).toContain('Requested 2026-09-24 08:00 WIB');
     });
 
+    it('AC3: a job shows the record version and iteration it was bound to, even after the record moves on', async () => {
+        fetchMock.mockImplementation(() => new Promise(() => undefined));
+        respond(202, { data: job({ snapshot: { record_version: 8, iteration_no: 2, template: 'NSCMF-Form-3.0' } }) });
+        const wrapper = mountPanel();
+        await wrapper.get('[data-testid="export-XLSX"]').trigger('click');
+        await flushPromises();
+        await wrapper.setProps({ businessStatus: 'APPROVED' });
+
+        const row = wrapper.get('[data-testid="export-job-31"]').text();
+        expect(row).toContain('Version 8');
+        expect(row).toContain('iteration 2');
+        expect(row).toContain('NSCMF-Form-3.0');
+    });
+
+    it('AC3: shows no snapshot context the server did not send', async () => {
+        fetchMock.mockImplementation(() => new Promise(() => undefined));
+        respond(202, { data: job({ snapshot: null }) });
+        const wrapper = mountPanel();
+        await wrapper.get('[data-testid="export-XLSX"]').trigger('click');
+        await flushPromises();
+
+        expect(wrapper.get('[data-testid="export-job-31"]').text()).not.toMatch(/version|iteration/i);
+    });
+
     it('AC4/AC5: an unavailable capability or a denial is explained and gives no file', async () => {
         const wrapper = mountPanel({ businessStatus: 'APPROVED' });
         respond(409, { code: 'SIGNING_NOT_READY', message: 'Approved PDFs cannot be signed right now.' });
