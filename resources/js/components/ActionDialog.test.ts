@@ -207,6 +207,16 @@ describe('ActionDialog (FE-04)', () => {
         wrapper.unmount();
     });
 
+    it('confirms a destructive action with the destructive button and anything else with the primary one', () => {
+        const destructive = mount(ActionDialog, { props: { open: true, title: 'Reject', destructive: true } });
+        expect(destructive.get('[data-test="confirm-button"]').attributes('data-variant')).toBe('destructive');
+        destructive.unmount();
+
+        const ordinary = mount(ActionDialog, { props: { open: true, title: 'Forward' } });
+        expect(ordinary.get('[data-test="confirm-button"]').attributes('data-variant')).toBe('default');
+        ordinary.unmount();
+    });
+
     it('shows the request number, the consequence and the destination when given', () => {
         const wrapper = mount(ActionDialog, {
             props: {
