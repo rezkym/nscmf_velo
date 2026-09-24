@@ -13,18 +13,29 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\Support\Actors;
 use Tests\Support\Records;
+use Tests\Support\SyntheticWorkbook;
 
 use function Pest\Laravel\travel;
 
 /*
  * BE-105–113 / T47–T53 — template registry, OOXML patching and asynchronous XLSX export from an
- * immutable snapshot (11 §41–46; 12 §64–71; 14 §66–70). Needs the private official workbook;
- * without it these cases skip instead of passing.
+ * immutable snapshot (11 §41–46; 12 §64–71; 14 §66–70). Pipeline cases run on a synthetic
+ * template; cases about the real form's layout need the private official workbook and skip
+ * (never pass) without it.
  */
 
 function officialWorkbook(): string
 {
     return base_path('NSCMF-Form-3.0.xlsx');
+}
+
+/**
+ * The export pipeline only needs a structurally valid template, so it runs on the synthetic one
+ * everywhere, CI included; layout against the real form uses registerTemplate().
+ */
+function registerPipelineTemplate(): void
+{
+    Artisan::call('nscmf:template:register', ['path' => SyntheticWorkbook::path(), '--label' => 'NSCMF-Form-3.0', '--activate' => true]);
 }
 
 function registerTemplate(): void
@@ -66,21 +77,21 @@ beforeEach(function (): void {
     Queue::fake();
 });
 
-it('registers the official template privately, verifies its hash and never overwrites a version', function (): void {
-    registerTemplate();
-    registerTemplate();
+it('registers a template privately, verifies its hash and never overwrites a version', function (): void {
+    registerPipelineTemplate();
+    registerPipelineTemplate();
 
     $version = DB::table('nscmf_template_versions')->sole();
     $key = (string) soleValue('nscmf_template_versions', 'private_object_key');
-    expect($version->template_sha256)->toBe(hash_file('sha256', officialWorkbook()))
+    expect($version->template_sha256)->toBe(hash_file('sha256', SyntheticWorkbook::path()))
         ->and($version->is_active)->toBe(1)
         ->and($version->mapping_version)->toBe('nscmf-form-3.0/v1')
         ->and(Storage::disk('nscmf_private')->exists($key))->toBeTrue()
         ->and(str_starts_with($key, 'templates/'))->toBeTrue();
-})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+});
 
 it('requests an export with an immutable snapshot, audits it and queues the worker after commit', function (): void {
-    registerTemplate();
+    registerPipelineTemplate();
     $owner = Actors::requester();
     $recordId = Records::create($owner);
     Records::submitted($recordId, $owner);
@@ -98,7 +109,7 @@ it('requests an export with an immutable snapshot, audits it and queues the work
 
     signIn(Actors::user(['nscmf.view']))->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->assertForbidden();
     signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'DOCX'])->assertUnprocessable();
-})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+});
 
 function columnBefore(string $column): string
 {
@@ -226,7 +237,7 @@ it('generates the XLSX from the snapshot only, patching cells and controls and n
 })->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
 
 it('serves a READY export only to authorized actors until it expires after 168 hours', function (): void {
-    registerTemplate();
+    registerPipelineTemplate();
     $owner = Actors::requester();
     $recordId = Records::create($owner);
     $exportId = signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->json('data.id');
@@ -244,7 +255,7 @@ it('serves a READY export only to authorized actors until it expires after 168 h
     travel(168)->hours();
     travel(1)->seconds();
     signIn($owner)->getJson("/nscmf/exports/{$exportId}/download")->assertStatus(410)->assertJsonPath('code', 'EXPORT_EXPIRED');
-})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+});
 
 it('refuses to export without an active, hash-verified template', function (): void {
     $owner = Actors::requester();
@@ -252,13 +263,13 @@ it('refuses to export without an active, hash-verified template', function (): v
 
     signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->assertConflict()->assertJsonPath('code', 'EXPORT_NOT_READY');
 
-    registerTemplate();
+    registerPipelineTemplate();
     Storage::disk('nscmf_private')->put((string) soleValue('nscmf_template_versions', 'private_object_key'), 'tampered');
     signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->assertConflict()->assertJsonPath('code', 'EXPORT_NOT_READY');
-})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+});
 
 it('creates one independently authorized request per record in a bulk export', function (): void {
-    registerTemplate();
+    registerPipelineTemplate();
     $owner = Actors::requester();
     $mine = Records::create($owner);
     $othersDraft = Records::create(Actors::requester());
@@ -274,7 +285,7 @@ it('creates one independently authorized request per record in a bulk export', f
     assert(is_int($batchId));
     signIn($owner)->getJson("/nscmf/export-batches/{$batchId}")->assertOk()->assertJsonCount(1, 'data.exports');
     signIn(Actors::requester())->getJson("/nscmf/export-batches/{$batchId}")->assertNotFound();
-})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+});
 
 /** @return array<string, string> member name => bytes of a ZIP response body */
 function zipEntries(string $body): array
@@ -295,7 +306,7 @@ function zipEntries(string $body): array
 }
 
 it('packages a settled bulk export as one ZIP of the files the requester may still download (G04)', function (): void {
-    registerTemplate();
+    registerPipelineTemplate();
     $owner = Actors::requester();
     $first = Records::create($owner, 'CHANGE', 'MAINTENANCE', ['request_no' => 'CHG-A/1', 'request_no_normalized' => 'chg-a/1']);
     $second = Records::create($owner, 'CHANGE', 'MAINTENANCE', ['request_no' => 'CHG-B', 'request_no_normalized' => 'chg-b']);
@@ -338,10 +349,10 @@ it('packages a settled bulk export as one ZIP of the files the requester may sti
     Permission::findByName('nscmf.export.bulk', 'web')->roles()->detach();
     app(PermissionRegistrar::class)->forgetCachedPermissions();
     signIn($owner->refresh())->getJson("/nscmf/export-batches/{$batchId}/download")->assertForbidden();
-})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+});
 
 it('leaves expired files out of a batch ZIP and refuses one with nothing left to download (G04)', function (): void {
-    registerTemplate();
+    registerPipelineTemplate();
     $owner = Actors::requester();
     $recordId = Records::create($owner);
     $batchId = signIn($owner)->postJson('/nscmf/exports/bulk', ['format' => 'XLSX', 'record_ids' => [$recordId]])->json('data.id');
@@ -352,10 +363,10 @@ it('leaves expired files out of a batch ZIP and refuses one with nothing left to
     travel(1)->seconds();
     signIn($owner)->getJson("/nscmf/export-batches/{$batchId}/download")->assertStatus(410)->assertJsonPath('code', 'EXPORT_EXPIRED');
     expect(DB::table('access_audit_events')->where('event_type', 'EXPORT_DOWNLOADED')->count())->toBe(0);
-})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+});
 
 it('reports the snapshot an export is bound to, unaffected by later edits (FE-44 AC3)', function (): void {
-    registerTemplate();
+    registerPipelineTemplate();
     $owner = Actors::requester();
     $recordId = Records::create($owner);
     Records::submitted($recordId, $owner);
@@ -373,10 +384,10 @@ it('reports the snapshot an export is bound to, unaffected by later edits (FE-44
     signIn($owner)->getJson("/nscmf/exports/{$exportId}")->assertOk()
         ->assertJsonPath('data.snapshot.record_version', $version)
         ->assertJsonMissingPath('data.snapshot.snapshot_json');
-})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+});
 
 it('finishes an export whose previous attempt was interrupted instead of leaving it PROCESSING (14 §48)', function (): void {
-    registerTemplate();
+    registerPipelineTemplate();
     $owner = Actors::requester();
     $recordId = Records::create($owner);
     $exportId = signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->json('data.id');
@@ -388,10 +399,10 @@ it('finishes an export whose previous attempt was interrupted instead of leaving
 
     signIn($owner)->getJson("/nscmf/exports/{$exportId}")->assertJsonPath('data.status', 'READY');
     expect(DB::table('nscmf_export_artifacts')->where('export_request_id', $exportId)->count())->toBe(1);
-})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+});
 
 it('fails an export safely once its job has no attempts left (12 §66)', function (): void {
-    registerTemplate();
+    registerPipelineTemplate();
     $owner = Actors::requester();
     $recordId = Records::create($owner);
     $exportId = signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->json('data.id');
@@ -403,10 +414,10 @@ it('fails an export safely once its job has no attempts left (12 §66)', functio
         ->assertJsonPath('data.download_url', null);
     $summary = DB::table('nscmf_export_requests')->where('id', $exportId)->value('failure_summary');
     expect(is_string($summary) && ! str_contains($summary, '/var/secret'))->toBeTrue();
-})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+});
 
 it('refuses to build a file from a snapshot that no longer matches its hash (11 §44)', function (): void {
-    registerTemplate();
+    registerPipelineTemplate();
     $owner = Actors::requester();
     $recordId = Records::create($owner);
     $exportId = signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->json('data.id');
@@ -418,4 +429,4 @@ it('refuses to build a file from a snapshot that no longer matches its hash (11 
 
     signIn($owner)->getJson("/nscmf/exports/{$exportId}")->assertJsonPath('data.status', 'FAILED')->assertJsonPath('data.download_url', null);
     expect(DB::table('nscmf_export_artifacts')->count())->toBe(0);
-})->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
+});
