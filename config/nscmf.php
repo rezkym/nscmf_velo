@@ -48,7 +48,7 @@ return [
     'renderer' => [
         'driver' => env('NSCMF_RENDERER_DRIVER') ?: 'libreoffice',
         'executable' => (string) env('NSCMF_RENDERER_EXECUTABLE', ''),
-        'timeout_seconds' => (int) env('NSCMF_RENDERER_TIMEOUT_SECONDS') ?: 60,
+        'timeout_seconds' => (int) env('NSCMF_RENDERER_TIMEOUT_SECONDS') ?: 30,
         // Directory holding the template's fonts (Calibri, Aptos); never committed (licensed).
         'fonts_path' => (string) env('NSCMF_RENDERER_FONTS_PATH', ''),
     ],

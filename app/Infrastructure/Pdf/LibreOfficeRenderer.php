@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Pdf;
 
+use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Support\Facades\Process;
 
 /**
@@ -55,12 +56,16 @@ final readonly class LibreOfficeRenderer implements SpreadsheetRenderer
             symlink($this->fontsPath, $profileFonts);
         }
 
-        $result = Process::timeout($this->timeoutSeconds)->path($workspace)->run([
-            $this->executable,
-            '-env:UserInstallation=file://'.$workspace.'/profile',
-            '--headless', '--norestore', '--nolockcheck',
-            '--convert-to', $target, '--outdir', $workspace, $xlsxPath,
-        ]);
+        try {
+            $result = Process::timeout($this->timeoutSeconds)->path($workspace)->run([
+                $this->executable,
+                '-env:UserInstallation=file://'.$workspace.'/profile',
+                '--headless', '--norestore', '--nolockcheck',
+                '--convert-to', $target, '--outdir', $workspace, $xlsxPath,
+            ]);
+        } catch (ProcessTimedOutException) {
+            throw new RenderFailed('The spreadsheet renderer timed out.');
+        }
 
         $pdf = $workspace.'/'.pathinfo($xlsxPath, PATHINFO_FILENAME).'.pdf';
         if (! $result->successful() || ! is_file($pdf) || filesize($pdf) === 0) {
