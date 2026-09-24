@@ -247,6 +247,12 @@ final readonly class ExportService
             'expires_at' => $request->expires_at?->toIso8601String(),
             'failure_code' => $request->failure_code,
             'signed' => $request->issuance !== null,
+            // The immutable context the file is built from (FE-44 AC3); never the snapshot body.
+            'snapshot' => $request->snapshot === null ? null : [
+                'record_version' => $request->snapshot->record_version,
+                'iteration_no' => $request->snapshot->recordField('iteration_no'),
+                'template' => $request->snapshot->templateVersion->version_label,
+            ],
             'download_url' => $request->status === ExportStatus::READY ? "/nscmf/exports/{$request->id}/download" : null,
         ];
     }

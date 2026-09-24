@@ -43,7 +43,7 @@ final class EloquentExportRepository implements ExportRepository
 
     public function findBatch(int $batchId): ?ExportBatch
     {
-        return ExportBatch::query()->with('requests.artifact')->find($batchId);
+        return ExportBatch::query()->with(['requests.artifact', 'requests.issuance', 'requests.snapshot.templateVersion'])->find($batchId);
     }
 
     public function createRequest(array $attributes): ExportRequest
