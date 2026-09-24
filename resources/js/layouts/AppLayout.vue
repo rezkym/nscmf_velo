@@ -18,6 +18,7 @@ import {
 } from '@lucide/vue';
 import { computed, ref, type Component } from 'vue';
 
+import BrandMark from '@/components/BrandMark.vue';
 import { useFocusTrap } from '@/composables/useFocusTrap';
 import { usePermissions } from '@/composables/usePermissions';
 import { cn } from '@/lib/utils';
@@ -153,11 +154,7 @@ function signOut(): void {
             "
         >
             <div class="flex h-18 items-center gap-3 px-6">
-                <span
-                    class="flex size-9 items-center justify-center rounded-lg bg-brand-950 text-sm font-bold text-white"
-                    aria-hidden="true"
-                    >N</span
-                >
+                <BrandMark />
                 <div class="leading-tight">
                     <p class="font-semibold tracking-tight text-heading">NSCMF</p>
                     <p class="text-xs text-muted-foreground">Digital Form &amp; Workflow</p>

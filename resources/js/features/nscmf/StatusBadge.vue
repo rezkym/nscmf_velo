@@ -8,5 +8,6 @@ defineProps<{ status: BusinessStatus }>();
 </script>
 
 <template>
-    <Badge :variant="STATUS_TONES[status]">{{ STATUS_LABELS[status] }}</Badge>
+    <!-- An unexpected value is shown as sent rather than hidden. -->
+    <Badge :variant="STATUS_TONES[status] ?? 'neutral'">{{ STATUS_LABELS[status] ?? status }}</Badge>
 </template>

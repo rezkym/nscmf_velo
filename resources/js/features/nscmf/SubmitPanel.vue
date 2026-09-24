@@ -2,11 +2,10 @@
 import { computed, nextTick, ref, watch } from 'vue';
 
 import Alert from '@/components/ui/Alert.vue';
-import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import type { BusinessStatus } from './contracts';
-import { STATUS_LABELS } from './types';
+import StatusBadge from './StatusBadge.vue';
 import { router } from '@inertiajs/vue3';
 
 export type SaveState = 'clean' | 'dirty' | 'saving' | 'saved' | 'error' | 'conflict';
@@ -71,7 +70,6 @@ const canSubmit = computed(() => {
 });
 
 const isRevisionMode = computed(() => props.businessStatus === 'REVISION_REQUIRED');
-const statusLabel = computed(() => STATUS_LABELS[props.businessStatus] ?? props.businessStatus);
 
 const saveBlockingMessage = computed(() => {
     if (props.saveState === 'dirty') {
@@ -205,9 +203,7 @@ function handleSubmit(): void {
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <span class="text-xs text-muted-foreground font-medium">Current Status:</span>
-                <Badge data-testid="submit-status-badge" variant="neutral">
-                    {{ statusLabel }}
-                </Badge>
+                <StatusBadge data-testid="submit-status-badge" :status="businessStatus" />
             </div>
 
             <!-- Request Meta info (immutable request_no, server iteration) -->

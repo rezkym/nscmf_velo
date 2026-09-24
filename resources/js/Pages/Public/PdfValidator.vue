@@ -6,6 +6,7 @@ import Alert from '@/components/ui/Alert.vue';
 import Button from '@/components/ui/Button.vue';
 import PublicVerificationResult from '@/features/exports/PublicVerificationResult.vue';
 import type { VerificationAnswer } from '@/features/exports/verification';
+import CenteredLayout from '@/layouts/CenteredLayout.vue';
 import { sendForm } from '@/lib/http';
 
 /**
@@ -63,23 +64,20 @@ async function verify(): Promise<void> {
 
 <template>
     <Head title="Verify an NSCMF PDF" />
-    <main class="min-h-screen bg-background px-4 py-12 text-foreground">
-        <div class="mx-auto max-w-xl space-y-6">
-            <div class="space-y-2">
-                <h1 class="text-2xl font-semibold">Verify an NSCMF PDF</h1>
-                <p class="text-sm text-muted-foreground">
-                    Check whether a PDF was issued and signed by NSCMF and whether it has been changed since. The file
-                    is checked and then discarded; nothing about it is kept on this page.
-                </p>
-            </div>
-            <form class="space-y-3 rounded-lg border border-border bg-card p-5" @submit.prevent="verify">
+    <CenteredLayout
+        wide
+        title="Verify an NSCMF PDF"
+        description="Check whether a PDF was issued and signed by NSCMF and whether it has been changed since. The file is checked and then discarded; nothing about it is kept on this page."
+    >
+        <div class="space-y-6">
+            <form class="panel space-y-4 p-6" @submit.prevent="verify">
                 <label for="validator-file" class="block text-sm font-medium">PDF file</label>
                 <input
                     id="validator-file"
                     type="file"
                     accept="application/pdf,.pdf"
                     data-testid="validator-file"
-                    class="block w-full text-sm"
+                    class="block w-full text-sm text-muted-foreground file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-2 file:text-sm file:font-medium file:text-accent-foreground hover:file:bg-accent/70"
                     :aria-describedby="problem ? 'validator-problem' : undefined"
                     @change="choose"
                 />
@@ -91,5 +89,5 @@ async function verify(): Promise<void> {
             <Alert v-if="error" variant="error" title="Not checked">{{ error }}</Alert>
             <PublicVerificationResult v-if="answer" :answer="answer" />
         </div>
-    </main>
+    </CenteredLayout>
 </template>

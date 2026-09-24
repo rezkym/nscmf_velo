@@ -31,7 +31,7 @@ function error(...segments: (string | number)[]): string | undefined {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <div>
                 <h2 class="text-base font-semibold">Result of changes</h2>
                 <p class="text-sm text-muted-foreground">

@@ -3,7 +3,6 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import RequestFeedback from '@/components/RequestFeedback.vue';
-import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import { buttonVariants } from '@/components/ui/button';
 import { controlClass } from '@/components/ui/control';
@@ -30,10 +29,10 @@ import {
     type ChangeSubtype,
     FAMILY_LABELS,
     type NscmfDetailRecord,
-    STATUS_LABELS,
     SUBTYPE_LABELS,
 } from '@/features/nscmf/types';
 import { useDraftSave } from '@/features/nscmf/useDraftSave';
+import StatusBadge from '@/features/nscmf/StatusBadge.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { pageDomainError } from '@/lib/apiErrors';
 
@@ -190,7 +189,7 @@ function signIn(): void {
                     </h1>
                     <div class="flex items-center gap-2 text-sm text-muted-foreground">
                         <span class="font-mono">{{ record.request_no }}</span>
-                        <Badge variant="neutral">{{ STATUS_LABELS[record.business_status] }}</Badge>
+                        <StatusBadge :status="record.business_status" />
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
@@ -211,7 +210,7 @@ function signIn(): void {
                 @login="signIn"
             />
 
-            <section data-testid="draft-header" class="space-y-4 rounded-lg border border-border bg-card p-6">
+            <section data-testid="draft-header" class="space-y-4 panel p-6">
                 <h2 class="text-base font-semibold">Request</h2>
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <FormField id="request_no" label="Request number" :error="fieldErrors['header.request_no']">
@@ -283,7 +282,7 @@ function signIn(): void {
                 @changed="attachmentsChanged"
             />
 
-            <section class="rounded-lg border border-border bg-card p-6">
+            <section class="panel p-6">
                 <SubmitPanel
                     :record-id="record.id"
                     :record-version="draft.currentVersion.value"

@@ -77,7 +77,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <section aria-label="Attachments" class="space-y-4 rounded-lg border border-border bg-card p-6">
+    <section aria-label="Attachments" class="space-y-4 panel p-6">
         <div class="space-y-1">
             <h2 class="font-semibold">Attachments</h2>
             <p class="text-sm text-muted-foreground">

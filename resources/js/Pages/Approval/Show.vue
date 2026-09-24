@@ -24,7 +24,7 @@ const permitted = computed(() => APPROVAL_ACTIONS.some((action) => can(action.pe
     <AppLayout :title="`Approval · ${record.request_no}`">
         <RecordDetail :record="record" back-href="/approval" back-label="Back to approval queue">
             <template #actions>
-                <section aria-label="Approval actions" class="space-y-3 rounded-lg border border-border bg-card p-5">
+                <section aria-label="Approval actions" class="space-y-3 panel p-5">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <h2 class="font-semibold">Approval</h2>
                         <Button variant="secondary" @click="router.reload()">Refresh details</Button>

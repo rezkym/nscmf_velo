@@ -125,7 +125,7 @@ function onStatusChange(context: ServiceContext, event: Event): void {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <h2 class="text-base font-semibold">Customer and request</h2>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -162,7 +162,7 @@ function onStatusChange(context: ServiceContext, event: Event): void {
             </div>
         </section>
 
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <div>
                 <h2 class="text-base font-semibold">References</h2>
                 <p class="text-sm text-muted-foreground">Select any that apply. Other needs a specification.</p>
@@ -197,11 +197,7 @@ function onStatusChange(context: ServiceContext, event: Event): void {
             </div>
         </section>
 
-        <section
-            v-for="service in SERVICE_BLOCKS"
-            :key="service.context"
-            class="space-y-4 rounded-lg border border-border bg-card p-6"
-        >
+        <section v-for="service in SERVICE_BLOCKS" :key="service.context" class="space-y-4 panel p-6">
             <div class="flex items-center justify-between gap-4">
                 <div class="flex items-center gap-2">
                     <h2 class="text-base font-semibold">{{ service.title }}</h2>

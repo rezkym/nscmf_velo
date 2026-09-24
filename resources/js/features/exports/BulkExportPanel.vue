@@ -4,6 +4,7 @@ import { computed, onUnmounted, ref } from 'vue';
 import Alert from '@/components/ui/Alert.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
+import { controlClass } from '@/components/ui/control';
 import { usePermissions } from '@/composables/usePermissions';
 import { sendJson } from '@/lib/http';
 
@@ -84,17 +85,13 @@ async function submit(): Promise<void> {
         v-if="can('nscmf.export.bulk')"
         data-testid="bulk-export"
         aria-label="Bulk export"
-        class="space-y-3 rounded-lg border border-border bg-card p-4"
+        class="space-y-3 panel p-4"
     >
         <div class="flex flex-wrap items-center gap-3">
             <span class="text-sm font-medium">{{ selected.length }} selected</span>
             <label class="flex items-center gap-2 text-sm">
                 Format
-                <select
-                    v-model="format"
-                    data-testid="bulk-export-format"
-                    class="rounded border border-input bg-background px-2 py-1 text-sm"
-                >
+                <select v-model="format" data-testid="bulk-export-format" :class="[controlClass, 'w-auto']">
                     <option value="XLSX">XLSX</option>
                     <option value="PDF">PDF</option>
                 </select>

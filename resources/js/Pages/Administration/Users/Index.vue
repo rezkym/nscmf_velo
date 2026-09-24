@@ -2,6 +2,7 @@
 import { router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
+import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import UserManager, { type RoleOption, type TeamOption, type UserRow } from '@/features/administration/UserManager.vue';
 import type { PaginationMeta } from '@/features/nscmf/contracts';
@@ -33,12 +34,10 @@ function goToPage(page: number): void {
 <template>
     <AppLayout title="Users">
         <div class="mx-auto max-w-5xl space-y-6">
-            <div>
-                <h1 class="text-xl font-semibold text-foreground">Users</h1>
-                <p class="text-sm text-muted-foreground">
-                    Access comes from roles; a user with several roles gets all of their permissions.
-                </p>
-            </div>
+            <PageHeader
+                title="Users"
+                description="Access comes from roles; a user with several roles gets all of their permissions."
+            />
             <UserManager :users="users" :teams="teams" :roles="roles" />
             <nav
                 v-if="meta && meta.last_page > 1"

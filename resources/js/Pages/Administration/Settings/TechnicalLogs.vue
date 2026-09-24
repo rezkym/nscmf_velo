@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 
 import ReauthenticationDialog from '@/components/ReauthenticationDialog.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import Alert from '@/components/ui/Alert.vue';
 import Button from '@/components/ui/Button.vue';
 import { controlClass } from '@/components/ui/control';
@@ -70,14 +71,11 @@ function confirmed(): void {
 <template>
     <AppLayout title="Technical Logs">
         <div class="mx-auto max-w-2xl space-y-6">
-            <div>
-                <h1 class="text-xl font-semibold text-foreground">Technical log cleanup</h1>
-                <p class="text-sm text-muted-foreground">
-                    How long application technical logs are kept. Business, access and security audits are never deleted
-                    by this setting.
-                </p>
-            </div>
-            <form class="space-y-4 rounded-lg border border-border bg-card p-6" @submit.prevent="save">
+            <PageHeader
+                title="Technical log cleanup"
+                description="How long application technical logs are kept. Business, access and security audits are never deleted by this setting."
+            />
+            <form class="space-y-4 panel p-6" @submit.prevent="save">
                 <label class="flex items-center gap-2 text-sm font-medium">
                     <input v-model="enabled" type="checkbox" data-testid="settings-enabled" />
                     Delete technical logs automatically

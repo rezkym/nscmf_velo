@@ -6,6 +6,7 @@ import Badge from '@/components/ui/Badge.vue';
 import { buttonVariants } from '@/components/ui/button';
 import DetailList, { type DetailItem } from '@/features/nscmf/DetailList.vue';
 import DetailTable from '@/features/nscmf/DetailTable.vue';
+import StatusBadge from '@/features/nscmf/StatusBadge.vue';
 import {
     type NscmfDetailRecord,
     ANNOUNCEMENT_TIMING_LABELS,
@@ -14,7 +15,6 @@ import {
     REFERENCE_TYPE_LABELS,
     SERVICE_IMPACT_LABELS,
     SERVICE_STATUS_LABELS,
-    STATUS_LABELS,
     SUBTYPE_LABELS,
 } from '@/features/nscmf/types';
 
@@ -250,7 +250,7 @@ const NUMBERED_TEXT = [
                     <h1 data-testid="request-no" class="text-xl font-semibold text-foreground">
                         {{ record.request_no }}
                     </h1>
-                    <Badge data-testid="business-status-badge">{{ STATUS_LABELS[record.business_status] }}</Badge>
+                    <StatusBadge data-testid="business-status-badge" :status="record.business_status" />
                     <Badge v-if="record.is_archived" variant="warning" data-testid="archived-badge">Archived</Badge>
                 </div>
                 <p data-testid="family-subtype" class="text-sm text-muted-foreground">
@@ -260,7 +260,7 @@ const NUMBERED_TEXT = [
             <Link :href="backHref" :class="buttonVariants({ variant: 'secondary' })">{{ backLabel }}</Link>
         </div>
 
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <DetailList :items="summary" />
             <dl class="grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-3">
                 <div v-for="signoff in signoffs" :key="signoff.testid" :data-testid="signoff.testid">
@@ -306,7 +306,7 @@ const NUMBERED_TEXT = [
             class="space-y-6"
         >
             <template v-if="record.family === 'ACTIVATION'">
-                <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                <section class="space-y-4 panel p-6">
                     <h2 class="text-base font-semibold">General and service</h2>
                     <DetailList :items="activation.general" />
                     <DetailTable
@@ -338,12 +338,12 @@ const NUMBERED_TEXT = [
                     />
                 </section>
 
-                <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                <section class="space-y-4 panel p-6">
                     <h2 class="text-base font-semibold">NOC configuration</h2>
                     <DetailList :items="activation.network" />
                 </section>
 
-                <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                <section class="space-y-4 panel p-6">
                     <h2 class="text-base font-semibold">Bandwidth</h2>
                     <DetailList :items="activation.bandwidth" />
                     <DetailTable
@@ -366,24 +366,24 @@ const NUMBERED_TEXT = [
                     />
                 </section>
 
-                <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                <section class="space-y-4 panel p-6">
                     <h2 class="text-base font-semibold">Domain, DNS and hosting</h2>
                     <DetailList :items="activation.hosting" />
                 </section>
 
-                <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                <section class="space-y-4 panel p-6">
                     <h2 class="text-base font-semibold">Customer site (direct)</h2>
                     <DetailList :items="activation.directSite" />
                 </section>
 
-                <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                <section class="space-y-4 panel p-6">
                     <h2 class="text-base font-semibold">Customer site at POP</h2>
                     <DetailList :items="activation.popSite" />
                 </section>
             </template>
 
             <template v-else>
-                <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                <section class="space-y-4 panel p-6">
                     <h2 class="text-base font-semibold">Purpose of changes</h2>
                     <DetailList :items="change.purpose" />
                     <DetailTable
@@ -409,7 +409,7 @@ const NUMBERED_TEXT = [
                     />
                 </section>
 
-                <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                <section class="space-y-4 panel p-6">
                     <h2 class="text-base font-semibold">Plan, schedule and rollback</h2>
                     <DetailTable
                         data-testid="table-improvement_items"
@@ -424,7 +424,7 @@ const NUMBERED_TEXT = [
                     <DetailList :items="change.plan" />
                 </section>
 
-                <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+                <section class="space-y-4 panel p-6">
                     <h2 class="text-base font-semibold">Result of changes</h2>
                     <DetailTable
                         data-testid="table-results"
@@ -448,10 +448,7 @@ const NUMBERED_TEXT = [
             :aria-labelledby="`record-${record.id}-tab-${activeTab}`"
         >
             <slot :name="activeTab">
-                <p
-                    :data-testid="`${activeTab}-stub`"
-                    class="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground"
-                >
+                <p :data-testid="`${activeTab}-stub`" class="panel p-8 text-center text-sm text-muted-foreground">
                     {{ activeTab === 'timeline' ? 'The timeline' : 'Attachments' }} are not available yet.
                 </p>
             </slot>

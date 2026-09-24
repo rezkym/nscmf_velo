@@ -3,8 +3,10 @@ import { Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 import ResourceTable, { type ColumnDef, type TableQuery } from '@/components/ResourceTable.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
+import { controlClass } from '@/components/ui/control';
 import { usePermissions } from '@/composables/usePermissions';
 import BulkExportPanel from '@/features/exports/BulkExportPanel.vue';
 import type { BusinessStatus, PaginationMeta } from '@/features/nscmf/contracts';
@@ -16,6 +18,7 @@ import {
     type NscmfFamily,
     type NscmfSubtype,
 } from '@/features/nscmf/types';
+import StatusBadge from '@/features/nscmf/StatusBadge.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 export interface HistoryItem extends Record<string, unknown> {
@@ -152,26 +155,22 @@ const tableMeta = computed(() => ({
     to: props.meta.to ?? undefined,
 }));
 const row = (item: unknown) => item as HistoryItem;
-const control =
-    'rounded border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring';
 </script>
 
 <template>
     <AppLayout title="History">
         <div class="mx-auto max-w-6xl space-y-6">
-            <div>
-                <h1 class="text-xl font-semibold text-foreground">History</h1>
-                <p class="text-sm text-muted-foreground">
-                    Every NSCMF record you may see. Archived records are a separate view.
-                </p>
-            </div>
+            <PageHeader
+                title="History"
+                description="Every NSCMF record you may see. Archived records are a separate view."
+            />
 
             <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="History filters" @submit.prevent>
                 <label class="space-y-1 text-sm">
                     <span class="block text-muted-foreground">View</span>
                     <select
                         data-testid="filter-archived"
-                        :class="control"
+                        :class="controlClass"
                         class="w-full"
                         :value="query.archived ? '1' : '0'"
                         @change="filter({ archived: selectValue($event) === '1' })"
@@ -184,7 +183,7 @@ const control =
                     <span class="block text-muted-foreground">Family</span>
                     <select
                         data-testid="filter-family"
-                        :class="control"
+                        :class="controlClass"
                         class="w-full"
                         :value="query.family ?? ''"
                         @change="filter({ family: selectValue($event) as NscmfFamily | null, subtype: null })"
@@ -199,7 +198,7 @@ const control =
                     <span class="block text-muted-foreground">Subtype</span>
                     <select
                         data-testid="filter-subtype"
-                        :class="control"
+                        :class="controlClass"
                         class="w-full"
                         :value="query.subtype ?? ''"
                         :disabled="subtypes.length === 0"
@@ -215,7 +214,7 @@ const control =
                     <span class="block text-muted-foreground">Status</span>
                     <select
                         data-testid="filter-status"
-                        :class="control"
+                        :class="controlClass"
                         class="w-full"
                         :value="query.business_status ?? ''"
                         @change="filter({ business_status: selectValue($event) as BusinessStatus | null })"
@@ -231,7 +230,7 @@ const control =
                     <input
                         type="date"
                         data-testid="filter-date-from"
-                        :class="control"
+                        :class="controlClass"
                         class="w-full"
                         :value="query.request_date_from ?? ''"
                         @change="filter({ request_date_from: selectValue($event) })"
@@ -242,7 +241,7 @@ const control =
                     <input
                         type="date"
                         data-testid="filter-date-to"
-                        :class="control"
+                        :class="controlClass"
                         class="w-full"
                         :value="query.request_date_to ?? ''"
                         @change="filter({ request_date_to: selectValue($event) })"
@@ -300,7 +299,7 @@ const control =
                 <template #cell-team="{ item }">{{ row(item).team?.name ?? '—' }}</template>
                 <template #cell-business_status="{ item }">
                     <span :data-testid="`history-row-${row(item).id}`" class="flex flex-wrap gap-1">
-                        <Badge variant="neutral">{{ STATUS_LABELS[row(item).business_status] }}</Badge>
+                        <StatusBadge :status="row(item).business_status" />
                         <Badge v-if="row(item).is_archived" variant="warning">Archived</Badge>
                     </span>
                 </template>

@@ -71,7 +71,7 @@ const announcementWarning = computed<string | null>(() => {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <div>
                 <h2 class="text-base font-semibold">Improvement plan and target KPI</h2>
                 <p class="text-sm text-muted-foreground">Up to three pairs. Both sides belong together at submit.</p>
@@ -114,7 +114,7 @@ const announcementWarning = computed<string | null>(() => {
             </RepeatableRows>
         </section>
 
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <h2 class="text-base font-semibold">Schedule and monitoring</h2>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -162,7 +162,7 @@ const announcementWarning = computed<string | null>(() => {
             </div>
         </section>
 
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <h2 class="text-base font-semibold">Rollback and announcement</h2>
 
             <DraftField

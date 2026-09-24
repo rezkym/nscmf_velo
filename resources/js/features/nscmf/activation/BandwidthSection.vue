@@ -33,7 +33,7 @@ function error(...segments: (string | number)[]): string | undefined {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <div>
                 <h2 class="text-base font-semibold">Specific requirements (SLA)</h2>
                 <p class="text-sm text-muted-foreground">Up to three requirements, 1,000 characters each.</p>
@@ -64,7 +64,7 @@ function error(...segments: (string | number)[]): string | undefined {
             </RepeatableRows>
         </section>
 
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <h2 class="text-base font-semibold">Bandwidth</h2>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -124,7 +124,7 @@ function error(...segments: (string | number)[]): string | undefined {
             </div>
         </section>
 
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <div>
                 <h2 class="text-base font-semibold">Priority destinations</h2>
                 <p class="text-sm text-muted-foreground">Up to three destinations, free text.</p>

@@ -46,7 +46,6 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 import Alert from '@/components/ui/Alert.vue';
-import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import { buttonVariants } from '@/components/ui/button';
 import RequestFeedback from '@/components/RequestFeedback.vue';
@@ -63,9 +62,9 @@ import {
     type NscmfDetailRecord,
     MONITORING_UNIT_LABELS,
     SERVICE_IMPACT_LABELS,
-    STATUS_LABELS,
     SUBTYPE_LABELS,
 } from '@/features/nscmf/types';
+import StatusBadge from '@/features/nscmf/StatusBadge.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { isRecordConflictCode, pageDomainError } from '@/lib/apiErrors';
 import { sendJson } from '@/lib/http';
@@ -325,7 +324,7 @@ function handleRefresh(): void {
                         <h1 data-testid="request-no" class="text-xl font-semibold text-foreground">
                             {{ record.request_no }}
                         </h1>
-                        <Badge data-testid="business-status-badge">{{ STATUS_LABELS[record.business_status] }}</Badge>
+                        <StatusBadge data-testid="business-status-badge" :status="record.business_status" />
                     </div>
                     <p data-testid="family-subtype" class="text-sm text-muted-foreground">
                         {{ FAMILY_LABELS[record.family] }} · {{ SUBTYPE_LABELS[record.subtype] }}
@@ -348,7 +347,7 @@ function handleRefresh(): void {
             </Alert>
 
             <!-- Read-only Planning and General context -->
-            <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+            <section class="space-y-4 panel p-6">
                 <h2 class="text-base font-semibold">Purpose of changes</h2>
                 <DetailList :items="change.purpose" />
                 <DetailTable
@@ -374,7 +373,7 @@ function handleRefresh(): void {
                 />
             </section>
 
-            <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+            <section class="space-y-4 panel p-6">
                 <h2 class="text-base font-semibold">Plan, schedule and rollback</h2>
                 <DetailTable
                     data-testid="table-improvement_items"

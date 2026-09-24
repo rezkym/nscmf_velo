@@ -34,7 +34,7 @@ function popError(key: keyof PopSiteBlock): string | undefined {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <div class="flex items-center justify-between gap-4">
                 <h2 class="text-base font-semibold">Customer site (direct)</h2>
                 <Button
@@ -162,7 +162,7 @@ function popError(key: keyof PopSiteBlock): string | undefined {
             </div>
         </section>
 
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <div class="flex items-center justify-between gap-4">
                 <h2 class="text-base font-semibold">Customer site at POP</h2>
                 <Button

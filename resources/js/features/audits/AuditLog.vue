@@ -4,6 +4,7 @@ import { computed } from 'vue';
 
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
+import { controlClass } from '@/components/ui/control';
 import { formatJakarta } from '@/lib/datetime';
 
 /** The server's echo of the accepted audit query (12 §13, §49–50). */
@@ -120,9 +121,6 @@ function filter(key: 'event_type' | 'outcome' | 'occurred_from' | 'occurred_to',
     const value = (event.target as HTMLInputElement | HTMLSelectElement).value;
     visit({ [key]: value === '' ? null : value, page: 1 });
 }
-
-const control =
-    'w-full rounded border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring';
 </script>
 
 <template>
@@ -132,7 +130,7 @@ const control =
                 <span class="block text-muted-foreground">Event</span>
                 <select
                     data-testid="audit-filter-event"
-                    :class="control"
+                    :class="controlClass"
                     :value="query.event_type ?? ''"
                     @change="filter('event_type', $event)"
                 >
@@ -144,7 +142,7 @@ const control =
                 <span class="block text-muted-foreground">Outcome</span>
                 <select
                     data-testid="audit-filter-outcome"
-                    :class="control"
+                    :class="controlClass"
                     :value="query.outcome ?? ''"
                     @change="filter('outcome', $event)"
                 >
@@ -157,7 +155,7 @@ const control =
                 <input
                     type="date"
                     data-testid="audit-filter-from"
-                    :class="control"
+                    :class="controlClass"
                     :value="query.occurred_from ?? ''"
                     @change="filter('occurred_from', $event)"
                 />
@@ -167,7 +165,7 @@ const control =
                 <input
                     type="date"
                     data-testid="audit-filter-to"
-                    :class="control"
+                    :class="controlClass"
                     :value="query.occurred_to ?? ''"
                     @change="filter('occurred_to', $event)"
                 />
@@ -177,7 +175,7 @@ const control =
         <p v-if="rows.length === 0" class="rounded-lg border border-border p-6 text-sm text-muted-foreground">
             No audit events match these filters.
         </p>
-        <ul v-else class="divide-y divide-border rounded-lg border border-border bg-card">
+        <ul v-else class="divide-y divide-border panel">
             <li v-for="row in rows" :key="row.id" class="space-y-1 p-4 text-sm">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="font-medium">{{ row.event }}</span>

@@ -63,7 +63,7 @@ function text(key: keyof NetworkFields): string | null {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <h2 class="text-base font-semibold">NOC configuration</h2>
 
             <DraftField
@@ -110,7 +110,7 @@ function text(key: keyof NetworkFields): string | null {
             </div>
         </section>
 
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <h2 class="text-base font-semibold">Domain, DNS and email</h2>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -173,7 +173,7 @@ function text(key: keyof NetworkFields): string | null {
             </div>
         </section>
 
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <h2 class="text-base font-semibold">Hosting and migration</h2>
 
             <div class="space-y-2">

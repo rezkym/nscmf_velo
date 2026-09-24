@@ -277,7 +277,7 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
 
         <Alert v-if="pageError" variant="error" data-testid="users-server-error">{{ pageError }}</Alert>
 
-        <div class="overflow-x-auto rounded-lg border border-border bg-card">
+        <div class="overflow-x-auto panel">
             <table class="min-w-full divide-y divide-border text-left text-sm">
                 <thead class="bg-muted text-xs uppercase text-muted-foreground">
                     <tr>

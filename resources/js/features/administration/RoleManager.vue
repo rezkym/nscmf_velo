@@ -125,7 +125,7 @@ function savePermissions(role: RoleRow): void {
             <Button data-testid="create-role-btn" @click="openNameForm(null)"> Create role </Button>
         </div>
 
-        <div class="overflow-hidden rounded-lg border border-border bg-card">
+        <div class="overflow-hidden panel">
             <table class="min-w-full divide-y divide-border text-left text-sm">
                 <thead class="bg-muted text-xs uppercase text-muted-foreground">
                     <tr>

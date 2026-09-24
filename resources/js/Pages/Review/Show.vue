@@ -22,7 +22,7 @@ const { can } = usePermissions();
     <AppLayout :title="`Review · ${record.request_no}`">
         <RecordDetail :record="record" back-href="/review" back-label="Back to review queue">
             <template #actions>
-                <section aria-label="Review actions" class="space-y-3 rounded-lg border border-border bg-card p-5">
+                <section aria-label="Review actions" class="space-y-3 panel p-5">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <h2 class="font-semibold">Review</h2>
                         <Button variant="secondary" @click="router.reload()">Refresh details</Button>

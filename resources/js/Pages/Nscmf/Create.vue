@@ -2,6 +2,7 @@
 import { useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
+import PageHeader from '@/components/PageHeader.vue';
 import Alert from '@/components/ui/Alert.vue';
 import Button from '@/components/ui/Button.vue';
 import { controlClass } from '@/components/ui/control';
@@ -63,16 +64,13 @@ function submit(): void {
 <template>
     <AppLayout title="Create NSCMF">
         <div class="mx-auto max-w-2xl space-y-6">
-            <div>
-                <h1 class="text-xl font-semibold text-foreground">Create NSCMF</h1>
-                <p class="text-sm text-muted-foreground">Choose the form type. The record starts as a draft.</p>
-            </div>
+            <PageHeader title="Create NSCMF" description="Choose the form type. The record starts as a draft." />
 
             <Alert v-if="!user?.team" variant="warning" title="Active team required">
                 You need an active team to create records. Contact an administrator.
             </Alert>
 
-            <form v-else class="space-y-5 rounded-lg border border-border bg-card p-6" @submit.prevent="submit">
+            <form v-else class="space-y-5 panel p-6" @submit.prevent="submit">
                 <FormField id="family" label="Form family" required>
                     <template #default="{ id }">
                         <select :id="id" v-model="form.family" :disabled="form.processing" :class="controlClass">

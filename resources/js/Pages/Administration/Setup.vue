@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
+import PageHeader from '@/components/PageHeader.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import { buttonVariants } from '@/components/ui/button';
@@ -75,10 +76,10 @@ const readinessSummary = computed(() => [
 <template>
     <AppLayout title="Setup">
         <div class="mx-auto max-w-5xl space-y-6">
-            <div>
-                <h1 class="text-xl font-semibold text-foreground">Initial setup</h1>
-                <p class="text-sm text-muted-foreground">Set up roles, teams and users before people start working.</p>
-            </div>
+            <PageHeader
+                title="Initial setup"
+                description="Set up roles, teams and users before people start working."
+            />
 
             <ol class="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Setup progress">
                 <li
@@ -98,7 +99,7 @@ const readinessSummary = computed(() => [
                 </li>
             </ol>
 
-            <section v-if="currentStep === 1" class="space-y-4 rounded-lg border border-border bg-card p-6">
+            <section v-if="currentStep === 1" class="space-y-4 panel p-6">
                 <div class="space-y-1">
                     <h2 class="text-base font-semibold">Role setup</h2>
                     <p class="text-sm text-muted-foreground">
@@ -125,7 +126,7 @@ const readinessSummary = computed(() => [
                 <RoleManager v-else :roles="roles" :permission-catalog="permissionCatalog" />
             </section>
 
-            <section v-if="currentStep === 2" class="space-y-4 rounded-lg border border-border bg-card p-6">
+            <section v-if="currentStep === 2" class="space-y-4 panel p-6">
                 <div class="space-y-1">
                     <h2 class="text-base font-semibold">Team setup</h2>
                     <p class="text-sm text-muted-foreground">
@@ -135,7 +136,7 @@ const readinessSummary = computed(() => [
                 <TeamManager :teams="teams" />
             </section>
 
-            <section v-if="currentStep === 3" class="space-y-4 rounded-lg border border-border bg-card p-6">
+            <section v-if="currentStep === 3" class="space-y-4 panel p-6">
                 <div class="space-y-1">
                     <h2 class="text-base font-semibold">Users and roles</h2>
                     <p class="text-sm text-muted-foreground">
@@ -145,11 +146,7 @@ const readinessSummary = computed(() => [
                 <UserManager :users="users" :teams="teams" :roles="roles" />
             </section>
 
-            <section
-                v-if="currentStep === LAST_STEP"
-                data-testid="step-complete"
-                class="space-y-4 rounded-lg border border-border bg-card p-6"
-            >
+            <section v-if="currentStep === LAST_STEP" data-testid="step-complete" class="space-y-4 panel p-6">
                 <h2 class="text-base font-semibold">Complete</h2>
                 <ul class="divide-y divide-border text-sm">
                     <li

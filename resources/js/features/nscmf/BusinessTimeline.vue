@@ -96,12 +96,7 @@ onUnmounted(() => controller.abort());
     <p v-if="!permitted" class="rounded-lg border border-border p-6 text-sm text-muted-foreground">
         You do not have permission to view this timeline.
     </p>
-    <section
-        v-else
-        aria-label="Business timeline"
-        :aria-busy="loading"
-        class="space-y-4 rounded-lg border border-border bg-card p-6"
-    >
+    <section v-else aria-label="Business timeline" :aria-busy="loading" class="space-y-4 panel p-6">
         <div class="flex items-center justify-between gap-3">
             <h2 class="font-semibold">Business timeline</h2>
             <Button variant="secondary" :disabled="loading" @click="load(page)">Refresh timeline</Button>

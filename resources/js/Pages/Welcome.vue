@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 
 import { buttonVariants } from '@/components/ui/button';
+import CenteredLayout from '@/layouts/CenteredLayout.vue';
 
 defineProps<{
     appName: string;
@@ -11,8 +12,9 @@ defineProps<{
 <template>
     <Head title="Welcome" />
 
-    <main class="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-foreground">
-        <h1 class="text-2xl font-semibold">{{ appName }}</h1>
-        <Link href="/login" :class="buttonVariants()">Sign in</Link>
-    </main>
+    <CenteredLayout :title="appName">
+        <div class="flex justify-center">
+            <Link href="/login" :class="buttonVariants()">Sign in</Link>
+        </div>
+    </CenteredLayout>
 </template>

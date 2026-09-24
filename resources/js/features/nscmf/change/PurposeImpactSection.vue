@@ -67,7 +67,7 @@ function otherIndex(): number {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <h2 class="text-base font-semibold">Purpose of changes</h2>
 
             <DraftField
@@ -83,7 +83,7 @@ function otherIndex(): number {
             />
         </section>
 
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <div class="flex items-center gap-2">
                 <h2 class="text-base font-semibold">Facing challenges</h2>
                 <Badge data-testid="requirement-facing_challenges">
@@ -116,7 +116,7 @@ function otherIndex(): number {
             </RepeatableRows>
         </section>
 
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <div class="flex items-center gap-2">
                 <h2 class="text-base font-semibold">Identified problems</h2>
                 <Badge data-testid="requirement-identified_problems">Required</Badge>
@@ -147,7 +147,7 @@ function otherIndex(): number {
             </RepeatableRows>
         </section>
 
-        <section class="space-y-4 rounded-lg border border-border bg-card p-6">
+        <section class="space-y-4 panel p-6">
             <div class="flex items-center gap-2">
                 <h2 class="text-base font-semibold">Service impact</h2>
                 <Badge data-testid="requirement-service_impacts">Required</Badge>

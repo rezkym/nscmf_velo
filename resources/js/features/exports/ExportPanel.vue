@@ -101,11 +101,7 @@ async function download(job: ExportJob): Promise<void> {
 </script>
 
 <template>
-    <section
-        v-if="can('nscmf.export')"
-        aria-label="Export"
-        class="space-y-3 rounded-lg border border-border bg-card p-5"
-    >
+    <section v-if="can('nscmf.export')" aria-label="Export" class="space-y-3 panel p-5">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h2 class="font-semibold">Export</h2>

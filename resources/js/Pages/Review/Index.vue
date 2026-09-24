@@ -2,18 +2,14 @@
 import { Link, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
+import PageHeader from '@/components/PageHeader.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import { buttonVariants } from '@/components/ui/button';
 import ResourceTable, { type ColumnDef, type TableQuery } from '@/components/ResourceTable.vue';
 import type { BusinessStatus, PaginationMeta } from '@/features/nscmf/contracts';
-import {
-    FAMILY_LABELS,
-    type NscmfFamily,
-    type NscmfSubtype,
-    STATUS_LABELS,
-    SUBTYPE_LABELS,
-} from '@/features/nscmf/types';
+import { FAMILY_LABELS, type NscmfFamily, type NscmfSubtype, SUBTYPE_LABELS } from '@/features/nscmf/types';
+import StatusBadge from '@/features/nscmf/StatusBadge.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 export interface PersonRef {
@@ -126,15 +122,14 @@ function reloadQueue(): void {
 <template>
     <AppLayout title="Review Queue">
         <div class="mx-auto max-w-6xl space-y-6">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <h1 class="text-xl font-semibold text-foreground">Review Queue</h1>
-                    <p class="text-sm text-muted-foreground">
-                        Requests waiting for review. Eligibility is permission-based and shared across teams.
-                    </p>
-                </div>
-                <Button data-testid="btn-refresh-queue" variant="secondary" @click="reloadQueue"> Refresh </Button>
-            </div>
+            <PageHeader
+                title="Review Queue"
+                description="Requests waiting for review. Eligibility is permission-based and shared across teams."
+            >
+                <template #actions>
+                    <Button data-testid="btn-refresh-queue" variant="secondary" @click="reloadQueue"> Refresh </Button>
+                </template>
+            </PageHeader>
 
             <ResourceTable
                 :columns="columns"
@@ -170,9 +165,7 @@ function reloadQueue(): void {
 
                 <template #cell-status="{ item }">
                     <div class="flex items-center gap-1.5">
-                        <Badge variant="warning">
-                            {{ STATUS_LABELS[(item as ReviewQueueItem).business_status] }}
-                        </Badge>
+                        <StatusBadge :status="(item as ReviewQueueItem).business_status" />
                         <Badge
                             v-if="(item as ReviewQueueItem).is_archived"
                             :data-testid="`archived-badge-${(item as ReviewQueueItem).id}`"

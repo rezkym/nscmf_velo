@@ -3,11 +3,11 @@ import { Link, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 import ResourceTable, { type ColumnDef, type TableQuery } from '@/components/ResourceTable.vue';
-import Badge from '@/components/ui/Badge.vue';
+import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import { buttonVariants } from '@/components/ui/button';
 import type { BusinessStatus, PaginationMeta } from '@/features/nscmf/contracts';
-import { STATUS_LABELS } from '@/features/nscmf/types';
+import StatusBadge from '@/features/nscmf/StatusBadge.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 export interface PersonRef {
@@ -93,15 +93,14 @@ function reloadQueue(): void {
 <template>
     <AppLayout title="Approval Queue">
         <div class="mx-auto max-w-6xl space-y-6">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <h1 class="text-xl font-semibold text-foreground">Approval Queue</h1>
-                    <p class="text-sm text-muted-foreground">
-                        Requests waiting for approval. Eligibility is permission-based and shared across teams.
-                    </p>
-                </div>
-                <Button data-testid="btn-refresh-queue" variant="secondary" @click="reloadQueue"> Refresh </Button>
-            </div>
+            <PageHeader
+                title="Approval Queue"
+                description="Requests waiting for approval. Eligibility is permission-based and shared across teams."
+            >
+                <template #actions>
+                    <Button data-testid="btn-refresh-queue" variant="secondary" @click="reloadQueue"> Refresh </Button>
+                </template>
+            </PageHeader>
 
             <ResourceTable
                 :columns="columns"
@@ -128,9 +127,7 @@ function reloadQueue(): void {
                 </template>
 
                 <template #cell-status="{ item }">
-                    <Badge variant="warning">
-                        {{ STATUS_LABELS[(item as ApprovalQueueItem).business_status] }}
-                    </Badge>
+                    <StatusBadge :status="(item as ApprovalQueueItem).business_status" />
                 </template>
 
                 <template #actions="{ item }">
