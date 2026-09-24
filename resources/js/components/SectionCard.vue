@@ -25,7 +25,8 @@ const headingId = useId();
                     <slot name="action" />
                 </CardAction>
             </CardHeader>
-            <CardContent class="grid gap-4">
+            <!-- A section whose parts are all hidden keeps no empty body. -->
+            <CardContent class="grid gap-4 empty:hidden">
                 <slot />
             </CardContent>
         </Card>
