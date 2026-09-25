@@ -116,7 +116,9 @@ test('an admin creates a Team and a user; the one-time password is revealed once
     await page.reload();
     await expect(page.getByText(secret)).toHaveCount(0);
     await page.goBack();
+    await expect(page).toHaveURL(/\/administration\/teams$/);
     await page.goForward();
+    await expect(page).toHaveURL(/\/administration\/users$/);
     await expect(page.getByText(secret)).toHaveCount(0);
     expect(await page.evaluate(() => JSON.stringify(window.history.state))).not.toContain(secret);
 
