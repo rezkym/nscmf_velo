@@ -2,7 +2,7 @@
 
 ## Hasil integrasi
 
-Atas instruksi eksplisit pengguna, branch `feat/fe-31-40-integration` (435ee80) digabung ke checkout utama `/Users/rezky/Documents/Alya`, branch `feat/be-fe-01-30-integration`, melalui merge **b46f12b**. Target sebelum merge b9b343f. Tidak ada konflik teks; Git menggabungkan CI dan indeks BE otomatis. Kedua tip lama adalah ancestor hasil merge. Branch `main` dan remote tidak diubah; tidak ada push, PR merge, atau klaim human/security review.
+Atas instruksi eksplisit pengguna, branch `feat/fe-31-40-integration` (b15b186) digabung ke checkout utama `/Users/rezky/Documents/Alya`, branch `feat/be-fe-01-30-integration`, melalui merge **856da4e**. Target sebelum merge 51b5e1e. Tidak ada konflik teks; Git menggabungkan CI dan indeks BE otomatis. Kedua tip lama adalah ancestor hasil merge. Branch `main` dan remote tidak diubah; tidak ada push, PR merge, atau klaim human/security review.
 
 Build frontend hasil gabungan PASS; sintaks 22 file PHP hasil merge PASS; kelima route Review terdaftar; staged diff tanpa whitespace error atau unmerged entries. `npm run typecheck` exit 2: TS1002 (unterminated string) dan parser errors lanjutan pada perubahan lokal existing `ReauthenticationDialog.test.ts:43–44`; checksum membuktikan file identik dengan sebelum merge. Pengujian fungsional, coverage dan CI tidak dijalankan ulang sesuai instruksi pengguna sebelumnya. Bukti lama tidak dijadikan PASS untuk SHA merge.
 

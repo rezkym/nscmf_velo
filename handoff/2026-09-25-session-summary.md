@@ -9,8 +9,8 @@ Catatan ini merangkum seluruh pekerjaan satu sesi panjang di branch `feat/redesi
 
 ## Posisi repository saat handoff
 
-- **Branch:** `feat/redesign`, HEAD `6be2223` sebelum commit handoff ini. Belum di-push dan belum ada PR.
-- **Basis:** `c3170a9`, yaitu merge `feat/be-fe-01-30-integration` ke `feat/redesign`.
+- **Branch:** `feat/redesign`, HEAD `67a63c1` sebelum commit handoff ini. Belum di-push dan belum ada PR.
+- **Basis:** `af2a43e`, yaitu merge `feat/be-fe-01-30-integration` ke `feat/redesign`.
 - **Backup:** branch lokal `backup/feat-redesign-before-msg-rewrite` berisi riwayat sebelum pesan commit ditulis ulang. Jangan dihapus tanpa keputusan pemilik.
 - **Working tree:** bersih, kecuali tiga file lama yang sengaja tidak disentuh atas keputusan pemilik:
   - `handoff/2026-09-24-e2e-gap-closure.md` (dimodifikasi, tidak di-commit);
@@ -19,7 +19,7 @@ Catatan ini merangkum seluruh pekerjaan satu sesi panjang di branch `feat/redesi
 
 ## Kronologi sesi
 
-### Tahap 1 — Redesign dan analitik Dashboard (`40b83eb` … `83e51d2`)
+### Tahap 1 — Redesign dan analitik Dashboard (`9c54b4d` … `1f6af48`)
 
 - **Dokumen.** Rencana di `design.md` dan `design/plan.md` disinkronkan ke dokumen resmi 01, 04, 07, 12, dan 17 (gap G22 di `microtask_be/06_GAP_DAN_KEPUTUSAN.md`). Folder `desaign/` diganti nama menjadi `design/`.
 - **Backend (TDD).**
@@ -42,7 +42,7 @@ Catatan ini merangkum seluruh pekerjaan satu sesi panjang di branch `feat/redesi
 
 Sebelum tahap 4, UI hanya memakai konvensi shadcn (token, `cva`/`cn`). Komponennya ditulis sendiri, dan `reka-ui` terpasang tetapi tidak dipakai. Pemilik lalu meminta seluruh UI memakai komponen shadcn-vue asli.
 
-### Tahap 4 — UI pindah ke komponen shadcn-vue (`6968c34` … `6be2223`)
+### Tahap 4 — UI pindah ke komponen shadcn-vue (`cda0510` … `67a63c1`)
 
 Detail lengkap ada di [2026-09-24-shadcn-vue.md](2026-09-24-shadcn-vue.md). Intinya:
 
@@ -87,7 +87,7 @@ Semua langkah dijalankan pada database lokal `nscmf` dengan `APP_ENV=local`:
 
 Database test `nscmf_testing` dipakai Pest dan Playwright dan boleh direset oleh test. Database `nscmf` tidak pernah disentuh oleh test.
 
-## Bukti gate terakhir (2026-09-24, pada `96e351e` + commit dokumen `6be2223`)
+## Bukti gate terakhir (2026-09-24, pada `abbc4dc` + commit dokumen `67a63c1`)
 
 | Gate | Hasil |
 | --- | --- |
@@ -104,7 +104,7 @@ Reset database di tahap 7 tidak mengubah kode, jadi gate tidak dijalankan ulang.
 
 ## Pelajaran proses (wajib diikuti sesi berikutnya)
 
-- Sebelum setiap commit, jalankan suite penuh dan pakai **exit code**, bukan `| grep`. Pipa ke `grep` menyembunyikan kegagalan. Dua commit sesi ini (`4f7956f`, `31e3a15`) sempat dibuat dalam keadaan merah dan baru diperbaiki di `fe0e36f`.
+- Sebelum setiap commit, jalankan suite penuh dan pakai **exit code**, bukan `| grep`. Pipa ke `grep` menyembunyikan kegagalan. Dua commit sesi ini (`02c2a65`, `b327fa4`) sempat dibuat dalam keadaan merah dan baru diperbaiki di `9404e56`.
 - Skrip penulis-ulang template yang berbasis regex sempat merusak isi Alert yang tag-nya terpotong baris oleh Prettier. Selalu cek `git diff` setelah transformasi massal.
 - CLI `shadcn-vue add` menaikkan versi `reka-ui`/`@lucide/vue` di package.json. Setelah itu kembalikan `package.json`/`package-lock.json` dan jalankan `npm install` agar `node_modules` sinkron dengan lock.
 - CLI `shadcn-vue` 2.8.2 menolak key `base` di `components.json`. Key itu sudah dihapus.

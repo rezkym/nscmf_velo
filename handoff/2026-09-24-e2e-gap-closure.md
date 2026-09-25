@@ -1,6 +1,6 @@
 # Audit E2E dan penutupan celah FE/BE — 2026-09-24
 
-Branch `feat/be-fe-01-30-integration`, lanjutan `a4edd68` (lihat `git log a4edd68..HEAD`). Semua commit masih lokal: belum ada push, PR, merge, CI GitHub, maupun human review.
+Branch `feat/be-fe-01-30-integration`, lanjutan `6715f66` (lihat `git log 6715f66..HEAD`). Semua commit masih lokal: belum ada push, PR, merge, CI GitHub, maupun human review.
 
 ## Pemicu
 
@@ -13,21 +13,21 @@ Pemilik melaporkan bahwa `alya` (requester) tidak bisa merevisi NSCMF-202609-000
 
 | # | Temuan | Perbaikan | Commit (RED → GREEN) |
 | --- | --- | --- | --- |
-| 1 | **Halaman edit tidak bisa dicapai lewat UI.** FE tidak pernah membaca `edit_draft`/`edit_results`, dan semua link Dashboard/History menuju detail read-only. Requester jadi tidak bisa merevisi, melanjutkan Draft, atau mengisi Result (03 UF-DRAFT-003, UF-REVIEW-005; 07 §26, §60). | Halaman detail punya tombol Edit Draft, Revise and Resubmit, Update Result of Changes, Open Review, dan Open Approval (`RecordNextSteps.vue`). Kartu Dashboard membuka editor atau halaman keputusan. | `d775a67` → `b1b591f` |
+| 1 | **Halaman edit tidak bisa dicapai lewat UI.** FE tidak pernah membaca `edit_draft`/`edit_results`, dan semua link Dashboard/History menuju detail read-only. Requester jadi tidak bisa merevisi, melanjutkan Draft, atau mengisi Result (03 UF-DRAFT-003, UF-REVIEW-005; 07 §26, §60). | Halaman detail punya tombol Edit Draft, Revise and Resubmit, Update Result of Changes, Open Review, dan Open Approval (`RecordNextSteps.vue`). Kartu Dashboard membuka editor atau halaman keputusan. | `d0db3f6` → `acd60ad` |
 | 2 | Reviewer/approver yang membuka record dari Dashboard mendarat di detail tanpa aksi. | Diperbaiki oleh #1: kartu Pending review/approval membuka `/review/{id}` / `/approval/{id}`, dan detail menampilkan Open Review/Approval. | sama |
-| 3 | Alasan pengembalian tidak tampil di mode revisi (FE-28). | Alasan diambil dari Timeline: event transisi terakhir ke REVISION_REQUIRED. | `f9c169d` → `ae620d1`, lalu `55116ed` → `a525c5a` |
-| 4 | Label "Return for Reviewer/Requester" tidak sesuai 07 §62. | Diganti "Return to Reviewer" / "Return to Requester". | `f9c169d` → `ae620d1` |
-| 5 | Menu Technical Logs muncul untuk siapa pun yang punya `system.settings.manage`; 07 §51 membatasinya ke Protected Superadmin. | Shared props membawa `is_protected_superadmin` milik user sendiri (12 §100 disinkronkan), dan menu hanya muncul untuk identitas itu. | `f9c169d` → `ae620d1`, `226e32a` |
+| 3 | Alasan pengembalian tidak tampil di mode revisi (FE-28). | Alasan diambil dari Timeline: event transisi terakhir ke REVISION_REQUIRED. | `bb0c848` → `127d128`, lalu `b6a41da` → `e39b824` |
+| 4 | Label "Return for Reviewer/Requester" tidak sesuai 07 §62. | Diganti "Return to Reviewer" / "Return to Requester". | `bb0c848` → `127d128` |
+| 5 | Menu Technical Logs muncul untuk siapa pun yang punya `system.settings.manage`; 07 §51 membatasinya ke Protected Superadmin. | Shared props membawa `is_protected_superadmin` milik user sendiri (12 §100 disinkronkan), dan menu hanya muncul untuk identitas itu. | `bb0c848` → `127d128`, `b46cf06` |
 | 6 | Tombol Team di manajemen user tidak muncul untuk `teams.assign_users` (04 §265). | Tombol muncul untuk `users.assign_team` ATAU `teams.assign_users`. | sama |
 | 7 | Halaman `/` tidak punya jalan ke login. | Ditambah link "Sign in". | sama |
-| 8 | Ekspor READY hilang dari layar setelah halaman ditinggalkan (07 §39 "Re-download until 168h"). | **Keputusan pemilik:** endpoint baru `GET /nscmf/{record}/exports` (12 §69.1). Panel ekspor memuatnya saat dibuka dan melanjutkan polling. | `54f93c9` → `12fef61` |
-| 9 | Target date yang diubah selama revisi tidak dicek saat Resubmit (06 §40). | Nilai yang pernah diterima dibaca dari Business Audit: nilai saat transisi terakhir ke revisi. Kalau diubah, nilai baru harus hari ini atau setelahnya. | `1a3a170` → `ef655d4` |
-| 10 | "5 karakter bermakna" masih lolos untuk `"a   b"`. | **Keputusan pemilik:** 5 karakter non-whitespace, di BE (`MeaningfulReason`) dan di dialog FE. | `1a3a170` → `ef655d4`; `709cb60` → `6bf10ab` |
-| 11 | Visibilitas 12 §17.1 tidak memeriksa izin baca. Custom role yang hanya punya `nscmf.archive`/`nscmf.reopen` bisa bertindak atas record yang tidak boleh dibacanya. | `RecordAccess::isVisibleTo` sekarang menerima actor dan mensyaratkan `nscmf.view`, `nscmf.view.history`, `nscmf.review`, atau `nscmf.approve` (pemilik selalu bisa). | `1a3a170` → `ef655d4` |
+| 8 | Ekspor READY hilang dari layar setelah halaman ditinggalkan (07 §39 "Re-download until 168h"). | **Keputusan pemilik:** endpoint baru `GET /nscmf/{record}/exports` (12 §69.1). Panel ekspor memuatnya saat dibuka dan melanjutkan polling. | `22b95f9` → `1c00f08` |
+| 9 | Target date yang diubah selama revisi tidak dicek saat Resubmit (06 §40). | Nilai yang pernah diterima dibaca dari Business Audit: nilai saat transisi terakhir ke revisi. Kalau diubah, nilai baru harus hari ini atau setelahnya. | `7c49c88` → `5f0255d` |
+| 10 | "5 karakter bermakna" masih lolos untuk `"a   b"`. | **Keputusan pemilik:** 5 karakter non-whitespace, di BE (`MeaningfulReason`) dan di dialog FE. | `7c49c88` → `5f0255d`; `101b39e` → `b5d2191` |
+| 11 | Visibilitas 12 §17.1 tidak memeriksa izin baca. Custom role yang hanya punya `nscmf.archive`/`nscmf.reopen` bisa bertindak atas record yang tidak boleh dibacanya. | `RecordAccess::isVisibleTo` sekarang menerima actor dan mensyaratkan `nscmf.view`, `nscmf.view.history`, `nscmf.review`, atau `nscmf.approve` (pemilik selalu bisa). | `7c49c88` → `5f0255d` |
 | 12 | Service Reopen menerima tujuan apa saja; hanya Form Request yang membatasi. | Guard dipasang di dalam service. | sama |
-| 13 | **Bug tampilan (ditemukan oleh journey Chromium):** link Request No di kartu Dashboard lebarnya 0, jadi tidak terlihat dan tidak bisa diklik. | Request No ditaruh di barisnya sendiri. | `56c5be6` → `d5a5237` |
+| 13 | **Bug tampilan (ditemukan oleh journey Chromium):** link Request No di kartu Dashboard lebarnya 0, jadi tidak terlihat dan tidak bisa diklik. | Request No ditaruh di barisnya sendiri. | `7f3fdee` → `a9edeb9` |
 
-Catatan #3: fixture test pertama saya keliru mengasumsikan `to_status` null untuk save. Server ternyata mencatat save selama revisi sebagai `DRAFT_UPDATED` dari REVISION_REQUIRED ke REVISION_REQUIRED. Fixture diperbaiki (RED `55116ed`) lalu lookup-nya dibetulkan. Pencarian di BE (#9) memakai aturan yang sama.
+Catatan #3: fixture test pertama saya keliru mengasumsikan `to_status` null untuk save. Server ternyata mencatat save selama revisi sebagai `DRAFT_UPDATED` dari REVISION_REQUIRED ke REVISION_REQUIRED. Fixture diperbaiki (RED `b6a41da`) lalu lookup-nya dibetulkan. Pencarian di BE (#9) memakai aturan yang sama.
 
 ## Diperiksa, tidak diubah (sudah sesuai spesifikasi)
 

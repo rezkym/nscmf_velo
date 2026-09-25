@@ -1,6 +1,6 @@
 # Penyelesaian FE dan keputusan pemilik — 2026-09-24
 
-Branch `feat/be-fe-01-30-integration`, lanjutan dari `f211766` (lihat `git log f211766..HEAD`). Semua commit lokal: tidak ada push, PR, merge, atau klaim human/security review.
+Branch `feat/be-fe-01-30-integration`, lanjutan dari `30140b4` (lihat `git log 30140b4..HEAD`). Semua commit lokal: tidak ada push, PR, merge, atau klaim human/security review.
 
 ## Keputusan pemilik yang diterapkan
 

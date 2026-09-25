@@ -8,7 +8,7 @@ Instruksi terakhir pengguna membatasi pekerjaan pada **FE-31 beserta backend**, 
 
 - Worktree: `/private/tmp/alya-fe-31-40`.
 - Branch: `feat/fe-31-40-integration`.
-- Baseline sebelum perubahan ini: `7042c3b` (Reviewer Reject); Return sebelumnya tersedia.
+- Baseline sebelum perubahan ini: `a56840b` (Reviewer Reject); Return sebelumnya tersedia.
 - Checkout utama `/Users/rezky/Documents/Alya` tidak diubah, tidak merge/push.
 - `microtask_fe` diabaikan Git; FE-31.md diperbarui lokal. Handoff ini menjadi catatan status yang tracked.
 

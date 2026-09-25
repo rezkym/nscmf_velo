@@ -1,6 +1,6 @@
 # Handoff — UI NSCMF pindah ke komponen shadcn-vue (2026-09-24)
 
-Branch: `feat/redesign` (lokal, belum di-push, belum ada PR). Melanjutkan [redesign sebelumnya](2026-09-24-redesign.md), mulai dari `83e51d2`. Rencana visual: [design.md](../design.md), [design/plan.md](../design/plan.md).
+Branch: `feat/redesign` (lokal, belum di-push, belum ada PR). Melanjutkan [redesign sebelumnya](2026-09-24-redesign.md), mulai dari `1f6af48`. Rencana visual: [design.md](../design.md), [design/plan.md](../design/plan.md).
 
 Catatan ini hanya mencatat status. `project_doc/` tetap menjadi otoritas.
 
@@ -35,13 +35,13 @@ Seluruh UI (tata letak, kartu, form, tabel, dialog, shell) harus memakai kompone
 - ResourceTable, History, Audit, dan Bulk export: Card, Table, TableEmpty, Field, Item, dan Empty.
 - Users, Teams, Roles, Setup, Technical Logs, dan Create: Table, DialogFooter, FieldSet, dan Card.
 - CenteredLayout (Login, ganti password, Welcome, `/ispdfvalid`): satu Card dengan judul h1. Hasil validator memakai Alert.
-- Dialog: semua Modal diganti shadcn Dialog. Dialog yang sedang sibuk tidak bisa ditutup, dan fokus kembali ke tombol pemicunya. Aksi destruktif kini dikonfirmasi dengan tombol destruktif (RED `b6569b0` → GREEN `883a9bf`).
+- Dialog: semua Modal diganti shadcn Dialog. Dialog yang sedang sibuk tidak bisa ditutup, dan fokus kembali ke tombol pemicunya. Aksi destruktif kini dikonfirmasi dengan tombol destruktif (RED `58cbc20` → GREEN `57e44d9`).
 
 **TDD**
 - Perilaku baru melalui RED lalu GREEN:
-  - shell Sidebar (`941bd5a` → `4f7956f`);
-  - Tabs Dashboard (`74d357f` → `31e3a15`);
-  - tombol konfirmasi destruktif (`b6569b0` → `883a9bf`).
+  - shell Sidebar (`8d3735a` → `02c2a65`);
+  - Tabs Dashboard (`0aebe5b` → `b327fa4`);
+  - tombol konfirmasi destruktif (`58cbc20` → `57e44d9`).
 - Refactor murni memakai test yang sudah hijau sebagai pengaman. Test hanya disesuaikan pada mekanisme interaksi, tanpa melemahkan assertion:
   - Checkbox/Radio Reka diklik, bukan `setValue`;
   - tab Reka diaktifkan dengan `mousedown`;
@@ -54,7 +54,7 @@ Seluruh UI (tata letak, kartu, form, tabel, dialog, shell) harus memakai kompone
 - `@vueuse/core@^14.1.0` ditambahkan sebagai dependency langsung, karena hampir semua komponen shadcn-vue mengimpornya. Saya memperlakukannya sebagai "shadcn-vue dependencies" yang sudah disetujui 08 §70, jadi tidak meminta persetujuan terpisah. Rentang versinya sama dengan yang sudah dipasang reka-ui, sehingga tidak ada paket baru yang terunduh.
 - CLI shadcn-vue sempat menaikkan `reka-ui` dan `@lucide/vue`. Perubahan itu dikembalikan, dan lockfile hanya berubah untuk `@vueuse/core`.
 
-## Bukti gate (dijalankan 2026-09-24 pada working tree `96e351e` + commit dokumen ini)
+## Bukti gate (dijalankan 2026-09-24 pada working tree `abbc4dc` + commit dokumen ini)
 
 | Gate | Hasil |
 | --- | --- |
@@ -76,9 +76,9 @@ Journey browser yang disesuaikan:
 
 ## Batasan yang perlu diketahui
 
-- Commit `4f7956f` (shell) dan `31e3a15` (Dashboard) dibuat sebelum suite penuh dijalankan. Empat test halaman masih mencari `#sidebar-navigation`, dan baru diperbaiki di `fe0e36f`. Riwayat tidak ditulis ulang.
-- Token `--success`/`--warning` baru masuk di `7344301`. Di antara `6968c34` dan commit itu, Badge dan Alert tone sukses/peringatan tampil tanpa warna.
-- Tiga test Edit ternyata flaky karena editor dari test sebelumnya tidak di-unmount. Sudah diperbaiki di `96e351e` dengan `enableAutoUnmount`. Satu test lain dibuat menunggu kedua halaman timeline (`55402fd`).
+- Commit `02c2a65` (shell) dan `b327fa4` (Dashboard) dibuat sebelum suite penuh dijalankan. Empat test halaman masih mencari `#sidebar-navigation`, dan baru diperbaiki di `9404e56`. Riwayat tidak ditulis ulang.
+- Token `--success`/`--warning` baru masuk di `dd911b8`. Di antara `cda0510` dan commit itu, Badge dan Alert tone sukses/peringatan tampil tanpa warna.
+- Tiga test Edit ternyata flaky karena editor dari test sebelumnya tidak di-unmount. Sudah diperbaiki di `abbc4dc` dengan `enableAutoUnmount`. Satu test lain dibuat menunggu kedua halaman timeline (`fbfe479`).
 - Mode gelap tetap hanya kompatibel dan belum diperiksa visual. Satu-satunya pemakaian token `.dark` yang disengaja adalah kartu sorotan Dashboard.
 - Aksi per baris di tabel Users masih berupa deretan tombol ghost. DropdownMenu akan lebih ringkas, tetapi mengubah interaksi dan journey browser, jadi tidak dikerjakan tanpa keputusan pemilik.
 - Stepper di Setup tetap `<ol>` statis. Stepper shadcn membuat langkah bisa diklik, dan itu perilaku yang tidak ada di spesifikasi.

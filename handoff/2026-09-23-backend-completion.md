@@ -1,6 +1,6 @@
 # Penyelesaian backlog BE — 2026-09-23
 
-Branch `feat/be-fe-01-30-integration`, dari `06e4df3` sampai HEAD (lihat `git log 06e4df3..HEAD`). Commit lokal saja: tidak ada push, PR, merge, atau klaim human/security review.
+Branch `feat/be-fe-01-30-integration`, dari `a8474fc` sampai HEAD (lihat `git log a8474fc..HEAD`). Commit lokal saja: tidak ada push, PR, merge, atau klaim human/security review.
 
 ## Bukti gate (dijalankan lokal, macOS arm64, MySQL 8.4 Docker)
 

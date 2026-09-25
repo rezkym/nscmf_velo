@@ -1,6 +1,6 @@
 # G04/G05/G15, verifikasi menyeluruh, dan uji mutasi — 2026-09-24
 
-Branch `feat/be-fe-01-30-integration`, lanjutan `127338b` (lihat `git log 127338b..HEAD`). Semua commit lokal: tidak ada push, PR, merge, CI GitHub, atau human review.
+Branch `feat/be-fe-01-30-integration`, lanjutan `4247640` (lihat `git log 4247640..HEAD`). Semua commit lokal: tidak ada push, PR, merge, CI GitHub, atau human review.
 
 ## Keputusan (didelegasikan pemilik proyek)
 
@@ -96,7 +96,7 @@ Setiap aturan kritis sengaja dirusak satu per satu, lalu seluruh suite dijalanka
 
 ## Catatan untuk reviewer
 
-- Commit `cbf2459` juga berisi `tests/Browser/fe-bulk-export.spec.ts` karena `git add tests`; pesannya tidak menyebut file itu. Riwayat tidak diubah.
-- Dua commit sebelum `cbf2459` di-commit tanpa run PHPStan (exit code alat pembungkus tetap 0 walau gagal). Kesalahan tipe itu diperbaiki di `cbf2459`.
+- Commit `1bdd2d2` juga berisi `tests/Browser/fe-bulk-export.spec.ts` karena `git add tests`; pesannya tidak menyebut file itu. Riwayat tidak diubah.
+- Dua commit sebelum `1bdd2d2` di-commit tanpa run PHPStan (exit code alat pembungkus tetap 0 walau gagal). Kesalahan tipe itu diperbaiki di `1bdd2d2`.
 - `ExportService::package()` memakai `ZipArchive` langsung. Service lain juga melakukan I/O file langsung, jadi ini tidak melanggar gate arsitektur. Kalau dipindah ke adapter Infrastructure, perilakunya tetap.
 - Objek storage bisa tertinggal (yatim) kalau worker mati tepat setelah menulis file ekspor tetapi sebelum transaksi READY. Tidak berbahaya karena tidak pernah bisa diunduh, tapi belum ada pembersihannya.
