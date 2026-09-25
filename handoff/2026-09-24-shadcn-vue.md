@@ -89,3 +89,7 @@ Journey browser yang disesuaikan:
 1. Human implementation review (18 §29).
 2. Tinjau keputusan visual: kartu sorotan solid tanpa gradasi, dan aksi lifecycle yang digabung dengan Next step.
 3. Push branch dan buka PR. CI GitHub belum pernah berjalan untuk branch ini.
+
+## Setelah handoff ini
+
+Pada 2026-09-25, atas perintah pemilik, database lokal `nscmf` direset. Setelah itu data referensi, Protected Superadmin, data demo, template, dan sertifikat tanda tangan disiapkan ulang. Rinciannya ada di [ringkasan sesi](2026-09-25-session-summary.md#tahap-7--reset-database-lokal-2026-09-25-atas-perintah-eksplisit-pemilik).

@@ -1,6 +1,6 @@
 # Handoff proyek Alya / NSCMF
 
-Handoff terbaru: [2026-09-24 — UI pindah ke komponen shadcn-vue](2026-09-24-shadcn-vue.md) di branch `feat/redesign`, lanjutan dari [2026-09-24 — Redesign UI dan analitik Dashboard](2026-09-24-redesign.md). Sebelumnya: [2026-09-23 — Merge FE-31, cleanup dan posisi microtask](2026-09-23-merge-fe31-status.md).
+Handoff terbaru: [2026-09-25 — Ringkasan sesi redesign NSCMF](2026-09-25-session-summary.md) di branch `feat/redesign`. Detailnya ada di [2026-09-24 — UI pindah ke komponen shadcn-vue](2026-09-24-shadcn-vue.md) dan [2026-09-24 — Redesign UI dan analitik Dashboard](2026-09-24-redesign.md). Sebelumnya: [2026-09-23 — Merge FE-31, cleanup dan posisi microtask](2026-09-23-merge-fe31-status.md).
 Implementasi FE-31 dan backend Review sudah digabung ke checkout utama. FE-32 baru UI parsial; FE-33–40 belum diimplementasikan. Tes integrasi terbaru ditunda sesuai instruksi pengguna; tidak ada klaim Feature Done atau human review selesai.
 
 Bukti historis FE-01–30 tersedia di [handoff backend](2026-09-23-backend-fe01-30.md); detail perubahan FE-31 di [handoff implementasi](2026-09-23-fe31-implementation.md). Angka tes historis tidak membuktikan hasil merge terbaru.
