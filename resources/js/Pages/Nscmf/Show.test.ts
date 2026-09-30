@@ -395,7 +395,8 @@ describe('Record detail: the way to the next step', () => {
         for (const business_status of ['DRAFT', 'PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED'] as const) {
             const wrapper = mountShow({ ...BASE, ...CHANGE, business_status, allowed_actions: [] });
 
-            expect(hrefs(wrapper)).toEqual(['/history']);
+            // Only the way back remains; without History that is the Dashboard (FE-59).
+            expect(hrefs(wrapper)).toEqual(['/dashboard']);
         }
     });
 });

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SectionCard from '@/components/SectionCard.vue';
+import { usePermissions } from '@/composables/usePermissions';
 import DetailList, { type DetailItem } from '@/features/nscmf/DetailList.vue';
 import DetailTable from '@/features/nscmf/DetailTable.vue';
 import StatusBadge from '@/features/nscmf/StatusBadge.vue';
@@ -27,14 +28,21 @@ export type { NscmfDetailRecord };
 
 type Value = string | number | boolean | null | undefined;
 
-const props = withDefaults(
-    defineProps<{
-        record: NscmfDetailRecord;
-        backHref?: string;
-        backLabel?: string;
-    }>(),
-    { backHref: '/history', backLabel: 'Back to history' },
-);
+const props = defineProps<{
+    record: NscmfDetailRecord;
+    backHref?: string;
+    backLabel?: string;
+}>();
+
+const { can } = usePermissions();
+
+// Without its own destination the page returns to History, or to the Dashboard when History is not allowed.
+const back = computed(() => {
+    if (props.backHref) return { href: props.backHref, label: props.backLabel };
+    return can('nscmf.view.history')
+        ? { href: '/history', label: 'Back to history' }
+        : { href: '/dashboard', label: 'Back to dashboard' };
+});
 
 const TABS = [
     { key: 'form', label: 'Form' },
@@ -246,7 +254,7 @@ const NUMBERED_TEXT = [
             </div>
             <template #actions>
                 <Button as-child variant="outline">
-                    <Link :href="backHref">{{ backLabel }}</Link>
+                    <Link :href="back.href">{{ back.label }}</Link>
                 </Button>
             </template>
         </PageHeader>
