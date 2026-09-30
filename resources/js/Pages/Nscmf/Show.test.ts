@@ -40,6 +40,7 @@ describe('Record detail (FE-18)', () => {
     });
 
     it('shows the header with labels, not raw codes, and links back to history', () => {
+        resetInertia({ auth: { permissions: ['nscmf.view', 'nscmf.view.history'] } });
         const wrapper = mountShow({ ...BASE, family: 'ACTIVATION', subtype: 'UPGRADE_DOWNGRADE', activation: {} });
 
         expect(wrapper.get('[data-testid="request-no"]').text()).toBe('DEMO-ACT-005');
@@ -49,6 +50,13 @@ describe('Record detail (FE-18)', () => {
         expect(field(wrapper, 'owner')).toBe('Demo Requester A');
         expect(field(wrapper, 'team')).toBe('Demo Team Alpha');
         expect(wrapper.get('#main-content a[href="/history"]').text()).toBe('Back to history');
+    });
+
+    it('FE-59: without nscmf.view.history it links back to the dashboard, never to History', () => {
+        const wrapper = mountShow({ ...BASE, family: 'ACTIVATION', subtype: 'UPGRADE_DOWNGRADE', activation: {} });
+
+        expect(wrapper.find('#main-content a[href="/history"]').exists()).toBe(false);
+        expect(wrapper.get('#main-content a[href="/dashboard"]').text()).toBe('Back to dashboard');
     });
 
     it('AC1: keeps the business status and the archived flag separate', () => {

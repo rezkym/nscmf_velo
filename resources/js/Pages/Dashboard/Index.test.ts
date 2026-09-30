@@ -1,7 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { requests, resetInertia, router } from '@/testing/inertia';
+import { pageProps, requests, resetInertia, router } from '@/testing/inertia';
 
 import type { DashboardAnalytics, DashboardCounts, DashboardItems } from '@/features/dashboard/types';
 
@@ -142,7 +142,7 @@ describe('Dashboard (FE-16)', () => {
     });
 
     it('AC4: links to canonical pages and records without triggering any request', () => {
-        const wrapper = mountDashboard(['nscmf.create', 'nscmf.review', 'nscmf.approve'], {
+        const wrapper = mountDashboard(['nscmf.create', 'nscmf.view.history', 'nscmf.review', 'nscmf.approve'], {
             items: { drafts: [{ id: 7, request_no: 'DEMO-ACT-001', family: 'ACTIVATION', subtype: 'ACTIVATION' }] },
         });
 
@@ -196,6 +196,36 @@ describe('Dashboard (FE-16)', () => {
         expect(columns(['nscmf.review', 'nscmf.approve'])).toEqual(
             expect.arrayContaining(['grid-cols-1', 'sm:grid-cols-2']),
         );
+    });
+
+    describe('History access (FE-59)', () => {
+        const historyLinks = (wrapper: VueWrapper) => wrapper.findAll('#main-content a[href="/history"]');
+
+        it('AC1: an actor without nscmf.view.history sees no History link anywhere on the Dashboard', () => {
+            expect(historyLinks(mountDashboard(['nscmf.create', 'nscmf.review', 'nscmf.approve']))).toHaveLength(0);
+        });
+
+        it('AC2: an actor with nscmf.view.history sees History in the header and the quick actions', () => {
+            const wrapper = mountDashboard(['nscmf.view.history']);
+
+            expect(historyLinks(wrapper).length).toBeGreaterThan(0);
+            expect(historyLinks(wrapper).every((link) => link.text().includes('History'))).toBe(true);
+            expect(wrapper.findAll('[data-testid="quick-actions"] a[href="/history"]')).toHaveLength(1);
+        });
+
+        it('AC3: re-rendered permissions update the History link without a new request', async () => {
+            const wrapper = mountDashboard(['nscmf.view.history']);
+            expect(historyLinks(wrapper).length).toBeGreaterThan(0);
+
+            pageProps.auth = {
+                user: { id: 5, username: 'demo.requester.a', name: 'Demo Requester A', team: TEAM_ALPHA },
+                permissions: [],
+            };
+            await wrapper.vm.$nextTick();
+
+            expect(historyLinks(wrapper)).toHaveLength(0);
+            expect(requests).toHaveLength(0);
+        });
     });
 
     describe('analytics (12 §44.1, 07 §17.1)', () => {
