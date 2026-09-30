@@ -21,7 +21,7 @@ Dokumen yang disinkronkan: `project_doc` 01, 02, 03, 05, 06, 07 (§22, §22.1, �
 | --- | --- | --- |
 | BE-152 | `SubmissionRules` hanya memeriksa Request date dan format. `ReviewForwardRules` dan prop `forward_readiness` dihapus. | `92ff839` → `573ebc8` |
 | FE-60 | Tanda wajib hanya pada Request date (plus Family/Subtype/Request No manual di Create). Badge Required/Optional dan salinan "wajib" dihapus. Forward form Change selalu tersedia. | `53aaca7` → `616f69a`; salinan Plan `b89d7aa` → `9b76b53` |
-| FE-61 | Satu komposisi `components/DatePicker.vue` (Popover + Calendar) dipakai di 7 input tanggal: Request date, RFS, Target, dan filter History/Audit. "Hari ini" mengikuti Asia/Jakarta, dan tanggal bisa dikosongkan lewat Clear. | `085f3b1` → `3879263` |
+| FE-61 | Satu komposisi `components/DatePicker.vue` (Popover + Calendar) dipakai di 7 input tanggal: Request date, RFS, Target, dan filter History/Audit. "Hari ini" mengikuti Asia/Jakarta, dan tanggal bisa dikosongkan lewat Clear. **Patch:** Calendar memakai `layout="month-and-year"`, jadi pindah bulan/tahun lewat select Month/Year berlabel, tanpa paging berulang. | `085f3b1` → `3879263`; patch `f2cac81` → `d99521a` + perbaikan select |
 | BE-153 | Timeline tidak mengirim `DRAFT_UPDATED`/`RESULT_UPDATED` tanpa perubahan (baris maupun hitungan), dan mengirim `attachment_filename`. Audit di DB tidak berubah. | `0491a88` → `2fc4de8` |
 | FE-62 | Satu skema label `features/nscmf/recordFields.ts` dipakai Form Detail dan Timeline (refactor `8c815f1`). `timelineDiff.ts` membandingkan field, blok site, dan koleksi per baris (kunci alami) dan per sel. Tabel split memakai −/+ dan teks `sr-only`, dan bertumpuk di layar sempit. | `3b46d97` → `32b3158` |
 
@@ -35,7 +35,12 @@ Dokumen yang disinkronkan: `project_doc` 01, 02, 03, 05, 06, 07 (§22, §22.1, �
   - `ReviewDetailTest` masih memeriksa `forward_readiness.ready`. Assertion itu dihapus bersama prop-nya (`573ebc8`).
   - Test "read-only" AuditLog kini mengecualikan dua tombol pemicu filter tanggal (`3879263`).
   - Keduanya menyandikan perilaku lama yang dihapus K3/K5, dan maksud test tetap sama.
-- **Playwright:** helper `pickDate()` dan `jakartaToday()` di `tests/Browser/support/nscmf.ts`. Helper ini juga memperbaiki bug lama: "hari ini" sebelumnya dihitung dalam UTC.
+- **Playwright:** helper `pickDate()` dan `jakartaToday()` di `tests/Browser/support/nscmf.ts`. Helper ini juga memperbaiki bug lama: "hari ini" sebelumnya dihitung dalam UTC. `pickDate()` kini memilih lewat select Year/Month.
+- **Patch month/year:**
+  - Template registry menaruh kelas ukuran pada pembungkus `NativeSelect`, sehingga chevron keluar dari kotak dan teks memakai overlay transparan.
+  - Template disederhanakan: `size="sm"`, nilai terikat `:model-value`, tanpa overlay.
+  - Kedua select diberi `aria-label` Month/Year, karena registry tidak memberinya label.
+  - Setelah patch, Vitest 751 lulus dan Chromium 31/31 lulus.
 
 ## Gate (lokal, HEAD `9b76b53`)
 

@@ -337,7 +337,7 @@ Draft may be incomplete. Every NSCMF form field is optional; only the header req
 
 ## 22.1 Date Input — decided 2026-09-30
 
-Every date input in the application uses the shadcn-vue Date Picker pattern (Popover + Calendar), never the browser's native date input. The trigger shows the chosen date as `d MMM yyyy` (for example `30 Sep 2026`) or a placeholder when empty; an optional date or filter can be cleared from the picker. The value sent to the server stays a business date `YYYY-MM-DD`, and "today" follows the application timezone `Asia/Jakarta`. The picker never hides past dates, because an unchanged accepted past target date may remain (06 §40).
+Every date input in the application uses the shadcn-vue Date Picker pattern (Popover + Calendar), never the browser's native date input. The trigger shows the chosen date as `d MMM yyyy` (for example `30 Sep 2026`) or a placeholder when empty; an optional date or filter can be cleared from the picker. The calendar offers labelled Month and Year selects next to its previous/next buttons, so a distant date needs no repeated paging. The value sent to the server stays a business date `YYYY-MM-DD`, and "today" follows the application timezone `Asia/Jakarta`. The picker never hides past dates, because an unchanged accepted past target date may remain (06 §40).
 
 ## 23. Autosave / Save Draft
 
