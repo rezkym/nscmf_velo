@@ -8,6 +8,8 @@ use Inertia\Testing\AssertableInertia;
 use Tests\Support\Actors;
 use Tests\Support\Records;
 
+use function Pest\Laravel\get;
+
 /*
  * BE-155 / G25 — My Applications lists the actor's own records only (12 §47.1, 07 §34.1).
  */
@@ -79,7 +81,7 @@ it('ignores the History-only filters', function (): void {
 });
 
 it('rejects a guest, an invalid query and an actor without nscmf.view', function (): void {
-    $this->get('/my-applications')->assertRedirect('/login');
+    get('/my-applications')->assertRedirect('/login');
     signIn(Actors::requester())->get('/my-applications?per_page=101')->assertSessionHasErrors('per_page');
     signIn(Actors::requester())->get('/my-applications?sort=owner_user_id')->assertSessionHasErrors('sort');
     signIn(Actors::user(['nscmf.create']))->get('/my-applications')->assertForbidden();
