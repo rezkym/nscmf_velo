@@ -320,7 +320,7 @@ Deselecting is done by omitting the row from the supplied set, never by sending 
 
 The natural key itself is never a content field: a row carrying only `row_no` or only `service_context` is not-started.
 
-Discard is a persistence rule only. It MUST NOT be used to bypass a `06` completeness gate: a partially started row still persists and is still judged at `FIRST_SUBMIT`/`RESUBMIT`/`REVIEW_FORWARD`.
+Discard is a persistence rule only: a partially started row still persists. Since 2026-09-30 no completeness gate judges it, because every row field is optional (06 §5, G24).
 
 ### 7.5 Enums
 
@@ -1019,6 +1019,8 @@ REVISION_REQUIRED → PENDING_REVIEW
 
 Ownership required. First successful Submit establishes iteration 1 and Requested By; Resubmit same iteration.
 
+Validation requires only the request date (not in the future on first Submit) plus format rules for provided values; no other form field is required (06 §5, G24). Failure returns `422 VALIDATION_FAILED` with field errors.
+
 ## 31. Cancel Draft
 
 ```http
@@ -1033,7 +1035,7 @@ Eligible own never-submitted Draft; destination always CANCELLED; optional reaso
 POST /nscmf/{record}/review/forward
 ```
 
-`nscmf.review.forward + PENDING_REVIEW + action validation`. Change requires one complete Result row/all started complete. Destination PENDING_APPROVAL. Actor becomes effective Reviewed By.
+`nscmf.review.forward + PENDING_REVIEW + action validation`. No Result gate: a Change may be forwarded with zero or partly filled Result rows (G24, 2026-09-30). Destination PENDING_APPROVAL. Actor becomes effective Reviewed By.
 
 ## 33. Reviewer Return
 
@@ -1200,6 +1202,34 @@ GET /nscmf/{record}/timeline
 ```
 
 Business mutation/workflow evidence only; routine View/download/export access not mixed in.
+
+Requires record visibility (§17.1) and `nscmf.timeline.view`. Query `page`, `per_page` (max 100, default 25). Newest first. Response (synchronized 2026-09-30, G24):
+
+```json
+{
+  "data": [{
+    "id": 1,
+    "event_type": "DRAFT_UPDATED",
+    "actor": "Demo Requester A",
+    "iteration_no": null,
+    "from_status": "DRAFT",
+    "to_status": "DRAFT",
+    "reason": null,
+    "comment": null,
+    "version_before": 3,
+    "version_after": 4,
+    "occurred_at": "2026-09-30T10:12:00+07:00",
+    "attachment_filename": null,
+    "changes": [{ "field": "activation.customer_name", "before": "PT Lama", "after": "PT Baru" }]
+  }],
+  "meta": { "current_page": 1, "last_page": 1, "per_page": 25, "total": 1 }
+}
+```
+
+- `actor` is `"System"` for a system event.
+- `changes[].field` is the stored field path (`header.*`, `activation.*`, `change.*`); a repeatable collection or site block carries its whole JSON value before and after, which the client diffs per row and cell.
+- `attachment_filename` is set only for `ATTACHMENT_ADDED` / `ATTACHMENT_REMOVED`.
+- A `DRAFT_UPDATED` or `RESULT_UPDATED` event without any field change is left out of `data` and of the pagination counts. The stored audit is unchanged (append-only).
 
 ## 49. Privileged Access Audit
 

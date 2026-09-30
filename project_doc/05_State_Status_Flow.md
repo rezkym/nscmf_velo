@@ -290,7 +290,7 @@ Requires own Draft + never submitted. Permanent terminal. May be archived/unarch
 | `DRAFT` | Cancel | `CANCELLED` | `nscmf.cancel` | owns record + never submitted |
 | `PENDING_REVIEW` | Return | `REVISION_REQUIRED` | `nscmf.review.return` | current state + mandatory reason |
 | `PENDING_REVIEW` | Reject | `REJECTED` | `nscmf.review.reject` | current state + mandatory reason |
-| `PENDING_REVIEW` | Forward | `PENDING_APPROVAL` | `nscmf.review.forward` | current state + Forward gate |
+| `PENDING_REVIEW` | Forward | `PENDING_APPROVAL` | `nscmf.review.forward` | current state (no Result gate, G24) |
 | `REVISION_REQUIRED` | Resubmit | `PENDING_REVIEW` | `nscmf.submit` | owns record + validation |
 | `PENDING_APPROVAL` | Return Reviewer | `PENDING_REVIEW` | `nscmf.approval.return_reviewer` | current state + mandatory reason |
 | `PENDING_APPROVAL` | Return Requester | `REVISION_REQUIRED` | `nscmf.approval.return_requester` | current state + mandatory reason |
@@ -429,14 +429,13 @@ No `EXECUTION_PENDING`, `RESULT_PENDING`, `COMPLETED`.
 
 ## 24. First Submit
 
-Zero Result rows allowed. Started row must be complete at applicable validation gate.
+Result rows are optional: zero or partly filled rows are allowed at every gate (06 §46, G24).
 
 ## 25. Forward Gate
 
 Before Change `PENDING_REVIEW -> PENDING_APPROVAL`:
 
-- minimum one complete Result row;
-- all started rows complete;
+- no Result row is required (removed 2026-09-30, G24);
 - maximum five rows capacity;
 - applicable validation passes.
 
@@ -648,7 +647,7 @@ No Unit/Division or Reviewer/Approval scope representation is needed.
 - [ ] Reviewer view no state/ownership change;
 - [ ] Return/Reject reasons enforced;
 - [ ] Revision editable own record and Resubmit returns Review;
-- [ ] Change Forward blocked until Result gate;
+- [ ] Change Forward never waits for Result rows (G24);
 - [ ] permission-eligible Approver can act without Team/scope matching;
 - [ ] one final Approve sufficient;
 - [ ] stale second Approve denied;

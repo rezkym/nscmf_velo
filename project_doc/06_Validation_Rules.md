@@ -102,13 +102,13 @@ Must validate:
 
 Must NOT require:
 
-- all submission-required fields;
-- final conditional completeness;
+- the request date;
 - final IP/domain/email readiness;
-- Result completeness;
 - final cross-field consistency.
 
 Draft MAY incomplete.
+
+**Synchronized 2026-09-30 (owner decision, G24):** every NSCMF form field of every family and subtype is **Optional** at every validation stage. The only filled-in requirement is the header request date at Submit/Resubmit (§21). Family, subtype, numbering mode and a Manual request number stay Required at record creation (§15–19). Format and consistency rules still apply to any value that is provided. No conditional completeness rule exists (no required service block, paired Plan/KPI, `Other` description, migration dependency or complete Result row).
 
 ## 6. `FIRST_SUBMIT`
 
@@ -118,11 +118,12 @@ Valid only if:
 business_status = DRAFT
 + actor has required permission
 + actor owns/has valid record authorization
-+ common header validation
-+ family/subtype validation
-+ family-specific submission validation
++ request date present and not in the future (§21)
++ format/consistency validation of every provided value
 + numbering validation
 ```
+
+No form field other than the request date is required (§5, G24).
 
 Failure leaves `DRAFT` unchanged.
 
@@ -142,7 +143,6 @@ Failure leaves `DRAFT` unchanged.
 - actor has `nscmf.review.forward`;
 - current state exactly `PENDING_REVIEW`;
 - common/family business data valid;
-- Change Result gate valid where applicable;
 - no blocking validation error;
 - archive/security/current-state conditions pass.
 
@@ -322,7 +322,7 @@ Workbook Page = System Managed for export/rendering. Normal user does not enter 
 
 ## 23. Activation Validation Policy
 
-Core identity/service fields Required/subtype conditional. Technical configuration Optional unless dependency triggers. Optional field still format-valid if provided.
+Every Activation field is Optional for every subtype (§5, G24). An optional field is still format-valid if provided.
 
 ## 24. Reference
 
@@ -335,16 +335,14 @@ Ticket
 Other
 ```
 
-Multi-select Optional. If `Other`, specification Required max 255. Duplicate option rejected per §14.
-
-A selected reference without specification remains a valid persisted selection; only `Other` requires specification at the applicable action stage.
+Multi-select Optional. Specification Optional max 255 for every option, including `Other`. Duplicate option rejected per §14.
 
 ## 25. Customer / Contact
 
 | Field | Classification | Rule |
 |---|---|---|
-| Customer Name | Required | nonblank, max 150 |
-| Contact Name | Required | nonblank, max 150 |
+| Customer Name | Optional | max 150 |
+| Contact Name | Optional | max 150 |
 
 ## 26. Existing / New Service Blocks
 
@@ -355,30 +353,18 @@ Fields:
 - Service Description;
 - Service Location.
 
-| Subtype | Existing | New |
-|---|---|---|
-| `ACTIVATION` | Optional | Required |
-| `UPGRADE_DOWNGRADE` | Required | Required |
-| `DEACTIVATION` | Required | Optional |
+Both blocks and every field in them are Optional for every subtype; a partly filled block is valid.
 
-If Required, all core fields required. If Optional but any core field started, entire core block becomes Required at Submit/Resubmit.
+Formats, when provided:
 
-Formats:
-
-- Service ID 1–100;
-- exactly one status;
-- Description 1–2,000 when applicable;
-- Location 1–500 when applicable.
+- Service ID max 100;
+- at most one status;
+- Description max 2,000;
+- Location max 500.
 
 ## 27. Installation Date (RFS)
 
-| Subtype | Rule |
-|---|---|
-| Activation | Required |
-| Upgrade/Downgrade | Required |
-| Deactivation | Optional |
-
-Valid date. No invented future-only rule.
+Optional for every subtype. Valid date when provided. No invented future-only rule.
 
 ## 28. Specific Requirements (SLA)
 
@@ -420,12 +406,7 @@ MX fields valid FQDN or `priority + FQDN`.
 
 Hosting Platform Optional max255; Hosting Capacity positive numeric GB.
 
-Migration options Domain/Hosting multi-select Optional.
-
-Dependencies:
-
-- Domain migration → Domain Name 1 Required;
-- Hosting migration → Hosting Platform + Capacity Required.
+Migration options Domain/Hosting multi-select Optional. Selecting a migration does not make Domain Name, Hosting Platform or Capacity required.
 
 ## 32. Customer Site Direct
 
@@ -465,27 +446,15 @@ EMERGENCY
 
 ## 35. Facing Challenges
 
-| Subtype | Rule |
-|---|---|
-| Maintenance | Optional |
-| Upgrade | Required |
-| Emergency | Required |
-
-Up to 3 entries. If Required: minimum 1 non-empty, max 3, each max1,000.
+Optional for every subtype. Up to 3 entries, each max1,000.
 
 ## 36. Maintenance Purpose
 
-| Subtype | Rule |
-|---|---|
-| Maintenance | Required |
-| Upgrade | Optional |
-| Emergency | Optional |
-
-Nonblank when required/provided, max4,000.
+Optional for every subtype, max4,000.
 
 ## 37. Identified Problem
 
-Required all Change subtypes. Minimum1 of max3, each max1,000.
+Optional for every subtype. Up to 3 entries, each max1,000.
 
 ## 38. Service Impact
 
@@ -501,9 +470,7 @@ Customer
 Other
 ```
 
-Required First Submit/Resubmit, min1, multiple allowed, unknown rejected, duplicate rejected per §14, Other → description Required max500.
-
-A selected impact without description remains a valid persisted selection; only `OTHER` requires description.
+Optional, multiple allowed, unknown rejected, duplicate rejected per §14. Description Optional max500 for every value, including `Other`.
 
 These are **form impact values**, not Team authorization values.
 
@@ -511,9 +478,8 @@ These are **form impact values**, not Team authorization values.
 
 Three paired rows capacity.
 
-- minimum1 complete pair;
+- Optional; a row may hold only a plan or only a KPI;
 - max3;
-- if one side started, paired field Required;
 - Plan max1,000;
 - KPI max1,000.
 
@@ -521,15 +487,13 @@ No numeric-only KPI assumption.
 
 ## 40. Target Date of Execution
 
-Required all Change.
-
-First Submit: valid date today/future.
+Optional. When provided at first Submit: valid date today/future.
 
 Revision/Reopen: unchanged previously accepted past target MAY remain. If changed in revision, new value must be today/future at Resubmit. Reopen to Review does not fail solely because historical target date has passed.
 
 ## 41. Monitoring Period
 
-Required. Amount `>0`. Unit is a closed set, canonical wire values:
+Optional. Amount `>0`. Unit is a closed set, canonical wire values:
 
 ```text
 MINUTE
@@ -542,11 +506,11 @@ Amount and unit are supplied together or both empty. Unknown unit rejected. Tran
 
 ## 42. Rollback Scenario
 
-Required, nonblank, max4,000. Plain `N/A` SHOULD NOT substitute without meaningful explanation.
+Optional, max4,000. Plain `N/A` SHOULD NOT substitute without meaningful explanation.
 
 ## 43. Maintenance Announcement
 
-Exactly one:
+Optional; at most one:
 
 ```text
 1 week before
@@ -591,7 +555,7 @@ Performance information
 Status
 ```
 
-Draft may contain partial rows. First Submit/Resubmit may have zero rows, but any started row must be complete before Submit/Resubmit.
+Every row and every field is Optional at every stage; a partly filled row is valid.
 
 ## 47. Capture in `PENDING_REVIEW`
 
@@ -615,19 +579,15 @@ Planning correction uses Return for Revision.
 
 ## 48. Review Forward Gate
 
-Before Change Forward:
-
-- minimum1 complete Result row;
-- max5;
-- every started row complete.
+**Removed 2026-09-30 (G24).** Change Forward has no Result gate: a Change may be forwarded with zero or partly filled Result rows.
 
 | Field | Rule |
 |---|---|
-| Result summary | Required per used row, max2,000 |
-| Performance information | Required per used row, max2,000 |
-| Status | Required per used row, max255 |
+| Result summary | Optional, max2,000 |
+| Performance information | Optional, max2,000 |
+| Status | Optional, max255 |
 
-All five rows are not mandatory.
+At most five rows.
 
 ---
 
@@ -797,19 +757,18 @@ Legend R=Required, C=Conditional, O=Optional, S=System Managed.
 | Request No | R | automatic/manual |
 | Date | R | valid, not future first Submit |
 | Page | S | export |
-| Reference | O | multi-select |
-| Reference Other | C | if Other |
-| Customer Name | R | max150 |
-| Contact Name | R | max150 |
-| Existing Service | C | subtype/partial rule |
-| New Service | C | subtype/partial rule |
-| RFS | C | Activation + Upgrade/Downgrade |
+| Reference | O | multi-select; specification optional |
+| Customer Name | O | max150 |
+| Contact Name | O | max150 |
+| Existing Service | O | partial block allowed |
+| New Service | O | partial block allowed |
+| RFS | O | valid date |
 | SLA | O | max3 |
 | IP/routing | O | strict format if provided |
 | Bandwidth | O | positive Mbps |
 | Priority Destination | O | max3 |
-| Domain/DNS/MX | O/C | dependency rules |
-| Hosting | O/C | dependency rules |
+| Domain/DNS/MX | O | format if provided |
+| Hosting | O | positive capacity if provided |
 | Onsite fields | O | format-specific |
 | VLAN | O | 1–4094 |
 | Sign-off | S | workflow-derived |
@@ -822,18 +781,17 @@ Legend R=Required, C=Conditional, O=Optional, S=System Managed.
 | Purpose/Subtype | R | Maintenance/Upgrade/Emergency |
 | Request No | R | automatic/manual |
 | Date | R | valid, not future first Submit |
-| Facing Challenges | C | Upgrade/Emergency |
-| Maintenance Purpose | C | Maintenance |
-| Identified Problem | R | min1/max3 |
-| Service Impact | R | multi-select min1 |
-| Other Impact Description | C | if Other |
-| Plan/KPI | R | min1 complete pair |
-| Target date | R | today/future first Submit |
-| Monitoring | R | positive duration |
-| Rollback | R | nonblank |
-| Announcement | R | exactly one |
+| Facing Challenges | O | max3 |
+| Maintenance Purpose | O | max4,000 |
+| Identified Problem | O | max3 |
+| Service Impact | O | multi-select; description optional |
+| Plan/KPI | O | max3; one side may be empty |
+| Target date | O | today/future first Submit if provided |
+| Monitoring | O | positive duration; amount and unit together |
+| Rollback | O | max4,000 |
+| Announcement | O | at most one |
 | Attachment | O | warning if Upgrade/Emergency absent; CLEAN if uploaded |
-| Result | O first Submit | zero rows allowed; started row complete |
+| Result | O | zero or partly filled rows allowed |
 | Sign-off | S | workflow-derived |
 
 ## 66. Change Forward Matrix
@@ -843,8 +801,7 @@ Forward requires:
 - actor has `nscmf.review.forward`;
 - current state `PENDING_REVIEW`;
 - submitted data still valid;
-- minimum1 complete Result row;
-- every used Result row complete;
+- no Result requirement (G24);
 - no Team/scope check.
 
 ---
@@ -920,16 +877,16 @@ There is no Unit/Division or Reviewer/Approval scope data to define.
 
 Implementation MUST NOT:
 
-1. make all Excel fields mandatory;
+1. make any form field other than the header request date mandatory at a workflow gate (G24);
 2. block incomplete Draft persistence;
 3. require Result at first Submit solely because section exists;
-4. Forward Change without Result gate;
+4. reintroduce a Result gate at Change Forward (removed by G24);
 5. require all five Result rows;
-6. allow partial Result row at workflow gates;
+6. reject a partly filled Result row at a workflow gate (G24);
 7. unlock entire Change form during Pending Review;
 8. make `nscmf.change.result.edit` general edit;
 9. make Service Impact single-select;
-10. allow Other without description;
+10. require a description for `Other` (G24);
 11. make attachment mandatory;
 12. accept executable/script/macro formats outside allowlist;
 13. trust frontend validation;
@@ -954,7 +911,7 @@ Implementation MUST NOT:
 ## 75. General
 
 - [ ] Draft saves incomplete data.
-- [ ] Submit/Resubmit enforce required fields.
+- [ ] Submit/Resubmit require only the request date (G24), plus format rules for provided values.
 - [ ] backend validates workflow-changing actions.
 - [ ] errors/warnings distinguishable.
 - [ ] unknown enums rejected.
@@ -971,9 +928,8 @@ Implementation MUST NOT:
 
 ## 77. Activation
 
-- [ ] subtype service blocks correct;
-- [ ] status exactly one;
-- [ ] Other Reference dependency;
+- [ ] every field optional for every subtype;
+- [ ] status at most one;
 - [ ] IP/domain/DNS/MX validation;
 - [ ] positive bandwidth;
 - [ ] Packet Loss 0–100;
@@ -981,20 +937,19 @@ Implementation MUST NOT:
 
 ## 78. Change
 
-- [ ] subtype rules;
-- [ ] Service Impact multi-select + Other description;
-- [ ] Plan/KPI pair;
-- [ ] target date rule;
+- [ ] every field optional for every subtype;
+- [ ] Service Impact multi-select;
+- [ ] target date rule when provided;
 - [ ] positive monitoring;
 - [ ] rollback/announcement rules;
 - [ ] missing Upgrade/Emergency attachment warning only.
 
 ## 79. Result
 
-- [ ] zero rows allowed first Submit;
+- [ ] zero or partly filled rows allowed at every stage;
 - [ ] owner narrow edit during Pending Review;
 - [ ] no general planning field edit;
-- [ ] Forward requires at least one complete row;
+- [ ] Forward has no Result requirement;
 - [ ] max five capacity only.
 
 ## 80. Attachment

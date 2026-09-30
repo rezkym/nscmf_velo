@@ -629,7 +629,7 @@ Controller→NscmfWorkflowService→permission/ownership→transaction→lock→
 
 ## 79. Reviewer Forward
 
-Service→permission→lock→PENDING_REVIEW→Result gate→Reviewed By→PENDING_APPROVAL→Business Audit.
+Service→permission→lock→PENDING_REVIEW→Reviewed By→PENDING_APPROVAL→Business Audit (no Result gate, G24).
 
 ## 80. Approve Race
 

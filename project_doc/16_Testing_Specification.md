@@ -712,7 +712,8 @@ Tests MUST cover:
 Tests MUST distinguish:
 
 - Draft/Revision may be incomplete;
-- Submit/Forward/Approve/other actions enforce their gate-specific complete validation;
+- Submit/Resubmit require only the request date, and every other form field stays optional for every family and subtype (06 §5, G24);
+- provided values still pass their format/consistency rules at every gate;
 - warning is not automatically an error;
 - security requirements never degrade into warning-only behavior.
 
@@ -721,9 +722,8 @@ Tests MUST distinguish:
 Tests MUST prove locked Result rules, including:
 
 - maximum 5;
-- zero Result allowed at first Submit where specified;
-- before Reviewer Forward at least one complete Result is required;
-- every started Result must be complete;
+- zero or partly filled Result rows allowed at every gate;
+- Reviewer Forward succeeds without any Result row (G24);
 - Result-only update in `PENDING_REVIEW` follows owner/permission rules;
 - Result does not create a business state.
 
@@ -741,7 +741,7 @@ CUSTOMER
 OTHER
 ```
 
-At Submit at least one is required and `OTHER` requires its description.
+Service Impact is optional at Submit, and the description is optional for every value, including `OTHER` (G24).
 
 ## 49. Attachment Validation
 
@@ -1395,7 +1395,7 @@ Test names should describe behavior/outcome in domain language.
 Prefer:
 
 ```text
-requester cannot submit incomplete change form
+requester cannot submit without a request date
 eligible approver can approve pending approval record
 identical chunk replay does not refresh expiry
 ```

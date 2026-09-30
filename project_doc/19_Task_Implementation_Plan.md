@@ -712,7 +712,7 @@ REVISION_REQUIRED → PENDING_REVIEW
 
 same iteration.
 
-Full action-specific validation occurs here.
+Full action-specific validation occurs here. Since 2026-09-30 (G24) it requires only the request date plus format rules of provided values (06 §5).
 
 ### T23 — Review queue / read eligibility
 
@@ -736,10 +736,7 @@ Forward → PENDING_APPROVAL
 
 Reason requirements enforced where specified.
 
-Before Forward for Change:
-
-- at least one complete Result;
-- every started Result complete.
+Before Forward for Change: no Result requirement (removed 2026-09-30, G24; 06 §48).
 
 `Reviewed By` = actor of successful Forward.
 

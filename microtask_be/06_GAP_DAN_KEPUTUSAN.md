@@ -242,4 +242,21 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Bukti: `handoff/2026-09-30-fix-miss-feature.md`.
 - Wajib human security review sebelum merge (private upload/storage dan scanner fail-closed, 18 §17).
 
+<a id="g24"></a>
+
+## G24 — Isian NSCMF serba-opsional, date picker, dan timeline diff
+
+- Sumber: permintaan pemilik 2026-09-30; `06 §5–48, §64–66`, `07 §22, §22.1, §24, §26, §36`, `12 §30, §32, §48`.
+- Dampak/task owner: [BE-152](BE-152.md), [BE-153](BE-153.md); FE-60, FE-61, FE-62.
+- Pihak berwenang: Pemilik proyek.
+- Status: **CLOSED 2026-09-30** oleh pemilik proyek:
+  1. Semua isian form NSCMF (Activation dan Change, semua subtype) opsional di setiap tahap. Hanya Request date yang wajib saat Submit/Resubmit.
+  2. Family, Subtype, mode penomoran, dan Request No manual tetap wajib saat Create.
+  3. Semua aturan "wajib bersyarat" dihapus: blok service, pasangan Plan/KPI, keterangan `Other`, dependensi migrasi, dan baris Result yang terisi sebagian.
+  4. Gerbang Result saat Forward dihapus.
+  5. Aturan format/konsistensi tetap berlaku untuk nilai yang diisi: IP/DNS/FQDN/MX, angka, Request date tidak di masa depan (first Submit), Target date tidak di masa lalu, dan pasangan Monitoring.
+  6. Semua input tanggal memakai Date Picker shadcn-vue (07 §22.1). Tampilan `d MMM yyyy`, nilai `YYYY-MM-DD`. `@internationalized/date` disetujui sebagai dependency langsung (08 §70).
+  7. Timeline memakai tabel split Field/Before(−)/After(+), langsung terbuka. Update Draft/Result tanpa perubahan disembunyikan di jalur baca, sedangkan audit tetap utuh. Kejadian lampiran menampilkan nama file (07 §36, 12 §48).
+- Bukti: handoff saat implementasi selesai.
+
 Removed concerns dari19A/20 tidak menjadi gap: HA/Redis/DR/backup/load/SLA architecture/automatedCD/publicCA/multi-server. Actual hostname/provider/Linux/path baru dicatat ketika deployment sungguhan diperintahkan; tidak memilih server sekarang.

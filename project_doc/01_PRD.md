@@ -262,7 +262,7 @@ Installation/provisioning. Subtypes Activation, Upgrade/Downgrade, Deactivation.
 ### 10.2 Change
 Maintenance/existing-service. Subtypes Maintenance, Upgrade, Emergency.
 
-Purpose of Changes is a section. Service Impact multi-select from NOC15/NOC23/NOC361/Regional/POP/Customer/Other; Other requires description. Result of Changes is separate; zero rows first Submit allowed; at least one complete row before Forward; owner may narrow-edit Result in PENDING_REVIEW with permission.
+Purpose of Changes is a section. Service Impact multi-select from NOC15/NOC23/NOC361/Regional/POP/Customer/Other; the description is optional. Result of Changes is separate and optional at every stage, with no Result gate at Forward; owner may narrow-edit Result in PENDING_REVIEW with permission. Every NSCMF form field is optional except the request date at Submit (06 §5, G24, 2026-09-30).
 
 ### 10.3 Upgrade Classification
 Installation/provisioning → Activation; maintenance/existing-service → Change. Never keyword-only.

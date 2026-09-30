@@ -333,7 +333,11 @@ Multi-section single-page operational form + section navigator. Web form is not 
 
 ## 22. Draft Validation
 
-Draft may be incomplete. Avoid showing every untouched required field as blocking error. Full errors appear on Submit/Resubmit with summary + inline errors. Warning distinct.
+Draft may be incomplete. Every NSCMF form field is optional; only the header request date is required at Submit/Resubmit (06 §5, G24, 2026-09-30). The required marker appears on the request date only (and on Family, Subtype and a Manual request number at Create). Submit/Resubmit errors (the request date and format rules of provided values) appear with summary + inline errors. Warning distinct.
+
+## 22.1 Date Input — decided 2026-09-30
+
+Every date input in the application uses the shadcn-vue Date Picker pattern (Popover + Calendar), never the browser's native date input. The trigger shows the chosen date as `d MMM yyyy` (for example `30 Sep 2026`) or a placeholder when empty; an optional date or filter can be cleared from the picker. The value sent to the server stays a business date `YYYY-MM-DD`, and "today" follows the application timezone `Asia/Jakarta`. The picker never hides past dates, because an unchanged accepted past target date may remain (06 §40).
 
 ## 23. Autosave / Save Draft
 
@@ -356,7 +360,7 @@ No false Saved after optimistic conflict.
 
 Recommended sections: General/Service, Reference, Existing Service, New Service, RFS/SLA, NOC/Network, Bandwidth, Domain/DNS/Email/Hosting, Onsite Direct, Onsite POP, Attachments.
 
-Subtype controls requiredness. Repeated max-3 fields may use add/remove row patterns. Units visible separately from numeric values.
+Subtype does not make any field required (G24). Repeated max-3 fields may use add/remove row patterns. Units visible separately from numeric values.
 
 ## 25. Change
 
@@ -368,7 +372,7 @@ Service Impact is checkbox-style multi-select. Its options such as NOC15/NOC23/e
 
 Initial Draft may leave Result empty. Eligible owner at `PENDING_REVIEW` sees **Update Result of Changes**, not Edit Form.
 
-Only Result Summary, Performance Information, Status, max five rows. General planning fields read-only. Optimistic conflict applies. Reviewer sees readiness indicator; backend controls Forward.
+Only Result Summary, Performance Information, Status, max five rows. General planning fields read-only. Optimistic conflict applies. Forward has no Result gate, so no readiness indicator is shown (G24).
 
 ---
 
@@ -488,6 +492,16 @@ Recommended tabs/sections:
 ## 36. Business Timeline
 
 Shows actor, business mutation/workflow/lifecycle action, timestamp, states, reason/comment, meaningful changes.
+
+Presentation — decided 2026-09-30 (G24):
+
+- each event shows its changes open, as a split table with the columns Field, Before and After, like a code-review diff;
+- Before cells use the destructive (red) tone with a `−` marker, After cells use the success (green) tone with a `+` marker; colour is never the only cue;
+- field names use the same human labels as Form Detail, and values the same formatting (enum labels, Yes/No, `—` for empty);
+- a repeatable row or site block is diffed per row (matched by its natural key) and per cell, never shown as raw JSON;
+- on narrow screens each changed field stacks its Before line above its After line;
+- a Draft or Result update that changed no field is not shown;
+- an attachment event shows its filename as a `+` (added) or `−` (removed) line.
 
 Routine View/download/export-access evidence does not flood Business Timeline.
 
@@ -819,6 +833,8 @@ UI MUST NOT:
 ## 66. Forms / Concurrency
 
 - [ ] Draft incomplete save;
+- [ ] only the request date carries a required marker in the NSCMF form;
+- [ ] every date input uses the Date Picker (22.1);
 - [ ] optimistic conflict accurate;
 - [ ] Service Impact multi-select;
 - [ ] Result-only narrow;
