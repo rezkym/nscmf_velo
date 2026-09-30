@@ -3,6 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     ClipboardCheck,
     FilePlus2,
+    FolderOpen,
     History,
     LayoutDashboard,
     ListChecks,
@@ -54,6 +55,7 @@ const workspaceItems = computed<NavItem[]>(() =>
     [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, visible: true },
         { label: 'Create NSCMF', href: '/nscmf/create', icon: FilePlus2, visible: can('nscmf.create') },
+        { label: 'My Applications', href: '/my-applications', icon: FolderOpen, visible: can('nscmf.view') },
         { label: 'Review', href: '/review', icon: ClipboardCheck, visible: can('nscmf.review') },
         { label: 'Approval', href: '/approval', icon: Stamp, visible: can('nscmf.approve') },
         { label: 'History', href: '/history', icon: History, visible: can('nscmf.view.history') },
