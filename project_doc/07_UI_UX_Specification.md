@@ -153,11 +153,14 @@ Permission-aware navigation baseline:
 ```text
 Dashboard
 Create NSCMF
+My Applications
 Review
 Approval
 History
 Administration
 ```
+
+`My Applications` (decided 2026-09-30, G25) is shown with `nscmf.view` (§34.1).
 
 No tenant switcher. No Team switcher for authorization. Hidden menu is UX convenience only.
 
@@ -479,7 +482,17 @@ Archived separate badge.
 
 Data table optimized for retrieval. Archived separate from active default view. Export selection only authorized records.
 
+Selection (decided 2026-09-30, G25): a header checkbox selects or clears every row on the page shown. It reads as indeterminate while only some rows are selected. Selection never reaches rows on other pages.
+
 Team MAY be a display/filter criterion if product later finds it useful, but Team filter MUST NOT imply authorization boundary.
+
+## 34.1 My Applications — decided 2026-09-30 (G25)
+
+A data table of the records the signed-in user owns (`12 §47.1`), including never-submitted Drafts and Cancelled records. Archived records are not listed; History remains the place to find them.
+
+- columns: Request No (link to the record), Type, Request date, Status;
+- controls: search by Request No, a Status filter, sort, rows per page and page navigation;
+- permission: `nscmf.view`; no new permission.
 
 ## 35. Record Detail
 
@@ -520,6 +533,8 @@ or explicit audit.access.view
 Security Audit similarly uses `audit.security.view` + applicable authorization.
 
 No Team/scope prerequisite. Audit UI read-only; no purge-by-age; no credential/private-key secrets.
+
+Presentation — decided 2026-09-30 (G25): each audit stream is one data table (§57.1) with the columns Time, Event and Actor. Access Audit adds Record and IP address. Security Audit adds Outcome, Target user, Username entered and IP address. The filters sit in the table's control bar. There is no free-text search.
 
 The Technical Log cleanup setting MUST NOT be displayed or worded as an Audit cleanup setting. The UI SHOULD make the boundary explicit:
 
@@ -631,6 +646,8 @@ Group:
 
 No Unit/Division, Reviewer Scope, Approval Scope, or Spatie Teams UI.
 
+Users, Roles and Teams are data tables (§57.1) with search by name (and username for Users), rows per page and page navigation. Each row's actions sit in one "⋯" menu that lists only the actions the actor holds (decided 2026-09-30, G25).
+
 Normal permission assignment flow:
 
 ```text
@@ -719,6 +736,14 @@ Never expose internals/secrets.
 ## 57. Responsive
 
 Desktop full workflow; tablet reduced columns; mobile stacked and prioritized. Required reason/re-auth/security confirmation never dropped.
+
+## 57.1 Data Tables — decided 2026-09-30 (G25)
+
+Every list page uses one data-table pattern:
+
+- search, filters and rows per page (10, 25, 50, 100) sit in a control bar inside the table card;
+- page navigation (numbered pages with Previous/Next) and the range shown ("1–25 of 120") sit at the foot of the same card;
+- on narrow screens secondary columns may hide, and a wide table scrolls inside its card; the page itself never scrolls sideways.
 
 ## 58. Keyboard / Labels / Motion
 

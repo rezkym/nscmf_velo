@@ -259,4 +259,20 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
   7. Timeline memakai tabel split Field/Before(−)/After(+), langsung terbuka. Update Draft/Result tanpa perubahan disembunyikan di jalur baca, sedangkan audit tetap utuh. Kejadian lampiran menampilkan nama file (07 §36, 12 §48).
 - Bukti: `handoff/2026-09-30-optional-fields-date-picker-timeline.md`.
 
+<a id="g25"></a>
+
+## G25 — Tabel daftar, pencarian admin, dan halaman My Applications
+
+- Sumber: permintaan pemilik 2026-09-30; `07 §10, §34, §34.1, §37, §48, §57.1`, `12 §44, §47.1, §80, §88, §93`, `04 §12`.
+- Dampak/task owner: [BE-154](BE-154.md), [BE-155](BE-155.md); FE-63, FE-64, FE-65, FE-66, FE-67.
+- Pihak berwenang: Pemilik proyek.
+- Status: **CLOSED 2026-09-30** oleh pemilik proyek:
+  1. My Applications (`GET /my-applications`) memakai izin `nscmf.view` tanpa izin baru, dan hanya berisi record milik aktor, termasuk Draft dan Cancelled.
+  2. Filter My Applications minimal: search Request No, Status, sort, per page, dan pagination.
+  3. Record archived tidak tampil di My Applications; History tetap menjadi tempat mencarinya.
+  4. Semua tabel memakai pagination bernomor (Pagination shadcn-vue) dan rentang "1–25 of 120" di dalam kartu tabel.
+  5. Aksi baris Users/Roles/Teams berada di satu menu "⋯" (DropdownMenu shadcn-vue).
+  6. Turunan: Roles dan Teams dipaginasi di server dengan `page`/`per_page`/`q` seperti Users. Audit tidak mendapat search karena kontraknya tidak punya `q`. Select all di History hanya mencakup halaman yang tampil.
+- Bukti: `handoff/2026-09-30-tables-my-applications.md`.
+
 Removed concerns dari19A/20 tidak menjadi gap: HA/Redis/DR/backup/load/SLA architecture/automatedCD/publicCA/multi-server. Actual hostname/provider/Linux/path baru dicatat ketika deployment sungguhan diperintahkan; tidak memilih server sekarang.

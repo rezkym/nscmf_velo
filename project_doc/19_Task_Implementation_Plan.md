@@ -902,6 +902,8 @@ Implement current `12` contract:
 - archive filtering;
 - resource authorization before disclosure.
 
+Since 2026-09-30 (G25) the same list contract also covers My Applications (`12 §47.1`) and the Users, Roles and Teams lists (`12 §80`, `§88`, `§93`).
+
 ### Phase 5 Checkpoint
 
 ```text

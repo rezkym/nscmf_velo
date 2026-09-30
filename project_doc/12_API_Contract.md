@@ -1151,6 +1151,7 @@ GET /review/{record}
 GET /approval
 GET /approval/{record}
 GET /history
+GET /my-applications
 ```
 
 `GET /nscmf/{record}/edit` serves both the Draft/Revision editor and the Change Result-only editor (§29).
@@ -1194,6 +1195,18 @@ Rules:
 ## 47. History
 
 Uses `nscmf.view.history + resource visibility`. Archived is separate flag/filter.
+
+## 47.1 My Applications — decided 2026-09-30 (G25)
+
+```http
+GET /my-applications
+```
+
+- permission `nscmf.view`;
+- lists only records whose `owner_user_id` is the actor, in every business status (Draft and Cancelled included);
+- archived records are never listed;
+- parameters: `q` (Request No), `business_status`, sort (§14, §16) and pagination (§13); other §15 filters are not applied, and a client-sent `owner_user_id`, `team_id` or `archived` never changes the owner or the archive rule;
+- props: `items`, `meta` and `query`, in the same shape as History.
 
 ## 48. Business Timeline
 
@@ -1579,7 +1592,7 @@ Every protected action still repeats normal authorization checks.
 GET /administration/users
 ```
 
-Permission `users.view`; standard pagination/filters.
+Permission `users.view`; standard pagination (§13). `q` (optional, at most 64 characters) matches name or username (decided 2026-09-30, G25). The `teams` and `roles` option lists are not paginated.
 
 ## 81. Create User — Server-Generated One-Time Temporary Password
 
@@ -1742,6 +1755,8 @@ Permission mapping — confirmed 2026-09-22 (gap G14): the actor needs **either*
 GET /administration/roles
 ```
 
+Permission `roles.view`; standard pagination (§13) and `q` matching the role name (decided 2026-09-30, G25). Props: `roles`, `meta`, `query` and the full `permissionCatalog`.
+
 ## 89. Permission Catalog
 
 ```http
@@ -1787,6 +1802,8 @@ Role archive remains absent until schema explicitly supports it.
 ```http
 GET /administration/teams
 ```
+
+Permission `teams.view`; standard pagination (§13) and `q` matching the team name (decided 2026-09-30, G25). Props: `teams`, `meta` and `query`.
 
 ## 94. Create Team
 
@@ -2087,6 +2104,7 @@ GET /review/{record}
 GET /approval
 GET /approval/{record}
 GET /history
+GET /my-applications
 GET /nscmf/{record}/timeline
 ```
 
