@@ -127,6 +127,10 @@ describe('PlanSection (FE-25)', () => {
         expect(unset.find('[data-testid="announcement-warning"]').exists()).toBe(false);
     });
 
+    it('G24: never tells the owner that a plan and its KPI must be filled together', () => {
+        expect(mountSection().text()).not.toMatch(/belong together|at submit/i);
+    });
+
     it('keeps the rollback scenario an optional narrative of 4,000 characters, like every plan field (G24)', async () => {
         const wrapper = mountSection();
 
