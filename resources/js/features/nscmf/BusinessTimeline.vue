@@ -5,30 +5,19 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import SectionCard from '@/components/SectionCard.vue';
 import { Card, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { usePermissions } from '@/composables/usePermissions';
+import { type DiffRow, diffRows } from '@/features/nscmf/timelineDiff';
+import { EVENT_LABELS, STATUS_LABELS, type TimelineEvent } from '@/features/nscmf/types';
 import { formatJakarta } from '@/lib/datetime';
 import { sendJson } from '@/lib/http';
 
-interface TimelineEvent {
-    id: number;
-    event_type: string;
-    actor: string | null;
-    iteration_no: number | null;
-    from_status: string | null;
-    to_status: string | null;
-    reason: string | null;
-    comment: string | null;
-    version_before: number | null;
-    version_after: number | null;
-    occurred_at: string;
-    changes: { field: string; before: string | null; after: string | null }[];
-}
 interface TimelinePage {
     data: TimelineEvent[];
     meta: { current_page: number; last_page: number; total: number };
 }
 
-/** The read-only business audit stream of one record (07 §timeline; 12 §33). */
+/** The read-only business audit stream of one record, each change shown as a split diff (07 §36; 12 §48). */
 const props = defineProps<{ recordId: number }>();
 const { can } = usePermissions();
 const permitted = can('nscmf.timeline.view');
@@ -48,18 +37,24 @@ const groups = computed(() => {
     return [...byIteration].map(([iteration, events]) => ({
         key: iteration ?? 'none',
         title: iteration === null ? 'Before first submission' : `Iteration ${iteration}`,
-        events,
+        events: events.map((entry) => ({ ...entry, rows: changeRows(entry) })),
     }));
 });
 
-function label(value: string): string {
-    return value
-        .toLowerCase()
-        .replaceAll('_', ' ')
-        .replace(/^./, (letter) => letter.toUpperCase());
+/** An attachment event's file is a line of its own: added on the After side, removed on the Before side. */
+function changeRows(entry: TimelineEvent): DiffRow[] {
+    const file = entry.attachment_filename;
+    const attachment: DiffRow[] = file
+        ? [
+              {
+                  label: 'Attachment',
+                  before: entry.event_type === 'ATTACHMENT_REMOVED' ? file : null,
+                  after: entry.event_type === 'ATTACHMENT_ADDED' ? file : null,
+              },
+          ]
+        : [];
+    return [...attachment, ...entry.changes.flatMap(diffRows)];
 }
-
-const value = (text: string | null) => (text === null || text === '' ? '(empty)' : text);
 
 async function load(target = 1): Promise<void> {
     if (loading.value || !permitted) return;
@@ -114,13 +109,13 @@ onUnmounted(() => controller.abort());
             <h3 class="font-medium text-muted-foreground">{{ group.title }}</h3>
             <ol class="space-y-4">
                 <li v-for="entry in group.events" :key="entry.id" class="grid gap-1.5 border-l-2 pl-4">
-                    <p class="font-medium">{{ label(entry.event_type) }}</p>
+                    <p class="font-medium">{{ EVENT_LABELS[entry.event_type] ?? entry.event_type }}</p>
                     <p class="text-xs text-muted-foreground">
                         {{ entry.actor ?? 'Unknown actor' }} · {{ formatJakarta(entry.occurred_at) }}
                     </p>
                     <p v-if="entry.from_status || entry.to_status" class="text-sm">
-                        {{ entry.from_status ? label(entry.from_status) : '—' }} →
-                        {{ entry.to_status ? label(entry.to_status) : '—' }}
+                        {{ entry.from_status ? STATUS_LABELS[entry.from_status] : '—' }} →
+                        {{ entry.to_status ? STATUS_LABELS[entry.to_status] : '—' }}
                     </p>
                     <p v-if="entry.version_after !== null" class="text-xs text-muted-foreground">
                         Version {{ entry.version_before ?? '—' }} → {{ entry.version_after }}
@@ -131,18 +126,61 @@ onUnmounted(() => controller.abort());
                     <p v-if="entry.comment" class="whitespace-pre-wrap break-words text-sm">
                         Comment: {{ entry.comment }}
                     </p>
-                    <details v-if="entry.changes.length" class="text-sm">
-                        <summary class="cursor-pointer">Changed fields ({{ entry.changes.length }})</summary>
-                        <dl data-testid="timeline-changes" class="mt-2 space-y-3">
-                            <div v-for="change in entry.changes" :key="change.field">
-                                <dt class="font-medium">{{ change.field }}</dt>
-                                <dd class="whitespace-pre-wrap break-all text-muted-foreground">
-                                    Before: {{ value(change.before) }}
-                                </dd>
-                                <dd class="whitespace-pre-wrap break-all">After: {{ value(change.after) }}</dd>
-                            </div>
-                        </dl>
-                    </details>
+                    <!-- A split diff; on a narrow screen each field stacks its Before line above its After line. -->
+                    <div v-if="entry.rows.length" class="mt-1 overflow-hidden rounded-md border">
+                        <Table data-testid="timeline-changes" class="text-sm">
+                            <TableHeader class="hidden sm:table-header-group">
+                                <TableRow>
+                                    <TableHead class="w-1/4 px-3">Field</TableHead>
+                                    <TableHead class="px-3">Before</TableHead>
+                                    <TableHead class="px-3">After</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow
+                                    v-for="(row, index) in entry.rows"
+                                    :key="index"
+                                    data-testid="diff-row"
+                                    class="block hover:bg-transparent sm:table-row"
+                                >
+                                    <TableCell
+                                        data-diff="field"
+                                        class="block px-3 font-medium whitespace-normal break-words sm:table-cell sm:align-top"
+                                    >
+                                        {{ row.label }}
+                                    </TableCell>
+                                    <TableCell
+                                        data-diff="removed"
+                                        :class="[
+                                            'block px-3 whitespace-pre-wrap break-words sm:table-cell sm:align-top',
+                                            row.before === null
+                                                ? 'hidden sm:table-cell'
+                                                : 'bg-destructive/10 dark:bg-destructive/20',
+                                        ]"
+                                    >
+                                        <template v-if="row.before !== null">
+                                            <span aria-hidden="true" class="mr-2 font-mono text-destructive">−</span>
+                                            <span class="sr-only">Removed:</span>{{ row.before }}
+                                        </template>
+                                    </TableCell>
+                                    <TableCell
+                                        data-diff="added"
+                                        :class="[
+                                            'block px-3 whitespace-pre-wrap break-words sm:table-cell sm:align-top',
+                                            row.after === null
+                                                ? 'hidden sm:table-cell'
+                                                : 'bg-success/10 dark:bg-success/20',
+                                        ]"
+                                    >
+                                        <template v-if="row.after !== null">
+                                            <span aria-hidden="true" class="mr-2 font-mono text-success">+</span>
+                                            <span class="sr-only">Added:</span>{{ row.after }}
+                                        </template>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
                 </li>
             </ol>
         </section>

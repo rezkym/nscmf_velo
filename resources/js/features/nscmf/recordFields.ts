@@ -27,6 +27,9 @@ function labelled(labels: Record<string, string>): Format {
     return (value) => display(typeof value === 'string' ? (labels[value] ?? value) : value);
 }
 
+/** A yes/no field: a boolean on the record, `true`/`false` text in the Timeline (12 §48). */
+const yesNo: Format = (value) => display(value === 'true' ? true : value === 'false' ? false : value);
+
 export interface FieldSpec {
     key: string;
     label: string;
@@ -106,8 +109,8 @@ export const ACTIVATION_GROUPS = {
             field('mx_secondary', 'MX secondary'),
             field('hosting_platform', 'Hosting platform'),
             field('hosting_capacity_gb', 'Hosting capacity (GB)'),
-            field('migrate_domain', 'Migrate domain'),
-            field('migrate_hosting', 'Migrate hosting'),
+            field('migrate_domain', 'Migrate domain', yesNo),
+            field('migrate_hosting', 'Migrate hosting', yesNo),
         ],
     },
 } satisfies Record<string, FieldGroup>;
