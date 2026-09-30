@@ -534,7 +534,7 @@ Security Audit similarly uses `audit.security.view` + applicable authorization.
 
 No Team/scope prerequisite. Audit UI read-only; no purge-by-age; no credential/private-key secrets.
 
-Presentation — decided 2026-09-30 (G25): each audit stream is one data table (§57.1) with the columns Time, Event and Actor. Access Audit adds Record and IP address. Security Audit adds Outcome, Target user, Username entered and IP address. The filters sit in the table's control bar. There is no free-text search.
+Presentation — decided 2026-09-30 (G25): each audit stream is one data table (§57.1) with the columns Time, Event and Actor. Access Audit adds Record. Security Audit adds Outcome, Target user, Username entered and IP address. The filters sit in the table's control bar. There is no free-text search.
 
 The Technical Log cleanup setting MUST NOT be displayed or worded as an Audit cleanup setting. The UI SHOULD make the boundary explicit:
 
