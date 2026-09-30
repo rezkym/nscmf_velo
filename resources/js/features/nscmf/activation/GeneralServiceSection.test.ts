@@ -17,34 +17,20 @@ function lastModel(wrapper: VueWrapper): GeneralFields {
     return updates[updates.length - 1]?.[0] as GeneralFields;
 }
 
-function requirement(wrapper: VueWrapper, block: 'existing' | 'new'): string {
-    return wrapper.get(`[data-testid="requirement-${block}"]`).text();
-}
-
 describe('GeneralServiceSection (FE-20)', () => {
-    it('AC1: marks the service blocks required per subtype', () => {
-        const activation = mountSection({}, { subtype: 'ACTIVATION' });
-        expect(requirement(activation, 'existing')).toBe('Optional');
-        expect(requirement(activation, 'new')).toBe('Required');
-
-        const upgrade = mountSection({}, { subtype: 'UPGRADE_DOWNGRADE' });
-        expect(requirement(upgrade, 'existing')).toBe('Required');
-        expect(requirement(upgrade, 'new')).toBe('Required');
-
-        const deactivation = mountSection({}, { subtype: 'DEACTIVATION' });
-        expect(requirement(deactivation, 'existing')).toBe('Required');
-        expect(requirement(deactivation, 'new')).toBe('Optional');
+    it('G24: marks no field or service block as required, whatever the subtype', () => {
+        for (const subtype of ['ACTIVATION', 'UPGRADE_DOWNGRADE', 'DEACTIVATION'] as const) {
+            const wrapper = mountSection({}, { subtype });
+            expect(wrapper.find('[data-required]').exists()).toBe(false);
+            expect(wrapper.find('[data-testid^="requirement-"]').exists()).toBe(false);
+            expect(wrapper.text()).not.toMatch(/needs a specification/i);
+        }
     });
 
-    it('AC4: requires the RFS date except for a deactivation and sets no future limit', () => {
-        const activation = mountSection({}, { subtype: 'ACTIVATION' });
-        const rfs = activation.get('#installation_rfs_date');
+    it('AC4: sets no future limit on the RFS date', () => {
+        const rfs = mountSection({}, { subtype: 'ACTIVATION' }).get('#installation_rfs_date');
         expect(rfs.attributes('type')).toBe('date');
         expect(rfs.attributes('min')).toBeUndefined();
-        expect(activation.get('label[for="installation_rfs_date"]').find('[data-required]').exists()).toBe(true);
-
-        const deactivation = mountSection({}, { subtype: 'DEACTIVATION' });
-        expect(deactivation.get('label[for="installation_rfs_date"]').find('[data-required]').exists()).toBe(false);
     });
 
     it('AC2: writes one field at a time and leaves an empty draft otherwise untouched', async () => {

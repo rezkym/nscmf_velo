@@ -128,12 +128,12 @@ describe('PlanSection (FE-25)', () => {
         expect(unset.find('[data-testid="announcement-warning"]').exists()).toBe(false);
     });
 
-    it('keeps the rollback scenario as a required narrative of 4,000 characters', async () => {
+    it('keeps the rollback scenario an optional narrative of 4,000 characters, like every plan field (G24)', async () => {
         const wrapper = mountSection();
 
         const rollback = wrapper.get('#rollback_scenario');
         expect(rollback.attributes('maxlength')).toBe('4000');
-        expect(wrapper.get('label[for="rollback_scenario"]').find('[data-required]').exists()).toBe(true);
+        expect(wrapper.find('[data-required]').exists()).toBe(false);
 
         await rollback.setValue('Demo rollback');
         expect(lastModel(wrapper).rollback_scenario).toBe('Demo rollback');

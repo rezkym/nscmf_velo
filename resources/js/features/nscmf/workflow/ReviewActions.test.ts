@@ -110,22 +110,11 @@ describe('ReviewActions (FE-31)', () => {
         wrapper.unmount();
     });
 
-    it('uses parent Change readiness only for Forward while Activation can forward', () => {
-        const change = mountActions({
-            family: 'CHANGE',
-            changeForwardReady: false,
-            changeForwardReason: 'Complete a Result row first.',
-        });
-        expect(change.get<HTMLButtonElement>('[data-testid="review-forward"]').element.disabled).toBe(true);
-        expect(change.text()).toContain('Complete a Result row first.');
-        expect(change.get<HTMLButtonElement>('[data-testid="review-return"]').element.disabled).toBe(false);
+    it('G24: offers Forward for a Change without any Result, with no readiness reason', () => {
+        const change = mountActions({ family: 'CHANGE' });
+        expect(change.get<HTMLButtonElement>('[data-testid="review-forward"]').element.disabled).toBe(false);
+        expect(change.find('[id$="-forward-reason"]').exists()).toBe(false);
         change.unmount();
-        const ready = mountActions({ family: 'CHANGE', changeForwardReady: true });
-        expect(ready.get<HTMLButtonElement>('[data-testid="review-forward"]').element.disabled).toBe(false);
-        ready.unmount();
-        const activation = mountActions({ family: 'ACTIVATION', changeForwardReady: false });
-        expect(activation.get<HTMLButtonElement>('[data-testid="review-forward"]').element.disabled).toBe(false);
-        activation.unmount();
     });
 
     it('does not submit on opening or cancelling and does not reuse text between actions', async () => {

@@ -59,19 +59,16 @@ describe('NetworkHostingSection (FE-22)', () => {
         expect(lastModel(wrapper).domain_name_1).toBeNull();
     });
 
-    it('AC2: marks the dependent fields required once a migration is selected', async () => {
+    it('G24: keeps the domain and hosting fields optional after a migration is selected', async () => {
         const wrapper = mountSection();
-        expect(isRequired(wrapper, 'domain_name_1')).toBe(false);
-        expect(isRequired(wrapper, 'hosting_platform')).toBe(false);
-        expect(isRequired(wrapper, 'hosting_capacity_gb')).toBe(false);
 
         await wrapper.get('[data-testid="migrate_domain"]').trigger('click');
         expect(lastModel(wrapper).migrate_domain).toBe(true);
-        expect(isRequired(wrapper, 'domain_name_1')).toBe(true);
-
         await wrapper.get('[data-testid="migrate_hosting"]').trigger('click');
-        expect(isRequired(wrapper, 'hosting_platform')).toBe(true);
-        expect(isRequired(wrapper, 'hosting_capacity_gb')).toBe(true);
+
+        expect(isRequired(wrapper, 'domain_name_1')).toBe(false);
+        expect(isRequired(wrapper, 'hosting_platform')).toBe(false);
+        expect(isRequired(wrapper, 'hosting_capacity_gb')).toBe(false);
     });
 
     it('AC2: never fills a domain or a platform on the user behalf', async () => {

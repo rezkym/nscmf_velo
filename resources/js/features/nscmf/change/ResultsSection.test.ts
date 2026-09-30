@@ -33,6 +33,12 @@ function control(wrapper: VueWrapper, collection: string, testid: string): Omit<
 }
 
 describe('ResultsSection (FE-26)', () => {
+    it('G24: never tells the owner that a started row must be complete', () => {
+        const wrapper = mountSection();
+        expect(wrapper.text()).not.toMatch(/must be complete/i);
+        expect(wrapper.find('[data-required]').exists()).toBe(false);
+    });
+
     describe('AC1: results_accept_arbitrary_status', () => {
         it('accepts an arbitrary free text status such as "Selesai dengan catatan" and renders a text input, not a dropdown', async () => {
             const wrapper = mountSection({
