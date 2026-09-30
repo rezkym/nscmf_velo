@@ -56,6 +56,26 @@ describe('DatePicker (FE-61, 07 §22.1)', () => {
         expect(day('2020-01-10')?.hasAttribute('data-disabled')).toBe(false);
     });
 
+    it('jumps to another month and year with labelled selects instead of paging', async () => {
+        const wrapper = mountPicker('2026-09-30');
+        await open(wrapper);
+
+        const select = (label: string) => document.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`);
+        expect(select('Month')).not.toBeNull();
+        expect(select('Year')).not.toBeNull();
+
+        select('Year')!.value = '2020';
+        select('Year')!.dispatchEvent(new Event('change'));
+        await flushPromises();
+        select('Month')!.value = '1';
+        select('Month')!.dispatchEvent(new Event('change'));
+        await flushPromises();
+
+        day('2020-01-15')?.click();
+        await flushPromises();
+        expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['2020-01-15']);
+    });
+
     it('can be cleared, which sends null', async () => {
         const wrapper = mountPicker('2026-09-30');
         await open(wrapper);
