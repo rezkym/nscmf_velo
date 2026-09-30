@@ -74,7 +74,7 @@ const announcementWarning = computed<string | null>(() => {
     <div class="space-y-6">
         <SectionCard
             title="Improvement plan and target KPI"
-            description="Up to three pairs. Both sides belong together at submit."
+            description="Up to three rows. A plan or a KPI may stand alone."
         >
             <RepeatableRows
                 data-collection="improvement_items"
