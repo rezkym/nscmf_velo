@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Repositories\Contracts\Nscmf\DashboardMetricsRepository;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Services\Audit\AccessAuditService;
+use App\Support\Pagination;
 use Carbon\CarbonImmutable;
 
 /**
@@ -344,14 +345,7 @@ final readonly class NscmfQueryService
 
         return [
             'items' => array_map(fn (NscmfRecord $record): array => self::queueRow($record), $paginator->items()),
-            'meta' => [
-                'current_page' => $paginator->currentPage(),
-                'from' => $paginator->firstItem(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'to' => $paginator->lastItem(),
-                'total' => $paginator->total(),
-            ],
+            'meta' => Pagination::meta($paginator),
             'query' => $query,
         ];
     }

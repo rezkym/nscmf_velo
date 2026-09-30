@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Administration\Teams;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Administration\EmptyBodyRequest;
+use App\Http\Requests\Administration\ListAdministrationRequest;
 use App\Http\Requests\Administration\TeamNameRequest;
 use App\Models\User;
 use App\Services\Administration\TeamAdministrationService;
@@ -18,9 +19,9 @@ final class TeamController extends Controller
 {
     public function __construct(private readonly TeamAdministrationService $teams) {}
 
-    public function index(Request $request): Response
+    public function index(ListAdministrationRequest $request): Response
     {
-        return Inertia::render('Administration/Teams/Index', ['teams' => $this->teams->list(self::actor($request))]);
+        return Inertia::render('Administration/Teams/Index', $this->teams->list(self::actor($request), $request->listQuery()));
     }
 
     public function store(TeamNameRequest $request): RedirectResponse

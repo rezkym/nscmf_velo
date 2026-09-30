@@ -6,6 +6,8 @@ namespace App\Repositories\Eloquent\Administration;
 
 use App\Models\Team;
 use App\Repositories\Contracts\Administration\TeamRepository;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 final class EloquentTeamRepository implements TeamRepository
@@ -13,6 +15,15 @@ final class EloquentTeamRepository implements TeamRepository
     public function all(): Collection
     {
         return Team::query()->orderBy('name')->get();
+    }
+
+    public function paginateForAdministration(int $page, int $perPage, ?string $search): LengthAwarePaginator
+    {
+        return Team::query()
+            ->when($search !== null, fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))
+            ->orderBy('name')
+            ->orderBy('id')
+            ->paginate(perPage: $perPage, page: $page);
     }
 
     public function active(): Collection

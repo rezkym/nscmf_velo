@@ -7,6 +7,7 @@ namespace App\Repositories\Eloquent\Administration;
 use App\Models\User;
 use App\Repositories\Contracts\Administration\UserRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 final class EloquentUserRepository implements UserRepository
 {
@@ -31,10 +32,13 @@ final class EloquentUserRepository implements UserRepository
         $user->forceFill($attributes)->save();
     }
 
-    public function paginateForAdministration(int $page, int $perPage): LengthAwarePaginator
+    public function paginateForAdministration(int $page, int $perPage, ?string $search): LengthAwarePaginator
     {
         return User::query()
             ->with(['team', 'roles'])
+            ->when($search !== null, fn (Builder $query) => $query->where(fn (Builder $match) => $match
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('username', 'like', "%{$search}%")))
             ->orderBy('name')
             ->orderBy('id')
             ->paginate(perPage: $perPage, page: $page);

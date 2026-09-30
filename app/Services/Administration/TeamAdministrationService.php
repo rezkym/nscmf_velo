@@ -12,9 +12,14 @@ use App\Models\User;
 use App\Repositories\Contracts\Administration\TeamRepository;
 use App\Services\Audit\SecurityAuditService;
 use App\Services\Security\PermissionGate;
+use App\Support\Pagination;
 use Illuminate\Database\DatabaseManager;
 
-/** Team administration as organizational metadata (04 §18, 12 §93–96). No permission side effect. */
+/**
+ * Team administration as organizational metadata (04 §18, 12 §93–96). No permission side effect.
+ *
+ * @phpstan-import-type AdministrationListQuery from \App\Http\Requests\Administration\ListAdministrationRequest
+ */
 final readonly class TeamAdministrationService
 {
     public function __construct(
@@ -25,12 +30,29 @@ final readonly class TeamAdministrationService
     ) {}
 
     /**
-     * @return list<array{id: int, name: string, is_active: bool}>
+     * @param  AdministrationListQuery  $query
+     * @return array{teams: list<array{id: int, name: string, is_active: bool}>, meta: array<string, int|null>, query: AdministrationListQuery}
      */
-    public function list(User $actor): array
+    public function list(User $actor, array $query): array
     {
         $this->gate->requireAll($actor, 'teams.view');
 
+        $paginator = $this->teams->paginateForAdministration($query['page'], $query['per_page'], $query['q']);
+
+        return [
+            'teams' => array_values(array_map(fn (Team $team): array => self::row($team), $paginator->items())),
+            'meta' => Pagination::meta($paginator),
+            'query' => $query,
+        ];
+    }
+
+    /**
+     * Every Team, for the setup wizard; the caller checks the permission.
+     *
+     * @return list<array{id: int, name: string, is_active: bool}>
+     */
+    public function rows(): array
+    {
         return array_values($this->teams->all()->map(fn (Team $team): array => self::row($team))->all());
     }
 

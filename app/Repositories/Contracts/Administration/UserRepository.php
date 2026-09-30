@@ -27,7 +27,7 @@ interface UserRepository
     /**
      * @return LengthAwarePaginator<int, User>
      */
-    public function paginateForAdministration(int $page, int $perPage): LengthAwarePaginator;
+    public function paginateForAdministration(int $page, int $perPage, ?string $search): LengthAwarePaginator;
 
     /** Setup readiness: an active non-protected user holding at least one role. */
     public function hasActiveNormalUserWithRole(): bool;

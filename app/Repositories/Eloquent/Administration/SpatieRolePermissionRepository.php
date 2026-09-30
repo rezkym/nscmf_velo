@@ -7,6 +7,8 @@ namespace App\Repositories\Eloquent\Administration;
 use App\Domain\Administration\PermissionCatalog;
 use App\Models\User;
 use App\Repositories\Contracts\Administration\RolePermissionRepository;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
@@ -39,6 +41,17 @@ final class SpatieRolePermissionRepository implements RolePermissionRepository
     public function allRolesWithPermissions(): Collection
     {
         return Role::query()->where('guard_name', 'web')->with('permissions')->orderBy('name')->get();
+    }
+
+    public function paginateRolesWithPermissions(int $page, int $perPage, ?string $search): LengthAwarePaginator
+    {
+        return Role::query()
+            ->where('guard_name', 'web')
+            ->when($search !== null, fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))
+            ->with('permissions')
+            ->orderBy('name')
+            ->orderBy('id')
+            ->paginate(perPage: $perPage, page: $page);
     }
 
     public function createRole(string $name): Role
