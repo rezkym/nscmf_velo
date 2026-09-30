@@ -25,10 +25,11 @@ export interface MyApplicationsQuery {
 
 const props = defineProps<{ items: HistoryItem[]; meta: PaginationMeta; query: MyApplicationsQuery }>();
 
+// On a phone the Request No and its status come first (07 §57).
 const columns: ColumnDef[] = [
     { key: 'request_no', label: 'Request No', sortable: true },
-    { key: 'subtype', label: 'Type', sortable: true },
-    { key: 'request_date', label: 'Request date', sortable: true },
+    { key: 'subtype', label: 'Type', sortable: true, class: 'hidden md:table-cell' },
+    { key: 'request_date', label: 'Request date', sortable: true, class: 'hidden sm:table-cell' },
     { key: 'business_status', label: 'Status', sortable: true },
 ];
 
