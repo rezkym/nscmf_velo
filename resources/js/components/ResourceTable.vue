@@ -49,8 +49,8 @@ export interface TablePaginationMeta {
     per_page: number;
     total: number;
     last_page: number;
-    from?: number;
-    to?: number;
+    from?: number | null;
+    to?: number | null;
 }
 
 export interface ResourceTableProps<T = Record<string, unknown>> {
@@ -66,6 +66,10 @@ export interface ResourceTableProps<T = Record<string, unknown>> {
     requestId?: number | string;
     /** A list without a `q` contract (the audits) leaves the search box out. */
     searchable?: boolean;
+    /** A list shown whole (the setup wizard) has no rows-per-page or page navigation. */
+    paged?: boolean;
+    /** Each row gets `data-testid="<rowTestId>-<id>"`. */
+    rowTestId?: string;
 }
 
 const props = withDefaults(defineProps<ResourceTableProps>(), {
@@ -79,6 +83,8 @@ const props = withDefaults(defineProps<ResourceTableProps>(), {
     caption: 'Data Table',
     requestId: undefined,
     searchable: true,
+    paged: true,
+    rowTestId: undefined,
 });
 
 const emit = defineEmits<{
@@ -185,7 +191,11 @@ const columnCount = computed(() => props.columns.length + (slots.actions ? 1 : 0
 <template>
     <Card class="gap-0 overflow-hidden py-0">
         <!-- Controls: Search & Per Page -->
-        <div data-testid="table-controls" class="flex flex-wrap items-end justify-between gap-3 border-b p-4">
+        <div
+            v-if="searchable || paged || $slots.filters"
+            data-testid="table-controls"
+            class="flex flex-wrap items-end justify-between gap-3 border-b p-4"
+        >
             <div v-if="searchable" class="w-full sm:w-72">
                 <Label for="table-search" class="sr-only">Search</Label>
                 <Input
@@ -198,7 +208,7 @@ const columnCount = computed(() => props.columns.length + (slots.actions ? 1 : 0
             </div>
             <slot name="filters" />
 
-            <div class="ml-auto flex items-center gap-2">
+            <div v-if="paged" class="ml-auto flex items-center gap-2">
                 <Label for="table-per-page" class="font-normal whitespace-nowrap text-muted-foreground">Per page</Label>
                 <NativeSelect
                     id="table-per-page"
@@ -267,6 +277,7 @@ const columnCount = computed(() => props.columns.length + (slots.actions ? 1 : 0
                 <TableRow
                     v-for="(item, idx) in currentItems"
                     :key="typeof item.id === 'string' || typeof item.id === 'number' ? item.id : idx"
+                    :data-testid="rowTestId ? `${rowTestId}-${String(item.id)}` : undefined"
                 >
                     <TableCell v-for="col in columns" :key="col.key" :class="['px-4 py-3', col.class]">
                         <slot :name="`cell-${col.key}`" :item="item" :value="item[col.key]">
@@ -288,7 +299,7 @@ const columnCount = computed(() => props.columns.length + (slots.actions ? 1 : 0
             </TableBody>
         </Table>
 
-        <div class="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
+        <div v-if="paged" class="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
             <p class="text-muted-foreground" data-testid="table-range">{{ range }}</p>
             <Pagination
                 :page="currentPage"

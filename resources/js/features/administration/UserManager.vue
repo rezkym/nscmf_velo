@@ -18,9 +18,10 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Card } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import ResourceTable, { type ColumnDef, type TablePaginationMeta } from '@/components/ResourceTable.vue';
+import RowActionsMenu, { type RowAction } from '@/components/RowActionsMenu.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { type SearchQuery, useSearchTable } from '@/composables/useTableVisit';
 import OneTimeCredential from '@/features/administration/OneTimeCredential.vue';
 import {
     type TemporaryCredential,
@@ -41,7 +42,7 @@ export interface RoleOption {
     is_protected?: boolean;
 }
 
-export interface UserRow {
+export interface UserRow extends Record<string, unknown> {
     id: number;
     name: string;
     username: string;
@@ -52,14 +53,76 @@ export interface UserRow {
     roles: Pick<RoleOption, 'id' | 'name'>[];
 }
 
-withDefaults(defineProps<{ users?: UserRow[]; teams?: TeamOption[]; roles?: RoleOption[] }>(), {
-    users: () => [],
-    teams: () => [],
-    roles: () => [],
-});
+const props = withDefaults(
+    defineProps<{
+        users?: UserRow[];
+        teams?: TeamOption[];
+        roles?: RoleOption[];
+        meta?: TablePaginationMeta;
+        query?: SearchQuery;
+    }>(),
+    {
+        users: () => [],
+        teams: () => [],
+        roles: () => [],
+    },
+);
 
 const { can } = usePermissions();
 const page = usePage();
+
+// Team and Roles step aside on narrow screens (07 §57); their dialogs still show them.
+const columns: ColumnDef[] = [
+    { key: 'name', label: 'User' },
+    { key: 'team_name', label: 'Team', class: 'hidden md:table-cell' },
+    { key: 'roles', label: 'Roles', class: 'hidden lg:table-cell' },
+    { key: 'is_active', label: 'Status' },
+];
+const { loading, paged, tableQuery, onQuery } = useSearchTable('/administration/users', () => props.query);
+const row = (item: unknown) => item as UserRow;
+
+/** The Protected Superadmin keeps its roles, password and active state (10 §11). */
+function userActions(user: UserRow): RowAction[] {
+    const editable = !user.is_protected_superadmin;
+    return [
+        {
+            label: 'Edit',
+            testId: `btn-edit-profile-${user.id}`,
+            visible: can('users.update'),
+            run: () => openDialog({ kind: 'profile', user }),
+        },
+        {
+            label: 'Team',
+            testId: `btn-edit-team-${user.id}`,
+            visible: can('users.assign_team') || can('teams.assign_users'),
+            run: () => openDialog({ kind: 'team', user }),
+        },
+        {
+            label: 'Roles',
+            testId: `btn-edit-roles-${user.id}`,
+            visible: editable && can('users.assign_roles'),
+            run: () => openDialog({ kind: 'roles', user }),
+        },
+        {
+            label: 'Reset password',
+            testId: `btn-reset-password-${user.id}`,
+            visible: editable && can('users.reset_password'),
+            run: () => requestSensitive({ kind: 'reset', user }),
+        },
+        {
+            label: 'Disable',
+            testId: `btn-disable-user-${user.id}`,
+            visible: editable && user.is_active && can('users.disable'),
+            run: () => requestSensitive({ kind: 'disable', user }),
+        },
+        {
+            label: 'Enable',
+            testId: `btn-enable-user-${user.id}`,
+            visible: editable && !user.is_active && can('users.enable'),
+            run: () => enableUser(user),
+        },
+    ];
+}
 
 // Plain dialogs (create form, profile, team, roles) — at most one is open.
 type Dialog = { kind: 'create' } | { kind: 'profile' | 'team' | 'roles'; user: UserRow };
@@ -292,114 +355,49 @@ function revealCredential(result: Extract<JsonResult, { ok: true }>, username: s
             <AlertDescription>{{ pageError }}</AlertDescription>
         </Alert>
 
-        <Card class="gap-0 overflow-hidden py-0">
-            <Table>
-                <TableHeader class="bg-muted/50">
-                    <TableRow>
-                        <TableHead class="px-4 py-3">User</TableHead>
-                        <TableHead class="px-4 py-3">Team</TableHead>
-                        <TableHead class="px-4 py-3">Roles</TableHead>
-                        <TableHead class="px-4 py-3">Status</TableHead>
-                        <TableHead class="px-4 py-3 text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <TableRow v-for="user in users" :key="user.id" :data-testid="`user-row-${user.id}`">
-                        <TableCell class="px-4 py-3">
-                            <div class="flex items-center gap-2 font-medium">
-                                {{ user.name }}
-                                <Badge v-if="user.is_protected_superadmin" variant="warning">Protected</Badge>
-                            </div>
-                            <div class="font-mono text-xs text-muted-foreground">{{ user.username }}</div>
-                        </TableCell>
-                        <TableCell class="px-4 py-3">
-                            <span v-if="user.team_name">{{ user.team_name }}</span>
-                            <span v-else class="text-muted-foreground">No team</span>
-                        </TableCell>
-                        <TableCell class="px-4 py-3">
-                            <div v-if="user.roles.length > 0" class="flex flex-wrap gap-1">
-                                <Badge variant="secondary" v-for="role in user.roles" :key="role.id">{{
-                                    role.name
-                                }}</Badge>
-                            </div>
-                            <span v-else class="text-muted-foreground">No roles</span>
-                        </TableCell>
-                        <TableCell class="px-4 py-3">
-                            <Badge :variant="user.is_active ? 'success' : 'secondary'">
-                                {{ user.is_active ? 'Active' : 'Disabled' }}
-                            </Badge>
-                        </TableCell>
-                        <TableCell class="whitespace-nowrap px-4 py-3 text-right">
-                            <Button
-                                type="button"
-                                v-if="can('users.update')"
-                                variant="ghost"
-                                size="sm"
-                                :data-testid="`btn-edit-profile-${user.id}`"
-                                @click="openDialog({ kind: 'profile', user })"
-                            >
-                                Edit
-                            </Button>
-                            <Button
-                                type="button"
-                                v-if="can('users.assign_team') || can('teams.assign_users')"
-                                variant="ghost"
-                                size="sm"
-                                :data-testid="`btn-edit-team-${user.id}`"
-                                @click="openDialog({ kind: 'team', user })"
-                            >
-                                Team
-                            </Button>
-                            <template v-if="!user.is_protected_superadmin">
-                                <Button
-                                    type="button"
-                                    v-if="can('users.assign_roles')"
-                                    variant="ghost"
-                                    size="sm"
-                                    :data-testid="`btn-edit-roles-${user.id}`"
-                                    @click="openDialog({ kind: 'roles', user })"
-                                >
-                                    Roles
-                                </Button>
-                                <Button
-                                    type="button"
-                                    v-if="can('users.reset_password')"
-                                    variant="ghost"
-                                    size="sm"
-                                    :data-testid="`btn-reset-password-${user.id}`"
-                                    @click="requestSensitive({ kind: 'reset', user })"
-                                >
-                                    Reset password
-                                </Button>
-                                <Button
-                                    type="button"
-                                    v-if="user.is_active && can('users.disable')"
-                                    variant="ghost"
-                                    size="sm"
-                                    :data-testid="`btn-disable-user-${user.id}`"
-                                    @click="requestSensitive({ kind: 'disable', user })"
-                                >
-                                    Disable
-                                </Button>
-                                <Button
-                                    type="button"
-                                    v-if="!user.is_active && can('users.enable')"
-                                    variant="ghost"
-                                    size="sm"
-                                    :data-testid="`btn-enable-user-${user.id}`"
-                                    @click="enableUser(user)"
-                                >
-                                    Enable
-                                </Button>
-                            </template>
-                        </TableCell>
-                    </TableRow>
-                    <TableEmpty v-if="users.length === 0" :colspan="5" class="text-muted-foreground"
-                        >No users yet.</TableEmpty
-                    >
-                </TableBody>
-            </Table>
-        </Card>
+        <ResourceTable
+            :columns="columns"
+            :items="users"
+            :loading="loading"
+            :query="tableQuery"
+            :meta="meta"
+            :searchable="paged"
+            :paged="paged"
+            row-test-id="user-row"
+            empty-text="No users yet."
+            caption="Users"
+            @update:query="onQuery"
+        >
+            <template #cell-name="{ item }">
+                <div class="flex items-center gap-2 font-medium">
+                    {{ row(item).name }}
+                    <Badge v-if="row(item).is_protected_superadmin" variant="warning">Protected</Badge>
+                </div>
+                <div class="font-mono text-xs text-muted-foreground">{{ row(item).username }}</div>
+            </template>
+            <template #cell-team_name="{ item }">
+                <span v-if="row(item).team_name">{{ row(item).team_name }}</span>
+                <span v-else class="text-muted-foreground">No team</span>
+            </template>
+            <template #cell-roles="{ item }">
+                <div v-if="row(item).roles.length > 0" class="flex flex-wrap gap-1">
+                    <Badge v-for="role in row(item).roles" :key="role.id" variant="secondary">{{ role.name }}</Badge>
+                </div>
+                <span v-else class="text-muted-foreground">No roles</span>
+            </template>
+            <template #cell-is_active="{ item }">
+                <Badge :variant="row(item).is_active ? 'success' : 'secondary'">
+                    {{ row(item).is_active ? 'Active' : 'Disabled' }}
+                </Badge>
+            </template>
+            <template #actions="{ item }">
+                <RowActionsMenu
+                    :label="`Actions for ${row(item).name}`"
+                    :actions="userActions(row(item))"
+                    :data-testid="`row-actions-${row(item).id}`"
+                />
+            </template>
+        </ResourceTable>
     </div>
 
     <!-- The form dialog steps aside while re-authentication is asked, so only one dialog traps focus. -->

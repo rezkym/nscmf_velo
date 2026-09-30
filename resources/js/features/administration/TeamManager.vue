@@ -15,12 +15,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Card } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import ResourceTable, { type ColumnDef, type TablePaginationMeta } from '@/components/ResourceTable.vue';
+import RowActionsMenu, { type RowAction } from '@/components/RowActionsMenu.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { type SearchQuery, useSearchTable } from '@/composables/useTableVisit';
 import { pageDomainError } from '@/lib/apiErrors';
 
-export interface Team {
+export interface Team extends Record<string, unknown> {
     id: number;
     name: string;
     is_active: boolean;
@@ -28,10 +29,31 @@ export interface Team {
 
 type LifecycleAction = 'deactivate' | 'reactivate';
 
-withDefaults(defineProps<{ teams?: Team[] }>(), { teams: () => [] });
+const props = withDefaults(defineProps<{ teams?: Team[]; meta?: TablePaginationMeta; query?: SearchQuery }>(), {
+    teams: () => [],
+});
 
 const { can } = usePermissions();
 const page = usePage();
+
+const columns: ColumnDef[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'is_active', label: 'Status' },
+];
+const { loading, paged, tableQuery, onQuery } = useSearchTable('/administration/teams', () => props.query);
+const row = (item: unknown) => item as Team;
+
+function teamActions(team: Team): RowAction[] {
+    return [
+        { label: 'Edit', testId: `edit-team-${team.id}`, visible: can('teams.update'), run: () => openForm(team) },
+        {
+            label: team.is_active ? 'Deactivate' : 'Reactivate',
+            testId: `${team.is_active ? 'deactivate' : 'reactivate'}-team-${team.id}`,
+            visible: can('teams.archive'),
+            run: () => openLifecycle(team),
+        },
+    ];
+}
 
 const LIFECYCLE_COPY: Record<LifecycleAction, { title: string; description: string }> = {
     deactivate: {
@@ -130,52 +152,35 @@ function confirmLifecycle(entry: { team: Team; action: LifecycleAction }): void 
             <Button type="button" data-testid="create-team-btn" @click="openForm(null)"> Create team </Button>
         </div>
 
-        <Card class="gap-0 overflow-hidden py-0">
-            <Table>
-                <TableHeader class="bg-muted/50">
-                    <TableRow>
-                        <TableHead class="px-4 py-3">Name</TableHead>
-                        <TableHead class="px-4 py-3">Status</TableHead>
-                        <TableHead class="px-4 py-3 text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <TableRow v-for="team in teams" :key="team.id" :data-testid="`team-row-${team.id}`">
-                        <TableCell class="px-4 py-3 font-medium">{{ team.name }}</TableCell>
-                        <TableCell class="px-4 py-3">
-                            <Badge :variant="team.is_active ? 'success' : 'secondary'">
-                                {{ team.is_active ? 'Active' : 'Inactive' }}
-                            </Badge>
-                        </TableCell>
-                        <TableCell class="space-x-1 px-4 py-3 text-right">
-                            <Button
-                                type="button"
-                                v-if="can('teams.update')"
-                                variant="ghost"
-                                size="sm"
-                                :data-testid="`edit-team-${team.id}`"
-                                @click="openForm(team)"
-                            >
-                                Edit
-                            </Button>
-                            <Button
-                                type="button"
-                                v-if="can('teams.archive')"
-                                variant="ghost"
-                                size="sm"
-                                :data-testid="`${team.is_active ? 'deactivate' : 'reactivate'}-team-${team.id}`"
-                                @click="openLifecycle(team)"
-                            >
-                                {{ team.is_active ? 'Deactivate' : 'Reactivate' }}
-                            </Button>
-                        </TableCell>
-                    </TableRow>
-                    <TableEmpty v-if="teams.length === 0" :colspan="3" class="text-muted-foreground"
-                        >No teams yet.</TableEmpty
-                    >
-                </TableBody>
-            </Table>
-        </Card>
+        <ResourceTable
+            :columns="columns"
+            :items="teams"
+            :loading="loading"
+            :query="tableQuery"
+            :meta="meta"
+            :searchable="paged"
+            :paged="paged"
+            row-test-id="team-row"
+            empty-text="No teams yet."
+            caption="Teams"
+            @update:query="onQuery"
+        >
+            <template #cell-name="{ item }">
+                <span class="font-medium">{{ row(item).name }}</span>
+            </template>
+            <template #cell-is_active="{ item }">
+                <Badge :variant="row(item).is_active ? 'success' : 'secondary'">
+                    {{ row(item).is_active ? 'Active' : 'Inactive' }}
+                </Badge>
+            </template>
+            <template #actions="{ item }">
+                <RowActionsMenu
+                    :label="`Actions for ${row(item).name}`"
+                    :actions="teamActions(row(item))"
+                    :data-testid="`row-actions-${row(item).id}`"
+                />
+            </template>
+        </ResourceTable>
     </div>
 
     <Dialog
