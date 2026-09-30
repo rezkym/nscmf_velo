@@ -150,7 +150,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Dampak/task owner: [BE-090](BE-090.md), [BE-101](BE-101.md), [BE-148](BE-148.md).
 - Pihak berwenang: Pelaksana integration + reviewer security/owner operasional.
 - Bukti penutupan: Real clamd readiness/definitions, measured finite timeout, job timeout/retry_after consistency and failure evidence. Existing90 scaffold bukan measured policy.
-- Status: **CLOSED 2026-09-24** — keputusan didelegasikan pemilik proyek ke pelaksana, berdasar pengukuran lokal (macOS arm64, clamd 1.4, LibreOffice 26.8): scan 20 MB ≤1,9 s (dingin), arsip padat ±250 MB terurai 6,6 s; satu pass render ±1,7 s; signing ±0,01 s. Nilai: scan 30 s (seluruh balasan clamd dibatasi satu deadline), render 30 s per pass (turun dari 60 s: ekspor PDF = 2 pass + signing harus < job 80 s), job finalisasi 75 s/3 percobaan, job ekspor 80 s/2 percobaan, `retry_after` 90 s. Temuan yang diperbaiki: clamd yang mengirim byte tanpa henti dulu tidak terpotong; renderer macet melempar exception di luar kontrak. Test: `tests/Integration/Operations/WorkerTimeBudgetTest.php`. Ulangi pengukuran di server Linux saat rilis.
+- Status: **CLOSED 2026-09-24** — keputusan didelegasikan pemilik proyek ke pelaksana, berdasar pengukuran lokal (macOS arm64, clamd 1.4, LibreOffice 26.8): scan 20 MB ≤1,9 s (dingin), arsip padat ±250 MB terurai 6,6 s; satu pass render ±1,7 s; signing ±0,01 s. Nilai: scan 30 s (satu deadline untuk seluruh scan: koneksi, pengiriman file, dan balasan clamd lengkap — disinkronkan 2026-09-30, [BE-151](BE-151.md)), render 30 s per pass (turun dari 60 s: ekspor PDF = 2 pass + signing harus < job 80 s), job finalisasi 75 s/3 percobaan, job ekspor 80 s/2 percobaan, `retry_after` 90 s. Temuan yang diperbaiki: clamd yang mengirim byte tanpa henti dulu tidak terpotong; renderer macet melempar exception di luar kontrak. Test: `tests/Integration/Operations/WorkerTimeBudgetTest.php`. Ulangi pengukuran di server Linux saat rilis.
 
 <a id="g16"></a>
 
@@ -228,5 +228,18 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
   3. prop Inertia `analytics` pada `GET /dashboard`, tanpa endpoint, migrasi, atau dependency baru (12 §44.1);
   4. tata letak Dashboard dan sistem visual bersama (07 §7.1, §17.1).
 - Wajib human security review sebelum merge (izin baru, 18 §17).
+
+<a id="g23"></a>
+
+## G23 — Audit kondisi kode 2026-09-27: kompensasi chunk dan batas scan ClamAV
+
+- Sumber: audit kode setelah redesign; `11A §21`, `10 §83`, `14 §48`.
+- Dampak/task owner: [BE-150](BE-150.md), [BE-151](BE-151.md); FE-58, FE-59.
+- Pihak berwenang: Pemilik proyek.
+- Status: **CLOSED 2026-09-30** oleh pemilik proyek:
+  1. BE-150: byte chunk yang sudah ditulis tetapi gagal dicatat di database langsung dihapus dan tidak diakui sebagai progress. Bila penghapusan itu juga gagal, kejadian dicatat di Technical Log hanya dengan id aman (`upload_id`, `chunk_index`, kelas exception), tanpa storage key (10 §83), dan error asli tetap dikembalikan. **Tidak** ada mekanisme sweep baru untuk objek yatim; sisa objek pada kegagalan ganda ini adalah batas yang diketahui.
+  2. BE-151: batas 30 detik berlaku untuk satu scan utuh (koneksi, pengiriman, balasan), bukan per tahap. Kalimat `14 §48` disinkronkan; nilai 30 detik tidak berubah.
+- Bukti: `handoff/2026-09-30-fix-miss-feature.md`.
+- Wajib human security review sebelum merge (private upload/storage dan scanner fail-closed, 18 §17).
 
 Removed concerns dari19A/20 tidak menjadi gap: HA/Redis/DR/backup/load/SLA architecture/automatedCD/publicCA/multi-server. Actual hostname/provider/Linux/path baru dicatat ketika deployment sungguhan diperintahkan; tidak memilih server sekarang.
