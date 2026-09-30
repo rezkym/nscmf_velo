@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { pickDate } from './support/nscmf';
 import { createBrowserUser } from './support/runtime';
 import { loginToDashboard } from './support/session';
 
@@ -23,7 +24,7 @@ test('a requester creates a Change draft, saves it and finds it again after a re
 
     await page.locator('#maintenance_purpose').fill('Replace the optical module.');
     await page.locator('#rollback_scenario').fill('Restore the old module.');
-    await page.getByTestId('draft-request-date').fill('2026-09-30');
+    await pickDate(page, page.getByTestId('draft-request-date'), '2026-09-30');
 
     const saved = page.waitForResponse(
         (response) => response.url().includes('/draft') && response.request().method() === 'PATCH',
@@ -38,7 +39,7 @@ test('a requester creates a Change draft, saves it and finds it again after a re
 
     await page.reload();
     await expect(page.locator('#maintenance_purpose')).toHaveValue('Replace the optical module.');
-    await expect(page.getByTestId('draft-request-date')).toHaveValue('2026-09-30');
+    await expect(page.getByTestId('draft-request-date')).toContainText('30 Sep 2026');
 
     const url = new URL(page.url());
     await page.goto(url.pathname.replace('/edit', ''));

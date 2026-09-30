@@ -3,10 +3,10 @@ import { Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
 import ResourceTable, { type ColumnDef, type TableQuery } from '@/components/ResourceTable.vue';
+import DatePicker from '@/components/DatePicker.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldLabel } from '@/components/ui/field';
@@ -234,22 +234,22 @@ const row = (item: unknown) => item as HistoryItem;
                         </Field>
                         <Field>
                             <FieldLabel for="filter-date-from">Request date from</FieldLabel>
-                            <Input
+                            <DatePicker
                                 id="filter-date-from"
-                                type="date"
                                 data-testid="filter-date-from"
-                                :model-value="query.request_date_from ?? ''"
-                                @change="filter({ request_date_from: selectValue($event) })"
+                                placeholder="Any date"
+                                :model-value="query.request_date_from ?? null"
+                                @update:model-value="filter({ request_date_from: $event })"
                             />
                         </Field>
                         <Field>
                             <FieldLabel for="filter-date-to">Request date to</FieldLabel>
-                            <Input
+                            <DatePicker
                                 id="filter-date-to"
-                                type="date"
                                 data-testid="filter-date-to"
-                                :model-value="query.request_date_to ?? ''"
-                                @change="filter({ request_date_to: selectValue($event) })"
+                                placeholder="Any date"
+                                :model-value="query.request_date_to ?? null"
+                                @update:model-value="filter({ request_date_to: $event })"
                             />
                         </Field>
                     </form>

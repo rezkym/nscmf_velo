@@ -83,7 +83,8 @@ describe('Privileged audit viewers (FE-39)', () => {
         const wrapper = mountLog('security', [SECURITY_ITEM]);
 
         expect(wrapper.text()).not.toMatch(/delete|purge|retention|export|clear log/i);
-        expect(texts(wrapper, 'button')).toEqual(['Previous', 'Next']);
+        // The date filters open a picker; every other button only pages.
+        expect(texts(wrapper, 'button:not([data-testid^="audit-filter-"])')).toEqual(['Previous', 'Next']);
     });
 
     it('AC3: renders only the approved fields, never an unexpected secret', () => {

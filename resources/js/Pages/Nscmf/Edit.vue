@@ -2,6 +2,7 @@
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
+import DatePicker from '@/components/DatePicker.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import RequestFeedback from '@/components/RequestFeedback.vue';
 import { Button } from '@/components/ui/button';
@@ -245,13 +246,12 @@ const form = ref<HTMLElement | null>(null);
                                 :error="fieldErrors['header.request_date']"
                             >
                                 <template #default="{ id, describedBy }">
-                                    <Input
+                                    <DatePicker
                                         :id="id"
-                                        :model-value="header.request_date ?? ''"
+                                        :model-value="header.request_date ?? null"
+                                        @update:model-value="header.request_date = $event"
                                         data-testid="draft-request-date"
-                                        type="date"
                                         :aria-describedby="describedBy"
-                                        @update:model-value="header.request_date = String($event)"
                                     />
                                 </template>
                             </FormField>

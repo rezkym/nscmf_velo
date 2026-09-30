@@ -4,7 +4,7 @@ import { computed } from 'vue';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import DatePicker from '@/components/DatePicker.vue';
 import { NativeSelect } from '@/components/ui/native-select';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Card, CardContent } from '@/components/ui/card';
@@ -122,7 +122,7 @@ function visit(patch: Partial<AuditQuery>): void {
     router.get(endpoint.value, params, { preserveState: true, preserveScroll: true });
 }
 
-function filter(key: 'event_type' | 'outcome' | 'occurred_from' | 'occurred_to', event: Event): void {
+function filter(key: 'event_type' | 'outcome', event: Event): void {
     const value = (event.target as HTMLInputElement | HTMLSelectElement).value;
     visit({ [key]: value === '' ? null : value, page: 1 });
 }
@@ -163,22 +163,22 @@ function filter(key: 'event_type' | 'outcome' | 'occurred_from' | 'occurred_to',
                     </Field>
                     <Field>
                         <FieldLabel for="audit-filter-from">From</FieldLabel>
-                        <Input
+                        <DatePicker
                             id="audit-filter-from"
-                            type="date"
                             data-testid="audit-filter-from"
-                            :model-value="query.occurred_from ?? ''"
-                            @change="filter('occurred_from', $event)"
+                            placeholder="Any date"
+                            :model-value="query.occurred_from ?? null"
+                            @update:model-value="visit({ occurred_from: $event, page: 1 })"
                         />
                     </Field>
                     <Field>
                         <FieldLabel for="audit-filter-to">To</FieldLabel>
-                        <Input
+                        <DatePicker
                             id="audit-filter-to"
-                            type="date"
                             data-testid="audit-filter-to"
-                            :model-value="query.occurred_to ?? ''"
-                            @change="filter('occurred_to', $event)"
+                            placeholder="Any date"
+                            :model-value="query.occurred_to ?? null"
+                            @update:model-value="visit({ occurred_to: $event, page: 1 })"
                         />
                     </Field>
                 </form>

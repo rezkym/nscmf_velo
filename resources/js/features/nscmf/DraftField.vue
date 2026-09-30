@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DatePicker from '@/components/DatePicker.vue';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import FormField from '@/components/FormField.vue';
@@ -10,7 +11,7 @@ withDefaults(
     defineProps<{
         id: string;
         label: string;
-        /** `date` uses the native picker; `text` is free text. */
+        /** `date` uses the Date Picker (07 §22.1); `text` is free text. */
         type?: 'text' | 'date';
         /** Number of rows for a narrative field; a single-line input is used when it is omitted. */
         rows?: number;
@@ -44,12 +45,20 @@ function onInput(event: Event): void {
                 :aria-describedby="describedBy"
                 @input="onInput"
             />
+            <DatePicker
+                v-else-if="type === 'date'"
+                v-model="value"
+                :id="controlId"
+                :data-error-path="errorPath"
+                :data-error-wire-path="errorWirePath"
+                :disabled="disabled"
+                :aria-describedby="describedBy"
+            />
             <Input
                 v-else
                 :id="controlId"
                 :data-error-path="errorPath"
                 :data-error-wire-path="errorWirePath"
-                :type="type"
                 :model-value="value ?? ''"
                 :maxlength="maxlength"
                 :disabled="disabled"
