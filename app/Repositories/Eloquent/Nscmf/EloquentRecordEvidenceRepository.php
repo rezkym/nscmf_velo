@@ -4,19 +4,25 @@ declare(strict_types=1);
 
 namespace App\Repositories\Eloquent\Nscmf;
 
+use App\Domain\Audit\Enums\BusinessAuditEvent;
 use App\Models\Audit\BusinessAuditEventRecord;
 use App\Repositories\Contracts\Nscmf\RecordEvidenceRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentRecordEvidenceRepository implements RecordEvidenceRepository
 {
+    /** Events whose only content is their field changes; one that changed nothing is not shown (12 §48). */
+    private const array FIELD_UPDATES = [BusinessAuditEvent::DRAFT_UPDATED->value, BusinessAuditEvent::RESULT_UPDATED->value];
+
     public function timeline(int $recordId, int $page, int $perPage): LengthAwarePaginator
     {
         return BusinessAuditEventRecord::query()
             ->with(['actor', 'iteration', 'changes'])
             ->where('nscmf_record_id', $recordId)
+            ->where(fn (EloquentBuilder $events) => $events->whereNotIn('event_type', self::FIELD_UPDATES)->orWhereHas('changes'))
             ->orderByDesc('occurred_at')
             ->orderByDesc('id')
             ->paginate(perPage: $perPage, page: $page);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Nscmf;
 
+use App\Domain\Audit\Enums\BusinessAuditEvent;
 use App\Domain\Nscmf\RecordAccess;
 use App\Domain\Shared\DomainRuleException;
 use App\Models\Audit\BusinessAuditChangeRecord;
@@ -39,12 +40,22 @@ final readonly class RecordEvidenceService
                 'version_before' => $event->record_version_before,
                 'version_after' => $event->record_version_after,
                 'occurred_at' => $event->occurred_at->toIso8601String(),
+                'attachment_filename' => self::attachmentFilename($event),
                 'changes' => $event->changes->map(static fn (BusinessAuditChangeRecord $change): array => [
                     'field' => $change->field_path, 'before' => $change->old_value_text, 'after' => $change->new_value_text,
                 ])->values()->all(),
             ], $events->items()),
             'meta' => ['current_page' => $events->currentPage(), 'last_page' => $events->lastPage(), 'per_page' => $events->perPage(), 'total' => $events->total()],
         ];
+    }
+
+    /** The file an attachment event added or removed, as its audit recorded it (07 §36). */
+    private static function attachmentFilename(BusinessAuditEventRecord $event): ?string
+    {
+        $attachmentEvents = [BusinessAuditEvent::ATTACHMENT_ADDED->value, BusinessAuditEvent::ATTACHMENT_REMOVED->value];
+        $filename = $event->metadata_json['filename'] ?? null;
+
+        return in_array($event->event_type, $attachmentEvents, true) && is_string($filename) ? $filename : null;
     }
 
     /** @param list<string> $permissions */

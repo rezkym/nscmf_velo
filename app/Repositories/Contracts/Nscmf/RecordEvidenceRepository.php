@@ -10,7 +10,8 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 interface RecordEvidenceRepository
 {
     /**
-     * Business Timeline rows newest first, with actor, iteration and field changes loaded.
+     * Business Timeline rows newest first, with actor, iteration and field changes loaded. A Draft
+     * or Result update that changed no field is left out, rows and counts alike (12 §48).
      *
      * @return LengthAwarePaginator<int, BusinessAuditEventRecord>
      */
