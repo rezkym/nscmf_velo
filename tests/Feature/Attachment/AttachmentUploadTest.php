@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 use App\Domain\Attachment\ScanVerdict;
 use App\Infrastructure\Malware\MalwareScanner;
+use App\Infrastructure\Storage\PrivateStorage;
 use App\Jobs\FinalizeAttachmentUpload;
+use App\Models\Attachment\UploadChunk;
+use App\Models\Attachment\UploadSession;
 use App\Models\User;
 use App\Services\Attachment\AttachmentFinalizationService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
@@ -295,3 +299,42 @@ it('serves an attachment only on an explicit CLEAN verdict, even when its bytes 
         ->assertConflict()->assertJsonPath('code', 'ATTACHMENT_NOT_CLEAN');
     expect(DB::table('access_audit_events')->where('event_type', 'ATTACHMENT_DOWNLOADED')->count())->toBe(0);
 })->with(['PENDING', 'INFECTED', 'FAILED']);
+
+it('discards the bytes of a chunk whose database write failed and claims no progress (BE-150, 11A §21)', function (Closure $injectFailure): void {
+    [$recordId, $owner] = editableRecord();
+    $uploadId = uploadIdOf(initiateUpload($owner, $recordId, 'notes.txt', 10)->assertCreated());
+    $before = signIn($owner)->getJson("/nscmf/{$recordId}/attachment-uploads/{$uploadId}")->assertOk();
+    travel(5)->minutes();
+    $injectFailure();
+
+    $refused = putChunk($owner, $recordId, $uploadId, 1, '0123456789')->assertServerError();
+
+    expect($refused->getContent())->not->toContain(PrivateStorage::CHUNKS.'/')
+        ->and(DB::table('nscmf_attachment_upload_chunks')->count())->toBe(0)
+        ->and(Storage::disk('nscmf_private')->allFiles(PrivateStorage::CHUNKS))->toBe([]);
+    signIn($owner)->getJson("/nscmf/{$recordId}/attachment-uploads/{$uploadId}")->assertOk()
+        ->assertJsonPath('data.accepted_chunks', [])
+        ->assertJsonPath('data.expires_at', $before->json('data.expires_at'));
+})->with([
+    'the chunk row cannot be inserted' => [fn () => UploadChunk::creating(fn () => throw new RuntimeException('Injected database failure.'))],
+    'the progress cannot be recorded' => [fn () => UploadSession::updating(fn () => throw new RuntimeException('Injected database failure.'))],
+]);
+
+it('reports a discard that failed too without its storage key, and still refuses the chunk (BE-150)', function (): void {
+    [$recordId, $owner] = editableRecord();
+    $uploadId = uploadIdOf(initiateUpload($owner, $recordId, 'notes.txt', 10)->assertCreated());
+    $real = app(PrivateStorage::class);
+    $storage = Mockery::mock(PrivateStorage::class);
+    $storage->shouldReceive('write')->andReturnUsing(fn (string $category, mixed $stream): string => $real->write($category, $stream));
+    $storage->shouldReceive('delete')->andThrow(new RuntimeException('The disk refused the delete.'));
+    app()->instance(PrivateStorage::class, $storage);
+    UploadChunk::creating(fn () => throw new RuntimeException('Injected database failure.'));
+    $log = Log::spy();
+
+    putChunk($owner, $recordId, $uploadId, 1, '0123456789')->assertServerError();
+
+    $log->shouldHaveReceived('warning')->once()->withArgs(fn (string $message, array $context): bool => $context === [
+        'upload_id' => $uploadId, 'chunk_index' => 1, 'exception' => RuntimeException::class,
+    ] && ! str_contains($message, PrivateStorage::CHUNKS.'/'));
+    expect(DB::table('nscmf_attachment_upload_chunks')->count())->toBe(0);
+});
