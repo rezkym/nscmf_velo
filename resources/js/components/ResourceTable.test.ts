@@ -268,7 +268,7 @@ describe('Additional edge cases for ResourceTable coverage', () => {
         });
 
         expect(wrapper.find('.custom-status').text()).toBe('Custom Status Badge');
-        expect(wrapper.text()).toContain('Page 2 of 3 (75 total)');
+        expect(wrapper.text()).toContain('26–50 of 75');
 
         const prevBtn = wrapper.find('[data-testid="pagination-prev"]');
         await prevBtn.trigger('click');
@@ -385,7 +385,7 @@ describe('ResourceTable copy', () => {
                 },
             });
 
-            expect(wrapper.text()).toContain('Page 1 of 1 (0 total)');
+            expect(wrapper.text()).toContain('0 of 0');
             expect(wrapper.get('[data-testid="pagination-prev"]').attributes('disabled')).toBeDefined();
             expect(wrapper.get('[data-testid="pagination-next"]').attributes('disabled')).toBeDefined();
             expect(wrapper.get<HTMLSelectElement>('[data-testid="table-per-page-select"]').element.value).toBe('25');
@@ -485,5 +485,62 @@ describe('a response that arrives out of order', () => {
         await wrapper.setProps({ items: [{ id: 1, request_no: 'STALE' }], requestId: 'a' });
 
         expect(wrapper.text()).toContain('NEW');
+    });
+});
+
+describe('FE-63: one data-table pattern (07 §57.1)', () => {
+    const meta: TablePaginationMeta = { current_page: 2, per_page: 10, total: 95, last_page: 10 };
+
+    it('numbers the pages, marks the current one and emits the page picked', async () => {
+        const wrapper = mount(ResourceTable, {
+            props: { columns: sampleColumns, items: [], query: { page: 2, per_page: 10 }, meta },
+        });
+
+        expect(wrapper.text()).toContain('11–20 of 95');
+        const current = wrapper.get('[data-testid="pagination-page-2"]');
+        expect(current.attributes('aria-current')).toBe('page');
+        expect(wrapper.find('[data-testid="pagination-page-10"]').exists()).toBe(true);
+
+        await wrapper.get('[data-testid="pagination-page-3"]').trigger('click');
+        expect(wrapper.emitted('update:query')?.at(-1)?.[0]).toMatchObject({ page: 3, per_page: 10 });
+    });
+
+    it('renders a header slot in place of the column label', () => {
+        const wrapper = mount(ResourceTable, {
+            props: { columns: [{ key: 'select', label: 'Select' }, ...sampleColumns], items: [] },
+            slots: { 'head-select': '<input type="checkbox" data-testid="head-slot" />' },
+        });
+
+        const header = wrapper.get('[data-testid="header-select"]');
+        expect(header.find('[data-testid="head-slot"]').exists()).toBe(true);
+        expect(header.text()).not.toContain('Select');
+    });
+
+    it('puts filters in the control bar and can leave search out', () => {
+        const wrapper = mount(ResourceTable, {
+            props: { columns: sampleColumns, items: [], searchable: false },
+            slots: { filters: '<label data-testid="filter-slot">Status</label>' },
+        });
+
+        expect(wrapper.find('[data-testid="table-search-input"]').exists()).toBe(false);
+        expect(wrapper.get('[data-testid="table-controls"]').find('[data-testid="filter-slot"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="table-per-page-select"]').exists()).toBe(true);
+    });
+
+    it('applies a column class to its header and cells, so a secondary column can hide', () => {
+        const wrapper = mount(ResourceTable, {
+            props: {
+                columns: [
+                    { key: 'name', label: 'Name' },
+                    { key: 'team', label: 'Team', class: 'hidden md:table-cell' },
+                ],
+                items: [{ id: 1, name: 'Ana', team: 'NOC' }],
+            },
+        });
+
+        expect(wrapper.get('[data-testid="header-team"]').classes()).toContain('hidden');
+        const cells = wrapper.findAll('tbody td');
+        expect(cells[1]?.classes()).toContain('md:table-cell');
+        expect(cells[0]?.classes()).not.toContain('hidden');
     });
 });
