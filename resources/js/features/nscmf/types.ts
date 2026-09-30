@@ -82,6 +82,11 @@ export const SERVICE_STATUS_LABELS: Record<ServiceStatus, string> = {
     DEACTIVATED: 'Deactivated',
 };
 
+export const SERVICE_CONTEXT_LABELS: Record<ServiceContext, string> = {
+    EXISTING: 'Existing service',
+    NEW: 'New service',
+};
+
 export const SERVICE_IMPACT_LABELS: Record<ServiceImpactCode, string> = {
     NOC15: 'NOC15',
     NOC23: 'NOC23',
