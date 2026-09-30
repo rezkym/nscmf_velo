@@ -2,6 +2,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AppLayout from '@/layouts/AppLayout.vue';
+import { pickDate } from '@/testing/datePicker';
 import { lastRequest, requests, resetInertia } from '@/testing/inertia';
 
 import AuditLog, { type AuditQuery } from './AuditLog.vue';
@@ -110,7 +111,7 @@ describe('Privileged audit viewers (FE-39)', () => {
         const wrapper = mountLog('access', []);
         expect(wrapper.text()).toContain('No audit events match these filters.');
 
-        await wrapper.get('[data-testid="audit-filter-from"]').setValue('2026-09-01');
+        await pickDate(wrapper, 'audit-filter-from', '2026-09-01');
         expect(lastRequest('/administration/audits/access')?.data).toEqual({
             page: 1,
             per_page: 25,

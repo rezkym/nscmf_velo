@@ -2,6 +2,8 @@ import { type DOMWrapper, mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
 import type { ChangeSubtype } from '../types';
+import { datePicker, pickDate } from '@/testing/datePicker';
+
 import PlanSection, { type PlanFields } from './PlanSection.vue';
 
 function mountSection(
@@ -46,16 +48,13 @@ describe('PlanSection (FE-25)', () => {
         ]);
     });
 
-    it('AC2: the target date is a plain date field with no limit computed in the browser', async () => {
+    it('AC2: the target date uses the Date Picker with no limit computed in the browser', async () => {
         const wrapper = mountSection({ target_execution_date: '2020-01-01' });
 
-        const date = wrapper.get('#target_execution_date');
-        expect(date.attributes('type')).toBe('date');
-        expect(date.attributes('min')).toBeUndefined();
-        expect(date.attributes('max')).toBeUndefined();
-        expect(wrapper.get<HTMLInputElement>('#target_execution_date').element.value).toBe('2020-01-01');
+        expect(wrapper.find('input[type="date"]').exists()).toBe(false);
+        expect(datePicker(wrapper, 'target_execution_date').props('modelValue')).toBe('2020-01-01');
 
-        await date.setValue('2026-10-10');
+        await pickDate(wrapper, 'target_execution_date', '2026-10-10');
         expect(lastModel(wrapper).target_execution_date).toBe('2026-10-10');
     });
 

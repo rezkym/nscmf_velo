@@ -27,3 +27,11 @@ const CALENDAR_DAY = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'nu
 export function formatCalendarDay(date: string): string {
     return CALENDAR_DAY.format(new Date(`${date}T00:00:00Z`));
 }
+
+/**
+ * A server business date (`YYYY-MM-DD`) as `30 Sep 2026` (07 §22.1). Skeleton only: the format
+ * arrives with FE-61.
+ */
+export function formatBusinessDate(date: string): string {
+    return date;
+}

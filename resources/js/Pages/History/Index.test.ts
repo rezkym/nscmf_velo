@@ -1,6 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { pickDate } from '@/testing/datePicker';
 import { lastRequest, requests, resetInertia } from '@/testing/inertia';
 
 import Index, { type HistoryItem, type HistoryQuery } from './Index.vue';
@@ -111,11 +112,11 @@ describe('History (FE-37)', () => {
 
     it('AC2: a date range and a search are sent as they are', async () => {
         const wrapper = mountHistory();
-        await wrapper.get('[data-testid="filter-date-from"]').setValue('2026-09-01');
+        await pickDate(wrapper, 'filter-date-from', '2026-09-01');
         expect(lastRequest('/history')?.data).toMatchObject({ request_date_from: '2026-09-01', page: 1 });
 
         await wrapper.setProps({ query: { ...QUERY, request_date_from: '2026-09-01' } });
-        await wrapper.get('[data-testid="filter-date-to"]').setValue('2026-09-30');
+        await pickDate(wrapper, 'filter-date-to', '2026-09-30');
         expect(lastRequest('/history')?.data).toMatchObject({
             request_date_from: '2026-09-01',
             request_date_to: '2026-09-30',
