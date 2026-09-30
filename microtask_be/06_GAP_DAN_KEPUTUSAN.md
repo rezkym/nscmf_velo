@@ -257,6 +257,6 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
   5. Aturan format/konsistensi tetap berlaku untuk nilai yang diisi: IP/DNS/FQDN/MX, angka, Request date tidak di masa depan (first Submit), Target date tidak di masa lalu, dan pasangan Monitoring.
   6. Semua input tanggal memakai Date Picker shadcn-vue (07 §22.1). Tampilan `d MMM yyyy`, nilai `YYYY-MM-DD`. `@internationalized/date` disetujui sebagai dependency langsung (08 §70).
   7. Timeline memakai tabel split Field/Before(−)/After(+), langsung terbuka. Update Draft/Result tanpa perubahan disembunyikan di jalur baca, sedangkan audit tetap utuh. Kejadian lampiran menampilkan nama file (07 §36, 12 §48).
-- Bukti: handoff saat implementasi selesai.
+- Bukti: `handoff/2026-09-30-optional-fields-date-picker-timeline.md`.
 
 Removed concerns dari19A/20 tidak menjadi gap: HA/Redis/DR/backup/load/SLA architecture/automatedCD/publicCA/multi-server. Actual hostname/provider/Linux/path baru dicatat ketika deployment sungguhan diperintahkan; tidak memilih server sekarang.
