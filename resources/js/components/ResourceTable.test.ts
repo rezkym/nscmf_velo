@@ -544,3 +544,16 @@ describe('FE-63: one data-table pattern (07 §57.1)', () => {
         expect(cells[0]?.classes()).not.toContain('hidden');
     });
 });
+
+describe('FE-65: a list shown whole', () => {
+    it('leaves out rows per page and page navigation when it is not paged', () => {
+        const wrapper = mount(ResourceTable, {
+            props: { columns: sampleColumns, items: [], searchable: false, paged: false },
+        });
+
+        expect(wrapper.find('[data-testid="table-controls"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="table-per-page-select"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="pagination-next"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="table-range"]').exists()).toBe(false);
+    });
+});
