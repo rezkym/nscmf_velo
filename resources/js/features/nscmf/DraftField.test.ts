@@ -15,13 +15,12 @@ function emittedValue(wrapper: VueWrapper): unknown {
 }
 
 describe('DraftField', () => {
-    it('labels the control and marks it as required', () => {
-        const wrapper = mountField({ required: true, maxlength: 150 });
+    it('labels the control', () => {
+        const wrapper = mountField({ maxlength: 150 });
 
         expect(wrapper.get('label').text()).toContain('Customer name');
         expect(wrapper.get('label').attributes('for')).toBe('customer_name');
         expect(wrapper.get('#customer_name').attributes('maxlength')).toBe('150');
-        expect(wrapper.find('[data-required]').exists()).toBe(true);
     });
 
     it('sends text as typed and blank text as null', async () => {

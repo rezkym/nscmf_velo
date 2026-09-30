@@ -1,18 +1,11 @@
 <script setup lang="ts">
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import SectionCard from '@/components/SectionCard.vue';
 
 import DraftField from '../DraftField.vue';
 import { fieldError, type FieldErrors } from '../fieldErrors';
 import RepeatableRows from '../RepeatableRows.vue';
-import type {
-    ChangeDraftFields,
-    ChangeSubtype,
-    FacingChallengeRow,
-    IdentifiedProblemRow,
-    ServiceImpactCode,
-} from '../types';
+import type { ChangeDraftFields, FacingChallengeRow, IdentifiedProblemRow, ServiceImpactCode } from '../types';
 import { SERVICE_IMPACT_LABELS } from '../types';
 
 /** Purpose, challenges, problems and service impact (06 §35-38). */
@@ -23,7 +16,7 @@ export type PurposeFields = Pick<
 
 const model = defineModel<PurposeFields>({ required: true });
 
-const props = withDefaults(defineProps<{ subtype: ChangeSubtype; errors?: FieldErrors; disabled?: boolean }>(), {
+const props = withDefaults(defineProps<{ errors?: FieldErrors; disabled?: boolean }>(), {
     errors: () => ({}),
 });
 
@@ -75,7 +68,6 @@ function otherIndex(): number {
                 label="Maintenance purpose"
                 :rows="4"
                 :maxlength="4000"
-                :required="subtype === 'MAINTENANCE'"
                 :model-value="model.maintenance_purpose ?? null"
                 :error="error('maintenance_purpose')"
                 :disabled="disabled"
@@ -84,12 +76,6 @@ function otherIndex(): number {
         </SectionCard>
 
         <SectionCard title="Facing challenges">
-            <template #badge>
-                <Badge variant="secondary" data-testid="requirement-facing_challenges">
-                    {{ subtype === 'MAINTENANCE' ? 'Optional' : 'Required' }}
-                </Badge>
-            </template>
-
             <RepeatableRows
                 data-collection="facing_challenges"
                 add-label="Add challenge"
@@ -116,10 +102,6 @@ function otherIndex(): number {
         </SectionCard>
 
         <SectionCard title="Identified problems">
-            <template #badge>
-                <Badge variant="secondary" data-testid="requirement-identified_problems">Required</Badge>
-            </template>
-
             <RepeatableRows
                 data-collection="identified_problems"
                 add-label="Add problem"
@@ -146,10 +128,6 @@ function otherIndex(): number {
         </SectionCard>
 
         <SectionCard title="Service impact">
-            <template #badge>
-                <Badge variant="secondary" data-testid="requirement-service_impacts">Required</Badge>
-            </template>
-
             <div class="space-y-2">
                 <label
                     v-for="(label, code) in SERVICE_IMPACT_LABELS"
@@ -171,7 +149,6 @@ function otherIndex(): number {
                 id="impact-OTHER-description"
                 label="Other impact description"
                 class="sm:max-w-md"
-                required
                 :maxlength="500"
                 :model-value="impacts()[otherIndex()]?.other_description ?? null"
                 :error="error('service_impacts', otherIndex(), 'other_description')"

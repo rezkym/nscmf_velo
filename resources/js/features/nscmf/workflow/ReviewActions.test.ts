@@ -15,7 +15,6 @@ const baseProps: ReviewActionsProps = {
     recordVersion: 7,
     businessStatus: 'PENDING_REVIEW',
     archived: false,
-    family: 'ACTIVATION',
     allowedActions: permissions,
 };
 
@@ -111,7 +110,7 @@ describe('ReviewActions (FE-31)', () => {
     });
 
     it('G24: offers Forward for a Change without any Result, with no readiness reason', () => {
-        const change = mountActions({ family: 'CHANGE' });
+        const change = mountActions();
         expect(change.get<HTMLButtonElement>('[data-testid="review-forward"]').element.disabled).toBe(false);
         expect(change.find('[id$="-forward-reason"]').exists()).toBe(false);
         change.unmount();

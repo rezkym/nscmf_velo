@@ -13,7 +13,7 @@ import type { NscmfDetailRecord } from '@/features/nscmf/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 defineProps<{
-    record: NscmfDetailRecord & { forward_readiness: { ready: boolean; reason: string | null } };
+    record: NscmfDetailRecord;
     attachments: AttachmentItem[];
 }>();
 const { can } = usePermissions();
@@ -51,10 +51,7 @@ const { can } = usePermissions();
                         :record-version="record.record_version"
                         :business-status="record.business_status"
                         :archived="record.is_archived"
-                        :family="record.family"
                         :allowed-actions="record.allowed_actions ?? []"
-                        :change-forward-ready="record.forward_readiness.ready"
-                        :change-forward-reason="record.forward_readiness.reason"
                     />
                 </SectionCard>
             </template>

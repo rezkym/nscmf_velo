@@ -35,7 +35,7 @@ function error(...segments: (string | number)[]): string | undefined {
     <div class="space-y-6">
         <SectionCard
             title="Result of changes"
-            description="Up to five rows. Status is free text (not an enum). Started rows must be complete at submit."
+            description="Up to five rows, all optional. Status is free text (not an enum)."
         >
             <RepeatableRows
                 data-collection="results"

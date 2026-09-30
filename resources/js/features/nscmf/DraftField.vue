@@ -19,7 +19,6 @@ withDefaults(
         error?: string;
         errorPath?: string;
         errorWirePath?: string;
-        required?: boolean;
         disabled?: boolean;
     }>(),
     { type: 'text' },
@@ -31,7 +30,7 @@ function onInput(event: Event): void {
 </script>
 
 <template>
-    <FormField :id="id" :label="label" :help="help" :error="error" :required="required">
+    <FormField :id="id" :label="label" :help="help" :error="error">
         <template #default="{ id: controlId, describedBy }">
             <Textarea
                 v-if="rows"

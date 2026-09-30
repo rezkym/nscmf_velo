@@ -119,7 +119,6 @@ const announcementWarning = computed<string | null>(() => {
                     id="target_execution_date"
                     label="Target execution date"
                     type="date"
-                    required
                     :model-value="model.target_execution_date ?? null"
                     :error="error('target_execution_date')"
                     :disabled="disabled"
@@ -128,18 +127,12 @@ const announcementWarning = computed<string | null>(() => {
                 <DraftNumberField
                     id="monitoring_period_value"
                     label="Monitoring period"
-                    required
                     :model-value="model.monitoring_period_value ?? null"
                     :error="error('monitoring_period_value')"
                     :disabled="disabled"
                     @update:model-value="(value) => update({ monitoring_period_value: value })"
                 />
-                <FormField
-                    id="monitoring_period_unit"
-                    label="Monitoring unit"
-                    required
-                    :error="error('monitoring_period_unit')"
-                >
+                <FormField id="monitoring_period_unit" label="Monitoring unit" :error="error('monitoring_period_unit')">
                     <template #default="{ id, describedBy }">
                         <NativeSelect
                             class="w-full"
@@ -163,7 +156,6 @@ const announcementWarning = computed<string | null>(() => {
             <DraftField
                 id="rollback_scenario"
                 label="Rollback scenario"
-                required
                 help="Describe what happens if the change has to be reverted."
                 :rows="4"
                 :maxlength="4000"
@@ -173,12 +165,7 @@ const announcementWarning = computed<string | null>(() => {
                 @update:model-value="(value) => update({ rollback_scenario: value })"
             />
 
-            <FormField
-                id="announcement_timing"
-                label="Maintenance announcement"
-                required
-                :error="error('announcement_timing')"
-            >
+            <FormField id="announcement_timing" label="Maintenance announcement" :error="error('announcement_timing')">
                 <template #default="{ id, describedBy }">
                     <NativeSelect
                         class="w-full sm:max-w-md"

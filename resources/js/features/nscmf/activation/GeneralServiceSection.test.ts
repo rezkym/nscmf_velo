@@ -1,14 +1,13 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
-import type { ActivationSubtype } from '../types';
 import GeneralServiceSection, { type GeneralFields } from './GeneralServiceSection.vue';
 
 function mountSection(
     modelValue: GeneralFields = {},
-    props: { subtype?: ActivationSubtype; errors?: Record<string, string>; disabled?: boolean } = {},
+    props: { errors?: Record<string, string>; disabled?: boolean } = {},
 ): VueWrapper {
-    return mount(GeneralServiceSection, { props: { modelValue, subtype: 'ACTIVATION', ...props } });
+    return mount(GeneralServiceSection, { props: { modelValue, ...props } });
 }
 
 function lastModel(wrapper: VueWrapper): GeneralFields {
@@ -18,17 +17,15 @@ function lastModel(wrapper: VueWrapper): GeneralFields {
 }
 
 describe('GeneralServiceSection (FE-20)', () => {
-    it('G24: marks no field or service block as required, whatever the subtype', () => {
-        for (const subtype of ['ACTIVATION', 'UPGRADE_DOWNGRADE', 'DEACTIVATION'] as const) {
-            const wrapper = mountSection({}, { subtype });
-            expect(wrapper.find('[data-required]').exists()).toBe(false);
-            expect(wrapper.find('[data-testid^="requirement-"]').exists()).toBe(false);
-            expect(wrapper.text()).not.toMatch(/needs a specification/i);
-        }
+    it('G24: marks no field or service block as required; the subtype no longer plays a part', () => {
+        const wrapper = mountSection({ references: [{ reference_type: 'OTHER', specification: null }] });
+        expect(wrapper.find('[data-required]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid^="requirement-"]').exists()).toBe(false);
+        expect(wrapper.text()).not.toMatch(/needs a specification/i);
     });
 
     it('AC4: sets no future limit on the RFS date', () => {
-        const rfs = mountSection({}, { subtype: 'ACTIVATION' }).get('#installation_rfs_date');
+        const rfs = mountSection().get('#installation_rfs_date');
         expect(rfs.attributes('type')).toBe('date');
         expect(rfs.attributes('min')).toBeUndefined();
     });
