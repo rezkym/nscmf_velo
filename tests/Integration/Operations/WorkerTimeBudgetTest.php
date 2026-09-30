@@ -78,6 +78,21 @@ it('cuts off a scanner that keeps trickling bytes without ever finishing its rep
         ->and($elapsed)->toBeLessThan(3.0);
 });
 
+it('bounds one whole scan, not each connect, send and reply on its own (BE-151)', function (int $timeout, string $reply, string $beforeEachRead): void {
+    [$address, $process] = FakeClamd::start($reply, $beforeEachRead);
+
+    // Larger than the loopback socket buffers, so a slow receiver really slows the send.
+    [$elapsed, $thrown] = timed(fn () => (new ClamdScanner($address, $timeout))->scan(FakeClamd::input(str_repeat('x', 4_000_000))));
+    proc_terminate($process);
+
+    // Each write and the reply fit inside the timeout on their own; only their sum exceeds it.
+    expect($thrown)->toBeInstanceOf(ScannerUnavailable::class)
+        ->and($elapsed)->toBeLessThan($timeout + 1.0);
+})->with([
+    'a scanner that receives the file slowly' => [1, 'fwrite($c, "stream: OK\0");', 'usleep(50000);'],
+    'a slow send followed by a slow reply' => [2, 'usleep(1500000); fwrite($c, "stream: OK\0");', 'if (! isset($waited)) { $waited = true; usleep(1200000); }'],
+]);
+
 it('cuts off a renderer process that hangs and reports it as a render failure', function (): void {
     $workspace = sys_get_temp_dir().'/nscmf-stuck-render-'.bin2hex(random_bytes(4));
     mkdir($workspace, 0700, true);

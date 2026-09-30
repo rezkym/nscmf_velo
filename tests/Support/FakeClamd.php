@@ -9,19 +9,25 @@ use RuntimeException;
 /**
  * A misbehaving clamd on a loopback port, in its own process, for failure paths the real
  * scanner cannot be made to produce on demand. $behaviour is PHP code run with the accepted
- * connection in $c after the client's INSTREAM terminator arrives.
+ * connection in $c after the client's INSTREAM terminator arrives; $beforeEachRead runs before
+ * every read of the incoming file, so a slow receiver can be simulated.
  */
 final class FakeClamd
 {
     /** @return array{0: string, 1: resource} the tcp:// address and the process handle */
-    public static function start(string $behaviour): array
+    public static function start(string $behaviour, string $beforeEachRead = ''): array
     {
         $script = <<<PHP
             \$server = stream_socket_server('tcp://127.0.0.1:0');
             echo stream_socket_get_name(\$server, false), "\\n";
             \$c = stream_socket_accept(\$server, 10);
             \$buffer = '';
-            while (! str_ends_with(\$buffer, pack('N', 0)) && (\$chunk = fread(\$c, 65536)) !== false && \$chunk !== '') {
+            while (! str_ends_with(\$buffer, pack('N', 0))) {
+                {$beforeEachRead}
+                \$chunk = fread(\$c, 65536);
+                if (\$chunk === false || \$chunk === '') {
+                    break;
+                }
                 \$buffer = substr(\$buffer . \$chunk, -8);
             }
             {$behaviour}
