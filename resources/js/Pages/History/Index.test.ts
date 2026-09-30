@@ -168,4 +168,25 @@ describe('History (FE-37)', () => {
         await wrapper.setProps({ items: [ITEMS[1]!] });
         expect(wrapper.get('[data-testid="bulk-export"]').text()).toContain('0 selected');
     });
+
+    it('FE-64: a header checkbox selects every row on the page, reads indeterminate for some, and clears them', async () => {
+        expect(mountHistory().find('[data-testid="select-all"]').exists()).toBe(false);
+
+        resetInertia({ auth: { permissions: ['nscmf.view.history', 'nscmf.export', 'nscmf.export.bulk'] } });
+        const wrapper = mountHistory();
+        const all = () => wrapper.get('[data-testid="select-all"]');
+        expect(all().attributes('aria-label')).toBe('Select all on this page');
+        expect(all().attributes('data-state')).toBe('unchecked');
+
+        await wrapper.get('[data-testid="select-5"]').trigger('click');
+        expect(all().attributes('data-state')).toBe('indeterminate');
+
+        await all().trigger('click');
+        expect(all().attributes('data-state')).toBe('checked');
+        expect(wrapper.get('[data-testid="bulk-export"]').text()).toContain('2 selected');
+
+        await all().trigger('click');
+        expect(all().attributes('data-state')).toBe('unchecked');
+        expect(wrapper.get('[data-testid="bulk-export"]').text()).toContain('0 selected');
+    });
 });
