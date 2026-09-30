@@ -84,7 +84,7 @@ describe('Privileged audit viewers (FE-39)', () => {
 
         expect(wrapper.text()).not.toMatch(/delete|purge|retention|export|clear log/i);
         // The date filters open a picker; every other button only pages.
-        expect(texts(wrapper, 'button:not([data-testid^="audit-filter-"])')).toEqual(['Previous', 'Next']);
+        expect(texts(wrapper, 'button:not([data-testid^="audit-filter-"])')).toEqual(['Previous', '1', '2', 'Next']);
     });
 
     it('AC3: renders only the approved fields, never an unexpected secret', () => {
@@ -122,12 +122,60 @@ describe('Privileged audit viewers (FE-39)', () => {
 
     it('pages through the server result', async () => {
         const wrapper = mountLog('access', [ACCESS_ITEM], { event_type: 'RECORD_VIEWED' });
-        await wrapper.get('[data-testid="audit-next"]').trigger('click');
+        await wrapper.get('[data-testid="pagination-next"]').trigger('click');
 
         expect(lastRequest('/administration/audits/access')?.data).toEqual({
             page: 2,
             per_page: 25,
             event_type: 'RECORD_VIEWED',
+        });
+    });
+
+    it('FE-66: shows each stream as one table with its own columns', () => {
+        const access = mountLog('access', [ACCESS_ITEM]);
+        expect(texts(access, 'thead th')).toEqual(['Time', 'Event', 'Actor', 'Record']);
+        expect(texts(access, 'tbody tr td')).toEqual([
+            '2026-09-24 08:15 WIB',
+            'Record viewed',
+            'Demo Reviewer',
+            'DEMO-ACT-009',
+        ]);
+
+        const security = mountLog('security', [SECURITY_ITEM]);
+        expect(texts(security, 'thead th')).toEqual([
+            'Time',
+            'Event',
+            'Actor',
+            'Outcome',
+            'Target user',
+            'Username entered',
+            'IP address',
+        ]);
+        expect(texts(security, 'tbody tr td')).toEqual([
+            '2026-09-24 08:15 WIB',
+            'Login failed',
+            'System',
+            'Failure',
+            '—',
+            'someone',
+            '192.0.2.10',
+        ]);
+    });
+
+    it('FE-66: keeps the filters, rows per page and page navigation in the table card, without a search', async () => {
+        const wrapper = mountLog('security', [SECURITY_ITEM], { event_type: 'LOGIN_FAILED' });
+        const controls = wrapper.get('[data-testid="table-controls"]');
+
+        expect(controls.find('[data-testid="audit-filter-event"]').exists()).toBe(true);
+        expect(controls.find('[data-testid="audit-filter-outcome"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="table-search-input"]').exists()).toBe(false);
+        expect(wrapper.get('[data-testid="table-range"]').text()).toBe('1–25 of 30');
+
+        await wrapper.get('[data-testid="table-per-page-select"]').setValue('50');
+        expect(lastRequest('/administration/audits/security')?.data).toEqual({
+            page: 1,
+            per_page: 50,
+            event_type: 'LOGIN_FAILED',
         });
     });
 });
