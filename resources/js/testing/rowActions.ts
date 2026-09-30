@@ -33,5 +33,6 @@ export async function chooseRowAction(wrapper: VueWrapper, rowId: number, testId
     const item = document.body.querySelector<HTMLElement>(`[role="menuitem"][data-testid="${testId}"]`);
     if (!item) throw new Error(`Row ${rowId} offers no ${testId}`);
     item.click();
+    await vi.waitFor(() => expect(menu()).toBeNull());
     await flushPromises();
 }
