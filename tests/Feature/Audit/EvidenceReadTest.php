@@ -45,6 +45,44 @@ it('serves the Business Timeline newest first with iteration, reason and field d
         ->assertJsonPath('data.0.changes.0', ['field' => 'change.rollback_scenario', 'before' => null, 'after' => 'Restore']);
 });
 
+it('leaves out Draft and Result updates that changed no field, keeping the stored audit (G24, 12 §48)', function (): void {
+    $owner = Actors::requester();
+    $recordId = Records::create($owner);
+    $audit = app(BusinessAuditService::class);
+    $audit->record(recordId: $recordId, actorUserId: $owner->id, event: BusinessAuditEvent::RECORD_CREATED, versionAfter: 1);
+    $audit->record(recordId: $recordId, actorUserId: $owner->id, event: BusinessAuditEvent::DRAFT_UPDATED, versionBefore: 1, versionAfter: 2);
+    $audit->record(recordId: $recordId, actorUserId: $owner->id, event: BusinessAuditEvent::DRAFT_UPDATED, versionBefore: 2, versionAfter: 3,
+        changes: [['field_path' => 'change.rollback_scenario', 'old' => null, 'new' => 'Restore']]);
+    $audit->record(recordId: $recordId, actorUserId: $owner->id, event: BusinessAuditEvent::RESULT_UPDATED, versionBefore: 3, versionAfter: 4);
+
+    signIn($owner)->getJson("/nscmf/{$recordId}/timeline")
+        ->assertOk()
+        ->assertJsonPath('data.*.event_type', ['DRAFT_UPDATED', 'RECORD_CREATED'])
+        ->assertJsonPath('data.0.changes.0.field', 'change.rollback_scenario')
+        ->assertJsonPath('meta.total', 2);
+
+    expect(DB::table('business_audit_events')->where('nscmf_record_id', $recordId)->count())->toBe(4);
+});
+
+it('names the file of an attachment event and nothing for any other event (G24, 12 §48)', function (): void {
+    $owner = Actors::requester();
+    $recordId = Records::create($owner);
+    $audit = app(BusinessAuditService::class);
+    $audit->record(recordId: $recordId, actorUserId: $owner->id, event: BusinessAuditEvent::RECORD_CREATED, versionAfter: 1);
+    $audit->record(recordId: $recordId, actorUserId: $owner->id, event: BusinessAuditEvent::ATTACHMENT_ADDED, versionBefore: 1, versionAfter: 2,
+        metadata: ['attachment_id' => 5, 'filename' => 'plan.pdf', 'sha256' => str_repeat('a', 64)]);
+    $audit->record(recordId: $recordId, actorUserId: $owner->id, event: BusinessAuditEvent::ATTACHMENT_REMOVED, versionBefore: 2, versionAfter: 3,
+        metadata: ['attachment_id' => 5, 'filename' => 'plan.pdf']);
+
+    signIn($owner)->getJson("/nscmf/{$recordId}/timeline")
+        ->assertOk()
+        ->assertJsonPath('data.0.event_type', 'ATTACHMENT_REMOVED')
+        ->assertJsonPath('data.0.attachment_filename', 'plan.pdf')
+        ->assertJsonPath('data.1.attachment_filename', 'plan.pdf')
+        ->assertJsonPath('data.2.event_type', 'RECORD_CREATED')
+        ->assertJsonPath('data.2.attachment_filename', null);
+});
+
 it('refuses the Timeline without the permission or for another owner never-submitted Draft', function (): void {
     $owner = Actors::requester();
     $draft = Records::create($owner);
