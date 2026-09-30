@@ -27,7 +27,7 @@ it('lists every own record, including a Draft and a Cancelled one, and nobody el
     signIn($owner)->get('/my-applications')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('MyApplications/Index')
+            ->component('MyApplications/Index', false)
             ->where('items', fn (Collection $items): bool => $items->pluck('id')->sort()->values()->all() === [$draft, $cancelled, $submitted])
             ->where('meta.total', 3)
             ->where('query.page', 1)

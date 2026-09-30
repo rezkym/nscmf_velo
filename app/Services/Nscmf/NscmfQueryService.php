@@ -185,6 +185,32 @@ final readonly class NscmfQueryService
     }
 
     /**
+     * My Applications (12 §47.1): the actor's own records in every status, never archived ones.
+     * Only search, status, sort and pagination apply; the owner and archive rule are fixed here.
+     *
+     * @param  ListQuery  $query
+     * @return array<string, mixed>
+     */
+    public function mine(User $actor, array $query): array
+    {
+        if (! $actor->can('nscmf.view')) {
+            throw DomainRuleException::forbidden();
+        }
+        $query = [
+            ...$query,
+            'family' => null,
+            'subtype' => null,
+            'archived' => false,
+            'request_date_from' => null,
+            'request_date_to' => null,
+            'owner_user_id' => $actor->id,
+            'team_id' => null,
+        ];
+
+        return $this->paginated($actor, $query, $query);
+    }
+
+    /**
      * History (12 §47): visibility per 12 §17.1; archived stays a separate filter, off by default.
      *
      * @param  ListQuery  $query
