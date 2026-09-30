@@ -77,7 +77,7 @@ test('an admin creates a Team and a user; the one-time password is revealed once
         .getByRole('dialog')
         .getByRole('button', { name: /save|create/i })
         .click();
-    await expect(page.getByRole('cell', { name: 'Team Chromium' })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Team Chromium', exact: true })).toBeVisible();
 
     await page.goto('/administration/users');
     await page.getByTestId('btn-create-user').click();
