@@ -60,16 +60,18 @@ it('hides a never-submitted Draft of someone else, even from a reviewer', functi
     expect(DB::table('access_audit_events')->count())->toBe(0);
 });
 
-it('says why a record is not ready to forward instead of offering a blind forward', function (): void {
+it('forwards a submitted Change without any Result, so no readiness is reported (G24, 12 §32)', function (): void {
     $owner = Actors::requester();
     $recordId = Records::create($owner);
     Records::submitted($recordId, $owner);
+    $reviewer = Actors::reviewer();
 
-    // A bare submitted Change has no recorded Result yet (12 §32 forward precondition).
-    signIn(Actors::reviewer())->get("/review/{$recordId}")
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('record.forward_readiness.ready', false)
-            ->where('record.forward_readiness.reason', fn (mixed $reason): bool => is_string($reason) && $reason !== ''));
+    signIn($reviewer)->get("/review/{$recordId}")
+        ->assertInertia(fn (AssertableInertia $page) => $page->missing('record.forward_readiness'));
+
+    signIn($reviewer)->post("/nscmf/{$recordId}/review/forward", ['record_version' => Records::version($recordId)])
+        ->assertSessionHasNoErrors()->assertStatus(303);
+    expect(DB::table('nscmf_records')->where('id', $recordId)->value('business_status'))->toBe('PENDING_APPROVAL');
 });
 
 it('requires a signed-in user', function (): void {
