@@ -7,17 +7,14 @@ export function jakartaToday(): string {
     return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
 }
 
-/**
- * Picks a `YYYY-MM-DD` business date in the Date Picker opened by `trigger` (07 §22.1), paging the
- * calendar from today's month towards the date the way a user would.
- */
+/** Picks a `YYYY-MM-DD` business date in the Date Picker opened by `trigger`, through its year and month selects (07 §22.1). */
 export async function pickDate(page: Page, trigger: Locator, date: string): Promise<void> {
+    const [year = '', month = ''] = date.split('-');
     await trigger.click();
     const calendar = page.locator('[data-slot="popover-content"]');
-    const day = calendar.locator(`[data-value="${date}"]:not([data-outside-view])`);
-    const pager = calendar.getByRole('button', { name: date < jakartaToday() ? 'Previous page' : 'Next page' });
-    for (let step = 0; step < 36 && !(await day.isVisible()); step++) await pager.click();
-    await day.click();
+    await calendar.getByLabel('Year').selectOption(year);
+    await calendar.getByLabel('Month').selectOption(String(Number(month)));
+    await calendar.locator(`[data-value="${date}"]:not([data-outside-view])`).click();
     await expect(calendar).toBeHidden();
 }
 

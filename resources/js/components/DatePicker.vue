@@ -9,8 +9,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { BUSINESS_TIME_ZONE, formatBusinessDate } from '@/lib/datetime';
 
 /**
- * A business date (07 §22.1): shown as `30 Sep 2026`, exchanged as `YYYY-MM-DD` or null. Every
- * date stays pickable, because an accepted past date may remain (06 §40). Attributes such as
+ * A business date (07 §22.1): shown as `30 Sep 2026`, exchanged as `YYYY-MM-DD` or null. Month
+ * and year selects reach a distant date without paging, and every date stays pickable, because an
+ * accepted past date may remain (06 §40). Attributes such as
  * `aria-describedby` and `data-testid` land on the trigger, which carries the label's `id`.
  */
 defineOptions({ inheritAttrs: false });
@@ -50,6 +51,7 @@ function choose(date: DateValue | undefined): void {
             <Calendar
                 :model-value="selected"
                 :default-placeholder="selected ?? today(BUSINESS_TIME_ZONE)"
+                layout="month-and-year"
                 initial-focus
                 @update:model-value="choose"
             />
