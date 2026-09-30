@@ -3,6 +3,7 @@ import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { flashDomainError, forms, lastRequest, requests, resetInertia } from '@/testing/inertia';
+import { chooseRowAction, rowActions } from '@/testing/rowActions';
 
 import { type Team } from '@/features/administration/TeamManager.vue';
 
@@ -17,9 +18,12 @@ const teams: Team[] = [
 
 const ALL_TEAM_PERMISSIONS = ['teams.view', 'teams.create', 'teams.update', 'teams.archive'];
 
+const META = { current_page: 1, from: 1, last_page: 3, per_page: 25, to: 25, total: 60 };
+const QUERY = { page: 1, per_page: 25, q: null };
+
 function mountPage(permissions: string[] = ALL_TEAM_PERMISSIONS, teamList: Team[] = teams): VueWrapper {
     resetInertia({ auth: { user: { id: 9, username: 'admin', name: 'Admin' }, permissions } });
-    return mount(Index, { props: { teams: teamList }, attachTo: document.body });
+    return mount(Index, { props: { teams: teamList, meta: META, query: QUERY }, attachTo: document.body });
 }
 
 function nameForm() {
@@ -46,13 +50,36 @@ describe('Team administration (FE-11)', () => {
         expect(mountPage(ALL_TEAM_PERMISSIONS, []).text()).toContain('No teams yet.');
     });
 
-    it('hides create, edit and lifecycle actions without the matching permissions', () => {
+    it('hides create, edit and lifecycle actions without the matching permissions', async () => {
         const wrapper = mountPage(['teams.view']);
 
         expect(wrapper.find('[data-testid="create-team-btn"]').exists()).toBe(false);
-        expect(wrapper.find('[data-testid="edit-team-1"]').exists()).toBe(false);
-        expect(wrapper.find('[data-testid="deactivate-team-1"]').exists()).toBe(false);
-        expect(wrapper.find('[data-testid="reactivate-team-2"]').exists()).toBe(false);
+        expect(await rowActions(wrapper, 1)).toEqual([]);
+        expect(await rowActions(wrapper, 2)).toEqual([]);
+    });
+
+    it("FE-65: puts each row's actions in one labelled menu", async () => {
+        const wrapper = mountPage();
+
+        expect(wrapper.get('[data-testid="row-actions-1"]').attributes('aria-label')).toBe(
+            'Actions for Demo Team Alpha',
+        );
+        expect(await rowActions(wrapper, 1)).toEqual(['edit-team-1', 'deactivate-team-1']);
+        expect(await rowActions(wrapper, 2)).toEqual(['edit-team-2', 'reactivate-team-2']);
+    });
+
+    it('FE-65: searches, pages and sizes the list on the server', async () => {
+        const wrapper = mountPage();
+        expect(wrapper.text()).toContain('1–25 of 60');
+
+        await wrapper.get('[data-testid="table-search-input"]').setValue('alp');
+        expect(lastRequest('/administration/teams')).toMatchObject({
+            method: 'get',
+            data: { page: 1, per_page: 25, q: 'alp' },
+        });
+
+        await wrapper.get('[data-testid="pagination-page-2"]').trigger('click');
+        expect(lastRequest('/administration/teams')?.data).toEqual({ page: 2, per_page: 25 });
     });
 
     it('AC1: creates a team with only a name — no scope, permission or code fields', async () => {
@@ -74,7 +101,7 @@ describe('Team administration (FE-11)', () => {
 
     it('edits a team name with PATCH and closes the modal on success', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="edit-team-1"]').trigger('click');
+        await chooseRowAction(wrapper, 1, 'edit-team-1');
 
         const input = wrapper.get<HTMLInputElement>('[role="dialog"] input');
         expect(input.element.value).toBe('Demo Team Alpha');
@@ -128,7 +155,7 @@ describe('Team administration (FE-11)', () => {
 
     it('AC2: deactivates an active team through its lifecycle endpoint once, after confirmation', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');
+        await chooseRowAction(wrapper, 1, 'deactivate-team-1');
 
         const dialog = wrapper.get('[role="dialog"]');
         expect(dialog.text()).toContain('does not change who can review or approve');
@@ -148,7 +175,7 @@ describe('Team administration (FE-11)', () => {
 
     it('AC2: reactivates an inactive team through its lifecycle endpoint', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="reactivate-team-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'reactivate-team-2');
         await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
 
         expect(lastRequest('/administration/teams/2/reactivate')?.method).toBe('post');
@@ -156,7 +183,7 @@ describe('Team administration (FE-11)', () => {
 
     it('keeps the lifecycle dialog open and shows the server error when the action fails', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');
+        await chooseRowAction(wrapper, 1, 'deactivate-team-1');
         await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
 
         const request = lastRequest('/administration/teams/1/deactivate');
@@ -170,7 +197,7 @@ describe('Team administration (FE-11)', () => {
 
     it('shows the server error when the flash arrives on the page root instead of the props', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');
+        await chooseRowAction(wrapper, 1, 'deactivate-team-1');
         await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
 
         const request = lastRequest('/administration/teams/1/deactivate');
@@ -185,7 +212,7 @@ describe('Team administration (FE-11)', () => {
 
     it('keeps the lifecycle dialog open while the action is in flight', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');
+        await chooseRowAction(wrapper, 1, 'deactivate-team-1');
         await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
 
         await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' });
@@ -195,7 +222,7 @@ describe('Team administration (FE-11)', () => {
 
     it('closes the lifecycle dialog when the server accepts the action', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');
+        await chooseRowAction(wrapper, 1, 'deactivate-team-1');
         await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
 
         lastRequest(/deactivate$/)?.options.onSuccess?.();
@@ -206,7 +233,7 @@ describe('Team administration (FE-11)', () => {
 
     it('keeps the dialog open when the redirect carries a domain error, and falls back to its own wording', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="deactivate-team-1"]').trigger('click');
+        await chooseRowAction(wrapper, 1, 'deactivate-team-1');
         await wrapper.get('[data-testid="confirm-lifecycle-action"]').trigger('click');
 
         await flashDomainError({ code: 'FORBIDDEN' });

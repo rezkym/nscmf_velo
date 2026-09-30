@@ -3,6 +3,7 @@ import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { flashDomainError, forms, lastRequest, requests, resetInertia, respondToRequest } from '@/testing/inertia';
+import { chooseRowAction, rowActions } from '@/testing/rowActions';
 
 import { type PermissionCatalogItem, type RoleRow } from '@/features/administration/RoleManager.vue';
 
@@ -26,9 +27,12 @@ const roles: RoleRow[] = [
 
 const ALL_ROLE_PERMISSIONS = ['roles.view', 'roles.create', 'roles.update', 'permissions.assign'];
 
+const META = { current_page: 2, from: 3, last_page: 2, per_page: 2, to: 4, total: 4 };
+const QUERY = { page: 2, per_page: 2, q: 'e' };
+
 function mountPage(permissions: string[] = ALL_ROLE_PERMISSIONS): VueWrapper {
     resetInertia({ auth: { user: { id: 9, username: 'admin', name: 'Admin' }, permissions } });
-    return mount(Index, { props: { roles, permissionCatalog }, attachTo: document.body });
+    return mount(Index, { props: { roles, permissionCatalog, meta: META, query: QUERY }, attachTo: document.body });
 }
 
 async function confirmReauth(wrapper: VueWrapper): Promise<void> {
@@ -57,7 +61,7 @@ describe('Role administration (FE-14)', () => {
 
     it('AC1: offers only permissions from the server catalog, grouped, with no archive or wildcard options', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'assign-permissions-2');
 
         const dialog = wrapper.get('[role="dialog"]');
         const offered = dialog.findAll('[role="checkbox"]').map((box) => box.attributes('data-testid'));
@@ -70,22 +74,33 @@ describe('Role administration (FE-14)', () => {
         expect(dialog.text()).toContain('Review');
         expect(dialog.text()).not.toContain('roles.archive');
         expect(dialog.text()).not.toContain('*');
-        expect(wrapper.find('[data-testid="archive-role-2"]').exists()).toBe(false);
+        expect(await rowActions(wrapper, 2)).toEqual(['edit-role-2', 'assign-permissions-2']);
     });
 
-    it('AC2: lets roles.update edit the name but not the permission set', () => {
+    it('AC2: lets roles.update edit the name but not the permission set', async () => {
         const wrapper = mountPage(['roles.view', 'roles.update']);
 
-        expect(wrapper.find('[data-testid="edit-role-2"]').exists()).toBe(true);
-        expect(wrapper.find('[data-testid="assign-permissions-2"]').exists()).toBe(false);
+        expect(await rowActions(wrapper, 2)).toEqual(['edit-role-2']);
         expect(wrapper.find('[data-testid="create-role-btn"]').exists()).toBe(false);
     });
 
-    it('does not offer editing the protected role', () => {
-        const wrapper = mountPage();
+    it('does not offer editing the protected role', async () => {
+        expect(await rowActions(mountPage(), 1)).toEqual([]);
+    });
 
-        expect(wrapper.find('[data-testid="edit-role-1"]').exists()).toBe(false);
-        expect(wrapper.find('[data-testid="assign-permissions-1"]').exists()).toBe(false);
+    it('FE-65: searches, pages and sizes the list on the server, keeping the search', async () => {
+        const wrapper = mountPage();
+        expect(wrapper.text()).toContain('3–4 of 4');
+        expect(wrapper.get<HTMLInputElement>('[data-testid="table-search-input"]').element.value).toBe('e');
+
+        await wrapper.get('[data-testid="pagination-page-1"]').trigger('click');
+        expect(lastRequest('/administration/roles')).toMatchObject({
+            method: 'get',
+            data: { page: 1, per_page: 2, q: 'e' },
+        });
+
+        await wrapper.get('[data-testid="table-per-page-select"]').setValue('50');
+        expect(lastRequest('/administration/roles')?.data).toEqual({ page: 1, per_page: 50, q: 'e' });
     });
 
     it('creates a role by name and renames a role with PATCH', async () => {
@@ -97,7 +112,7 @@ describe('Role administration (FE-14)', () => {
 
         // A real response always finishes, which is what releases the form again.
         await respondToRequest(lastRequest('/administration/roles'), { status: 200 });
-        await wrapper.get('[data-testid="edit-role-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'edit-role-2');
         await wrapper.get('#role-name').setValue('Requester Plus');
         await wrapper.get('[role="dialog"] form').trigger('submit');
         expect(lastRequest('/administration/roles/2')).toMatchObject({
@@ -120,7 +135,7 @@ describe('Role administration (FE-14)', () => {
 
     it('AC3: saves the permission set only after re-authentication', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'assign-permissions-2');
         await wrapper.get('[data-testid="permission-nscmf.review"]').trigger('click');
         await wrapper.get('[data-testid="permission-nscmf.view"]').trigger('click');
         await wrapper.get('[data-testid="save-permissions-btn"]').trigger('click');
@@ -138,7 +153,7 @@ describe('Role administration (FE-14)', () => {
 
     it('AC3: does not submit when re-authentication is cancelled and keeps the selection', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'assign-permissions-2');
         await wrapper.get('[data-testid="permission-users.view"]').trigger('click');
         await wrapper.get('[data-testid="save-permissions-btn"]').trigger('click');
         await wrapper.get('[data-test="cancel-button"]').trigger('click');
@@ -149,7 +164,7 @@ describe('Role administration (FE-14)', () => {
 
     it('AC4: keeps the selection and shows the error when the server rejects a protected resource', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'assign-permissions-2');
         await wrapper.get('[data-testid="permission-users.view"]').trigger('click');
         await wrapper.get('[data-testid="save-permissions-btn"]').trigger('click');
         await confirmReauth(wrapper);
@@ -163,7 +178,7 @@ describe('Role administration (FE-14)', () => {
 
     it('asks for the password again when the server reports an expired re-authentication', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'assign-permissions-2');
         await wrapper.get('[data-testid="save-permissions-btn"]').trigger('click');
         await confirmReauth(wrapper);
 
@@ -174,12 +189,14 @@ describe('Role administration (FE-14)', () => {
 
     it('shows an empty state when no roles exist', () => {
         resetInertia({ auth: { permissions: ALL_ROLE_PERMISSIONS } });
-        expect(mount(Index, { props: { roles: [], permissionCatalog } }).text()).toContain('No roles yet.');
+        expect(mount(Index, { props: { roles: [], permissionCatalog, meta: META, query: QUERY } }).text()).toContain(
+            'No roles yet.',
+        );
     });
 
     it('keeps the permissions dialog open while the save is in flight, then closes it on success', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'assign-permissions-2');
         await wrapper.get('[data-testid="save-permissions-btn"]').trigger('click');
         await confirmReauth(wrapper);
 
@@ -199,7 +216,7 @@ describe('Role administration (FE-14)', () => {
 
     it('closes the permissions dialog on Escape when nothing is in flight', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'assign-permissions-2');
 
         await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' });
 
@@ -208,7 +225,7 @@ describe('Role administration (FE-14)', () => {
 
     it('falls back to its own wording when a denial carries only a code', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="assign-permissions-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'assign-permissions-2');
 
         await flashDomainError({ code: 'FORBIDDEN' });
 
@@ -227,10 +244,7 @@ describe('Role administration (FE-14)', () => {
         expect(wrapper.get('[data-testid="save-role-btn"]').text()).toBe('Saving…');
     });
 
-    it('hides the permissions action without the assign permission', () => {
-        resetInertia({ auth: { permissions: ['roles.view'] } });
-        const wrapper = mount(Index, { props: { roles, permissionCatalog } });
-
-        expect(wrapper.find('[data-testid="assign-permissions-2"]').exists()).toBe(false);
+    it('hides the permissions action without the assign permission', async () => {
+        expect(await rowActions(mountPage(['roles.view']), 2)).toEqual([]);
     });
 });

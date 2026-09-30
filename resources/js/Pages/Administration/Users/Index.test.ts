@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { sendJson } from '@/lib/http';
 import { flashDomainError, forms, lastRequest, requests, resetInertia, router } from '@/testing/inertia';
+import { chooseRowAction, rowActions } from '@/testing/rowActions';
 
 import { type RoleOption, type TeamOption, type UserRow } from '@/features/administration/UserManager.vue';
 
@@ -72,9 +73,12 @@ const ALL_USER_PERMISSIONS = [
     'users.assign_team',
 ];
 
+const META = { current_page: 2, from: 26, last_page: 3, per_page: 25, to: 50, total: 60 };
+const QUERY = { page: 2, per_page: 25, q: null };
+
 function mountPage(permissions: string[] = ALL_USER_PERMISSIONS): VueWrapper {
     resetInertia({ auth: { user: { id: 9, username: 'admin', name: 'Admin' }, permissions } });
-    return mount(Index, { props: { users, teams, roles }, attachTo: document.body });
+    return mount(Index, { props: { users, teams, roles, meta: META, query: QUERY }, attachTo: document.body });
 }
 
 /** The single-field dialog form, told apart from the create form, which carries every field. */
@@ -122,27 +126,37 @@ describe('User administration (FE-12)', () => {
         expect(wrapper.get('[data-testid="user-row-3"]').text()).toContain('No roles');
     });
 
-    it('AC3: marks the protected superadmin, accepts a null team and offers no downgrade or disable actions', () => {
+    it('AC3: marks the protected superadmin, accepts a null team and offers no downgrade or disable actions', async () => {
         const wrapper = mountPage();
         const row = wrapper.get('[data-testid="user-row-1"]');
 
         expect(row.text()).toContain('Protected');
         expect(row.text()).toContain('No team');
-        expect(wrapper.find('[data-testid="btn-edit-roles-1"]').exists()).toBe(false);
-        expect(wrapper.find('[data-testid="btn-disable-user-1"]').exists()).toBe(false);
-        expect(wrapper.find('[data-testid="btn-reset-password-1"]').exists()).toBe(false);
+        expect(await rowActions(wrapper, 1)).toEqual(['btn-edit-profile-1', 'btn-edit-team-1']);
     });
 
-    it('AC2: shows each action only with its own permission, regardless of role names', () => {
+    it('AC2: shows each action only with its own permission, regardless of role names', async () => {
         const wrapper = mountPage(['users.view', 'users.update']);
 
         expect(wrapper.find('[data-testid="btn-create-user"]').exists()).toBe(false);
-        expect(wrapper.find('[data-testid="btn-edit-profile-2"]').exists()).toBe(true);
-        expect(wrapper.find('[data-testid="btn-edit-roles-2"]').exists()).toBe(false);
-        expect(wrapper.find('[data-testid="btn-edit-team-2"]').exists()).toBe(false);
-        expect(wrapper.find('[data-testid="btn-disable-user-2"]').exists()).toBe(false);
-        expect(wrapper.find('[data-testid="btn-enable-user-3"]').exists()).toBe(false);
-        expect(wrapper.find('[data-testid="btn-reset-password-2"]').exists()).toBe(false);
+        expect(await rowActions(wrapper, 2)).toEqual(['btn-edit-profile-2']);
+        expect(await rowActions(wrapper, 3)).toEqual(['btn-edit-profile-3']);
+    });
+
+    it('FE-65: lists every permitted action of a row in one labelled menu', async () => {
+        const wrapper = mountPage();
+
+        expect(wrapper.get('[data-testid="row-actions-2"]').attributes('aria-label')).toBe(
+            'Actions for Demo Requester A',
+        );
+        expect(await rowActions(wrapper, 2)).toEqual([
+            'btn-edit-profile-2',
+            'btn-edit-team-2',
+            'btn-edit-roles-2',
+            'btn-reset-password-2',
+            'btn-disable-user-2',
+        ]);
+        expect(await rowActions(wrapper, 3)).toContain('btn-enable-user-3');
     });
 
     it('AC1: creates a user with only name, username, team and roles after re-authentication, then reveals the credential once', async () => {
@@ -190,7 +204,7 @@ describe('User administration (FE-12)', () => {
 
     it('AC1: edits only the profile name with PATCH and no protected fields', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-edit-profile-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-edit-profile-2');
         await wrapper.get('#profile-name').setValue('Demo Requester A2');
         await wrapper.get('[role="dialog"] form').trigger('submit');
 
@@ -200,15 +214,15 @@ describe('User administration (FE-12)', () => {
     });
 
     // 04 §265: assigning a user to a Team needs users.assign_team OR teams.assign_users.
-    it('offers the Team assignment to an actor holding only teams.assign_users', () => {
+    it('offers the Team assignment to an actor holding only teams.assign_users', async () => {
         const wrapper = mountPage(['users.view', 'teams.assign_users']);
 
-        expect(wrapper.find('[data-testid="btn-edit-team-2"]').exists()).toBe(true);
+        expect(await rowActions(wrapper, 2)).toEqual(['btn-edit-team-2']);
     });
 
     it('AC4: changes the team without re-authentication and without claiming an access change', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-edit-team-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-edit-team-2');
 
         const dialog = wrapper.get('[role="dialog"]');
         expect(dialog.text()).toContain('does not change permissions');
@@ -223,7 +237,7 @@ describe('User administration (FE-12)', () => {
 
     it('AC4: replaces roles only after re-authentication and explains session revocation', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-edit-roles-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-edit-roles-2');
         await wrapper.get('[data-testid="role-option-3"] [role="checkbox"]').trigger('click');
         await wrapper.get('[data-testid="btn-save-roles"]').trigger('click');
 
@@ -240,7 +254,7 @@ describe('User administration (FE-12)', () => {
 
     it('AC4: disables a user after re-authentication', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-disable-user-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-disable-user-2');
         expect(lastRequest('/administration/users/2/disable')).toBeUndefined();
 
         await confirmReauth(wrapper);
@@ -250,14 +264,14 @@ describe('User administration (FE-12)', () => {
 
     it('enables a disabled user directly', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-enable-user-3"]').trigger('click');
+        await chooseRowAction(wrapper, 3, 'btn-enable-user-3');
 
         expect(lastRequest('/administration/users/3/enable')?.method).toBe('post');
     });
 
     it('AC4: resets a password after re-authentication and reveals the new credential for that user', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-reset-password-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-reset-password-2');
         jsonReplies.set('/administration/users/2/reset-password', {
             ok: true,
             status: 200,
@@ -279,7 +293,7 @@ describe('User administration (FE-12)', () => {
 
     it('does not send the sensitive request when re-authentication is cancelled', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-reset-password-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-reset-password-2');
         await wrapper.get('[data-test="cancel-button"]').trigger('click');
 
         expect(requests).toHaveLength(0);
@@ -288,7 +302,7 @@ describe('User administration (FE-12)', () => {
 
     it('asks for the password again when the server reports an expired re-authentication', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-disable-user-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-disable-user-2');
         await confirmReauth(wrapper);
 
         await flashDomainError({ code: 'REAUTH_REQUIRED' });
@@ -298,7 +312,7 @@ describe('User administration (FE-12)', () => {
 
     it('AC3: shows a server denial for a sensitive action without claiming success', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-disable-user-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-disable-user-2');
         await confirmReauth(wrapper);
 
         await flashDomainError({ code: 'PROTECTED_RESOURCE', message: 'Protected identity cannot be changed.' });
@@ -349,14 +363,14 @@ describe('User administration (FE-12)', () => {
 
     it('shows an empty state when there are no users', () => {
         resetInertia({ auth: { permissions: ALL_USER_PERMISSIONS } });
-        const wrapper = mount(Index, { props: { users: [], teams, roles } });
+        const wrapper = mount(Index, { props: { users: [], teams, roles, meta: META, query: QUERY } });
 
         expect(wrapper.text()).toContain('No users yet.');
     });
 
     it('closes the roles dialog once the server accepts the change', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-edit-roles-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-edit-roles-2');
         await wrapper.get('[data-testid="btn-save-roles"]').trigger('click');
         await confirmReauth(wrapper);
 
@@ -378,7 +392,7 @@ describe('User administration (FE-12)', () => {
 
     it('shows a flashed denial inside the roles dialog', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-edit-roles-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-edit-roles-2');
 
         await flashDomainError({ code: 'PROTECTED_RESOURCE', message: 'This role cannot be removed.' });
 
@@ -404,17 +418,17 @@ describe('User administration (FE-12)', () => {
         expect(wrapper.get('[role="dialog"]').text()).toContain('Select at least one role.');
         expect(wrapper.get('[data-testid="btn-submit-create-user"]').text()).toBe('Creating…');
 
-        await wrapper.get('[data-testid="btn-edit-profile-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-edit-profile-2');
         dialogForm('name').processing = true;
         await nextTick();
         expect(wrapper.get('[role="dialog"]').text()).toContain('Saving…');
 
-        await wrapper.get('[data-testid="btn-edit-team-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-edit-team-2');
         dialogForm('team_id').processing = true;
         await nextTick();
         expect(wrapper.get('[role="dialog"]').text()).toContain('Saving…');
 
-        await wrapper.get('[data-testid="btn-edit-roles-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-edit-roles-2');
         const rolesForm = dialogForm('role_ids');
         rolesForm.errors = { role_ids: 'Select at least one role.' };
         rolesForm.processing = true;
@@ -425,7 +439,7 @@ describe('User administration (FE-12)', () => {
 
     it('shows a JSON reset denial on the page and reveals no credential', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-reset-password-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-reset-password-2');
         jsonReplies.set('/administration/users/2/reset-password', {
             ok: false,
             status: 403,
@@ -444,7 +458,7 @@ describe('User administration (FE-12)', () => {
 
     it('never reads a credential from flash or page props', async () => {
         const wrapper = mountPage();
-        await wrapper.get('[data-testid="btn-reset-password-2"]').trigger('click');
+        await chooseRowAction(wrapper, 2, 'btn-reset-password-2');
         jsonReplies.set('/administration/users/2/reset-password', {
             ok: true,
             status: 200,
@@ -455,29 +469,16 @@ describe('User administration (FE-12)', () => {
         expect(wrapper.find('[data-testid="temporary-password-display"]').exists()).toBe(false);
     });
 
-    it('offers previous/next pages from the server pagination meta', async () => {
-        resetInertia({ auth: { permissions: ALL_USER_PERMISSIONS } });
-        const wrapper = mount(Index, {
-            props: {
-                users,
-                teams,
-                roles,
-                meta: { current_page: 2, from: 26, last_page: 3, per_page: 25, to: 50, total: 60 },
-            },
-        });
+    it('FE-65: searches and pages the list on the server, inside the table card', async () => {
+        const wrapper = mountPage();
 
-        expect(wrapper.get('[data-testid="users-pagination"]').text()).toContain('26–50 of 60');
-        await wrapper.get('[data-testid="users-page-next"]').trigger('click');
-        expect(router.get).toHaveBeenCalledWith(
-            '/administration/users',
-            { page: 3, per_page: 25 },
-            { preserveScroll: true },
-        );
-        await wrapper.get('[data-testid="users-page-previous"]').trigger('click');
-        expect(router.get).toHaveBeenCalledWith(
-            '/administration/users',
-            { page: 1, per_page: 25 },
-            { preserveScroll: true },
-        );
+        expect(wrapper.find('[data-testid="users-pagination"]').exists()).toBe(false);
+        expect(wrapper.get('[data-testid="table-range"]').text()).toBe('26–50 of 60');
+
+        await wrapper.get('[data-testid="pagination-next"]').trigger('click');
+        expect(lastRequest('/administration/users')).toMatchObject({ method: 'get', data: { page: 3, per_page: 25 } });
+
+        await wrapper.get('[data-testid="table-search-input"]').setValue('demo');
+        expect(lastRequest('/administration/users')?.data).toEqual({ page: 1, per_page: 25, q: 'demo' });
     });
 });
