@@ -105,9 +105,9 @@ test('a returned record is revised and resubmitted on the same record, by clicks
         await page
             .getByTestId('attachment-input')
             .setInputFiles(path.resolve(import.meta.dirname, 'fixtures/plan.txt'));
-        await expect(page.getByTestId('upload-plan.txt')).toContainText('Scanning');
+        await expect(page.getByTestId('upload-plan.txt')).toContainText('Assembling…');
         runQueuedJobs();
-        await expect(page.getByTestId('upload-plan.txt')).toContainText('Processed', { timeout: 15_000 });
+        await expect(page.getByTestId('upload-plan.txt')).toContainText('Ready', { timeout: 15_000 });
         await reviseAndResubmit(
             page,
             recordPath,

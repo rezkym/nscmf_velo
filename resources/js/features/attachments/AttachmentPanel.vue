@@ -11,6 +11,7 @@ import { Progress } from '@/components/ui/progress';
 
 import AttachmentList, { type AttachmentItem } from './AttachmentList.vue';
 import { fileProblem, type AttachmentPolicy } from './attachmentPolicy';
+import { SECURITY_LABELS } from './scanStates';
 import { useChunkUpload, type UploadPhase } from './useChunkUpload';
 
 /**
@@ -27,19 +28,25 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ (e: 'changed'): void }>();
 
+// Upload and scan states of 07 §28; a verdict reads exactly as it does in the attachment list.
 const PHASES: Record<UploadPhase, string> = {
     preparing: 'Preparing',
-    uploading: 'Uploading',
-    interrupted: 'Interrupted',
+    uploading: 'Uploading…',
+    interrupted: 'Interrupted — Resume available',
     conflict: 'Stopped',
-    expired: 'Expired',
-    scanning: 'Scanning',
-    done: 'Processed',
+    expired: 'Expired — upload again',
+    assembling: 'Assembling…',
+    scanning: SECURITY_LABELS.PENDING,
+    ready: SECURITY_LABELS.CLEAN,
+    infected: SECURITY_LABELS.INFECTED,
+    'scan-failed': SECURITY_LABELS.FAILED,
     failed: 'Failed',
     cancelled: 'Cancelled',
     'cancel-failed': 'Cancel not confirmed',
 };
-const RUNNING: UploadPhase[] = ['preparing', 'uploading', 'scanning'];
+const RUNNING: UploadPhase[] = ['preparing', 'uploading', 'assembling', 'scanning'];
+// Progress describes the transport only, so a full bar never suggests an assembled or scanned file is usable.
+const TRANSPORT: UploadPhase[] = ['preparing', 'uploading', 'interrupted'];
 
 const uploads = ref<ReturnType<typeof useChunkUpload>[]>([]);
 const problem = ref<string | null>(null);
@@ -59,7 +66,7 @@ async function pick(event: Event): Promise<void> {
     const upload = useChunkUpload(props.recordId, file);
     uploads.value = [...uploads.value.filter((existing) => existing.state.filename !== file.name), upload];
     await upload.start();
-    if (upload.state.phase === 'done') emit('changed');
+    if (upload.state.phase === 'ready') emit('changed');
 }
 
 // A file still being scanned elsewhere: follow it through the page's own props, never a new endpoint.
@@ -110,14 +117,14 @@ onUnmounted(() => {
                 <Item variant="outline" size="sm" :data-testid="`upload-${upload.state.filename}`">
                     <ItemContent>
                         <ItemTitle class="break-all">{{ upload.state.filename }}</ItemTitle>
-                        <ItemDescription>
+                        <ItemDescription role="status">
                             {{ PHASES[upload.state.phase] }}
-                            <template v-if="upload.state.total">
+                            <template v-if="upload.state.total && TRANSPORT.includes(upload.state.phase)">
                                 · {{ upload.state.accepted }}/{{ upload.state.total }} parts</template
                             >
                         </ItemDescription>
                         <Progress
-                            v-if="upload.state.total"
+                            v-if="upload.state.total && TRANSPORT.includes(upload.state.phase)"
                             :model-value="(upload.state.accepted / upload.state.total) * 100"
                             :aria-label="`${upload.state.filename} upload progress`"
                         />

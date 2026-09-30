@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from '@/components/ui/item';
 import { sendJson } from '@/lib/http';
 
+import { SECURITY_LABELS, type SecurityStatus } from './scanStates';
+
 export interface AttachmentItem {
     id: number;
     filename: string;
     size_bytes: number;
-    security_status: 'PENDING' | 'CLEAN' | 'INFECTED' | 'FAILED';
+    security_status: SecurityStatus;
     download_url: string | null;
 }
 
@@ -29,7 +31,6 @@ const props = withDefaults(
 );
 const emit = defineEmits<{ (e: 'changed'): void }>();
 
-const LABELS = { PENDING: 'Scanning', CLEAN: 'Ready', INFECTED: 'Blocked', FAILED: 'Scan failed' } as const;
 const confirming = ref<number | null>(null);
 const busy = ref<number | null>(null);
 const revoked = ref<number[]>([]);
@@ -75,7 +76,7 @@ async function remove(attachment: AttachmentItem): Promise<void> {
                     <ItemDescription class="flex flex-wrap items-center gap-2">
                         {{ attachment.size_bytes.toLocaleString('en-US') }} bytes
                         <Badge :variant="attachment.security_status === 'CLEAN' ? 'success' : 'warning'">
-                            {{ LABELS[attachment.security_status] }}
+                            {{ SECURITY_LABELS[attachment.security_status] }}
                         </Badge>
                     </ItemDescription>
                     <p v-if="messages[attachment.id]" role="status" class="text-xs text-destructive">
