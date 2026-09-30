@@ -9,7 +9,6 @@ use App\Domain\Nscmf\Enums\NscmfFamily;
 use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Domain\Nscmf\RecordAccess;
 use App\Domain\Nscmf\RecordConflict;
-use App\Domain\Nscmf\ReviewForwardRules;
 use App\Domain\Nscmf\SubmissionRules;
 use App\Domain\Shared\DomainRuleException;
 use App\Models\Nscmf\NscmfRecord;
@@ -82,7 +81,6 @@ final readonly class NscmfWorkflowService
             $state = $this->records->familyState($record);
             $errors = SubmissionRules::errors(
                 $record->family,
-                $record->subtype,
                 $state,
                 $record->request_date?->toDateString(),
                 $isFirstSubmit,
@@ -177,15 +175,11 @@ final readonly class NscmfWorkflowService
         });
     }
 
-    /** Forward establishes the effective reviewer only after the persisted Result gate passes. */
+    /** Forward establishes the effective reviewer; a Change needs no Result first (06 §48, G24). */
     public function forward(User $actor, int $recordId, int $expectedVersion, ?string $comment): void
     {
         $this->database->connection()->transaction(function () use ($actor, $recordId, $expectedVersion, $comment): void {
             $record = $this->lockPendingReview($actor, $recordId, $expectedVersion, 'nscmf.review.forward');
-            $errors = ReviewForwardRules::errors($record->family, $this->records->familyState($record));
-            if ($errors !== []) {
-                throw new DomainRuleException('VALIDATION_FAILED', 'Complete the Results before forwarding.', 422, errors: $errors);
-            }
             $iteration = $this->requireCurrentIteration($record);
 
             $versionBefore = $record->record_version;

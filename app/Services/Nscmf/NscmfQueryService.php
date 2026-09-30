@@ -8,7 +8,6 @@ use App\Domain\Audit\Enums\AccessAuditEvent;
 use App\Domain\Nscmf\Enums\NscmfFamily;
 use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Domain\Nscmf\RecordAccess;
-use App\Domain\Nscmf\ReviewForwardRules;
 use App\Domain\Nscmf\SubmissionWarnings;
 use App\Domain\Shared\DomainRuleException;
 use App\Models\Nscmf\NscmfRecord;
@@ -77,16 +76,8 @@ final readonly class NscmfQueryService
             throw DomainRuleException::forbidden();
         }
         $this->accessAudit->record(actorUserId: $actor->id, event: AccessAuditEvent::RECORD_VIEWED, recordId: $record->id);
-        $state = $this->records->familyState($record);
-        $errors = ReviewForwardRules::errors($record->family, $state);
 
-        return [
-            ...$this->project($actor, $record, $state),
-            'forward_readiness' => [
-                'ready' => $errors === [],
-                'reason' => $errors === [] ? null : array_values($errors)[0][0],
-            ],
-        ];
+        return $this->project($actor, $record, $this->records->familyState($record));
     }
 
     /**

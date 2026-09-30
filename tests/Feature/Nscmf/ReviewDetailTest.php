@@ -27,7 +27,6 @@ it('opens a submitted record for any reviewer, whatever their Team', function ()
             ->where('record.id', $recordId)
             ->where('record.business_status', 'PENDING_REVIEW')
             ->where('record.allowed_actions', fn (Collection $actions): bool => $actions->contains('nscmf.review.forward'))
-            ->has('record.forward_readiness.ready')
             ->has('attachments'));
 });
 
