@@ -3,6 +3,7 @@ import { nextTick } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type JsonResult, sendJson } from '@/lib/http';
+import { pickDate } from '@/testing/datePicker';
 import { flashDomainError, pageProps, resetInertia, router } from '@/testing/inertia';
 
 import AttachmentPanel from '@/features/attachments/AttachmentPanel.vue';
@@ -63,6 +64,21 @@ function reply(result: JsonResult): void {
 }
 
 describe('Nscmf/Edit.vue — the Draft editor page (FE-27 composition, BE-062)', () => {
+    it('G24: marks the request date as the only required field of the form', () => {
+        const activation = changeRecord({
+            family: 'ACTIVATION',
+            subtype: 'ACTIVATION',
+            change: undefined,
+            activation: { references: [], service_blocks: [] },
+        });
+
+        for (const record of [changeRecord(), activation]) {
+            const markers = mountEdit(record).findAll('#main-content [data-required]');
+            expect(markers).toHaveLength(1);
+            expect(markers[0]!.element.closest('label')?.getAttribute('for')).toBe('request_date');
+        }
+    });
+
     beforeEach(() => {
         document.body.innerHTML = '';
         send.mockReset();
@@ -138,7 +154,7 @@ describe('Nscmf/Edit.vue — the Draft editor page (FE-27 composition, BE-062)',
         });
 
         await wrapper.get('#rollback_scenario').setValue('Restore the old module');
-        await wrapper.get('[data-testid="draft-request-date"]').setValue('2026-09-22');
+        await pickDate(wrapper, 'request_date', '2026-09-22');
         await wrapper.get('[data-testid="btn-save-draft"]').trigger('click');
         await flushPromises();
 

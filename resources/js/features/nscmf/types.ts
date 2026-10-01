@@ -40,6 +40,44 @@ export const STATUS_LABELS: Record<BusinessStatus, string> = {
     CANCELLED: 'Cancelled',
 };
 
+/** Business Timeline event titles (07 §36), one per Business Audit event (11 §34). */
+export const EVENT_LABELS: Record<string, string> = {
+    RECORD_CREATED: 'Record created',
+    DRAFT_UPDATED: 'Draft updated',
+    SUBMITTED: 'Submitted',
+    RESULT_UPDATED: 'Result updated',
+    REVIEW_FORWARDED: 'Review forwarded',
+    REVIEW_RETURNED: 'Review returned',
+    REVIEW_REJECTED: 'Review rejected',
+    APPROVAL_RETURNED_REVIEWER: 'Returned to Reviewer',
+    APPROVAL_RETURNED_REQUESTER: 'Returned to Requester',
+    APPROVAL_REJECTED: 'Approval rejected',
+    APPROVED: 'Approved',
+    REOPENED: 'Reopened',
+    CANCELLED: 'Cancelled',
+    ARCHIVED: 'Archived',
+    UNARCHIVED: 'Unarchived',
+    ATTACHMENT_ADDED: 'Attachment added',
+    ATTACHMENT_REMOVED: 'Attachment removed',
+};
+
+/** One Business Timeline event as `GET /nscmf/{record}/timeline` sends it (12 §48). */
+export interface TimelineEvent {
+    id: number;
+    event_type: string;
+    actor: string | null;
+    iteration_no: number | null;
+    from_status: BusinessStatus | null;
+    to_status: BusinessStatus | null;
+    reason: string | null;
+    comment: string | null;
+    version_before: number | null;
+    version_after: number | null;
+    occurred_at: string;
+    attachment_filename: string | null;
+    changes: { field: string; before: string | null; after: string | null }[];
+}
+
 /** Presentation tone of each business status (07 §7); always shown together with its label. */
 export const STATUS_TONES: Record<BusinessStatus, BadgeVariants['variant']> = {
     DRAFT: 'secondary',
@@ -80,6 +118,11 @@ export const REFERENCE_TYPE_LABELS: Record<ReferenceType, string> = {
 export const SERVICE_STATUS_LABELS: Record<ServiceStatus, string> = {
     ACTIVATED: 'Activated',
     DEACTIVATED: 'Deactivated',
+};
+
+export const SERVICE_CONTEXT_LABELS: Record<ServiceContext, string> = {
+    EXISTING: 'Existing service',
+    NEW: 'New service',
 };
 
 export const SERVICE_IMPACT_LABELS: Record<ServiceImpactCode, string> = {

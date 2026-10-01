@@ -1,6 +1,8 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
+import { datePicker, pickDate } from '@/testing/datePicker';
+
 import DraftField from './DraftField.vue';
 import DraftNumberField from './DraftNumberField.vue';
 
@@ -15,13 +17,12 @@ function emittedValue(wrapper: VueWrapper): unknown {
 }
 
 describe('DraftField', () => {
-    it('labels the control and marks it as required', () => {
-        const wrapper = mountField({ required: true, maxlength: 150 });
+    it('labels the control', () => {
+        const wrapper = mountField({ maxlength: 150 });
 
         expect(wrapper.get('label').text()).toContain('Customer name');
         expect(wrapper.get('label').attributes('for')).toBe('customer_name');
         expect(wrapper.get('#customer_name').attributes('maxlength')).toBe('150');
-        expect(wrapper.find('[data-required]').exists()).toBe(true);
     });
 
     it('sends text as typed and blank text as null', async () => {
@@ -35,8 +36,14 @@ describe('DraftField', () => {
         expect(emittedValue(wrapper)).toBeNull();
     });
 
-    it('uses a date control and a textarea when asked', () => {
-        expect(mountField({ type: 'date' }).get('#customer_name').attributes('type')).toBe('date');
+    it('uses the Date Picker and a textarea when asked (07 §22.1)', async () => {
+        const date = mountField({ type: 'date', modelValue: '2026-09-30' });
+        expect(date.find('input[type="date"]').exists()).toBe(false);
+        expect(datePicker(date, 'customer_name').props('modelValue')).toBe('2026-09-30');
+        await pickDate(date, 'customer_name', '2026-10-01');
+        expect(emittedValue(date)).toBe('2026-10-01');
+        await pickDate(date, 'customer_name', null);
+        expect(emittedValue(date)).toBeNull();
 
         const narrative = mountField({ id: 'rollback', label: 'Rollback scenario', rows: 4, modelValue: 'Demo' });
         expect(narrative.get<HTMLTextAreaElement>('textarea#rollback').element.value).toBe('Demo');

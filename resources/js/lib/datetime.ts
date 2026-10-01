@@ -1,5 +1,8 @@
+/** The application timezone every business date and "today" follow (12 §7.2). */
+export const BUSINESS_TIME_ZONE = 'Asia/Jakarta';
+
 const JAKARTA = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Jakarta',
+    timeZone: BUSINESS_TIME_ZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -26,4 +29,21 @@ const CALENDAR_DAY = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'nu
  */
 export function formatCalendarDay(date: string): string {
     return CALENDAR_DAY.format(new Date(`${date}T00:00:00Z`));
+}
+
+const BUSINESS_DATE = new Intl.DateTimeFormat('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+});
+
+/**
+ * A server business date (`YYYY-MM-DD`) as `30 Sep 2026` (07 §22.1). Like `formatCalendarDay`, it is
+ * read and printed in UTC so the browser's own timezone never moves it to another day.
+ */
+export function formatBusinessDate(date: string): string {
+    const parts = BUSINESS_DATE.formatToParts(new Date(`${date}T00:00:00Z`));
+    const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((piece) => piece.type === type)?.value ?? '';
+    return `${part('day')} ${part('month')} ${part('year')}`;
 }

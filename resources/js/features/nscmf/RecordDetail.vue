@@ -8,58 +8,48 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SectionCard from '@/components/SectionCard.vue';
+import { usePermissions } from '@/composables/usePermissions';
 import DetailList, { type DetailItem } from '@/features/nscmf/DetailList.vue';
 import DetailTable from '@/features/nscmf/DetailTable.vue';
 import StatusBadge from '@/features/nscmf/StatusBadge.vue';
 import {
-    type NscmfDetailRecord,
-    ANNOUNCEMENT_TIMING_LABELS,
-    FAMILY_LABELS,
-    MONITORING_UNIT_LABELS,
-    REFERENCE_TYPE_LABELS,
-    SERVICE_IMPACT_LABELS,
-    SERVICE_STATUS_LABELS,
-    SUBTYPE_LABELS,
-} from '@/features/nscmf/types';
+    ACTIVATION_COLLECTIONS,
+    ACTIVATION_GROUPS,
+    CHANGE_COLLECTIONS,
+    CHANGE_GROUPS,
+    type CollectionSpec,
+    detailItems,
+    display,
+    type Row,
+    SITE_BLOCKS,
+    tableRows,
+} from '@/features/nscmf/recordFields';
+import { type NscmfDetailRecord, FAMILY_LABELS, MONITORING_UNIT_LABELS, SUBTYPE_LABELS } from '@/features/nscmf/types';
 import { formatJakarta } from '@/lib/datetime';
 
 export type { NscmfDetailRecord };
 
-type Value = string | number | boolean | null | undefined;
+const props = defineProps<{
+    record: NscmfDetailRecord;
+    backHref?: string;
+    backLabel?: string;
+}>();
 
-const props = withDefaults(
-    defineProps<{
-        record: NscmfDetailRecord;
-        backHref?: string;
-        backLabel?: string;
-    }>(),
-    { backHref: '/history', backLabel: 'Back to history' },
-);
+const { can } = usePermissions();
+
+// Without its own destination the page returns to History, or to the Dashboard when History is not allowed.
+const back = computed(() => {
+    if (props.backHref) return { href: props.backHref, label: props.backLabel };
+    return can('nscmf.view.history')
+        ? { href: '/history', label: 'Back to history' }
+        : { href: '/dashboard', label: 'Back to dashboard' };
+});
 
 const TABS = [
     { key: 'form', label: 'Form' },
     { key: 'timeline', label: 'Timeline' },
     { key: 'attachments', label: 'Attachments' },
 ] as const;
-
-/** Missing values show a neutral dash; 0 and false are real values. */
-function display(value: Value): string {
-    if (value === null || value === undefined || value === '') return '—';
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    return String(value);
-}
-
-function items<T extends object>(
-    source: T | null | undefined,
-    fields: [keyof T & string, string][],
-    prefix = '',
-): DetailItem[] {
-    return fields.map(([key, label]) => ({
-        key: `${prefix}${key}`,
-        label,
-        value: display((source?.[key] ?? null) as Value),
-    }));
-}
 
 const signoffs = computed(() => [
     {
@@ -92,91 +82,12 @@ const summary = computed<DetailItem[]>(() => [
 const activation = computed(() => {
     const a = props.record.activation ?? {};
     return {
-        general: items(a, [
-            ['customer_name', 'Customer name'],
-            ['contact_name', 'Contact name'],
-            ['installation_rfs_date', 'Installation (RFS) date'],
-        ]),
-        network: items(a, [
-            ['lan_ip_allocation', 'LAN IP allocation'],
-            ['wan_ip', 'WAN IP'],
-            ['gateway', 'Gateway'],
-            ['pop', 'POP'],
-            ['regional', 'Regional'],
-            ['preferred_upstream', 'Preferred upstream'],
-            ['secondary_upstream', 'Secondary upstream'],
-            ['primary_noc_link', 'Primary link to NOC'],
-            ['secondary_noc_link', 'Secondary link to NOC'],
-            ['downlink_router', 'Downlink router'],
-        ]),
-        bandwidth: items(a, [
-            ['bandwidth_international_mbps', 'International (Mbps)'],
-            ['bandwidth_domestic_iix_mbps', 'Domestic / IIX (Mbps)'],
-            ['bandwidth_mixed_mbps', 'International & IIX mixed (Mbps)'],
-        ]),
-        hosting: items(a, [
-            ['domain_name_1', 'Domain name 1'],
-            ['domain_name_2', 'Domain name 2'],
-            ['primary_dns', 'Primary DNS'],
-            ['secondary_dns', 'Secondary DNS'],
-            ['mx_primary', 'MX primary'],
-            ['mx_secondary', 'MX secondary'],
-            ['hosting_platform', 'Hosting platform'],
-            ['hosting_capacity_gb', 'Hosting capacity (GB)'],
-            ['migrate_domain', 'Migrate domain'],
-            ['migrate_hosting', 'Migrate hosting'],
-        ]),
-        directSite: items(
-            a.direct_site,
-            [
-                ['local_loops', 'Local loops'],
-                ['lastmile', 'Last mile'],
-                ['bwa', 'BWA'],
-                ['antenna_tower', 'Antenna / tower'],
-                ['direction', 'Direction'],
-                ['rssi', 'RSSI'],
-                ['latency_ms', 'Latency (ms)'],
-                ['packet_loss_percent', 'Packet loss (%)'],
-                ['routers', 'Routers'],
-                ['ups', 'UPS'],
-                ['stabilizer', 'Stabilizer'],
-                ['cable', 'Cable'],
-            ],
-            'direct_site.',
-        ),
-        popSite: items(
-            a.pop_site,
-            [
-                ['switch_distribution', 'Switch distribution'],
-                ['port', 'Port'],
-                ['vlan_id', 'VLAN ID'],
-                ['local_loops', 'Local loops'],
-                ['routers', 'Routers'],
-                ['cpe_indoor', 'CPE indoor'],
-                ['cpe_outdoor', 'CPE outdoor'],
-            ],
-            'pop_site.',
-        ),
-        references: (a.references ?? []).map((row) => ({
-            type: REFERENCE_TYPE_LABELS[row.reference_type],
-            specification: display(row.specification),
-        })),
-        serviceBlocks: (a.service_blocks ?? []).map((row) => ({
-            context: row.service_context === 'NEW' ? 'New service' : 'Existing service',
-            id: display(row.service_id),
-            status: display(row.service_status && SERVICE_STATUS_LABELS[row.service_status]),
-            description: display(row.service_description),
-            location: display(row.service_location),
-        })),
-        slaItems: (a.sla_items ?? []).map((row) => ({ no: String(row.row_no), text: display(row.requirement_text) })),
-        virtualConnections: (a.virtual_connections ?? []).map((row) => ({
-            no: String(row.row_no),
-            bandwidth: display(row.bandwidth_mbps),
-        })),
-        priorityDestinations: (a.priority_destinations ?? []).map((row) => ({
-            no: String(row.row_no),
-            destination: display(row.destination),
-        })),
+        general: detailItems(a, ACTIVATION_GROUPS.general.fields),
+        network: detailItems(a, ACTIVATION_GROUPS.network.fields),
+        bandwidth: detailItems(a, ACTIVATION_GROUPS.bandwidth.fields),
+        hosting: detailItems(a, ACTIVATION_GROUPS.hosting.fields),
+        directSite: detailItems(a.direct_site, SITE_BLOCKS.direct_site.fields, 'direct_site.'),
+        popSite: detailItems(a.pop_site, SITE_BLOCKS.pop_site.fields, 'pop_site.'),
     };
 });
 
@@ -187,47 +98,35 @@ const change = computed(() => {
             ? '—'
             : `${c.monitoring_period_value} ${display(c.monitoring_period_unit && MONITORING_UNIT_LABELS[c.monitoring_period_unit])}`;
     return {
-        purpose: items(c, [['maintenance_purpose', 'Maintenance purpose']]),
-        plan: [
-            ...items(c, [['target_execution_date', 'Target execution date']]),
-            { key: 'monitoring_period', label: 'Monitoring period', value: monitoring },
-            {
-                key: 'announcement_timing',
-                label: 'Maintenance announcement',
-                value: display(c.announcement_timing && ANNOUNCEMENT_TIMING_LABELS[c.announcement_timing]),
-            },
-            ...items(c, [['rollback_scenario', 'Rollback scenario']]),
-        ],
-        challenges: (c.facing_challenges ?? []).map((row) => ({
-            no: String(row.row_no),
-            text: display(row.challenge_text),
-        })),
-        problems: (c.identified_problems ?? []).map((row) => ({
-            no: String(row.row_no),
-            text: display(row.problem_text),
-        })),
-        impacts: (c.service_impacts ?? []).map((row) => ({
-            impact: SERVICE_IMPACT_LABELS[row.impact_code],
-            description: display(row.other_description),
-        })),
-        improvements: (c.improvement_items ?? []).map((row) => ({
-            no: String(row.row_no),
-            plan: display(row.plan_text),
-            kpi: display(row.target_kpi),
-        })),
-        results: (c.results ?? []).map((row) => ({
-            no: String(row.row_no),
-            summary: display(row.result_summary),
-            performance: display(row.performance_information),
-            status: display(row.result_status),
-        })),
+        purpose: detailItems(c, CHANGE_GROUPS.purpose.fields),
+        // Form Detail reads the monitoring amount and its unit as one value.
+        plan: CHANGE_GROUPS.plan.fields.flatMap((spec) => {
+            if (spec.key === 'monitoring_period_unit') return [];
+            if (spec.key === 'monitoring_period_value')
+                return [{ key: 'monitoring_period', label: spec.label, value: monitoring }];
+            return detailItems(c, [spec]);
+        }),
     };
 });
 
-const NUMBERED_TEXT = [
-    { key: 'no', label: '#' },
-    { key: 'text', label: 'Description' },
-];
+/** Each collection as its title, columns and display rows, keyed by the collection's field name. */
+const tables = computed(() => {
+    const a = props.record.activation ?? {};
+    const c = props.record.change ?? {};
+    const table = (spec: CollectionSpec, rows: Row[] | undefined) => ({ ...spec, rows: tableRows(spec, rows) });
+    return {
+        references: table(ACTIVATION_COLLECTIONS.references, a.references),
+        service_blocks: table(ACTIVATION_COLLECTIONS.service_blocks, a.service_blocks),
+        sla_items: table(ACTIVATION_COLLECTIONS.sla_items, a.sla_items),
+        virtual_connections: table(ACTIVATION_COLLECTIONS.virtual_connections, a.virtual_connections),
+        priority_destinations: table(ACTIVATION_COLLECTIONS.priority_destinations, a.priority_destinations),
+        facing_challenges: table(CHANGE_COLLECTIONS.facing_challenges, c.facing_challenges),
+        identified_problems: table(CHANGE_COLLECTIONS.identified_problems, c.identified_problems),
+        service_impacts: table(CHANGE_COLLECTIONS.service_impacts, c.service_impacts),
+        improvement_items: table(CHANGE_COLLECTIONS.improvement_items, c.improvement_items),
+        results: table(CHANGE_COLLECTIONS.results, c.results),
+    };
+});
 </script>
 
 <template>
@@ -246,7 +145,7 @@ const NUMBERED_TEXT = [
             </div>
             <template #actions>
                 <Button as-child variant="outline">
-                    <Link :href="backHref">{{ backLabel }}</Link>
+                    <Link :href="back.href">{{ back.label }}</Link>
                 </Button>
             </template>
         </PageHeader>
@@ -276,128 +175,54 @@ const NUMBERED_TEXT = [
             <TabsContent value="form">
                 <div data-testid="form-detail-section" class="grid gap-6">
                     <template v-if="record.family === 'ACTIVATION'">
-                        <SectionCard title="General and service">
+                        <SectionCard :title="ACTIVATION_GROUPS.general.title">
                             <DetailList :items="activation.general" />
-                            <DetailTable
-                                data-testid="table-references"
-                                title="References"
-                                :columns="[
-                                    { key: 'type', label: 'Type' },
-                                    { key: 'specification', label: 'Specification' },
-                                ]"
-                                :rows="activation.references"
-                            />
-                            <DetailTable
-                                data-testid="table-service_blocks"
-                                title="Services"
-                                :columns="[
-                                    { key: 'context', label: 'Service' },
-                                    { key: 'id', label: 'Service ID' },
-                                    { key: 'status', label: 'Status' },
-                                    { key: 'description', label: 'Description' },
-                                    { key: 'location', label: 'Location' },
-                                ]"
-                                :rows="activation.serviceBlocks"
-                            />
-                            <DetailTable
-                                data-testid="table-sla_items"
-                                title="Specific requirements (SLA)"
-                                :columns="NUMBERED_TEXT"
-                                :rows="activation.slaItems"
-                            />
+                            <DetailTable data-testid="table-references" v-bind="tables.references" />
+                            <DetailTable data-testid="table-service_blocks" v-bind="tables.service_blocks" />
+                            <DetailTable data-testid="table-sla_items" v-bind="tables.sla_items" />
                         </SectionCard>
 
-                        <SectionCard title="NOC configuration">
+                        <SectionCard :title="ACTIVATION_GROUPS.network.title">
                             <DetailList :items="activation.network" />
                         </SectionCard>
 
-                        <SectionCard title="Bandwidth">
+                        <SectionCard :title="ACTIVATION_GROUPS.bandwidth.title">
                             <DetailList :items="activation.bandwidth" />
-                            <DetailTable
-                                data-testid="table-virtual_connections"
-                                title="Virtual connections"
-                                :columns="[
-                                    { key: 'no', label: '#' },
-                                    { key: 'bandwidth', label: 'Bandwidth (Mbps)' },
-                                ]"
-                                :rows="activation.virtualConnections"
-                            />
+                            <DetailTable data-testid="table-virtual_connections" v-bind="tables.virtual_connections" />
                             <DetailTable
                                 data-testid="table-priority_destinations"
-                                title="Priority destinations"
-                                :columns="[
-                                    { key: 'no', label: '#' },
-                                    { key: 'destination', label: 'Destination' },
-                                ]"
-                                :rows="activation.priorityDestinations"
+                                v-bind="tables.priority_destinations"
                             />
                         </SectionCard>
 
-                        <SectionCard title="Domain, DNS and hosting">
+                        <SectionCard :title="ACTIVATION_GROUPS.hosting.title">
                             <DetailList :items="activation.hosting" />
                         </SectionCard>
 
-                        <SectionCard title="Customer site (direct)">
+                        <SectionCard :title="SITE_BLOCKS.direct_site.title">
                             <DetailList :items="activation.directSite" />
                         </SectionCard>
 
-                        <SectionCard title="Customer site at POP">
+                        <SectionCard :title="SITE_BLOCKS.pop_site.title">
                             <DetailList :items="activation.popSite" />
                         </SectionCard>
                     </template>
 
                     <template v-else>
-                        <SectionCard title="Purpose of changes">
+                        <SectionCard :title="CHANGE_GROUPS.purpose.title">
                             <DetailList :items="change.purpose" />
-                            <DetailTable
-                                data-testid="table-facing_challenges"
-                                title="Facing challenges"
-                                :columns="NUMBERED_TEXT"
-                                :rows="change.challenges"
-                            />
-                            <DetailTable
-                                data-testid="table-identified_problems"
-                                title="Identified problems"
-                                :columns="NUMBERED_TEXT"
-                                :rows="change.problems"
-                            />
-                            <DetailTable
-                                data-testid="table-service_impacts"
-                                title="Service impact"
-                                :columns="[
-                                    { key: 'impact', label: 'Impact' },
-                                    { key: 'description', label: 'Description' },
-                                ]"
-                                :rows="change.impacts"
-                            />
+                            <DetailTable data-testid="table-facing_challenges" v-bind="tables.facing_challenges" />
+                            <DetailTable data-testid="table-identified_problems" v-bind="tables.identified_problems" />
+                            <DetailTable data-testid="table-service_impacts" v-bind="tables.service_impacts" />
                         </SectionCard>
 
-                        <SectionCard title="Plan, schedule and rollback">
-                            <DetailTable
-                                data-testid="table-improvement_items"
-                                title="Improvement plan and target KPI"
-                                :columns="[
-                                    { key: 'no', label: '#' },
-                                    { key: 'plan', label: 'Plan' },
-                                    { key: 'kpi', label: 'Target KPI' },
-                                ]"
-                                :rows="change.improvements"
-                            />
+                        <SectionCard :title="CHANGE_GROUPS.plan.title">
+                            <DetailTable data-testid="table-improvement_items" v-bind="tables.improvement_items" />
                             <DetailList :items="change.plan" />
                         </SectionCard>
 
                         <SectionCard title="Result of changes">
-                            <DetailTable
-                                data-testid="table-results"
-                                title="Results"
-                                :columns="[
-                                    { key: 'no', label: '#' },
-                                    { key: 'summary', label: 'Result summary' },
-                                    { key: 'performance', label: 'Performance information' },
-                                    { key: 'status', label: 'Status' },
-                                ]"
-                                :rows="change.results"
-                            />
+                            <DetailTable data-testid="table-results" v-bind="tables.results" />
                         </SectionCard>
                     </template>
                 </div>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Administration\Roles;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Administration\ListAdministrationRequest;
 use App\Http\Requests\Administration\RoleNameRequest;
 use App\Http\Requests\Administration\RolePermissionsRequest;
 use App\Models\User;
@@ -19,12 +20,12 @@ final class RoleController extends Controller
 {
     public function __construct(private readonly RolePermissionAdministrationService $roles) {}
 
-    public function index(Request $request): Response
+    public function index(ListAdministrationRequest $request): Response
     {
         $actor = self::actor($request);
 
         return Inertia::render('Administration/Roles/Index', [
-            'roles' => $this->roles->list($actor),
+            ...$this->roles->list($actor, $request->listQuery()),
             'permissionCatalog' => $this->roles->catalog($actor),
         ]);
     }

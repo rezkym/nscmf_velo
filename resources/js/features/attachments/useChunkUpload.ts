@@ -3,6 +3,7 @@ import { reactive } from 'vue';
 import { sendBytes, sendJson, type JsonResult } from '@/lib/http';
 
 import { chunkPlan } from './attachmentPolicy';
+import type { SecurityStatus } from './scanStates';
 
 export type UploadPhase =
     | 'preparing'
@@ -10,8 +11,11 @@ export type UploadPhase =
     | 'interrupted'
     | 'conflict'
     | 'expired'
+    | 'assembling'
     | 'scanning'
-    | 'done'
+    | 'ready'
+    | 'infected'
+    | 'scan-failed'
     | 'failed'
     | 'cancelled'
     | 'cancel-failed';
@@ -24,23 +28,30 @@ export interface UploadState {
     message: string | null;
     uploadId: string | null;
     expiresAt: string | null;
-    securityStatus: string | null;
+    securityStatus: SecurityStatus | null;
 }
 
 /** The server's upload session (12 §52–56); the only authority on progress and missing chunks. */
 interface Session {
     upload_id: string;
+    resumed?: boolean;
     status: string;
     chunk_size: number;
     chunk_count: number;
     accepted_chunks: number[];
     missing_chunks: number[];
     expires_at: string;
-    attachment?: { id: number; security_status: string };
+    attachment?: { id: number; security_status: SecurityStatus };
 }
 
 const INTERRUPTED = 'The connection was lost. Choose the same file again to resume.';
-const SETTLED = ['CLEAN', 'INFECTED', 'FAILED'];
+const RESUMED = 'Previous upload found — continuing from the last saved part.';
+const NOT_COMPLETED = 'The upload could not be completed.';
+const VERDICTS: Record<Exclude<SecurityStatus, 'PENDING'>, UploadPhase> = {
+    CLEAN: 'ready',
+    INFECTED: 'infected',
+    FAILED: 'scan-failed',
+};
 
 async function fingerprint(file: File): Promise<string> {
     const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
@@ -49,8 +60,9 @@ async function fingerprint(file: File): Promise<string> {
 
 /**
  * One resumable upload (11A; 12 §52–56): initiate (which resumes a matching session), send only
- * the chunks the server reports missing, complete, then follow the scan until a verdict. Chunks
- * go one at a time; transport completion is never shown as a clean file.
+ * the chunks the server reports missing, complete, then follow assembly and the scan until a
+ * verdict. Chunks go one at a time; transport completion is never shown as a clean file, and
+ * each verdict keeps its own phase.
  */
 export function useChunkUpload(recordId: number, file: File, options: { pollMs?: number } = {}) {
     const pollMs = options.pollMs ?? 2000;
@@ -77,6 +89,23 @@ export function useChunkUpload(recordId: number, file: File, options: { pollMs?:
         if (session.attachment) state.securityStatus = session.attachment.security_status;
     }
 
+    /** Adopts a session after completion; returns true once the server will not change it again. */
+    function track(session: Session): boolean {
+        adopt(session);
+        const verdict = session.attachment?.security_status;
+        if (verdict && verdict !== 'PENDING') {
+            state.phase = VERDICTS[verdict];
+            return true;
+        }
+        if (session.status === 'FAILED') {
+            state.phase = 'failed';
+            state.message = NOT_COMPLETED;
+            return true;
+        }
+        state.phase = session.status === 'ASSEMBLING' ? 'assembling' : 'scanning';
+        return false;
+    }
+
     /** Maps a refused request onto a phase; returns false so callers can stop in one line. */
     function refuse(result: Extract<JsonResult, { ok: false }>): false {
         const code = result.error?.code;
@@ -91,7 +120,7 @@ export function useChunkUpload(recordId: number, file: File, options: { pollMs?:
             state.message = 'The server already holds different data for this file. Start a new upload.';
         } else {
             state.phase = 'failed';
-            state.message = result.error?.message || 'The upload could not be completed.';
+            state.message = result.error?.message || NOT_COMPLETED;
         }
         return false;
     }
@@ -121,7 +150,11 @@ export function useChunkUpload(recordId: number, file: File, options: { pollMs?:
     async function complete(): Promise<boolean> {
         for (let attempt = 0; attempt < 3; attempt++) {
             const result = await sendJson<{ data: Session }>('POST', `${base}/${state.uploadId}/complete`);
-            if (result.ok) return true;
+            if (result.ok) {
+                state.message = null;
+                if (result.body) track(result.body.data);
+                return true;
+            }
             const missing = result.error?.context?.missing_chunks;
             if (result.error?.code !== 'UPLOAD_INCOMPLETE' || !Array.isArray(missing)) return refuse(result);
             if (!(await sendMissing(missing.filter((index): index is number => typeof index === 'number'))))
@@ -131,19 +164,13 @@ export function useChunkUpload(recordId: number, file: File, options: { pollMs?:
     }
 
     async function followScan(): Promise<void> {
-        state.phase = 'scanning';
         while (!stopped) {
             const result = await sendJson<{ data: Session }>('GET', `${base}/${state.uploadId}`);
             if (!result.ok) {
                 refuse(result);
                 return;
             }
-            if (result.body) adopt(result.body.data);
-            const status = result.body?.data.status;
-            if ((state.securityStatus && SETTLED.includes(state.securityStatus)) || status === 'FAILED') {
-                state.phase = status === 'FAILED' && !state.securityStatus ? 'failed' : 'done';
-                return;
-            }
+            if (result.body && track(result.body.data)) return;
             await new Promise((resolve) => setTimeout(resolve, pollMs));
         }
     }
@@ -164,6 +191,7 @@ export function useChunkUpload(recordId: number, file: File, options: { pollMs?:
         }
         if (!initiated.body) return;
         adopt(initiated.body.data);
+        if (initiated.body.data.resumed) state.message = RESUMED;
 
         if (!(await sendMissing(initiated.body.data.missing_chunks))) return;
         if (!(await complete())) return;

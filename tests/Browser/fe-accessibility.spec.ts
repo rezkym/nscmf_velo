@@ -56,6 +56,28 @@ for (const viewport of VIEWPORTS) {
         await noHorizontalScroll(page);
         await page.goto('/history');
         await noHorizontalScroll(page);
+        await page.goto('/my-applications');
+        await noHorizontalScroll(page);
+    });
+
+    test(`G25: list tables reflow and label their controls on ${viewport.name}`, async ({ page }) => {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        const admin = createBrowserUser({ roles: ['Superadmin'], team: true });
+        await loginToDashboard(page, admin.username, admin.password);
+
+        for (const path of [
+            '/my-applications',
+            '/administration/users',
+            '/administration/roles',
+            '/administration/teams',
+            '/administration/audits/access',
+            '/administration/audits/security',
+        ]) {
+            await page.goto(path);
+            await expect(page.getByTestId('table-range')).toBeVisible();
+            await noHorizontalScroll(page);
+            await controlsAreLabelled(page);
+        }
     });
 }
 

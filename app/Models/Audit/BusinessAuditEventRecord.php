@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int|null $record_version_before
  * @property int|null $record_version_after
  * @property CarbonImmutable $occurred_at
+ * @property array<string, mixed>|null $metadata_json
  * @property-read User|null $actor
  * @property-read WorkflowIteration|null $iteration
  * @property-read Collection<int, BusinessAuditChangeRecord> $changes

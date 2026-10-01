@@ -140,7 +140,7 @@ describe('Chunk upload (FE-41)', () => {
         handler = happyServer('INFECTED');
         const infected = useChunkUpload(7, fileOf(CHUNK + 1), { pollMs: 0 });
         await infected.start();
-        expect(infected.state.phase).toBe('done');
+        expect(infected.state.phase).toBe('infected');
         expect(infected.state.securityStatus).toBe('INFECTED');
 
         handler = happyServer('CLEAN');
@@ -203,7 +203,7 @@ describe('Resume, expiry and cancel (FE-42)', () => {
             '2',
             '1',
         ]);
-        expect(upload.state.phase).toBe('done');
+        expect(upload.state.phase).toBe('ready');
     });
 
     it('AC2: a different file is identified by its own fingerprint, so it never joins another session', async () => {
@@ -284,5 +284,86 @@ describe('Resume, expiry and cancel (FE-42)', () => {
         await new Promise((resolve) => setTimeout(resolve, 20));
 
         expect(calls.length).toBe(count);
+    });
+});
+
+describe('Assembly and scan results (FE-58)', () => {
+    /** Answers each poll with the next server session, keeping the last one once the list runs out. */
+    function pollingServer(
+        polls: Record<string, unknown>[],
+        seen: string[],
+        upload: () => { state: { phase: string } },
+    ) {
+        const server = happyServer();
+        return (call: Call): Response => {
+            if (call.method !== 'GET') return server(call);
+            seen.push(upload().state.phase);
+            return json(200, { data: session({ missing_chunks: [], ...(polls.shift() ?? {}) }) });
+        };
+    }
+
+    it('AC1: shows Assembling until the server reports the scan, then Scanning until the verdict', async () => {
+        const seen: string[] = [];
+        const upload = useChunkUpload(7, fileOf(CHUNK + 1), { pollMs: 0 });
+        handler = pollingServer(
+            [
+                { status: 'ASSEMBLING' },
+                { status: 'COMPLETED', attachment: { id: 3, security_status: 'PENDING' } },
+                { status: 'COMPLETED', attachment: { id: 3, security_status: 'CLEAN' } },
+            ],
+            seen,
+            () => upload,
+        );
+        await upload.start();
+
+        expect(seen).toEqual(['assembling', 'assembling', 'scanning']);
+        expect(upload.state.phase).toBe('ready');
+    });
+
+    it.each([
+        ['INFECTED', 'infected'],
+        ['FAILED', 'scan-failed'],
+        ['CLEAN', 'ready'],
+    ])('AC2: a %s verdict is its own result, never a generic success', async (verdict, phase) => {
+        handler = happyServer(verdict);
+        const upload = useChunkUpload(7, fileOf(CHUNK + 1), { pollMs: 0 });
+        await upload.start();
+
+        expect(upload.state.phase).toBe(phase);
+        expect(upload.state.securityStatus).toBe(verdict);
+    });
+
+    it('AC2/AC3: a session that failed before any attachment is an upload failure, not a scan result', async () => {
+        const server = happyServer();
+        handler = (call) =>
+            call.method === 'GET'
+                ? json(200, {
+                      data: session({ status: 'FAILED', missing_chunks: [], failure_code: 'UPLOAD_INTEGRITY_FAILED' }),
+                  })
+                : server(call);
+        const upload = useChunkUpload(7, fileOf(CHUNK + 1), { pollMs: 0 });
+        await upload.start();
+
+        expect(upload.state.phase).toBe('failed');
+        expect(upload.state.securityStatus).toBeNull();
+        expect(upload.state.message).toBeTruthy();
+    });
+
+    it('AC2: a resumed session says so while it sends the rest, and the note ends with the transport', async () => {
+        const messages: (string | null)[] = [];
+        const server = happyServer();
+        const upload = useChunkUpload(7, fileOf(CHUNK + 1), { pollMs: 0 });
+        handler = (call) => {
+            if (call.method === 'POST' && call.url === BASE) {
+                return json(200, { data: session({ resumed: true, accepted_chunks: [1], missing_chunks: [2] }) });
+            }
+            if (call.method === 'PUT') messages.push(upload.state.message);
+            return server(call);
+        };
+        await upload.start();
+
+        expect(messages).toEqual(['Previous upload found — continuing from the last saved part.']);
+        expect(upload.state.message).toBeNull();
+        expect(upload.state.phase).toBe('ready');
     });
 });

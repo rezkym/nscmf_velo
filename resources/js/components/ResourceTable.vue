@@ -9,6 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/native-select';
 import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationNext,
+    PaginationPrevious,
+} from '@/components/ui/pagination';
+import {
     Table,
     TableBody,
     TableCaption,
@@ -41,8 +49,8 @@ export interface TablePaginationMeta {
     per_page: number;
     total: number;
     last_page: number;
-    from?: number;
-    to?: number;
+    from?: number | null;
+    to?: number | null;
 }
 
 export interface ResourceTableProps<T = Record<string, unknown>> {
@@ -56,6 +64,12 @@ export interface ResourceTableProps<T = Record<string, unknown>> {
     emptyText?: string;
     caption?: string;
     requestId?: number | string;
+    /** A list without a `q` contract (the audits) leaves the search box out. */
+    searchable?: boolean;
+    /** A list shown whole (the setup wizard) has no rows-per-page or page navigation. */
+    paged?: boolean;
+    /** Each row gets `data-testid="<rowTestId>-<id>"`. */
+    rowTestId?: string;
 }
 
 const props = withDefaults(defineProps<ResourceTableProps>(), {
@@ -68,6 +82,9 @@ const props = withDefaults(defineProps<ResourceTableProps>(), {
     emptyText: 'No data',
     caption: 'Data Table',
     requestId: undefined,
+    searchable: true,
+    paged: true,
+    rowTestId: undefined,
 });
 
 const emit = defineEmits<{
@@ -158,18 +175,28 @@ function getHeaderAriaSort(col: ColumnDef): 'ascending' | 'descending' | 'none' 
 
 const currentPage = computed(() => props.meta?.current_page ?? props.query.page);
 const lastPage = computed(() => props.meta?.last_page ?? 1);
+const perPage = computed(() => props.meta?.per_page ?? props.query.per_page ?? 25);
+const total = computed(() => props.meta?.total ?? 0);
+/** "11–20 of 95": the rows on screen, worked out from the page, so every list meta fits. */
+const range = computed(() => {
+    if (total.value === 0) return '0 of 0';
+    const from = (currentPage.value - 1) * perPage.value + 1;
+    return `${from}–${Math.min(total.value, from + perPage.value - 1)} of ${total.value}`;
+});
 
-const isPrevDisabled = computed(() => currentPage.value <= 1);
 const slots = useSlots();
 const columnCount = computed(() => props.columns.length + (slots.actions ? 1 : 0));
-const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
 </script>
 
 <template>
     <Card class="gap-0 overflow-hidden py-0">
         <!-- Controls: Search & Per Page -->
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-            <div class="w-full sm:w-72">
+        <div
+            v-if="searchable || paged || $slots.filters"
+            data-testid="table-controls"
+            class="flex flex-wrap items-end justify-between gap-3 border-b p-4"
+        >
+            <div v-if="searchable" class="w-full sm:w-72">
                 <Label for="table-search" class="sr-only">Search</Label>
                 <Input
                     id="table-search"
@@ -179,8 +206,9 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
                     placeholder="Search…"
                 />
             </div>
+            <slot name="filters" />
 
-            <div class="flex items-center gap-2">
+            <div v-if="paged" class="ml-auto flex items-center gap-2">
                 <Label for="table-per-page" class="font-normal whitespace-nowrap text-muted-foreground">Per page</Label>
                 <NativeSelect
                     id="table-per-page"
@@ -220,10 +248,11 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
                         :key="col.key"
                         :data-testid="`header-${col.key}`"
                         :aria-sort="getHeaderAriaSort(col)"
-                        class="px-4"
+                        :class="['px-4', col.class]"
                     >
+                        <slot v-if="$slots[`head-${col.key}`]" :name="`head-${col.key}`" />
                         <Button
-                            v-if="col.sortable"
+                            v-else-if="col.sortable"
                             type="button"
                             variant="ghost"
                             size="sm"
@@ -248,8 +277,9 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
                 <TableRow
                     v-for="(item, idx) in currentItems"
                     :key="typeof item.id === 'string' || typeof item.id === 'number' ? item.id : idx"
+                    :data-testid="rowTestId ? `${rowTestId}-${String(item.id)}` : undefined"
                 >
-                    <TableCell v-for="col in columns" :key="col.key" class="px-4 py-3">
+                    <TableCell v-for="col in columns" :key="col.key" :class="['px-4 py-3', col.class]">
                         <slot :name="`cell-${col.key}`" :item="item" :value="item[col.key]">
                             {{ item[col.key] }}
                         </slot>
@@ -269,31 +299,33 @@ const isNextDisabled = computed(() => currentPage.value >= lastPage.value);
             </TableBody>
         </Table>
 
-        <!-- Pagination Bar -->
-        <div class="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
-            <p class="text-muted-foreground">Page {{ currentPage }} of {{ lastPage }} ({{ meta?.total ?? 0 }} total)</p>
-            <div class="flex items-center gap-2">
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    data-testid="pagination-prev"
-                    :disabled="isPrevDisabled"
-                    @click="onPageChange(currentPage - 1)"
-                >
-                    Previous
-                </Button>
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    data-testid="pagination-next"
-                    :disabled="isNextDisabled"
-                    @click="onPageChange(currentPage + 1)"
-                >
-                    Next
-                </Button>
-            </div>
+        <div v-if="paged" class="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3">
+            <p class="text-muted-foreground" data-testid="table-range">{{ range }}</p>
+            <Pagination
+                :page="currentPage"
+                :total="total"
+                :items-per-page="perPage"
+                :sibling-count="1"
+                show-edges
+                class="mx-0 w-auto"
+                @update:page="onPageChange"
+            >
+                <PaginationContent v-slot="{ items }">
+                    <PaginationPrevious data-testid="pagination-prev" />
+                    <template v-for="(item, index) in items" :key="index">
+                        <PaginationItem
+                            v-if="item.type === 'page'"
+                            :value="item.value"
+                            :is-active="item.value === currentPage"
+                            :data-testid="`pagination-page-${item.value}`"
+                        >
+                            {{ item.value }}
+                        </PaginationItem>
+                        <PaginationEllipsis v-else :index="index" />
+                    </template>
+                    <PaginationNext data-testid="pagination-next" />
+                </PaginationContent>
+            </Pagination>
         </div>
     </Card>
 </template>

@@ -712,7 +712,7 @@ REVISION_REQUIRED → PENDING_REVIEW
 
 same iteration.
 
-Full action-specific validation occurs here.
+Full action-specific validation occurs here. Since 2026-09-30 (G24) it requires only the request date plus format rules of provided values (06 §5).
 
 ### T23 — Review queue / read eligibility
 
@@ -736,10 +736,7 @@ Forward → PENDING_APPROVAL
 
 Reason requirements enforced where specified.
 
-Before Forward for Change:
-
-- at least one complete Result;
-- every started Result complete.
+Before Forward for Change: no Result requirement (removed 2026-09-30, G24; 06 §48).
 
 `Reviewed By` = actor of successful Forward.
 
@@ -904,6 +901,8 @@ Implement current `12` contract:
 - Team as informational filter only;
 - archive filtering;
 - resource authorization before disclosure.
+
+Since 2026-09-30 (G25) the same list contract also covers My Applications (`12 §47.1`) and the Users, Roles and Teams lists (`12 §80`, `§88`, `§93`).
 
 ### Phase 5 Checkpoint
 

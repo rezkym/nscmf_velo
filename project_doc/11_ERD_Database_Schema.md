@@ -541,8 +541,8 @@ Exactly one row for `family=ACTIVATION`.
 | Column | Type | Null | Validation meaning |
 |---|---|---:|---|
 | `nscmf_record_id` | BIGINT UNSIGNED PK/FK | No | 1:1 |
-| `customer_name` | VARCHAR(150) | Yes | required at Submit |
-| `contact_name` | VARCHAR(150) | Yes | required at Submit |
+| `customer_name` | VARCHAR(150) | Yes | optional (G24) |
+| `contact_name` | VARCHAR(150) | Yes | optional (G24) |
 | `installation_rfs_date` | DATE | Yes | subtype-dependent |
 | `lan_ip_allocation` | TEXT | Yes | validated/parses IP/CIDR/ranges |
 | `wan_ip` | VARCHAR(255) | Yes | IPv4/IPv6/CIDR |
@@ -698,12 +698,12 @@ Exactly one row for `family=CHANGE`.
 | Column | Type | Null | Notes |
 |---|---|---:|---|
 | `nscmf_record_id` | BIGINT UNSIGNED PK/FK | No | 1:1 |
-| `maintenance_purpose` | VARCHAR(4000) / TEXT | Yes | subtype-dependent |
-| `target_execution_date` | DATE | Yes | required at Submit |
+| `maintenance_purpose` | VARCHAR(4000) / TEXT | Yes | optional (G24) |
+| `target_execution_date` | DATE | Yes | optional (G24); today/future at first Submit if provided |
 | `monitoring_period_value` | DECIMAL(14,3) | Yes | >0 when applicable |
 | `monitoring_period_unit` | VARCHAR(32) | Yes | normalized duration unit |
-| `rollback_scenario` | VARCHAR(4000) / TEXT | Yes | required at Submit |
-| `announcement_timing` | VARCHAR(40) | Yes | exactly one at Submit |
+| `rollback_scenario` | VARCHAR(4000) / TEXT | Yes | optional (G24) |
+| `announcement_timing` | VARCHAR(40) | Yes | optional, at most one (G24) |
 | `created_at` | DATETIME/TIMESTAMP | No | |
 | `updated_at` | DATETIME/TIMESTAMP | No | |
 
@@ -767,7 +767,7 @@ CUSTOMER
 OTHER
 ```
 
-Unique `(nscmf_record_id, impact_code)`; `OTHER` requires description at Submit/Resubmit. These values are business form values, not authorization Team values.
+Unique `(nscmf_record_id, impact_code)`; the description is optional for every value, including `OTHER` (G24). These values are business form values, not authorization Team values.
 
 ## 28. `nscmf_change_improvement_items`
 
@@ -799,9 +799,7 @@ Constraints:
 
 - `row_no` CHECK 1..5;
 - unique `(nscmf_record_id, row_no)`;
-- zero rows allowed on first Submit;
-- any started row complete at Submit/Resubmit;
-- minimum one complete row before Reviewer Forward;
+- zero or partly filled rows allowed at every stage; no Result gate at Reviewer Forward (G24, 2026-09-30);
 - Result mutation during `PENDING_REVIEW` increments parent `record_version` and is ownership/permission constrained;
 - this table MUST NOT contain/generalize planning fields.
 

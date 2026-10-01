@@ -59,8 +59,8 @@ final readonly class SetupService
         return [
             'readiness' => $this->readiness(),
             'roles' => $this->roleAdministration->rows(),
-            'teams' => $this->teamAdministration->list($actor),
-            'users' => $this->userAdministration->list($actor, 1, 100)['users'],
+            'teams' => $this->teamAdministration->rows(),
+            'users' => $this->userAdministration->list($actor, ['page' => 1, 'per_page' => 100, 'q' => null])['users'],
             'permissionCatalog' => RolePermissionAdministrationService::catalogRows(),
         ];
     }

@@ -208,6 +208,8 @@ no MFA
 
 Requester mutation ownership remains explicit where upstream says own record.
 
+`nscmf.view` also opens My Applications, which lists only the actor's own records (`12 §47.1`; decided 2026-09-30, G25).
+
 ## 12.1 Dashboard Analytics — decided 2026-09-24
 
 | Permission | Description |

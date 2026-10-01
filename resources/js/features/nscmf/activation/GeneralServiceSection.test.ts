@@ -1,14 +1,15 @@
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
-import type { ActivationSubtype } from '../types';
+import { datePicker, pickDate } from '@/testing/datePicker';
+
 import GeneralServiceSection, { type GeneralFields } from './GeneralServiceSection.vue';
 
 function mountSection(
     modelValue: GeneralFields = {},
-    props: { subtype?: ActivationSubtype; errors?: Record<string, string>; disabled?: boolean } = {},
+    props: { errors?: Record<string, string>; disabled?: boolean } = {},
 ): VueWrapper {
-    return mount(GeneralServiceSection, { props: { modelValue, subtype: 'ACTIVATION', ...props } });
+    return mount(GeneralServiceSection, { props: { modelValue, ...props } });
 }
 
 function lastModel(wrapper: VueWrapper): GeneralFields {
@@ -17,34 +18,18 @@ function lastModel(wrapper: VueWrapper): GeneralFields {
     return updates[updates.length - 1]?.[0] as GeneralFields;
 }
 
-function requirement(wrapper: VueWrapper, block: 'existing' | 'new'): string {
-    return wrapper.get(`[data-testid="requirement-${block}"]`).text();
-}
-
 describe('GeneralServiceSection (FE-20)', () => {
-    it('AC1: marks the service blocks required per subtype', () => {
-        const activation = mountSection({}, { subtype: 'ACTIVATION' });
-        expect(requirement(activation, 'existing')).toBe('Optional');
-        expect(requirement(activation, 'new')).toBe('Required');
-
-        const upgrade = mountSection({}, { subtype: 'UPGRADE_DOWNGRADE' });
-        expect(requirement(upgrade, 'existing')).toBe('Required');
-        expect(requirement(upgrade, 'new')).toBe('Required');
-
-        const deactivation = mountSection({}, { subtype: 'DEACTIVATION' });
-        expect(requirement(deactivation, 'existing')).toBe('Required');
-        expect(requirement(deactivation, 'new')).toBe('Optional');
+    it('G24: marks no field or service block as required; the subtype no longer plays a part', () => {
+        const wrapper = mountSection({ references: [{ reference_type: 'OTHER', specification: null }] });
+        expect(wrapper.find('[data-required]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid^="requirement-"]').exists()).toBe(false);
+        expect(wrapper.text()).not.toMatch(/needs a specification/i);
     });
 
-    it('AC4: requires the RFS date except for a deactivation and sets no future limit', () => {
-        const activation = mountSection({}, { subtype: 'ACTIVATION' });
-        const rfs = activation.get('#installation_rfs_date');
-        expect(rfs.attributes('type')).toBe('date');
-        expect(rfs.attributes('min')).toBeUndefined();
-        expect(activation.get('label[for="installation_rfs_date"]').find('[data-required]').exists()).toBe(true);
-
-        const deactivation = mountSection({}, { subtype: 'DEACTIVATION' });
-        expect(deactivation.get('label[for="installation_rfs_date"]').find('[data-required]').exists()).toBe(false);
+    it('AC4: sets no future limit on the RFS date', () => {
+        const wrapper = mountSection();
+        expect(wrapper.find('input[type="date"]').exists()).toBe(false);
+        expect(datePicker(wrapper, 'installation_rfs_date').props('modelValue')).toBeNull();
     });
 
     it('AC2: writes one field at a time and leaves an empty draft otherwise untouched', async () => {
@@ -132,7 +117,7 @@ describe('GeneralServiceSection (FE-20)', () => {
 
         expect(wrapper.get<HTMLInputElement>('#customer_name').element.value).toBe('Demo Customer');
         expect(wrapper.get<HTMLInputElement>('#contact_name').element.value).toBe('Demo Contact');
-        expect(wrapper.get<HTMLInputElement>('#installation_rfs_date').element.value).toBe('2026-10-01');
+        expect(datePicker(wrapper, 'installation_rfs_date').props('modelValue')).toBe('2026-10-01');
         expect(wrapper.get<HTMLInputElement>('#service-new-service_id').element.value).toBe('SVC-2');
         expect(wrapper.get<HTMLSelectElement>('#service-new-service_status').element.value).toBe('DEACTIVATED');
         expect(wrapper.get<HTMLTextAreaElement>('#service-new-service_description').element.value).toBe(
@@ -241,7 +226,7 @@ describe('GeneralServiceSection (FE-20)', () => {
         expect(lastModel(contact)).toEqual({ contact_name: 'Demo Contact' });
 
         const rfs = mountSection();
-        await rfs.get('#installation_rfs_date').setValue('2026-10-01');
+        await pickDate(rfs, 'installation_rfs_date', '2026-10-01');
         expect(lastModel(rfs)).toEqual({ installation_rfs_date: '2026-10-01' });
     });
 

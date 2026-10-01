@@ -236,6 +236,18 @@ it('generates the XLSX from the snapshot only, patching cells and controls and n
     }
 })->skip(fn (): bool => ! is_file(officialWorkbook()), 'The private official workbook is not provisioned.');
 
+it('builds the XLSX of an Approved record that holds nothing but its request date (G24)', function (string $family): void {
+    registerPipelineTemplate();
+    $owner = Actors::requester();
+    $recordId = Records::create($owner, $family, $family === 'ACTIVATION' ? 'ACTIVATION' : 'MAINTENANCE', ['request_date' => '2026-09-22']);
+    Records::submitted($recordId, $owner, 'APPROVED');
+    signIn($owner)->postJson("/nscmf/{$recordId}/exports", ['format' => 'XLSX'])->assertStatus(202);
+
+    app(ExportGenerationService::class)->generate((int) soleValue('nscmf_export_requests', 'id'));
+
+    expect(DB::table('nscmf_export_requests')->value('status'))->toBe('READY');
+})->with(['ACTIVATION', 'CHANGE']);
+
 it('serves a READY export only to authorized actors until it expires after 168 hours', function (): void {
     registerPipelineTemplate();
     $owner = Actors::requester();

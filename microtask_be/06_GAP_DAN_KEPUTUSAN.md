@@ -150,7 +150,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 - Dampak/task owner: [BE-090](BE-090.md), [BE-101](BE-101.md), [BE-148](BE-148.md).
 - Pihak berwenang: Pelaksana integration + reviewer security/owner operasional.
 - Bukti penutupan: Real clamd readiness/definitions, measured finite timeout, job timeout/retry_after consistency and failure evidence. Existing90 scaffold bukan measured policy.
-- Status: **CLOSED 2026-09-24** — keputusan didelegasikan pemilik proyek ke pelaksana, berdasar pengukuran lokal (macOS arm64, clamd 1.4, LibreOffice 26.8): scan 20 MB ≤1,9 s (dingin), arsip padat ±250 MB terurai 6,6 s; satu pass render ±1,7 s; signing ±0,01 s. Nilai: scan 30 s (seluruh balasan clamd dibatasi satu deadline), render 30 s per pass (turun dari 60 s: ekspor PDF = 2 pass + signing harus < job 80 s), job finalisasi 75 s/3 percobaan, job ekspor 80 s/2 percobaan, `retry_after` 90 s. Temuan yang diperbaiki: clamd yang mengirim byte tanpa henti dulu tidak terpotong; renderer macet melempar exception di luar kontrak. Test: `tests/Integration/Operations/WorkerTimeBudgetTest.php`. Ulangi pengukuran di server Linux saat rilis.
+- Status: **CLOSED 2026-09-24** — keputusan didelegasikan pemilik proyek ke pelaksana, berdasar pengukuran lokal (macOS arm64, clamd 1.4, LibreOffice 26.8): scan 20 MB ≤1,9 s (dingin), arsip padat ±250 MB terurai 6,6 s; satu pass render ±1,7 s; signing ±0,01 s. Nilai: scan 30 s (satu deadline untuk seluruh scan: koneksi, pengiriman file, dan balasan clamd lengkap — disinkronkan 2026-09-30, [BE-151](BE-151.md)), render 30 s per pass (turun dari 60 s: ekspor PDF = 2 pass + signing harus < job 80 s), job finalisasi 75 s/3 percobaan, job ekspor 80 s/2 percobaan, `retry_after` 90 s. Temuan yang diperbaiki: clamd yang mengirim byte tanpa henti dulu tidak terpotong; renderer macet melempar exception di luar kontrak. Test: `tests/Integration/Operations/WorkerTimeBudgetTest.php`. Ulangi pengukuran di server Linux saat rilis.
 
 <a id="g16"></a>
 
@@ -228,5 +228,51 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
   3. prop Inertia `analytics` pada `GET /dashboard`, tanpa endpoint, migrasi, atau dependency baru (12 §44.1);
   4. tata letak Dashboard dan sistem visual bersama (07 §7.1, §17.1).
 - Wajib human security review sebelum merge (izin baru, 18 §17).
+
+<a id="g23"></a>
+
+## G23 — Audit kondisi kode 2026-09-27: kompensasi chunk dan batas scan ClamAV
+
+- Sumber: audit kode setelah redesign; `11A §21`, `10 §83`, `14 §48`.
+- Dampak/task owner: [BE-150](BE-150.md), [BE-151](BE-151.md); FE-58, FE-59.
+- Pihak berwenang: Pemilik proyek.
+- Status: **CLOSED 2026-09-30** oleh pemilik proyek:
+  1. BE-150: byte chunk yang sudah ditulis tetapi gagal dicatat di database langsung dihapus dan tidak diakui sebagai progress. Bila penghapusan itu juga gagal, kejadian dicatat di Technical Log hanya dengan id aman (`upload_id`, `chunk_index`, kelas exception), tanpa storage key (10 §83), dan error asli tetap dikembalikan. **Tidak** ada mekanisme sweep baru untuk objek yatim; sisa objek pada kegagalan ganda ini adalah batas yang diketahui.
+  2. BE-151: batas 30 detik berlaku untuk satu scan utuh (koneksi, pengiriman, balasan), bukan per tahap. Kalimat `14 §48` disinkronkan; nilai 30 detik tidak berubah.
+- Bukti: `handoff/2026-09-30-fix-miss-feature.md`.
+- Wajib human security review sebelum merge (private upload/storage dan scanner fail-closed, 18 §17).
+
+<a id="g24"></a>
+
+## G24 — Isian NSCMF serba-opsional, date picker, dan timeline diff
+
+- Sumber: permintaan pemilik 2026-09-30; `06 §5–48, §64–66`, `07 §22, §22.1, §24, §26, §36`, `12 §30, §32, §48`.
+- Dampak/task owner: [BE-152](BE-152.md), [BE-153](BE-153.md); FE-60, FE-61, FE-62.
+- Pihak berwenang: Pemilik proyek.
+- Status: **CLOSED 2026-09-30** oleh pemilik proyek:
+  1. Semua isian form NSCMF (Activation dan Change, semua subtype) opsional di setiap tahap. Hanya Request date yang wajib saat Submit/Resubmit.
+  2. Family, Subtype, mode penomoran, dan Request No manual tetap wajib saat Create.
+  3. Semua aturan "wajib bersyarat" dihapus: blok service, pasangan Plan/KPI, keterangan `Other`, dependensi migrasi, dan baris Result yang terisi sebagian.
+  4. Gerbang Result saat Forward dihapus.
+  5. Aturan format/konsistensi tetap berlaku untuk nilai yang diisi: IP/DNS/FQDN/MX, angka, Request date tidak di masa depan (first Submit), Target date tidak di masa lalu, dan pasangan Monitoring.
+  6. Semua input tanggal memakai Date Picker shadcn-vue (07 §22.1). Tampilan `d MMM yyyy`, nilai `YYYY-MM-DD`. `@internationalized/date` disetujui sebagai dependency langsung (08 §70).
+  7. Timeline memakai tabel split Field/Before(−)/After(+), langsung terbuka. Update Draft/Result tanpa perubahan disembunyikan di jalur baca, sedangkan audit tetap utuh. Kejadian lampiran menampilkan nama file (07 §36, 12 §48).
+- Bukti: `handoff/2026-09-30-optional-fields-date-picker-timeline.md`.
+
+<a id="g25"></a>
+
+## G25 — Tabel daftar, pencarian admin, dan halaman My Applications
+
+- Sumber: permintaan pemilik 2026-09-30; `07 §10, §34, §34.1, §37, §48, §57.1`, `12 §44, §47.1, §80, §88, §93`, `04 §12`.
+- Dampak/task owner: [BE-154](BE-154.md), [BE-155](BE-155.md); FE-63, FE-64, FE-65, FE-66, FE-67.
+- Pihak berwenang: Pemilik proyek.
+- Status: **CLOSED 2026-09-30** oleh pemilik proyek:
+  1. My Applications (`GET /my-applications`) memakai izin `nscmf.view` tanpa izin baru, dan hanya berisi record milik aktor, termasuk Draft dan Cancelled.
+  2. Filter My Applications minimal: search Request No, Status, sort, per page, dan pagination.
+  3. Record archived tidak tampil di My Applications; History tetap menjadi tempat mencarinya.
+  4. Semua tabel memakai pagination bernomor (Pagination shadcn-vue) dan rentang "1–25 of 120" di dalam kartu tabel.
+  5. Aksi baris Users/Roles/Teams berada di satu menu "⋯" (DropdownMenu shadcn-vue).
+  6. Turunan: Roles dan Teams dipaginasi di server dengan `page`/`per_page`/`q` seperti Users. Audit tidak mendapat search karena kontraknya tidak punya `q`. Select all di History hanya mencakup halaman yang tampil.
+- Bukti: `handoff/2026-09-30-tables-my-applications.md`.
 
 Removed concerns dari19A/20 tidak menjadi gap: HA/Redis/DR/backup/load/SLA architecture/automatedCD/publicCA/multi-server. Actual hostname/provider/Linux/path baru dicatat ketika deployment sungguhan diperintahkan; tidak memilih server sekarang.

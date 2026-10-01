@@ -2,6 +2,8 @@ import { type DOMWrapper, mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
 import type { ChangeSubtype } from '../types';
+import { datePicker, pickDate } from '@/testing/datePicker';
+
 import PlanSection, { type PlanFields } from './PlanSection.vue';
 
 function mountSection(
@@ -46,16 +48,13 @@ describe('PlanSection (FE-25)', () => {
         ]);
     });
 
-    it('AC2: the target date is a plain date field with no limit computed in the browser', async () => {
+    it('AC2: the target date uses the Date Picker with no limit computed in the browser', async () => {
         const wrapper = mountSection({ target_execution_date: '2020-01-01' });
 
-        const date = wrapper.get('#target_execution_date');
-        expect(date.attributes('type')).toBe('date');
-        expect(date.attributes('min')).toBeUndefined();
-        expect(date.attributes('max')).toBeUndefined();
-        expect(wrapper.get<HTMLInputElement>('#target_execution_date').element.value).toBe('2020-01-01');
+        expect(wrapper.find('input[type="date"]').exists()).toBe(false);
+        expect(datePicker(wrapper, 'target_execution_date').props('modelValue')).toBe('2020-01-01');
 
-        await date.setValue('2026-10-10');
+        await pickDate(wrapper, 'target_execution_date', '2026-10-10');
         expect(lastModel(wrapper).target_execution_date).toBe('2026-10-10');
     });
 
@@ -128,12 +127,16 @@ describe('PlanSection (FE-25)', () => {
         expect(unset.find('[data-testid="announcement-warning"]').exists()).toBe(false);
     });
 
-    it('keeps the rollback scenario as a required narrative of 4,000 characters', async () => {
+    it('G24: never tells the owner that a plan and its KPI must be filled together', () => {
+        expect(mountSection().text()).not.toMatch(/belong together|at submit/i);
+    });
+
+    it('keeps the rollback scenario an optional narrative of 4,000 characters, like every plan field (G24)', async () => {
         const wrapper = mountSection();
 
         const rollback = wrapper.get('#rollback_scenario');
         expect(rollback.attributes('maxlength')).toBe('4000');
-        expect(wrapper.get('label[for="rollback_scenario"]').find('[data-required]').exists()).toBe(true);
+        expect(wrapper.find('[data-required]').exists()).toBe(false);
 
         await rollback.setValue('Demo rollback');
         expect(lastModel(wrapper).rollback_scenario).toBe('Demo rollback');

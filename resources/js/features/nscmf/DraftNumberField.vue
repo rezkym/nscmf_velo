@@ -15,7 +15,6 @@ defineProps<{
     max?: number;
     help?: string;
     error?: string;
-    required?: boolean;
     disabled?: boolean;
 }>();
 
@@ -25,7 +24,7 @@ function onInput(event: Event): void {
 </script>
 
 <template>
-    <FormField :id="id" :label="label" :help="help" :error="error" :required="required">
+    <FormField :id="id" :label="label" :help="help" :error="error">
         <template #default="{ id: controlId, describedBy }">
             <div class="flex items-center gap-2">
                 <Input

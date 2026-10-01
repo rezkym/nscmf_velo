@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Administration\Users;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Administration\CreateUserRequest;
 use App\Http\Requests\Administration\EmptyBodyRequest;
-use App\Http\Requests\Administration\ListUsersRequest;
+use App\Http\Requests\Administration\ListAdministrationRequest;
 use App\Http\Requests\Administration\RoleIdsRequest;
 use App\Http\Requests\Administration\UserProfileRequest;
 use App\Http\Requests\Administration\UserTeamRequest;
@@ -23,9 +23,9 @@ final class UserController extends Controller
 {
     public function __construct(private readonly UserAdministrationService $users) {}
 
-    public function index(ListUsersRequest $request): Response
+    public function index(ListAdministrationRequest $request): Response
     {
-        return Inertia::render('Administration/Users/Index', $this->users->list(self::actor($request), $request->page(), $request->perPage()));
+        return Inertia::render('Administration/Users/Index', $this->users->list(self::actor($request), $request->listQuery()));
     }
 
     /** JSON, no-store: the only channel that ever carries the one-time password (12 §96.2). */

@@ -10,23 +10,12 @@ export interface ReviewActionsProps {
     recordVersion: number;
     businessStatus: BusinessStatus;
     archived: boolean;
-    family: 'ACTIVATION' | 'CHANGE';
     allowedActions: string[];
-    changeForwardReady?: boolean;
-    changeForwardReason?: string | null;
 }
 
-const props = withDefaults(defineProps<ReviewActionsProps>(), {
-    changeForwardReady: false,
-    changeForwardReason: null,
-});
+const props = defineProps<ReviewActionsProps>();
 
 const reviewable = computed(() => props.businessStatus === 'PENDING_REVIEW' && !props.archived);
-const forwardReason = computed(() =>
-    props.family === 'CHANGE' && !props.changeForwardReady
-        ? props.changeForwardReason?.trim() || 'Complete at least one Result and all started Results before forwarding.'
-        : null,
-);
 
 const actions = computed<RecordActionSpec[]>(() =>
     reviewable.value
@@ -59,7 +48,6 @@ const actions = computed<RecordActionSpec[]>(() =>
                   consequence: 'The approver pool can review this NSCMF.',
                   destination: 'Pending Approval',
                   input: 'comment',
-                  unavailableReason: forwardReason.value,
               },
           ]
         : [],

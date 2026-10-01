@@ -245,7 +245,7 @@ UI represents workbook business meaning; subtype validation follows `06`.
 
 ## 18. UF-CREATE-004 — Fill Change
 
-Purpose/Challenges/Maintenance/Problem/Service Impact/Plan/KPI/Target/Monitoring/Rollback/Announcement/Result. First Submit may have zero Result rows; before Reviewer Forward at least one complete Result row.
+Purpose/Challenges/Maintenance/Problem/Service Impact/Plan/KPI/Target/Monitoring/Rollback/Announcement/Result. Every field is optional except the request date at Submit; Result rows are optional and Reviewer Forward has no Result gate (06 §5, G24).
 
 ---
 
@@ -289,7 +289,7 @@ Forward/Return/Reject per explicit permission. Return/Reject reason mandatory.
 
 ## 27. UF-REVIEW-004 — Forward
 
-Locked current-state revalidation; Change Result gate; PENDING_REVIEW→PENDING_APPROVAL; effective Reviewed By actor stored; shared Approver pool.
+Locked current-state revalidation; no Result gate (G24); PENDING_REVIEW→PENDING_APPROVAL; effective Reviewed By actor stored; shared Approver pool.
 
 ## 28. UF-REVIEW-005 — Return
 

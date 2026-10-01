@@ -169,6 +169,21 @@ describe('AppLayout.vue', () => {
         expect(navHrefs).not.toContain('/administration');
     });
 
+    it('FE-67: links My Applications with nscmf.view, right after Create NSCMF', () => {
+        const hrefsFor = (permissions: string[]) => {
+            mockPageProps.value = {
+                auth: { user: { id: 7, username: 'req', name: 'Req' }, permissions, roles: [] },
+            };
+            return mount(AppLayout, { props: { title: 'x' } })
+                .findAllComponents(Link)
+                .map((link) => link.props('href'));
+        };
+
+        expect(hrefsFor(['nscmf.view.history'])).not.toContain('/my-applications');
+        const hrefs = hrefsFor(['nscmf.create', 'nscmf.view', 'nscmf.view.history']);
+        expect(hrefs.indexOf('/my-applications')).toBe(hrefs.indexOf('/nscmf/create') + 1);
+    });
+
     // Administration links go to the real pages (12 §114); there is no /administration landing route,
     // and audit pages are not part of FE-01..30, so an audit-only user gets no dead link.
     it('links each administration page by its own view permission and never a dead landing page', () => {

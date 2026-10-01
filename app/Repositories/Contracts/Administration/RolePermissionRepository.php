@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Contracts\Administration;
 
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Spatie\Permission\Models\Role;
 
@@ -25,6 +26,11 @@ interface RolePermissionRepository
      * @return Collection<int, Role>
      */
     public function allRolesWithPermissions(): Collection;
+
+    /**
+     * @return LengthAwarePaginator<int, Role>
+     */
+    public function paginateRolesWithPermissions(int $page, int $perPage, ?string $search): LengthAwarePaginator;
 
     public function createRole(string $name): Role;
 

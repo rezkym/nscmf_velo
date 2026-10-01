@@ -1,14 +1,13 @@
 import { type DOMWrapper, mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
-import type { ChangeSubtype } from '../types';
 import PurposeImpactSection, { type PurposeFields } from './PurposeImpactSection.vue';
 
 function mountSection(
     modelValue: PurposeFields = {},
-    props: { subtype?: ChangeSubtype; errors?: Record<string, string>; disabled?: boolean } = {},
+    props: { errors?: Record<string, string>; disabled?: boolean } = {},
 ): VueWrapper {
-    return mount(PurposeImpactSection, { props: { modelValue, subtype: 'MAINTENANCE', ...props } });
+    return mount(PurposeImpactSection, { props: { modelValue, ...props } });
 }
 
 function lastModel(wrapper: VueWrapper): PurposeFields {
@@ -26,24 +25,11 @@ function isRequired(wrapper: VueWrapper, id: string): boolean {
 }
 
 describe('PurposeImpactSection (FE-24)', () => {
-    it('AC1: follows the subtype matrix for the purpose and the challenges', () => {
-        const maintenance = mountSection({}, { subtype: 'MAINTENANCE' });
-        expect(isRequired(maintenance, 'maintenance_purpose')).toBe(true);
-        expect(maintenance.get('[data-testid="requirement-facing_challenges"]').text()).toBe('Optional');
-
-        for (const subtype of ['UPGRADE', 'EMERGENCY'] as const) {
-            const wrapper = mountSection({}, { subtype });
-            expect(isRequired(wrapper, 'maintenance_purpose')).toBe(false);
-            expect(wrapper.get('[data-testid="requirement-facing_challenges"]').text()).toBe('Required');
-        }
-    });
-
-    it('marks the identified problems and the service impacts required for every subtype', () => {
-        for (const subtype of ['MAINTENANCE', 'UPGRADE', 'EMERGENCY'] as const) {
-            const wrapper = mountSection({}, { subtype });
-            expect(wrapper.get('[data-testid="requirement-identified_problems"]').text()).toBe('Required');
-            expect(wrapper.get('[data-testid="requirement-service_impacts"]').text()).toBe('Required');
-        }
+    it('G24: marks no field or list as required; the subtype no longer plays a part', () => {
+        const wrapper = mountSection({ service_impacts: [{ impact_code: 'OTHER', other_description: null }] });
+        expect(isRequired(wrapper, 'maintenance_purpose')).toBe(false);
+        expect(wrapper.find('[data-required]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid^="requirement-"]').exists()).toBe(false);
     });
 
     it('AC2: offers all seven impact codes, including NOC361', () => {

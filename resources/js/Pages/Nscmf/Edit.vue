@@ -2,6 +2,7 @@
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
+import DatePicker from '@/components/DatePicker.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import RequestFeedback from '@/components/RequestFeedback.vue';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,6 @@ import SectionNavigator from '@/features/nscmf/SectionNavigator.vue';
 import SubmitPanel, { type SaveState } from '@/features/nscmf/SubmitPanel.vue';
 import {
     type ActivationDraftFields,
-    type ActivationSubtype,
     type ChangeDraftFields,
     type ChangeSubtype,
     FAMILY_LABELS,
@@ -246,13 +246,12 @@ const form = ref<HTMLElement | null>(null);
                                 :error="fieldErrors['header.request_date']"
                             >
                                 <template #default="{ id, describedBy }">
-                                    <Input
+                                    <DatePicker
                                         :id="id"
-                                        :model-value="header.request_date ?? ''"
+                                        :model-value="header.request_date ?? null"
+                                        @update:model-value="header.request_date = $event"
                                         data-testid="draft-request-date"
-                                        type="date"
                                         :aria-describedby="describedBy"
-                                        @update:model-value="header.request_date = String($event)"
                                     />
                                 </template>
                             </FormField>
@@ -260,21 +259,13 @@ const form = ref<HTMLElement | null>(null);
                     </SectionCard>
 
                     <template v-if="isActivation">
-                        <GeneralServiceSection
-                            v-model="activationFields"
-                            :subtype="record.subtype as ActivationSubtype"
-                            :errors="fieldErrors"
-                        />
+                        <GeneralServiceSection v-model="activationFields" :errors="fieldErrors" />
                         <BandwidthSection v-model="activationFields" :errors="fieldErrors" />
                         <NetworkHostingSection v-model="activationFields" :errors="fieldErrors" />
                         <SiteSection v-model="activationFields" :errors="fieldErrors" />
                     </template>
                     <template v-else>
-                        <PurposeImpactSection
-                            v-model="changeFields"
-                            :subtype="record.subtype as ChangeSubtype"
-                            :errors="fieldErrors"
-                        />
+                        <PurposeImpactSection v-model="changeFields" :errors="fieldErrors" />
                         <PlanSection
                             v-model="changeFields"
                             :subtype="record.subtype as ChangeSubtype"

@@ -14,12 +14,15 @@ use App\Services\Audit\SecurityAuditService;
 use App\Services\Security\CredentialService;
 use App\Services\Security\PermissionGate;
 use App\Services\Security\SessionService;
+use App\Support\Pagination;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Database\DatabaseManager;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 /**
+ * @phpstan-import-type AdministrationListQuery from \App\Http\Requests\Administration\ListAdministrationRequest
+ *
  * Role and permission administration on top of Spatie (04 §17, 11 §57, 12 §88–92). The
  * Superadmin role is protected: its name and full bundle never change.
  */
@@ -35,26 +38,43 @@ final readonly class RolePermissionAdministrationService
     ) {}
 
     /**
-     * @return list<array{id: int, name: string, is_protected: bool, permissions: list<string>}>
+     * @param  AdministrationListQuery  $query
+     * @return array{roles: list<array{id: int, name: string, is_protected: bool, permissions: list<string>}>, meta: array<string, int|null>, query: AdministrationListQuery}
      */
-    public function list(User $actor): array
+    public function list(User $actor, array $query): array
     {
         $this->gate->requireAll($actor, 'roles.view');
 
-        return $this->rows();
+        $paginator = $this->roles->paginateRolesWithPermissions($query['page'], $query['per_page'], $query['q']);
+
+        return [
+            'roles' => array_values(array_map(fn (Role $role): array => self::row($role), $paginator->items())),
+            'meta' => Pagination::meta($paginator),
+            'query' => $query,
+        ];
     }
 
     /**
+     * Every role, for the setup wizard; the caller checks the permission.
+     *
      * @return list<array{id: int, name: string, is_protected: bool, permissions: list<string>}>
      */
     public function rows(): array
     {
-        return array_values($this->roles->allRolesWithPermissions()->map(fn (Role $role): array => [
+        return array_values($this->roles->allRolesWithPermissions()->map(fn (Role $role): array => self::row($role))->all());
+    }
+
+    /**
+     * @return array{id: int, name: string, is_protected: bool, permissions: list<string>}
+     */
+    private static function row(Role $role): array
+    {
+        return [
             'id' => (int) $role->id,
             'name' => $role->name,
             'is_protected' => self::isProtected($role),
             'permissions' => array_values($role->permissions->map(fn (Permission $permission): string => $permission->name)->sort()->values()->all()),
-        ])->all());
+        ];
     }
 
     /**

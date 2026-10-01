@@ -17,6 +17,7 @@ use App\Repositories\Contracts\Attachment\AttachmentRepository;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -128,24 +129,31 @@ final readonly class AttachmentUploadService
         $key = $this->storage->write(PrivateStorage::CHUNKS, $buffer);
         fclose($buffer);
 
-        $accepted = $this->database->connection()->transaction(function () use ($session, $index, $size, $key, $sha256): bool {
-            $locked = $this->attachments->lockSession($session->id);
-            $this->assertUploading($locked);
-            $now = CarbonImmutable::now();
-            $chunk = $this->attachments->addChunk([
-                'upload_session_id' => $locked->id, 'chunk_index' => $index, 'size_bytes' => $size,
-                'storage_key' => $key, 'chunk_sha256' => $sha256, 'accepted_at' => $now,
-            ]);
-            if ($chunk !== null) {
-                $this->attachments->updateSession($locked, ['last_activity_at' => $now, 'expires_at' => self::expiry($now)]);
-            }
+        try {
+            $accepted = $this->database->connection()->transaction(function () use ($session, $index, $size, $key, $sha256): bool {
+                $locked = $this->attachments->lockSession($session->id);
+                $this->assertUploading($locked);
+                $now = CarbonImmutable::now();
+                $chunk = $this->attachments->addChunk([
+                    'upload_session_id' => $locked->id, 'chunk_index' => $index, 'size_bytes' => $size,
+                    'storage_key' => $key, 'chunk_sha256' => $sha256, 'accepted_at' => $now,
+                ]);
+                if ($chunk !== null) {
+                    $this->attachments->updateSession($locked, ['last_activity_at' => $now, 'expires_at' => self::expiry($now)]);
+                }
 
-            return $chunk !== null;
-        });
+                return $chunk !== null;
+            });
+        } catch (\Throwable $failure) {
+            // The bytes were written but never recorded: no progress is claimed for them (11A §21).
+            $this->discardUnacknowledged($session, $index, $key);
+
+            throw $failure;
+        }
 
         if (! $accepted) {
             // Another request accepted this index first; our bytes were never acknowledged.
-            $this->storage->delete($key);
+            $this->discardUnacknowledged($session, $index, $key);
             $existing = $this->attachments->findChunk($session->id, $index) ?? throw new \LogicException('Accepted chunk vanished.');
 
             return $this->duplicateOrConflict($session, $existing, $sha256);
@@ -196,6 +204,21 @@ final readonly class AttachmentUploadService
         });
 
         return $this->state($session->refresh());
+    }
+
+    /**
+     * Deletes chunk bytes that no metadata references. A failed delete is logged by safe ids
+     * only, never by storage key (10 §83), and never turns the refusal into a success.
+     */
+    private function discardUnacknowledged(UploadSession $session, int $index, string $key): void
+    {
+        try {
+            $this->storage->delete($key);
+        } catch (\Throwable $failure) {
+            Log::warning('An unacknowledged upload chunk could not be discarded.', [
+                'upload_id' => $session->public_id, 'chunk_index' => $index, 'exception' => $failure::class,
+            ]);
+        }
     }
 
     /** Deletes the bytes of an unfinished session's accepted chunks; their metadata stays. */

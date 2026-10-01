@@ -153,11 +153,14 @@ Permission-aware navigation baseline:
 ```text
 Dashboard
 Create NSCMF
+My Applications
 Review
 Approval
 History
 Administration
 ```
+
+`My Applications` (decided 2026-09-30, G25) is shown with `nscmf.view` (§34.1).
 
 No tenant switcher. No Team switcher for authorization. Hidden menu is UX convenience only.
 
@@ -333,7 +336,11 @@ Multi-section single-page operational form + section navigator. Web form is not 
 
 ## 22. Draft Validation
 
-Draft may be incomplete. Avoid showing every untouched required field as blocking error. Full errors appear on Submit/Resubmit with summary + inline errors. Warning distinct.
+Draft may be incomplete. Every NSCMF form field is optional; only the header request date is required at Submit/Resubmit (06 §5, G24, 2026-09-30). The required marker appears on the request date only (and on Family, Subtype and a Manual request number at Create). Submit/Resubmit errors (the request date and format rules of provided values) appear with summary + inline errors. Warning distinct.
+
+## 22.1 Date Input — decided 2026-09-30
+
+Every date input in the application uses the shadcn-vue Date Picker pattern (Popover + Calendar), never the browser's native date input. The trigger shows the chosen date as `d MMM yyyy` (for example `30 Sep 2026`) or a placeholder when empty; an optional date or filter can be cleared from the picker. The calendar offers labelled Month and Year selects next to its previous/next buttons, so a distant date needs no repeated paging. The value sent to the server stays a business date `YYYY-MM-DD`, and "today" follows the application timezone `Asia/Jakarta`. The picker never hides past dates, because an unchanged accepted past target date may remain (06 §40).
 
 ## 23. Autosave / Save Draft
 
@@ -356,7 +363,7 @@ No false Saved after optimistic conflict.
 
 Recommended sections: General/Service, Reference, Existing Service, New Service, RFS/SLA, NOC/Network, Bandwidth, Domain/DNS/Email/Hosting, Onsite Direct, Onsite POP, Attachments.
 
-Subtype controls requiredness. Repeated max-3 fields may use add/remove row patterns. Units visible separately from numeric values.
+Subtype does not make any field required (G24). Repeated max-3 fields may use add/remove row patterns. Units visible separately from numeric values.
 
 ## 25. Change
 
@@ -368,7 +375,7 @@ Service Impact is checkbox-style multi-select. Its options such as NOC15/NOC23/e
 
 Initial Draft may leave Result empty. Eligible owner at `PENDING_REVIEW` sees **Update Result of Changes**, not Edit Form.
 
-Only Result Summary, Performance Information, Status, max five rows. General planning fields read-only. Optimistic conflict applies. Reviewer sees readiness indicator; backend controls Forward.
+Only Result Summary, Performance Information, Status, max five rows. General planning fields read-only. Optimistic conflict applies. Forward has no Result gate, so no readiness indicator is shown (G24).
 
 ---
 
@@ -475,7 +482,17 @@ Archived separate badge.
 
 Data table optimized for retrieval. Archived separate from active default view. Export selection only authorized records.
 
+Selection (decided 2026-09-30, G25): a header checkbox selects or clears every row on the page shown. It reads as indeterminate while only some rows are selected. Selection never reaches rows on other pages.
+
 Team MAY be a display/filter criterion if product later finds it useful, but Team filter MUST NOT imply authorization boundary.
+
+## 34.1 My Applications — decided 2026-09-30 (G25)
+
+A data table of the records the signed-in user owns (`12 §47.1`), including never-submitted Drafts and Cancelled records. Archived records are not listed; History remains the place to find them.
+
+- columns: Request No (link to the record), Type, Request date, Status;
+- controls: search by Request No, a Status filter, sort, rows per page and page navigation;
+- permission: `nscmf.view`; no new permission.
 
 ## 35. Record Detail
 
@@ -488,6 +505,16 @@ Recommended tabs/sections:
 ## 36. Business Timeline
 
 Shows actor, business mutation/workflow/lifecycle action, timestamp, states, reason/comment, meaningful changes.
+
+Presentation — decided 2026-09-30 (G24):
+
+- each event shows its changes open, as a split table with the columns Field, Before and After, like a code-review diff;
+- Before cells use the destructive (red) tone with a `−` marker, After cells use the success (green) tone with a `+` marker; colour is never the only cue;
+- field names use the same human labels as Form Detail, and values the same formatting (enum labels, Yes/No, `—` for empty);
+- a repeatable row or site block is diffed per row (matched by its natural key) and per cell, never shown as raw JSON;
+- on narrow screens each changed field stacks its Before line above its After line;
+- a Draft or Result update that changed no field is not shown;
+- an attachment event shows its filename as a `+` (added) or `−` (removed) line.
 
 Routine View/download/export-access evidence does not flood Business Timeline.
 
@@ -506,6 +533,8 @@ or explicit audit.access.view
 Security Audit similarly uses `audit.security.view` + applicable authorization.
 
 No Team/scope prerequisite. Audit UI read-only; no purge-by-age; no credential/private-key secrets.
+
+Presentation — decided 2026-09-30 (G25): each audit stream is one data table (§57.1) with the columns Time, Event and Actor. Access Audit adds Record. Security Audit adds Outcome, Target user, Username entered and IP address. The filters sit in the table's control bar. There is no free-text search.
 
 The Technical Log cleanup setting MUST NOT be displayed or worded as an Audit cleanup setting. The UI SHOULD make the boundary explicit:
 
@@ -617,6 +646,8 @@ Group:
 
 No Unit/Division, Reviewer Scope, Approval Scope, or Spatie Teams UI.
 
+Users, Roles and Teams are data tables (§57.1) with search by name (and username for Users), rows per page and page navigation. Each row's actions sit in one "⋯" menu that lists only the actions the actor holds (decided 2026-09-30, G25).
+
 Normal permission assignment flow:
 
 ```text
@@ -705,6 +736,14 @@ Never expose internals/secrets.
 ## 57. Responsive
 
 Desktop full workflow; tablet reduced columns; mobile stacked and prioritized. Required reason/re-auth/security confirmation never dropped.
+
+## 57.1 Data Tables — decided 2026-09-30 (G25)
+
+Every list page uses one data-table pattern:
+
+- search, filters and rows per page (10, 25, 50, 100) sit in a control bar inside the table card;
+- page navigation (numbered pages with Previous/Next) and the range shown ("1–25 of 120") sit at the foot of the same card;
+- on narrow screens secondary columns may hide, and a wide table scrolls inside its card; the page itself never scrolls sideways.
 
 ## 58. Keyboard / Labels / Motion
 
@@ -819,6 +858,8 @@ UI MUST NOT:
 ## 66. Forms / Concurrency
 
 - [ ] Draft incomplete save;
+- [ ] only the request date carries a required marker in the NSCMF form;
+- [ ] every date input uses the Date Picker (22.1);
 - [ ] optimistic conflict accurate;
 - [ ] Service Impact multi-select;
 - [ ] Result-only narrow;

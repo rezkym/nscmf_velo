@@ -649,10 +649,10 @@ The set is intentionally small enough for manual exploration but broad enough to
 | Request No | Subtype | Current state | Archive | Scenario intent |
 |---|---|---|---:|---|
 | `DEMO-CHG-001` | MAINTENANCE | DRAFT | NO | incomplete Change Draft |
-| `DEMO-CHG-002` | MAINTENANCE | PENDING_REVIEW | NO | first Submit with zero Result rows still legal before Forward |
-| `DEMO-CHG-003` | UPGRADE | PENDING_REVIEW | NO | Result updated by owner; one+ complete Result, ready for Reviewer action |
+| `DEMO-CHG-002` | MAINTENANCE | PENDING_REVIEW | NO | first Submit with zero Result rows (Result is optional, G24) |
+| `DEMO-CHG-003` | UPGRADE | PENDING_REVIEW | NO | Result updated by owner; one+ complete Result |
 | `DEMO-CHG-004` | EMERGENCY | REVISION_REQUIRED | NO | Reviewer Return; Emergency still follows normal workflow |
-| `DEMO-CHG-005` | MAINTENANCE | PENDING_APPROVAL | NO | Reviewer Forward + complete Result requirement satisfied |
+| `DEMO-CHG-005` | MAINTENANCE | PENDING_APPROVAL | NO | Reviewer Forward with complete Results (no Result gate exists, G24) |
 | `DEMO-CHG-006` | UPGRADE | APPROVED | NO | multi-role actor participates across allowed stages; no mandatory SoD |
 | `DEMO-CHG-007` | EMERGENCY | REJECTED | NO | Approver Reject after successful Review |
 | `DEMO-CHG-008` | MAINTENANCE | CANCELLED | YES | Cancelled before first Submit, then archived |
@@ -904,7 +904,7 @@ Dataset MUST include at least:
 
 1. `PENDING_REVIEW` with **zero Result** rows (`DEMO-CHG-002`) to demonstrate legal first-Submit state;
 2. `PENDING_REVIEW` with one or more complete Results (`DEMO-CHG-003`);
-3. `PENDING_APPROVAL` with complete Result prerequisite satisfied (`DEMO-CHG-005`);
+3. `PENDING_APPROVAL` with complete Results (`DEMO-CHG-005`); Results are optional and not a Forward prerequisite (G24);
 4. an Approved Change with complete historical Results (`DEMO-CHG-006` or `009`).
 
 No demo record exceeds five Results.

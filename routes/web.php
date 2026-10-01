@@ -21,6 +21,7 @@ use App\Http\Controllers\Nscmf\AttachmentUploadController;
 use App\Http\Controllers\Nscmf\CreateNscmfController;
 use App\Http\Controllers\Nscmf\DownloadAttachmentController;
 use App\Http\Controllers\Nscmf\ExportController;
+use App\Http\Controllers\Nscmf\MyApplicationsController;
 use App\Http\Controllers\Nscmf\RecordController;
 use App\Http\Controllers\Nscmf\RecordTimelineController;
 use App\Http\Controllers\Nscmf\SaveChangeResultsController;
@@ -65,6 +66,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/approval/{record}', ApprovalDetailController::class)->whereNumber('record')->name('approval.show');
 
     Route::get('/history', HistoryController::class)->name('history.index');
+    Route::get('/my-applications', MyApplicationsController::class)->name('my-applications.index');
 
     Route::get('/nscmf/create', [CreateNscmfController::class, 'create'])->name('nscmf.create');
     Route::post('/nscmf', [CreateNscmfController::class, 'store'])->name('nscmf.store');

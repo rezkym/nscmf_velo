@@ -143,7 +143,49 @@ it('refuses a stale version without changing the record', function (): void {
         ->and(DB::table('nscmf_records')->where('id', $recordId)->value('record_version'))->toBe(2);
 });
 
-it('keeps the Draft and reports every submission rule that failed', function (array $overrides, array $expected): void {
+it('submits every subtype with nothing but the request date (06 §5, G24)', function (string $family, string $subtype): void {
+    $owner = Actors::requester();
+    $recordId = prepareRecord($owner, $family, $subtype, []);
+
+    signIn($owner)->from("/nscmf/{$recordId}/edit")->post("/nscmf/{$recordId}/submit", ['record_version' => 2])
+        ->assertSessionHasNoErrors()->assertRedirect("/nscmf/{$recordId}");
+
+    expect(DB::table('nscmf_records')->where('id', $recordId)->value('business_status'))->toBe('PENDING_REVIEW');
+})->with([
+    'Activation' => ['ACTIVATION', 'ACTIVATION'],
+    'Upgrade/Downgrade' => ['ACTIVATION', 'UPGRADE_DOWNGRADE'],
+    'Deactivation' => ['ACTIVATION', 'DEACTIVATION'],
+    'Maintenance' => ['CHANGE', 'MAINTENANCE'],
+    'Upgrade' => ['CHANGE', 'UPGRADE'],
+    'Emergency' => ['CHANGE', 'EMERGENCY'],
+]);
+
+it('submits a partly filled Activation: service block, Other reference and migrations need no completing (G24)', function (): void {
+    $owner = Actors::requester();
+    $recordId = prepareRecord($owner, 'ACTIVATION', 'UPGRADE_DOWNGRADE', [
+        'service_blocks' => [['service_context' => 'NEW', 'service_id' => 'SVC-1']],
+        'references' => [['reference_type' => 'OTHER', 'specification' => null]],
+        'migrate_domain' => true,
+        'migrate_hosting' => true,
+    ]);
+
+    signIn($owner)->from("/nscmf/{$recordId}/edit")->post("/nscmf/{$recordId}/submit", ['record_version' => 2])
+        ->assertSessionHasNoErrors()->assertRedirect("/nscmf/{$recordId}");
+});
+
+it('submits a partly filled Change: Other impact, half pair and started Result row need no completing (G24)', function (): void {
+    $owner = Actors::requester();
+    $recordId = prepareRecord($owner, 'CHANGE', 'EMERGENCY', [
+        'service_impacts' => [['impact_code' => 'OTHER', 'other_description' => null]],
+        'improvement_items' => [['row_no' => 1, 'plan_text' => 'Only a plan', 'target_kpi' => null]],
+        'results' => [['row_no' => 1, 'result_summary' => 'Partial', 'performance_information' => null, 'result_status' => null]],
+    ]);
+
+    signIn($owner)->from("/nscmf/{$recordId}/edit")->post("/nscmf/{$recordId}/submit", ['record_version' => 2])
+        ->assertSessionHasNoErrors()->assertRedirect("/nscmf/{$recordId}");
+});
+
+it('keeps the Draft and reports a provided value that breaks its format rule', function (array $overrides, array $expected): void {
     $owner = Actors::requester();
     $fields = array_merge(submittableChange(), $overrides);
     $recordId = Records::create($owner, 'CHANGE', 'MAINTENANCE');
@@ -158,18 +200,7 @@ it('keeps the Draft and reports every submission rule that failed', function (ar
         ->and(DB::table('nscmf_workflow_iterations')->count())->toBe(0)
         ->and(DB::table('business_audit_events')->where('event_type', 'SUBMITTED')->count())->toBe(0);
 })->with([
-    'missing purpose for Maintenance' => [['maintenance_purpose' => null], ['change.maintenance_purpose']],
-    'no identified problem' => [['identified_problems' => []], ['change.identified_problems']],
-    'no service impact' => [['service_impacts' => []], ['change.service_impacts']],
-    'impact OTHER without description' => [['service_impacts' => [['impact_code' => 'OTHER', 'other_description' => null]]], ['change.service_impacts.0.other_description']],
-    'half-started improvement pair' => [['improvement_items' => [['row_no' => 1, 'plan_text' => 'Only plan', 'target_kpi' => null]]], ['change.improvement_items.0.target_kpi']],
-    'no improvement pair' => [['improvement_items' => []], ['change.improvement_items']],
-    'missing target date' => [['target_execution_date' => null], ['change.target_execution_date']],
     'past target date on first submit' => [['target_execution_date' => '2026-09-21'], ['change.target_execution_date']],
-    'missing monitoring period' => [['monitoring_period_value' => null, 'monitoring_period_unit' => null], ['change.monitoring_period_value']],
-    'missing rollback' => [['rollback_scenario' => null], ['change.rollback_scenario']],
-    'missing announcement' => [['announcement_timing' => null], ['change.announcement_timing']],
-    'started but incomplete result row' => [['results' => [['row_no' => 1, 'result_summary' => 'Partial', 'performance_information' => null, 'result_status' => null]]], ['change.results.0.performance_information', 'change.results.0.result_status']],
 ]);
 
 it('requires the header date, and refuses a future date on first submit', function (): void {
@@ -188,7 +219,7 @@ it('requires the header date, and refuses a future date on first submit', functi
     signIn($owner)->post("/nscmf/{$recordId}/submit", ['record_version' => 4])->assertStatus(303);
 });
 
-it('reports the Activation submission rules, including dependencies and formats', function (array $overrides, array $expected): void {
+it('reports the Activation format rules of provided values', function (array $overrides, array $expected): void {
     $owner = Actors::requester();
     $recordId = Records::create($owner, 'ACTIVATION', 'ACTIVATION');
     signIn($owner)->patchJson("/nscmf/{$recordId}/draft", ['record_version' => 1, 'header' => ['request_date' => '2026-09-22'], 'activation' => array_merge(submittableActivation(), $overrides)])->assertOk();
@@ -198,21 +229,11 @@ it('reports the Activation submission rules, including dependencies and formats'
 
     expect(DB::table('nscmf_records')->where('id', $recordId)->value('business_status'))->toBe('DRAFT');
 })->with([
-    'missing customer' => [['customer_name' => null], ['activation.customer_name']],
-    'missing contact' => [['contact_name' => null], ['activation.contact_name']],
-    'missing RFS date' => [['installation_rfs_date' => null], ['activation.installation_rfs_date']],
-    'no new service block' => [['service_blocks' => []], ['activation.service_blocks']],
-    'incomplete new service block' => [['service_blocks' => [['service_context' => 'NEW', 'service_id' => 'SVC-1', 'service_status' => null, 'service_description' => null, 'service_location' => null]]], ['activation.service_blocks.0.service_status']],
-    // The persisted set is canonical (EXISTING before NEW), so the started EXISTING block is index 0.
-    'started optional existing block' => [['service_blocks' => [['service_context' => 'NEW', 'service_id' => 'SVC-1', 'service_status' => 'ACTIVATED', 'service_description' => 'd', 'service_location' => 'l'], ['service_context' => 'EXISTING', 'service_id' => 'SVC-0']]], ['activation.service_blocks.0.service_status']],
-    'reference OTHER without specification' => [['references' => [['reference_type' => 'OTHER', 'specification' => null]]], ['activation.references.0.specification']],
     'invalid WAN IP' => [['wan_ip' => 'not-an-ip'], ['activation.wan_ip']],
     'invalid gateway' => [['gateway' => '203.0.113.300'], ['activation.gateway']],
     'invalid LAN allocation' => [['lan_ip_allocation' => "10.10.0.0/24\nnonsense"], ['activation.lan_ip_allocation']],
     'invalid domain' => [['domain_name_1' => 'not a domain'], ['activation.domain_name_1']],
     'invalid DNS' => [['primary_dns' => 'dns.example.com'], ['activation.primary_dns']],
-    'domain migration without domain' => [['migrate_domain' => true, 'domain_name_1' => null], ['activation.domain_name_1']],
-    'hosting migration without platform' => [['migrate_hosting' => true], ['activation.hosting_platform', 'activation.hosting_capacity_gb']],
 ]);
 
 it('accepts optional network values that are well formed', function (): void {

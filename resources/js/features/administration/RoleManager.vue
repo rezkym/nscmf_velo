@@ -17,10 +17,11 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Card } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
+import ResourceTable, { type ColumnDef, type TablePaginationMeta } from '@/components/ResourceTable.vue';
+import RowActionsMenu, { type RowAction } from '@/components/RowActionsMenu.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { type SearchQuery, useSearchTable } from '@/composables/useTableVisit';
 import { pageDomainError } from '@/lib/apiErrors';
 import { groupBy, toggleItem } from '@/lib/utils';
 
@@ -30,20 +31,53 @@ export interface PermissionCatalogItem {
     description?: string;
 }
 
-export interface RoleRow {
+export interface RoleRow extends Record<string, unknown> {
     id: number;
     name: string;
     is_protected?: boolean;
     permissions: string[];
 }
 
-const props = withDefaults(defineProps<{ roles?: RoleRow[]; permissionCatalog?: PermissionCatalogItem[] }>(), {
-    roles: () => [],
-    permissionCatalog: () => [],
-});
+const props = withDefaults(
+    defineProps<{
+        roles?: RoleRow[];
+        permissionCatalog?: PermissionCatalogItem[];
+        meta?: TablePaginationMeta;
+        query?: SearchQuery;
+    }>(),
+    {
+        roles: () => [],
+        permissionCatalog: () => [],
+    },
+);
 
 const { can } = usePermissions();
 const page = usePage();
+
+const columns: ColumnDef[] = [
+    { key: 'name', label: 'Role' },
+    { key: 'permissions', label: 'Permissions' },
+];
+const { loading, paged, tableQuery, onQuery } = useSearchTable('/administration/roles', () => props.query);
+const row = (item: unknown) => item as RoleRow;
+
+/** The protected Superadmin role is never renamed or re-permissioned from here. */
+function roleActions(role: RoleRow): RowAction[] {
+    return [
+        {
+            label: 'Rename',
+            testId: `edit-role-${role.id}`,
+            visible: !role.is_protected && can('roles.update'),
+            run: () => openNameForm(role),
+        },
+        {
+            label: 'Permissions',
+            testId: `assign-permissions-${role.id}`,
+            visible: !role.is_protected && can('permissions.assign'),
+            run: () => openPermissions(role),
+        },
+    ];
+}
 
 const permissionGroups = computed(() => groupBy(props.permissionCatalog, (item) => item.group));
 
@@ -136,57 +170,36 @@ function savePermissions(role: RoleRow): void {
             <Button type="button" data-testid="create-role-btn" @click="openNameForm(null)"> Create role </Button>
         </div>
 
-        <Card class="gap-0 overflow-hidden py-0">
-            <Table>
-                <TableHeader class="bg-muted/50">
-                    <TableRow>
-                        <TableHead class="px-4 py-3">Role</TableHead>
-                        <TableHead class="px-4 py-3">Permissions</TableHead>
-                        <TableHead class="px-4 py-3 text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    <TableRow v-for="role in roles" :key="role.id" :data-testid="`role-row-${role.id}`">
-                        <TableCell class="px-4 py-3">
-                            <div class="flex items-center gap-2 font-medium">
-                                {{ role.name }}
-                                <Badge v-if="role.is_protected" variant="warning">Protected</Badge>
-                            </div>
-                        </TableCell>
-                        <TableCell class="px-4 py-3 text-muted-foreground"
-                            >{{ role.permissions.length }} permissions</TableCell
-                        >
-                        <TableCell class="whitespace-nowrap px-4 py-3 text-right">
-                            <template v-if="!role.is_protected">
-                                <Button
-                                    type="button"
-                                    v-if="can('roles.update')"
-                                    variant="ghost"
-                                    size="sm"
-                                    :data-testid="`edit-role-${role.id}`"
-                                    @click="openNameForm(role)"
-                                >
-                                    Rename
-                                </Button>
-                                <Button
-                                    type="button"
-                                    v-if="can('permissions.assign')"
-                                    variant="ghost"
-                                    size="sm"
-                                    :data-testid="`assign-permissions-${role.id}`"
-                                    @click="openPermissions(role)"
-                                >
-                                    Permissions
-                                </Button>
-                            </template>
-                        </TableCell>
-                    </TableRow>
-                    <TableEmpty v-if="roles.length === 0" :colspan="3" class="text-muted-foreground"
-                        >No roles yet.</TableEmpty
-                    >
-                </TableBody>
-            </Table>
-        </Card>
+        <ResourceTable
+            :columns="columns"
+            :items="roles"
+            :loading="loading"
+            :query="tableQuery"
+            :meta="meta"
+            :searchable="paged"
+            :paged="paged"
+            row-test-id="role-row"
+            empty-text="No roles yet."
+            caption="Roles"
+            @update:query="onQuery"
+        >
+            <template #cell-name="{ item }">
+                <div class="flex items-center gap-2 font-medium">
+                    {{ row(item).name }}
+                    <Badge v-if="row(item).is_protected" variant="warning">Protected</Badge>
+                </div>
+            </template>
+            <template #cell-permissions="{ item }">
+                <span class="text-muted-foreground">{{ row(item).permissions.length }} permissions</span>
+            </template>
+            <template #actions="{ item }">
+                <RowActionsMenu
+                    :label="`Actions for ${row(item).name}`"
+                    :actions="roleActions(row(item))"
+                    :data-testid="`row-actions-${row(item).id}`"
+                />
+            </template>
+        </ResourceTable>
     </div>
 
     <Dialog

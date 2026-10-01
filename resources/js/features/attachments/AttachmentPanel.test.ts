@@ -120,3 +120,76 @@ describe('Attachment panel (FE-40)', () => {
         expect(router.reload.mock.calls.length).toBe(calls);
     });
 });
+
+describe('Upload lifecycle labels (FE-58)', () => {
+    /** One-chunk server: initiate, accept, complete, then answer every poll with `poll`. */
+    function serve(poll: Record<string, unknown>) {
+        const base = {
+            upload_id: '01j0000000000000000000000a',
+            chunk_size: 5_242_880,
+            chunk_count: 1,
+            expires_at: '2026-09-25T08:00:00+07:00',
+        };
+        const reply = (status: number, data: Record<string, unknown>) =>
+            new Response(JSON.stringify({ data: { ...base, ...data } }), {
+                status,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        fetchMock.mockImplementation(((url: string, init: RequestInit) => {
+            const method = init.method ?? 'GET';
+            if (method === 'POST' && url.endsWith('/complete')) {
+                return Promise.resolve(reply(202, { status: 'ASSEMBLING', accepted_chunks: [1], missing_chunks: [] }));
+            }
+            if (method === 'POST') {
+                return Promise.resolve(reply(201, { status: 'UPLOADING', accepted_chunks: [], missing_chunks: [1] }));
+            }
+            if (method === 'PUT') {
+                return Promise.resolve(reply(200, { status: 'UPLOADING', accepted_chunks: [1], missing_chunks: [] }));
+            }
+            return Promise.resolve(reply(200, { accepted_chunks: [1], missing_chunks: [], ...poll }));
+        }) as unknown as () => Promise<Response>);
+    }
+
+    const row = (wrapper: ReturnType<typeof mountPanel>) => wrapper.get('[data-testid="upload-notes.txt"]');
+
+    it.each([
+        ['CLEAN', 'Ready', true],
+        ['INFECTED', 'Rejected — malware detected', false],
+        ['FAILED', 'Security scan failed — file not available', false],
+    ] as const)(
+        'AC2/AC3: a %s verdict reads "%s" and only CLEAN refreshes the list',
+        async (verdict, label, changed) => {
+            serve({ status: 'COMPLETED', attachment: { id: 3, security_status: verdict } });
+            const wrapper = mountPanel();
+            await choose(wrapper, new File(['hello'], 'notes.txt'));
+
+            await vi.waitFor(() => expect(row(wrapper).get('[role="status"]').text()).toContain(label));
+            expect(row(wrapper).text()).not.toContain('Processed');
+            expect(Boolean(wrapper.emitted('changed'))).toBe(changed);
+            wrapper.unmount();
+        },
+    );
+
+    it('AC1/AC4: while the file is assembled it reads "Assembling…" and shows no finished progress', async () => {
+        serve({ status: 'ASSEMBLING' });
+        const wrapper = mountPanel();
+        await choose(wrapper, new File(['hello'], 'notes.txt'));
+
+        await vi.waitFor(() => expect(row(wrapper).get('[role="status"]').text()).toContain('Assembling…'));
+        expect(row(wrapper).find('[role="progressbar"]').exists()).toBe(false);
+        expect(row(wrapper).text()).not.toContain('parts');
+        expect(wrapper.emitted('changed')).toBeUndefined();
+        wrapper.unmount();
+    });
+
+    it('AC1: a completed transport awaiting its verdict reads "Scanning for malware…", never Ready', async () => {
+        serve({ status: 'COMPLETED', attachment: { id: 3, security_status: 'PENDING' } });
+        const wrapper = mountPanel();
+        await choose(wrapper, new File(['hello'], 'notes.txt'));
+
+        await vi.waitFor(() => expect(row(wrapper).get('[role="status"]').text()).toContain('Scanning for malware…'));
+        expect(row(wrapper).text()).not.toContain('Ready');
+        expect(wrapper.emitted('changed')).toBeUndefined();
+        wrapper.unmount();
+    });
+});

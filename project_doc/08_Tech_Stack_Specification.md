@@ -1059,6 +1059,8 @@ vue-tsc
 
 Any additional runtime or development dependency not already approved by the project specifications requires explicit user approval before installation/commit.
 
+Approved 2026-09-30 by the project owner (G24): `@internationalized/date` as a direct dependency of the shadcn-vue Calendar/Date Picker (07 §22.1), at the version reka-ui already installs.
+
 ---
 
 # PART U — ACCEPTANCE / DOWNSTREAM

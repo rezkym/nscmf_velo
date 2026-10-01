@@ -12,7 +12,7 @@ defineProps<{
 
 <template>
     <AppLayout title="Access Audit">
-        <div class="mx-auto max-w-5xl space-y-6">
+        <div class="mx-auto max-w-6xl space-y-6">
             <PageHeader title="Access Audit" description="Read-only evidence. Entries cannot be edited or removed." />
             <AuditLog kind="access" :items="items" :meta="meta" :query="query" />
         </div>

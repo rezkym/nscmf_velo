@@ -102,7 +102,7 @@ function reloadCounts(): void {
                             You need an active team to create records. Contact an administrator.
                         </p>
                     </template>
-                    <Button as-child variant="outline">
+                    <Button v-if="can('nscmf.view.history')" as-child variant="outline">
                         <Link href="/history">History</Link>
                     </Button>
                 </template>

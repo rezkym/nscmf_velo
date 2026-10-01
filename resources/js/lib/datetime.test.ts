@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatCalendarDay, formatJakarta } from './datetime';
+import { formatBusinessDate, formatCalendarDay, formatJakarta } from './datetime';
+
+describe('formatBusinessDate', () => {
+    it('shows a business date as day, short month and year, never moved by the browser timezone', () => {
+        expect(formatBusinessDate('2026-09-30')).toBe('30 Sep 2026');
+        expect(formatBusinessDate('2027-01-01')).toBe('1 Jan 2027');
+    });
+});
 
 describe('formatCalendarDay', () => {
     it('shows a server calendar date as short month and day without shifting the day', () => {

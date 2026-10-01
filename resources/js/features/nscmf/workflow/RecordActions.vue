@@ -25,7 +25,6 @@ export interface RecordActionSpec {
     /** reason: mandatory 5..2000; comment: optional; optional-reason: optional `reason` field. */
     input: 'reason' | 'comment' | 'optional-reason';
     payload?: Record<string, string>;
-    unavailableReason?: string | null;
 }
 
 const props = withDefaults(
@@ -64,7 +63,7 @@ function eligible(action: RecordActionSpec): boolean {
 }
 
 function available(action: RecordActionSpec): boolean {
-    return eligible(action) && !pending.value && !conflict.value && !current(action)?.unavailableReason;
+    return eligible(action) && !pending.value && !conflict.value;
 }
 
 const visible = () => props.actions.filter(eligible);
@@ -210,21 +209,11 @@ function refresh(): void {
                 :variant="action.variant"
                 :data-testid="`${testidPrefix}-${action.key}`"
                 :disabled="!available(action)"
-                :aria-describedby="action.unavailableReason ? `${testidPrefix}-${action.key}-reason` : undefined"
                 @click="open(action, $event)"
             >
                 {{ action.label }}
             </Button>
         </div>
-        <template v-for="action in visible()" :key="`${action.key}-reason`">
-            <p
-                v-if="action.unavailableReason"
-                :id="`${testidPrefix}-${action.key}-reason`"
-                class="text-muted-foreground"
-            >
-                {{ action.unavailableReason }}
-            </p>
-        </template>
         <Alert v-if="conflict" variant="destructive">
             <AlertTitle>Record changed</AlertTitle>
             <AlertDescription class="grid justify-items-start gap-2">

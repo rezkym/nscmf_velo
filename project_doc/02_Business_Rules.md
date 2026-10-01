@@ -184,10 +184,10 @@ Keyword `Upgrade` alone MUST NOT determine family.
 `Identified Problem` is narrative input.
 
 ### BR-CHG-005 — Service Impact
-Multi-select from NOC15/NOC23/NOC361/Regional/POP/Customer/Other; minimum one at Submit/Resubmit; Other requires description.
+Multi-select from NOC15/NOC23/NOC361/Regional/POP/Customer/Other; optional at every stage; a description is optional for every value, including Other (G24, 2026-09-30).
 
 ### BR-CHG-006
-Maintenance Plan and Target KPI are paired; current validation requires at least one complete pair on Submit/Resubmit.
+Maintenance Plan and Target KPI are paired rows; both sides are optional at every stage (G24, 2026-09-30).
 
 ### BR-CHG-007
 Change represents target date, monitoring period, rollback scenario, and Maintenance Announcement.
@@ -198,17 +198,17 @@ Separate section with Result Summary, Performance Information, Status.
 ### BR-CHG-009 — No New Result State
 No EXECUTION_PENDING/RESULT_PENDING/COMPLETED business status.
 
-### BR-CHG-010 — Result Before Forward
-Applicable Result must be complete before leaving PENDING_REVIEW via Forward.
+### BR-CHG-010 — No Result Requirement Before Forward
+Removed 2026-09-30 (G24): Forward does not require any Result row.
 
-### BR-CHG-011 — First Submit May Have Zero Results
-Zero rows allowed; started row internally complete.
+### BR-CHG-011 — Results Are Optional
+Zero or partly filled rows allowed at every stage (G24).
 
 ### BR-CHG-012 — Narrow Result Capture
 Requester/owner + `nscmf.change.result.edit` + own Change + PENDING_REVIEW may edit Result-only fields.
 
-### BR-CHG-013 — Result Forward Gate
-At least one complete Result row before Forward; max five is capacity, not mandatory count.
+### BR-CHG-013 — Result Capacity
+Max five rows is capacity, not a mandatory count. No Result gate exists at Forward (G24).
 
 ---
 
@@ -328,7 +328,7 @@ No SUBMITTED/UNDER_REVIEW/REVIEWED/REOPENED/ARCHIVED as business state.
 ## 12. Submit
 
 ### BR-SUB-001
-Submit only if validation passes.
+Submit only if validation passes. The only required form value is the request date; every other NSCMF form field is optional, and provided values must still be valid (06 §5, G24).
 
 ### BR-SUB-002
 DRAFT → PENDING_REVIEW.
@@ -365,7 +365,7 @@ Return→REVISION_REQUIRED; Reject→REJECTED; Forward→PENDING_APPROVAL.
 Emergency still requires Review.
 
 ### BR-REV-008
-Change Forward fails if Result gate not satisfied.
+Change Forward has no Result gate (removed 2026-09-30, G24).
 
 ### BR-REV-009
 Return/Reject reason mandatory; Forward comment optional.
@@ -541,7 +541,7 @@ Reopen Approved/Rejected → REVISION_REQUIRED or PENDING_REVIEW and starts new 
 | Reviewer | shared/non-exclusive/permission-based |
 | Approver | shared/non-exclusive/one final approval |
 | Reopen | Approved/Rejected only; reason; Review/Revision target; new iteration |
-| Change Result | narrow owner edit; at least one complete row before Forward |
+| Change Result | narrow owner edit; optional, no Forward gate (G24) |
 | Attachment | optional; resumable 5 MiB; 20MB; CLEAN gate |
 | Initial production storage | persistent Laravel private local filesystem; no third-party object storage current MVP |
 | Audit | Business/Access/Security no age purge |

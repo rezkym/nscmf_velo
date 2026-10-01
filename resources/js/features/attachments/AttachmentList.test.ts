@@ -51,9 +51,12 @@ describe('Attachment list (FE-43)', () => {
         expect(
             wrapper.findAll('[data-testid^="attachment-download-"]').map((b) => b.attributes('data-testid')),
         ).toEqual(['attachment-download-4']);
-        expect(wrapper.get('[data-testid="attachment-1"]').text()).toContain('Scanning');
-        expect(wrapper.get('[data-testid="attachment-2"]').text()).toContain('Blocked');
-        expect(wrapper.get('[data-testid="attachment-3"]').text()).toContain('Scan failed');
+        // The scan states of 07 §28, word for word.
+        expect(wrapper.get('[data-testid="attachment-1"]').text()).toContain('Scanning for malware…');
+        expect(wrapper.get('[data-testid="attachment-2"]').text()).toContain('Rejected — malware detected');
+        expect(wrapper.get('[data-testid="attachment-3"]').text()).toContain(
+            'Security scan failed — file not available',
+        );
         expect(wrapper.get('[data-testid="attachment-4"]').text()).toContain('Ready');
     });
 

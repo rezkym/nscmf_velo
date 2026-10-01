@@ -8,7 +8,6 @@ use App\Domain\Audit\Enums\AccessAuditEvent;
 use App\Domain\Nscmf\Enums\NscmfFamily;
 use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Domain\Nscmf\RecordAccess;
-use App\Domain\Nscmf\ReviewForwardRules;
 use App\Domain\Nscmf\SubmissionWarnings;
 use App\Domain\Shared\DomainRuleException;
 use App\Models\Nscmf\NscmfRecord;
@@ -17,6 +16,7 @@ use App\Models\User;
 use App\Repositories\Contracts\Nscmf\DashboardMetricsRepository;
 use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Services\Audit\AccessAuditService;
+use App\Support\Pagination;
 use Carbon\CarbonImmutable;
 
 /**
@@ -77,16 +77,8 @@ final readonly class NscmfQueryService
             throw DomainRuleException::forbidden();
         }
         $this->accessAudit->record(actorUserId: $actor->id, event: AccessAuditEvent::RECORD_VIEWED, recordId: $record->id);
-        $state = $this->records->familyState($record);
-        $errors = ReviewForwardRules::errors($record->family, $state);
 
-        return [
-            ...$this->project($actor, $record, $state),
-            'forward_readiness' => [
-                'ready' => $errors === [],
-                'reason' => $errors === [] ? null : array_values($errors)[0][0],
-            ],
-        ];
+        return $this->project($actor, $record, $this->records->familyState($record));
     }
 
     /**
@@ -190,6 +182,32 @@ final readonly class NscmfQueryService
     public function approvalQueue(User $actor, array $query): array
     {
         return $this->queue($actor, 'nscmf.approve', NscmfStatus::PENDING_APPROVAL, $query);
+    }
+
+    /**
+     * My Applications (12 §47.1): the actor's own records in every status, never archived ones.
+     * Only search, status, sort and pagination apply; the owner and archive rule are fixed here.
+     *
+     * @param  ListQuery  $query
+     * @return array<string, mixed>
+     */
+    public function mine(User $actor, array $query): array
+    {
+        if (! $actor->can('nscmf.view')) {
+            throw DomainRuleException::forbidden();
+        }
+        $query = [
+            ...$query,
+            'family' => null,
+            'subtype' => null,
+            'archived' => false,
+            'request_date_from' => null,
+            'request_date_to' => null,
+            'owner_user_id' => $actor->id,
+            'team_id' => null,
+        ];
+
+        return $this->paginated($actor, $query, $query);
     }
 
     /**
@@ -353,14 +371,7 @@ final readonly class NscmfQueryService
 
         return [
             'items' => array_map(fn (NscmfRecord $record): array => self::queueRow($record), $paginator->items()),
-            'meta' => [
-                'current_page' => $paginator->currentPage(),
-                'from' => $paginator->firstItem(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'to' => $paginator->lastItem(),
-                'total' => $paginator->total(),
-            ],
+            'meta' => Pagination::meta($paginator),
             'query' => $query,
         ];
     }

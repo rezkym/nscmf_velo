@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import { Link, router } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
+import DatePicker from '@/components/DatePicker.vue';
+import ResourceTable, { type ColumnDef, type TableQuery } from '@/components/ResourceTable.vue';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/native-select';
 import { Field, FieldLabel } from '@/components/ui/field';
-import { Card, CardContent } from '@/components/ui/card';
-import { Empty, EmptyDescription } from '@/components/ui/empty';
-import { Item, ItemContent, ItemTitle } from '@/components/ui/item';
+import { NativeSelect } from '@/components/ui/native-select';
+import { useTableVisit } from '@/composables/useTableVisit';
 import { formatJakarta } from '@/lib/datetime';
 
 /** The server's echo of the accepted audit query (12 §13, §49–50). */
@@ -80,8 +78,23 @@ const props = defineProps<{
     query: AuditQuery;
 }>();
 
-const endpoint = computed(() => `/administration/audits/${props.kind}`);
 const events = computed(() => (props.kind === 'access' ? ACCESS_EVENTS : SECURITY_EVENTS));
+const COMMON_COLUMNS: ColumnDef[] = [
+    { key: 'at', label: 'Time' },
+    { key: 'event', label: 'Event' },
+    { key: 'actor', label: 'Actor' },
+];
+const columns = computed<ColumnDef[]>(() =>
+    props.kind === 'access'
+        ? [...COMMON_COLUMNS, { key: 'record', label: 'Record' }]
+        : [
+              ...COMMON_COLUMNS,
+              { key: 'outcome', label: 'Outcome' },
+              { key: 'target', label: 'Target user' },
+              { key: 'subject', label: 'Username entered' },
+              { key: 'ip', label: 'IP address' },
+          ],
+);
 
 function label(value: string): string {
     return value
@@ -112,134 +125,117 @@ const rows = computed(() =>
     })),
 );
 
+const { loading, visit: get } = useTableVisit(`/administration/audits/${props.kind}`);
+
+/** Only the allowlisted filters are sent, and the outcome only to the security stream (12 §49–50). */
 function visit(patch: Partial<AuditQuery>): void {
     const next = { ...props.query, ...patch };
-    const params: Record<string, string | number> = { page: next.page, per_page: next.per_page };
-    for (const key of ['event_type', 'actor_user_id', 'occurred_from', 'occurred_to', 'outcome'] as const) {
-        const value = next[key];
-        if (value !== null && value !== '' && (key !== 'outcome' || props.kind === 'security')) params[key] = value;
-    }
-    router.get(endpoint.value, params, { preserveState: true, preserveScroll: true });
+    get({
+        page: next.page,
+        per_page: next.per_page,
+        event_type: next.event_type,
+        actor_user_id: next.actor_user_id,
+        occurred_from: next.occurred_from,
+        occurred_to: next.occurred_to,
+        outcome: props.kind === 'security' ? next.outcome : null,
+    });
 }
 
-function filter(key: 'event_type' | 'outcome' | 'occurred_from' | 'occurred_to', event: Event): void {
+const tableQuery = computed<TableQuery>(() => ({ page: props.query.page, per_page: props.query.per_page }));
+function onTableQuery(table: TableQuery): void {
+    visit({ page: table.page, per_page: table.per_page });
+}
+const row = (item: unknown) => item as (typeof rows.value)[number];
+
+function filter(key: 'event_type' | 'outcome', event: Event): void {
     const value = (event.target as HTMLInputElement | HTMLSelectElement).value;
     visit({ [key]: value === '' ? null : value, page: 1 });
 }
 </script>
 
 <template>
-    <div class="grid gap-4">
-        <Card>
-            <CardContent>
-                <form class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Audit filters" @submit.prevent>
-                    <Field>
-                        <FieldLabel for="audit-filter-event">Event</FieldLabel>
-                        <NativeSelect
-                            id="audit-filter-event"
-                            class="w-full"
-                            data-testid="audit-filter-event"
-                            :model-value="query.event_type ?? ''"
-                            @change="filter('event_type', $event)"
-                        >
-                            <option value="">All events</option>
-                            <option v-for="event in events" :key="event" :value="event">{{ label(event) }}</option>
-                        </NativeSelect>
-                    </Field>
-                    <Field v-if="kind === 'security'">
-                        <FieldLabel for="audit-filter-outcome">Outcome</FieldLabel>
-                        <NativeSelect
-                            id="audit-filter-outcome"
-                            class="w-full"
-                            data-testid="audit-filter-outcome"
-                            :model-value="query.outcome ?? ''"
-                            @change="filter('outcome', $event)"
-                        >
-                            <option value="">All outcomes</option>
-                            <option v-for="outcome in OUTCOMES" :key="outcome" :value="outcome">
-                                {{ label(outcome) }}
-                            </option>
-                        </NativeSelect>
-                    </Field>
-                    <Field>
-                        <FieldLabel for="audit-filter-from">From</FieldLabel>
-                        <Input
-                            id="audit-filter-from"
-                            type="date"
-                            data-testid="audit-filter-from"
-                            :model-value="query.occurred_from ?? ''"
-                            @change="filter('occurred_from', $event)"
-                        />
-                    </Field>
-                    <Field>
-                        <FieldLabel for="audit-filter-to">To</FieldLabel>
-                        <Input
-                            id="audit-filter-to"
-                            type="date"
-                            data-testid="audit-filter-to"
-                            :model-value="query.occurred_to ?? ''"
-                            @change="filter('occurred_to', $event)"
-                        />
-                    </Field>
-                </form>
-            </CardContent>
-        </Card>
-
-        <Empty v-if="rows.length === 0" class="border p-8">
-            <EmptyDescription>No audit events match these filters.</EmptyDescription>
-        </Empty>
-        <Card v-else class="gap-0 py-0">
-            <ul class="divide-y">
-                <li v-for="row in rows" :key="row.id">
-                    <Item size="sm" class="rounded-none">
-                        <ItemContent>
-                            <ItemTitle>
-                                {{ row.event }}
-                                <Badge v-if="row.outcome" :variant="row.outcome === 'SUCCESS' ? 'success' : 'warning'">
-                                    {{ label(row.outcome) }}
-                                </Badge>
-                            </ItemTitle>
-                            <div class="grid gap-0.5 text-xs">
-                                <p class="text-muted-foreground">{{ row.at }} · {{ row.actor }}</p>
-                                <p v-if="row.target">Target user: {{ row.target }}</p>
-                                <p v-if="row.subject">Username entered: {{ row.subject }}</p>
-                                <p v-if="row.ip">IP address: {{ row.ip }}</p>
-                                <p v-if="row.record">
-                                    Record:
-                                    <Link
-                                        :href="`/nscmf/${row.record.id}`"
-                                        class="text-primary underline-offset-4 hover:underline"
-                                    >
-                                        {{ row.record.request_no ?? `#${row.record.id}` }}
-                                    </Link>
-                                </p>
-                            </div>
-                        </ItemContent>
-                    </Item>
-                </li>
-            </ul>
-        </Card>
-
-        <nav aria-label="Audit pages" class="flex items-center justify-between gap-3">
-            <Button
-                type="button"
-                variant="outline"
-                data-testid="audit-previous"
-                :disabled="meta.current_page <= 1"
-                @click="visit({ page: meta.current_page - 1 })"
-                >Previous</Button
+    <ResourceTable
+        :columns="columns"
+        :items="rows"
+        :loading="loading"
+        :query="tableQuery"
+        :meta="meta"
+        :searchable="false"
+        empty-text="No audit events match these filters."
+        :caption="kind === 'access' ? 'Access audit events' : 'Security audit events'"
+        @update:query="onTableQuery"
+    >
+        <template #filters>
+            <form class="flex flex-wrap items-end gap-3" aria-label="Audit filters" @submit.prevent>
+                <Field class="w-full sm:w-56">
+                    <FieldLabel for="audit-filter-event">Event</FieldLabel>
+                    <NativeSelect
+                        id="audit-filter-event"
+                        class="w-full"
+                        data-testid="audit-filter-event"
+                        :model-value="query.event_type ?? ''"
+                        @change="filter('event_type', $event)"
+                    >
+                        <option value="">All events</option>
+                        <option v-for="event in events" :key="event" :value="event">{{ label(event) }}</option>
+                    </NativeSelect>
+                </Field>
+                <Field v-if="kind === 'security'" class="w-full sm:w-40">
+                    <FieldLabel for="audit-filter-outcome">Outcome</FieldLabel>
+                    <NativeSelect
+                        id="audit-filter-outcome"
+                        class="w-full"
+                        data-testid="audit-filter-outcome"
+                        :model-value="query.outcome ?? ''"
+                        @change="filter('outcome', $event)"
+                    >
+                        <option value="">All outcomes</option>
+                        <option v-for="outcome in OUTCOMES" :key="outcome" :value="outcome">
+                            {{ label(outcome) }}
+                        </option>
+                    </NativeSelect>
+                </Field>
+                <Field class="w-full sm:w-44">
+                    <FieldLabel for="audit-filter-from">From</FieldLabel>
+                    <DatePicker
+                        id="audit-filter-from"
+                        data-testid="audit-filter-from"
+                        placeholder="Any date"
+                        :model-value="query.occurred_from ?? null"
+                        @update:model-value="visit({ occurred_from: $event, page: 1 })"
+                    />
+                </Field>
+                <Field class="w-full sm:w-44">
+                    <FieldLabel for="audit-filter-to">To</FieldLabel>
+                    <DatePicker
+                        id="audit-filter-to"
+                        data-testid="audit-filter-to"
+                        placeholder="Any date"
+                        :model-value="query.occurred_to ?? null"
+                        @update:model-value="visit({ occurred_to: $event, page: 1 })"
+                    />
+                </Field>
+            </form>
+        </template>
+        <template #cell-at="{ item }">{{ row(item).at }}</template>
+        <template #cell-outcome="{ item }">
+            <Badge v-if="row(item).outcome" :variant="row(item).outcome === 'SUCCESS' ? 'success' : 'warning'">
+                {{ label(row(item).outcome ?? '') }}
+            </Badge>
+            <template v-else>—</template>
+        </template>
+        <template #cell-target="{ item }">{{ row(item).target ?? '—' }}</template>
+        <template #cell-subject="{ item }">{{ row(item).subject ?? '—' }}</template>
+        <template #cell-ip="{ item }">{{ row(item).ip ?? '—' }}</template>
+        <template #cell-record="{ item }">
+            <Link
+                v-if="row(item).record"
+                :href="`/nscmf/${row(item).record?.id}`"
+                class="font-medium text-primary underline-offset-4 hover:underline"
             >
-            <span class="text-muted-foreground">
-                Page {{ meta.current_page }} of {{ Math.max(1, meta.last_page) }} · {{ meta.total }} events
-            </span>
-            <Button
-                type="button"
-                variant="outline"
-                data-testid="audit-next"
-                :disabled="meta.current_page >= meta.last_page"
-                @click="visit({ page: meta.current_page + 1 })"
-                >Next</Button
-            >
-        </nav>
-    </div>
+                {{ row(item).record?.request_no ?? `#${row(item).record?.id}` }}
+            </Link>
+            <template v-else>—</template>
+        </template>
+    </ResourceTable>
 </template>
