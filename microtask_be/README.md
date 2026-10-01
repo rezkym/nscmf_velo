@@ -4,7 +4,7 @@
 **Architecture:** Controller/Form Request → Service → Repository/Domain/Infrastructure contracts → adapter konkret. Service mengatur transaction, repository query/lock. Backend tetap authority.
 **Stack:** Laravel 13/PHP 8.5, Vue/Inertia/TypeScript strict, MySQL 8.4; local-native utama, database session/cache/queue.
 
-Paket berisi **149 microtask**, seluruh Phase 0–12, T00–T81, T05A/B/C, 14 slice T05, T18A–F, T19A–F, DG-01/DG-02. Ini dokumen pelaksanaan mendatang, bukan izin menjalankan seluruh backlog sekarang. **Status per task ada di tabel indeks.** Slice FE-01–30 sudah IMPLEMENTED/RECONCILED/DECIDED per 2026-09-23 dengan bukti di [handoff 2026-09-23](../handoff/2026-09-23-backend-fe01-30.md). **Seluruh task BE sisanya (BE-063–149) diimplementasikan atau dicatat evidencenya pada 2026-09-23** — lihat [laporan penyelesaian backend](../handoff/2026-09-23-backend-completion.md) untuk gate, keputusan terbuka (G04, G05, G10, G15, G16, G20) dan batas klaim. Semua tetap menunggu human review; tidak ada klaim Feature Done atau rilis.
+Paket berisi **151 microtask**: 149 task awal untuk Phase 0–12, T00–T81, T05A/B/C, 14 slice T05, T18A–F, T19A–F, DG-01/DG-02, ditambah dua perbaikan Phase 6 yang masih **PLANNED** ([BE-150](BE-150.md), [BE-151](BE-151.md)). Ini dokumen pelaksanaan mendatang, bukan izin menjalankan seluruh backlog sekarang. **Status per task ada di tabel indeks.** Slice FE-01–30 sudah IMPLEMENTED/RECONCILED/DECIDED per 2026-09-23 dengan bukti di [handoff 2026-09-23](../handoff/2026-09-23-backend-fe01-30.md). **Task BE-063–149 diimplementasikan atau dicatat evidencenya pada 2026-09-23** — lihat [laporan penyelesaian backend](../handoff/2026-09-23-backend-completion.md) untuk gate dan batas klaim. BE-150–151 diimplementasikan 2026-09-30 ([handoff](../handoff/2026-09-30-fix-miss-feature.md)). Semua tetap menunggu human review; tidak ada klaim Feature Done atau rilis.
 
 ## Cara memakai
 
@@ -38,6 +38,17 @@ Audit minimum berada pada Phase1 karena dipakai mutation pertama (pecahan awal T
 | 12 — Kesiapan release          | Checkpoint resmi [19](../project_doc/19_Task_Implementation_Plan.md), status belum dibuktikan | [BE-146](BE-146.md), [BE-147](BE-147.md), [BE-148](BE-148.md), [BE-149](BE-149.md)                                                                                                                                                                                                                                                                                                                                                                      |
 
 ## Indeks seluruh pekerjaan
+
+Tambahan perbaikan setelah audit kondisi kode 2026-09-27:
+
+| ID | Phase | Tujuan | Parent resmi | Prasyarat | Status |
+| --- | --- | --- | --- | --- | --- |
+| [BE-150](BE-150.md) | 6 | Kompensasi objek chunk ketika pencatatan database gagal | T40, T41, T46 | BE-094, BE-095, BE-102 | IMPLEMENTED 2026-09-30 (menunggu review) |
+| [BE-151](BE-151.md) | 6 | Batas 30 detik untuk seluruh pemindaian ClamAV | T43, T46 | BE-097, BE-101, BE-102 | IMPLEMENTED 2026-09-30 (menunggu review) |
+| [BE-152](BE-152.md) | 4 | Isian NSCMF opsional dan Forward tanpa gerbang Result (G24) | T22, T24 | BE-064, BE-070 | IMPLEMENTED 2026-09-30 (menunggu review) |
+| [BE-153](BE-153.md) | 5 | Timeline: sembunyikan update kosong, kirim nama file lampiran (G24) | T33 | BE-084 | IMPLEMENTED 2026-09-30 (menunggu review) |
+| [BE-154](BE-154.md) | 5 | Users/Roles/Teams: search dan paginasi server (G25) | T12, T13, T14 | BE-038, BE-039, BE-041 | IMPLEMENTED 2026-09-30 (menunggu review) |
+| [BE-155](BE-155.md) | 5 | My Applications: daftar record milik aktor (G25) | T37 | BE-086 | IMPLEMENTED 2026-09-30 (menunggu review) |
 
 | ID                  | Phase | Tujuan                                                                                                         | Parent resmi  | Prasyarat                                                                                                                                                                                                                             | Status  |
 | ------------------- | ----- | -------------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |

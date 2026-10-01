@@ -3800,5 +3800,51 @@
         "status": "PLANNED",
         "evidence": "NOT RUN",
         "kind": "EVIDENCE / REVIEW"
+    },
+    {
+        "key": "chunk_db_failure_compensation",
+        "phase": 6,
+        "parents": ["T40", "T41", "T46"],
+        "title": "Kompensasi objek chunk ketika pencatatan database gagal",
+        "refs": ["11A §21–22", "12 §55", "16 §33–34", "19 T40, T41, T46"],
+        "deps": ["upload_chunk", "upload_cancel", "upload_races"],
+        "files": ["app/Services/Attachment/AttachmentUploadService.php"],
+        "test": "tests/Feature/Attachment/AttachmentUploadTest.php",
+        "contract": "Kegagalan DB setelah private write tidak mengakui progress dan orphan chunk dikompensasi atau benar-benar cleanup-eligible; race winner bytes aman.",
+        "acceptance": [
+            "Storage write sukses lalu transaksi gagal tidak meninggalkan accepted progress palsu",
+            "Objek sementara tanpa metadata dikompensasi atau dapat ditemukan cleanup nyata",
+            "Replay/race tidak menghapus chunk authoritative request lain"
+        ],
+        "infrastructure": "Real MySQL 8.4 dan private storage dalam disposable test environment",
+        "fe": ["FE-41", "FE-42", "FE-58"],
+        "gaps": [],
+        "id": "BE-150",
+        "status": "PLANNED",
+        "evidence": "NOT RUN",
+        "kind": "BUG FIX"
+    },
+    {
+        "key": "clamav_whole_scan_deadline",
+        "phase": 6,
+        "parents": ["T43", "T46"],
+        "title": "Batas 30 detik untuk seluruh pemindaian ClamAV",
+        "refs": ["14 §48, §63", "16 §54–56", "19 T43, T46"],
+        "deps": ["clamav_adapter", "upload_rate_limit", "upload_races"],
+        "files": ["app/Infrastructure/Malware/ClamdScanner.php"],
+        "test": "tests/Integration/Malware/ClamdScannerTest.php",
+        "contract": "Satu deadline 30 detik meliputi connect, send, dan balasan clamd lengkap; timeout gagal tertutup.",
+        "acceptance": [
+            "Tidak ada anggaran 30 detik baru per fase scan",
+            "Timeout pada connect/send/reply tidak menghasilkan CLEAN",
+            "Explicit OK/FOUND, real clamd, dan worker time budget tetap benar"
+        ],
+        "infrastructure": "Controlled fake clamd for slow phases plus real ClamAV integration",
+        "fe": ["FE-43", "FE-58"],
+        "gaps": [],
+        "id": "BE-151",
+        "status": "PLANNED",
+        "evidence": "NOT RUN",
+        "kind": "BUG FIX"
     }
 ]
