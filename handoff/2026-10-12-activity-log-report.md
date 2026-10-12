@@ -67,8 +67,12 @@ Semua dijalankan pada 2026-10-12 terhadap MySQL 8.4 lokal (`nscmf_mysql`), denga
 
 Satu test lama perlu disinkronkan dengan spesifikasi baru: `SchemaT0511Test` kini memuat kolom `activity_log_export_id` (11 §36). CI GitHub belum dijalankan.
 
-## Belum selesai / perlu manusia
+## Review dan penggabungan
 
-- Human review dan **human security review** (18 §17): ekspor banyak record, Access Audit, storage privat, perubahan renderer.
-- Review pemilik atas cetakan kosong.
-- Push, PR, dan CI GitHub belum dilakukan.
+- 2026-10-12: pemilik menyatakan sudah me-review dan menyetujui pekerjaan ini, termasuk cetakan kosong. `feat/activity-log-report` lalu digabung (fast-forward) ke `staging` lokal atas permintaan pemilik.
+- Migrasi `2026_10_12_000001_create_activity_log_report_tables` dijalankan di database lokal `nscmf`, dan cetakan didaftarkan sebagai versi aktif kind `ACTIVITY_LOG`.
+
+## Belum selesai
+
+- Push, PR ke `main`, dan CI GitHub belum dilakukan (sesuai keputusan "lokal saja"). Merge ke `main` tetap oleh manusia.
+- Cetakan harus didaftarkan ulang di setiap lingkungan lain (server) karena file tidak masuk Git.
