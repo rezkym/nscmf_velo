@@ -34,14 +34,12 @@ it('registers an Activity Log template as its own kind without touching the acti
     $exit = Artisan::call('nscmf:template:register', ['path' => otherTemplateFile(), '--label' => 'NSCMF-Log-1.0', '--kind' => 'activity-log', '--activate' => true]);
 
     expect($exit)->toBe(0);
-    $versions = DB::table('nscmf_template_versions')->orderBy('id')->get();
-    expect($versions)->toHaveCount(2)
-        ->and($versions[0]->template_kind)->toBe('NSCMF_FORM')
-        ->and($versions[0]->mapping_version)->toBe('nscmf-form-3.0/v1')
-        ->and($versions[0]->is_active)->toBe(1)
-        ->and($versions[1]->template_kind)->toBe('ACTIVITY_LOG')
-        ->and($versions[1]->mapping_version)->toBe('nscmf-activity-log/v1')
-        ->and($versions[1]->is_active)->toBe(1);
+    $versions = DB::table('nscmf_template_versions')->orderBy('id')->get(['template_kind', 'mapping_version', 'is_active'])
+        ->map(fn (object $row): array => (array) $row)->all();
+    expect($versions)->toBe([
+        ['template_kind' => 'NSCMF_FORM', 'mapping_version' => 'nscmf-form-3.0/v1', 'is_active' => 1],
+        ['template_kind' => 'ACTIVITY_LOG', 'mapping_version' => 'nscmf-activity-log/v1', 'is_active' => 1],
+    ]);
 });
 
 it('keeps NSCMF exports on the NSCMF form while an Activity Log template is active', function (): void {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Export;
 
-use App\Domain\Export\NscmfFormMappingV1;
+use App\Domain\Export\TemplateKind;
 use App\Domain\Shared\DomainRuleException;
 use App\Infrastructure\Storage\PrivateStorage;
 use App\Models\Export\TemplateVersion;
@@ -23,7 +23,7 @@ final readonly class TemplateRegistryService
     ) {}
 
     /** Registers the workbook once per SHA-256; re-registering the same bytes is a no-op. */
-    public function register(string $path, string $label, bool $activate): TemplateVersion
+    public function register(string $path, string $label, bool $activate, TemplateKind $kind = TemplateKind::NSCMF_FORM): TemplateVersion
     {
         $sha256 = hash_file('sha256', $path);
         if ($sha256 === false) {
@@ -46,7 +46,8 @@ final readonly class TemplateRegistryService
                 'version_label' => $label,
                 'private_object_key' => $key,
                 'template_sha256' => $sha256,
-                'mapping_version' => NscmfFormMappingV1::VERSION,
+                'mapping_version' => $kind->mappingVersion(),
+                'template_kind' => $kind,
                 'is_active' => false,
             ]);
             $this->verifiedPath($template);
@@ -59,10 +60,10 @@ final readonly class TemplateRegistryService
         return $template;
     }
 
-    /** The active template, provided its stored bytes still match the registered hash. */
-    public function activeVerified(): TemplateVersion
+    /** The active template of $kind, provided its stored bytes still match the registered hash. */
+    public function activeVerified(TemplateKind $kind = TemplateKind::NSCMF_FORM): TemplateVersion
     {
-        $template = $this->exports->activeTemplate() ?? throw self::notReady();
+        $template = $this->exports->activeTemplate($kind) ?? throw self::notReady();
         $this->verifiedPath($template);
 
         return $template;
@@ -71,7 +72,7 @@ final readonly class TemplateRegistryService
     /** Absolute path of a template whose bytes match its registered hash (hash mismatch is critical). */
     public function verifiedPath(TemplateVersion $template): string
     {
-        if ($template->mapping_version !== NscmfFormMappingV1::VERSION || ! $this->storage->exists($template->private_object_key)) {
+        if ($template->mapping_version !== $template->template_kind->mappingVersion() || ! $this->storage->exists($template->private_object_key)) {
             throw self::notReady();
         }
         $path = $this->storage->localPath($template->private_object_key);

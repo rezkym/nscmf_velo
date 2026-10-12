@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Export;
 
+use App\Domain\Export\TemplateKind;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $private_object_key
  * @property string $template_sha256
  * @property string $mapping_version
+ * @property TemplateKind $template_kind
  * @property bool $is_active
  */
 class TemplateVersion extends Model
@@ -26,6 +28,6 @@ class TemplateVersion extends Model
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return ['is_active' => 'boolean', 'template_kind' => TemplateKind::class];
     }
 }

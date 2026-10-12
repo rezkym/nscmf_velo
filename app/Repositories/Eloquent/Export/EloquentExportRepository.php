@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Eloquent\Export;
 
 use App\Domain\Export\ExportStatus;
+use App\Domain\Export\TemplateKind;
 use App\Models\Export\ExportArtifact;
 use App\Models\Export\ExportBatch;
 use App\Models\Export\ExportRequest;
@@ -16,9 +17,9 @@ use Carbon\CarbonImmutable;
 
 final class EloquentExportRepository implements ExportRepository
 {
-    public function activeTemplate(): ?TemplateVersion
+    public function activeTemplate(TemplateKind $kind): ?TemplateVersion
     {
-        return TemplateVersion::query()->where('is_active', true)->latest('id')->first();
+        return TemplateVersion::query()->where('template_kind', $kind->value)->where('is_active', true)->latest('id')->first();
     }
 
     public function templateBySha(string $sha256): ?TemplateVersion
@@ -33,7 +34,7 @@ final class EloquentExportRepository implements ExportRepository
 
     public function activateTemplate(TemplateVersion $template): void
     {
-        TemplateVersion::query()->whereKeyNot($template->id)->update(['is_active' => false]);
+        TemplateVersion::query()->where('template_kind', $template->template_kind->value)->whereKeyNot($template->id)->update(['is_active' => false]);
         $template->forceFill(['is_active' => true])->save();
     }
 
