@@ -45,16 +45,23 @@ test('T82F: a selected Activity Log entry is exported with visible progress and 
     await expect(dialog.getByTestId('prepared-name')).toHaveValue(requester.name);
     await dialog.getByTestId('submit-export').click();
 
-    const job = page.locator('[data-testid^="log-export-"]').first();
+    const job = page.getByTestId('log-export-latest');
     await expect(job).toContainText('Queued');
     await expect(job).toContainText('0%');
+    await expect(page.getByTestId('exports-running')).toHaveText('1');
 
     runQueuedJobs();
     await expect(job).toContainText('Ready', { timeout: 30_000 });
     await expect(job).toContainText('100%');
+    await expect(page.getByTestId('exports-running')).toHaveCount(0);
     const download = page.waitForEvent('download');
     await job.getByRole('button', { name: 'Download' }).click();
     expect((await download).suggestedFilename()).toMatch(
         /^nscmf-activity-log-\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}\.xlsx$/,
     );
+
+    await job.getByRole('button', { name: 'View all exports' }).click();
+    const panel = page.getByRole('dialog', { name: 'Exports' });
+    await expect(panel).toContainText('Files are kept for 7 days.');
+    await expect(panel.locator('[data-export-id]').first()).toContainText('Ready');
 });

@@ -1,4 +1,4 @@
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ActivityLogPageProps, LogItem, LogQuery } from '@/features/reports/types';
@@ -132,10 +132,56 @@ describe('Activity Log page (07 §34.2)', () => {
         expect(wrapper.find('[data-testid="selection-count"]').exists()).toBe(false);
     });
 
-    it('offers Export only with the export permission', () => {
-        expect(mountLog().find('[data-testid="open-export"]').exists()).toBe(true);
+    it('offers Export and the Exports panel only with the export permission', () => {
+        const allowed = mountLog();
+        expect(allowed.find('[data-testid="open-export"]').exists()).toBe(true);
+        expect(allowed.find('[data-testid="open-exports"]').exists()).toBe(true);
 
         resetInertia({ auth: { permissions: ['nscmf.view.history'] } });
-        expect(mountLog().find('[data-testid="open-export"]').exists()).toBe(false);
+        const denied = mountLog();
+        expect(denied.find('[data-testid="open-export"]').exists()).toBe(false);
+        expect(denied.find('[data-testid="open-exports"]').exists()).toBe(false);
+    });
+
+    it('opens the Exports panel from the toolbar and counts the exports still running', async () => {
+        const job = (id: number, status: 'QUEUED' | 'PROCESSING' | 'READY') => ({
+            id,
+            format: 'XLSX',
+            status,
+            progress_percent: status === 'READY' ? 100 : 0,
+            stage: status === 'PROCESSING' ? 'PREPARING' : status,
+            entry_count: 2,
+            requested_at: '2026-09-01T03:00:00+00:00',
+            ready_at: null,
+            expires_at: null,
+            failure_code: null,
+            download_url: null,
+        });
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(
+                async () =>
+                    new Response(JSON.stringify({ data: [job(3, 'QUEUED'), job(2, 'PROCESSING'), job(1, 'READY')] }), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' },
+                    }),
+            ),
+        );
+        const wrapper = mountLog();
+        await flushPromises();
+
+        const button = wrapper.get('[data-testid="open-exports"]');
+        expect(button.text()).toContain('Exports');
+        expect(wrapper.get('[data-testid="exports-running"]').text()).toBe('2');
+        expect(button.attributes('aria-label')).toBe('Exports, 2 running');
+
+        await button.trigger('click');
+        await flushPromises();
+        expect(document.body.querySelector('[data-testid="log-exports-panel"]')?.textContent).toContain(
+            'Files are kept for 7 days.',
+        );
+
+        wrapper.unmount();
+        vi.unstubAllGlobals();
     });
 });
