@@ -69,7 +69,8 @@ describe('Activity Log exports panel (07 §34.2)', () => {
         expect(ids).toEqual(['7', '6']);
         // A ready file in the panel needs no bar; the Download link says it all.
         expect(panelRow(7)?.querySelector('[role="progressbar"]')).toBeNull();
-        expect(panelRow(7)?.textContent).toContain('100%');
+        expect(panelRow(7)?.textContent).not.toContain('100%');
+        expect(panelRow(7)?.textContent).toContain('Available until');
         expect(panelRow(7)?.textContent).toContain('29 entries');
 
         respond({ data: job('READY', { progress_percent: 100 }) });

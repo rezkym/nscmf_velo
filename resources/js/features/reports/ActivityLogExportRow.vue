@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileSpreadsheet, FileText } from '@lucide/vue';
+import { Download, FileSpreadsheet, FileText } from '@lucide/vue';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,10 @@ import { formatJakarta } from '@/lib/datetime';
 
 import { STAGE_LABELS, entryCount, type LogExportJob } from './types';
 
-/** One Activity Log export: stage, percentage, retention and Download (07 §34.2). */
+/**
+ * One Activity Log export: stage, percentage, retention and Download (07 §34.2). The plain form is
+ * the panel row: borderless, and a ready file shows a Download link instead of a full bar.
+ */
 withDefaults(defineProps<{ job: LogExportJob; downloadTestId: string; plain?: boolean }>(), { plain: false });
 defineEmits<{ (e: 'download'): void }>();
 </script>
@@ -20,7 +23,7 @@ defineEmits<{ (e: 'download'): void }>();
             <FileText v-if="job.format === 'PDF'" class="size-5" aria-hidden="true" />
             <FileSpreadsheet v-else class="size-5" aria-hidden="true" />
         </ItemMedia>
-        <ItemContent class="min-w-0 grow basis-60 gap-2">
+        <ItemContent class="min-w-0 grow gap-2" :class="plain ? 'basis-40' : 'basis-60'">
             <ItemTitle>
                 {{ job.format }} · {{ entryCount(job.entry_count) }}
                 <Badge
@@ -32,7 +35,7 @@ defineEmits<{ (e: 'download'): void }>();
                 </Badge>
             </ItemTitle>
             <div
-                v-if="job.status === 'QUEUED' || job.status === 'PROCESSING' || job.status === 'READY'"
+                v-if="job.status === 'QUEUED' || job.status === 'PROCESSING' || (job.status === 'READY' && !plain)"
                 class="flex items-center gap-3"
             >
                 <Progress :model-value="job.progress_percent" class="h-2" :aria-label="`Export ${job.id} progress`" />
@@ -56,10 +59,13 @@ defineEmits<{ (e: 'download'): void }>();
                 v-if="job.status === 'READY' && job.download_url"
                 type="button"
                 size="sm"
+                :variant="plain ? 'link' : 'default'"
+                :class="plain ? 'px-0' : undefined"
                 :data-testid="downloadTestId"
                 @click="$emit('download')"
             >
                 Download
+                <Download v-if="plain" aria-hidden="true" />
             </Button>
             <slot name="actions" />
         </ItemActions>
