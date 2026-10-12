@@ -49,6 +49,10 @@ Tambahan perbaikan setelah audit kondisi kode 2026-09-27:
 | [BE-153](BE-153.md) | 5 | Timeline: sembunyikan update kosong, kirim nama file lampiran (G24) | T33 | BE-084 | IMPLEMENTED 2026-09-30 (menunggu review) |
 | [BE-154](BE-154.md) | 5 | Users/Roles/Teams: search dan paginasi server (G25) | T12, T13, T14 | BE-038, BE-039, BE-041 | IMPLEMENTED 2026-09-30 (menunggu review) |
 | [BE-155](BE-155.md) | 5 | My Applications: daftar record milik aktor (G25) | T37 | BE-086 | IMPLEMENTED 2026-09-30 (menunggu review) |
+| [BE-156](BE-156.md) | 7 | Jenis cetakan per kind dan skema ekspor Activity Log (G26) | T82A | BE-105, BE-019 | IMPLEMENTED 2026-10-12 (menunggu review) |
+| [BE-157](BE-157.md) | 7 | Pemetaan dan patch workbook Activity Log (G26) | T82B | BE-156, BE-107 | IMPLEMENTED 2026-10-12 (menunggu review) |
+| [BE-158](BE-158.md) | 7 | Halaman Activity Log: filter, visibilitas, sumber kolom (G26) | T82C | BE-086, BE-156 | IMPLEMENTED 2026-10-12 (menunggu review) |
+| [BE-159](BE-159.md) | 8 | Ekspor Activity Log asinkron dengan progres (G26) | T82D | BE-157, BE-158, BE-109 | IMPLEMENTED 2026-10-12 (menunggu review) |
 
 | ID                  | Phase | Tujuan                                                                                                         | Parent resmi  | Prasyarat                                                                                                                                                                                                                             | Status  |
 | ------------------- | ----- | -------------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |

@@ -280,9 +280,9 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
 ## G26 — Laporan Activity Log (NSCMF Activity Logging Form) dan ekspor XLSX/PDF
 
 - Sumber: permintaan pemilik 2026-10-12; contoh `NSCMF-Log-Example.xlsx` dan foto formulir kertas; `01 §8 (57)`, `02 §20A`, `03 §44A`, `04 §12`, `07 §34.2`, `09 §63A`, `10 §61A`, `11 §5.3/§36/§41/§44A`, `12 §47.2`, `13 §49A`, `14 §70A`, `16 §60A`, `19 T82`, `docs/activity-log-template-mapping.md`.
-- Dampak/task owner: T82; BE-156..BE-161; FE-68..FE-70.
+- Dampak/task owner: T82; [BE-156](BE-156.md)..[BE-159](BE-159.md); FE-68..FE-70.
 - Pihak berwenang: Pemilik proyek.
-- Status: **CLOSED 2026-10-12** (keputusan) oleh pemilik proyek:
+- Status: **CLOSED 2026-10-12** oleh pemilik proyek (implementasi: [handoff](../handoff/2026-10-12-activity-log-report.md)):
   1. Kolom Customer Name: Activation = `customer_name`; Change = baris pertama `maintenance_purpose` (form Change tidak punya nama pelanggan), dipendekkan agar muat satu baris.
   2. Site Location NOC15/NOC23 otomatis dari Service Impact entri Change yang diekspor, bisa diubah saat ekspor; kolom NOC Infrastructure = Service Impact (Change), kosong (Activation).
   3. Prepared By default pengekspor + tanggal ekspor; Acknowledge By opsional; keduanya bisa diketik manual.
