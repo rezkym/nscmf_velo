@@ -29,10 +29,11 @@ is never committed (`.gitignore`), and neither is the example, which holds real 
 | Prepared By name / date | `A52` / `A54` (date serial) |
 | Acknowledge By name / date | `V52` / `V54` (date serial) |
 
-Entry rows are 9–48 (merges `A:B`, `C:F`, `G:K`, `L:T`, `U:AE`, `AF:AO`). Customer Name and NOC
-Infrastructure are cut to 42 characters with `…` so they stay inside their merged cell: a real
-LibreOffice render on 2026-10-12 showed about 44 characters of Aptos Narrow fitting the column, so
-50 was clipped. The web page shows the whole first line.
+Entry rows are 9–48 (merges `A:B`, `C:F`, `G:K`, `L:T`, `U:AE`, `AF:AO`). Customer Name is cut to
+42 characters and NOC Infrastructure to 36 with `…`, so each stays inside its merged cell: a real
+LibreOffice render on 2026-10-12 showed about 44 characters fitting the Customer Name column and
+fewer in the narrower NOC column. NOC Infrastructure lists the Service Impact labels of the form
+(`NOC15, NOC23, NOC361, Regional, POP, Customer, Other`). The web page shows the whole first line.
 
 Dates are written as numbers in cells formatted `d-mmm-yy` (built-in format 15), so the XLSX keeps
 real dates. That built-in format follows the renderer's locale; the renderer therefore runs with

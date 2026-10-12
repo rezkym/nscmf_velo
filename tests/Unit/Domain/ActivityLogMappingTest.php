@@ -73,13 +73,17 @@ it('labels every subtype the way the paper log does', function (string $subtype,
     ['EMERGENCY', 'Emergency'],
 ]);
 
-it('keeps Customer Name and NOC Infrastructure on one line of at most 42 characters', function (): void {
+it('keeps Customer Name (42) and NOC Infrastructure (36) on one line, with the form\'s Service Impact labels', function (): void {
     $long = str_repeat('Demo very long purpose ', 5);
     $fill = ActivityLogMappingV1::fill(logSnapshot([
         logEntry('X-1', 'MAINTENANCE', "First line of the purpose\nsecond line never shown"),
         logEntry('X-2', 'MAINTENANCE', $long),
         logEntry('X-3', 'ACTIVATION', null),
     ]));
+
+    $impacts = ActivityLogMappingV1::fill(logSnapshot([logEntry('X-4', 'MAINTENANCE', null, ['NOC15', 'NOC23', 'NOC361', 'REGIONAL', 'POP', 'CUSTOMER', 'OTHER'])]));
+    expect($impacts['text']['AF9'])->toBe('NOC15, NOC23, NOC361, Regional, POP…')
+        ->and(mb_strlen($impacts['text']['AF9']))->toBeLessThanOrEqual(36);
 
     expect($fill['text']['U9'])->toBe('First line of the purpose')
         ->and(mb_strlen($fill['text']['U10']))->toBe(42)
