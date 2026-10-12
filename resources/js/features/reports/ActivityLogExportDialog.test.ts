@@ -53,7 +53,7 @@ function mountDialog(overrides: Record<string, unknown> = {}) {
 
 function sentBody(): Record<string, unknown> {
     const init = fetchMock.mock.calls.at(-1)?.[1] as RequestInit;
-    return JSON.parse(String(init.body)) as Record<string, unknown>;
+    return JSON.parse(init.body as string) as Record<string, unknown>;
 }
 
 const byTestId = (id: string) => document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
@@ -123,10 +123,18 @@ describe('Activity Log export dialog (07 §34.2)', () => {
 
     it('keeps PDF unavailable without a renderer and shows the server refusal', async () => {
         fetchMock.mockResolvedValueOnce(
-            new Response(JSON.stringify({ code: 'REPORT_TOO_LARGE', message: 'An export holds at most 1000 entries. Narrow the filters.', errors: {}, context: {} }), {
-                status: 422,
-                headers: { 'Content-Type': 'application/json' },
-            }),
+            new Response(
+                JSON.stringify({
+                    code: 'REPORT_TOO_LARGE',
+                    message: 'An export holds at most 1000 entries. Narrow the filters.',
+                    errors: {},
+                    context: {},
+                }),
+                {
+                    status: 422,
+                    headers: { 'Content-Type': 'application/json' },
+                },
+            ),
         );
         mountDialog({ pdfAvailable: false });
         expect(byTestId('format-PDF')?.getAttribute('disabled')).not.toBeNull();

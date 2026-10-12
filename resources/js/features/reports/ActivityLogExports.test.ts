@@ -29,7 +29,9 @@ function job(status: LogExportJob['status'], extra: Partial<LogExportJob> = {}):
 }
 
 function respond(body: unknown, status = 200): void {
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }));
+    fetchMock.mockResolvedValueOnce(
+        new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }),
+    );
 }
 
 beforeEach(() => {
@@ -65,7 +67,9 @@ describe('Activity Log export progress (07 §34.2)', () => {
         const wrapper = mount(ActivityLogExports, { props: { pollMs: 60_000 } });
         await flushPromises();
 
-        (wrapper.vm as unknown as { track: (job: LogExportJob) => void }).track(job('PROCESSING', { progress_percent: 45 }));
+        (wrapper.vm as unknown as { track: (job: LogExportJob) => void }).track(
+            job('PROCESSING', { progress_percent: 45 }),
+        );
         await flushPromises();
 
         const text = wrapper.get('[data-testid="log-export-7"]').text();

@@ -51,7 +51,12 @@ function props(overrides: Partial<ActivityLogPageProps> = {}): ActivityLogPagePr
         items: ITEMS,
         meta: { current_page: 2, from: 26, last_page: 2, per_page: 25, to: 27, total: 27 },
         query: QUERY,
-        summary: { total: 27, period_from: '2026-08-01', period_until: '2026-08-31', site_defaults: { noc15: true, noc23: false } },
+        summary: {
+            total: 27,
+            period_from: '2026-08-01',
+            period_until: '2026-08-31',
+            site_defaults: { noc15: true, noc23: false },
+        },
         pdf_available: true,
         max_entries: 1000,
         ...overrides,
@@ -64,7 +69,10 @@ function mountLog(overrides: Partial<ActivityLogPageProps> = {}): VueWrapper {
 
 beforeEach(() =>
     resetInertia({
-        auth: { user: { id: 1, username: 'demo', name: 'Demo Person' }, permissions: ['nscmf.view.history', 'nscmf.export'] },
+        auth: {
+            user: { id: 1, username: 'demo', name: 'Demo Person' },
+            permissions: ['nscmf.view.history', 'nscmf.export'],
+        },
     }),
 );
 

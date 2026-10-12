@@ -48,14 +48,7 @@ export interface ActivityLogPageProps {
 export type LogFilters = Omit<LogQuery, 'page' | 'per_page'>;
 
 export type LogExportStage =
-    | 'QUEUED'
-    | 'PREPARING'
-    | 'FILLING'
-    | 'RENDERING'
-    | 'SAVING'
-    | 'READY'
-    | 'FAILED'
-    | 'EXPIRED';
+    'QUEUED' | 'PREPARING' | 'FILLING' | 'RENDERING' | 'SAVING' | 'READY' | 'FAILED' | 'EXPIRED';
 
 /** One report export as the server projects it. */
 export interface LogExportJob {
