@@ -67,7 +67,8 @@ describe('Activity Log exports panel (07 §34.2)', () => {
             row.getAttribute('data-export-id'),
         );
         expect(ids).toEqual(['7', '6']);
-        expect(panelRow(7)?.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('100');
+        // A ready file in the panel needs no bar; the Download link says it all.
+        expect(panelRow(7)?.querySelector('[role="progressbar"]')).toBeNull();
         expect(panelRow(7)?.textContent).toContain('100%');
         expect(panelRow(7)?.textContent).toContain('29 entries');
 
@@ -135,6 +136,7 @@ describe('Activity Log exports panel (07 §34.2)', () => {
         const strip = wrapper.get('[data-testid="log-export-latest"]');
         expect(strip.text()).toContain('Ready');
         expect(strip.text()).toContain('Available until');
+        expect(strip.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('100');
 
         respond({ data: job('READY', { progress_percent: 100 }) });
         await strip.get('[data-testid="log-export-latest-download"]').trigger('click');
