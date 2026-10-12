@@ -192,4 +192,29 @@ describe('Activity Log page (07 §34.2)', () => {
         wrapper.unmount();
         vi.unstubAllGlobals();
     });
+
+    it('opens the export dialog from the Exports panel footer', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(() =>
+                Promise.resolve(
+                    new Response(JSON.stringify({ data: [] }), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' },
+                    }),
+                ),
+            ),
+        );
+        const wrapper = mountLog();
+        await flushPromises();
+
+        await wrapper.get('[data-testid="open-exports"]').trigger('click');
+        await flushPromises();
+        document.body.querySelector<HTMLButtonElement>('[data-testid="log-exports-new"]')!.click();
+        await flushPromises();
+        expect(document.body.textContent).toContain('Export the Activity Log');
+
+        wrapper.unmount();
+        vi.unstubAllGlobals();
+    });
 });

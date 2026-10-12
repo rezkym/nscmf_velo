@@ -170,4 +170,66 @@ describe('Activity Log exports panel (07 §34.2)', () => {
 
         expect(panel()?.textContent).toContain('No exports yet');
     });
+
+    it('groups the panel into In progress, Ready to download and Earlier, newest first', async () => {
+        respond({
+            data: [
+                job('QUEUED', { id: 12 }),
+                job('READY', { id: 11, progress_percent: 100 }),
+                job('FAILED', { id: 10 }),
+                job('READY', { id: 9, progress_percent: 100 }),
+                job('EXPIRED', { id: 8 }),
+            ],
+        });
+        mountExports({ pollMs: 60_000, panelOpen: true });
+        await flushPromises();
+
+        const section = (name: string) => panel()!.querySelector<HTMLElement>(`[data-testid="log-exports-${name}"]`)!;
+        const ids = (name: string) =>
+            [...section(name).querySelectorAll('[data-export-id]')].map((row) => row.getAttribute('data-export-id'));
+        expect(section('in-progress').textContent).toContain('In progress');
+        expect(ids('in-progress')).toEqual(['12']);
+        expect(section('ready').textContent).toContain('Ready to download');
+        expect(ids('ready')).toEqual(['11', '9']);
+        expect(section('earlier').textContent).toContain('Earlier');
+        expect(ids('earlier')).toEqual(['10', '8']);
+        expect(panel()?.textContent).toContain('5 exports');
+        expect(panel()?.textContent).toContain('1 running');
+    });
+
+    it('omits empty sections from the panel', async () => {
+        respond({ data: [job('READY', { id: 9, progress_percent: 100 })] });
+        mountExports({ panelOpen: true });
+        await flushPromises();
+
+        expect(panel()?.querySelector('[data-testid="log-exports-ready"]')).not.toBeNull();
+        expect(panel()?.querySelector('[data-testid="log-exports-in-progress"]')).toBeNull();
+        expect(panel()?.querySelector('[data-testid="log-exports-earlier"]')).toBeNull();
+        expect(panel()?.textContent).toContain('1 export');
+        expect(panel()?.textContent).not.toContain('running');
+    });
+
+    it('closes the panel from its footer and asks for a new export', async () => {
+        respond({ data: [] });
+        const wrapper = mountExports({ panelOpen: true });
+        await flushPromises();
+
+        document.body.querySelector<HTMLButtonElement>('[data-testid="log-exports-new"]')!.click();
+        await flushPromises();
+        expect(wrapper.emitted('new-export')).toHaveLength(1);
+        expect(wrapper.emitted('update:panelOpen')).toEqual([[false]]);
+
+        await wrapper.setProps({ panelOpen: true });
+        document.body.querySelector<HTMLButtonElement>('[data-testid="log-exports-close"]')!.click();
+        await flushPromises();
+        expect(wrapper.emitted('update:panelOpen')).toEqual([[false], [false]]);
+    });
+
+    it('disables New export when the page cannot export', async () => {
+        respond({ data: [] });
+        mountExports({ panelOpen: true, newExportDisabled: true });
+        await flushPromises();
+
+        expect(document.body.querySelector('[data-testid="log-exports-new"]')?.hasAttribute('disabled')).toBe(true);
+    });
 });
