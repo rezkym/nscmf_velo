@@ -293,6 +293,7 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
   8. Izin yang ada: `nscmf.view.history` (lihat) + `nscmf.export` (ekspor); tanpa izin baru.
   9. Status default = semua status tersubmit; pilihan cepat Approved only; status lain bisa dipilih.
   10. Asumsi yang disetujui bersama rencana: maks. 1.000 entri per ekspor; View default aktif + arsip; pilihan bertahan lintas halaman; route `/reports/activity-log`.
+  11. (2026-10-12, setelah review pemilik) Daftar ekspor tidak lagi menumpuk di halaman: tombol **Exports** membuka panel samping (Sheet) berisi semua ekspor yang bisa di-scroll, dan halaman hanya menampilkan satu strip progres untuk ekspor terbaru (`07 §34.2`).
 - Wajib human security review sebelum merge (ekspor banyak record, Access Audit, storage privat; 18 §17).
 
 Removed concerns dari19A/20 tidak menjadi gap: HA/Redis/DR/backup/load/SLA architecture/automatedCD/publicCA/multi-server. Actual hostname/provider/Linux/path baru dicatat ketika deployment sungguhan diperintahkan; tidak memilih server sekarang.

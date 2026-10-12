@@ -10,7 +10,7 @@
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Visual/Flow Reference:** NSCMF FigJam proposal  
 > **UI Implementation Reference:** Vue 3 + TypeScript + Inertia 3 + shadcn-vue + Tailwind CSS 4  
-> **Last Updated:** 2026-10-12 (Activity Log report, §10, §12, §34.2; earlier: Dashboard analytics and shared visual system, §7.1, §17.1)  
+> **Last Updated:** 2026-10-12 (Activity Log report and its Exports panel, §10, §12, §34.2; earlier: Dashboard analytics and shared visual system, §7.1, §17.1)  
 
 ---
 
@@ -505,7 +505,8 @@ The digital NSCMF Activity Logging Form (`12 §47.2`). The page is a data table 
 - **Columns**: Select, No (running number across pages), Date (request date, `d MMM yyyy`), NSCMF No (link to the record), Purpose (subtype label), Customer Name, NOC Infrastructure, Status (badge, plus the separate Archived badge). The order is fixed (request date, then Request No), so columns are not sortable.
 - **Selection** persists while the user pages through the table; the bar shows "K selected" with **Clear selection**. This differs from History (§34) on purpose: a log export often spans pages.
 - **Export dialog** (needs `nscmf.export`): scope **All N matching entries** or **Only the K selected entries**; format XLSX or PDF (PDF disabled with an explanation when the server reports no renderer); Site Location NOC15 / NOC23 checkboxes prefilled from the entries' Service Impact and editable; Prepared By name and date prefilled with the actor's name and today, both editable; Acknowledge By name and date optional. The dialog states that the PDF is not digitally signed.
-- **Progress**: after submitting, a progress bar shows the server's `progress_percent` as a number ("45 %") and the stage in words (Queued, Preparing, Filling the workbook, Rendering the PDF, Saving, Ready, Failed, Expired); it is a `progressbar` with `aria-valuenow`. READY shows Download and "Available until". FAILED shows a safe message and lets the user request a new export. The actor's recent report exports stay listed on the page, so leaving the page never loses a READY file.
+- **Progress**: after submitting, a progress bar shows the server's `progress_percent` as a number ("45 %") and the stage in words (Queued, Preparing, Filling the workbook, Rendering the PDF, Saving, Ready, Failed, Expired); it is a `progressbar` with `aria-valuenow`. READY shows Download and "Available until". FAILED shows a safe message and lets the user request a new export. The actor's recent report exports stay reachable from the page, so leaving the page never loses a READY file.
+- **Exports panel** (decided 2026-10-12, G26 item 11): the list never grows on the page itself. An **Exports** button beside Export opens a right-side Sheet listing the actor's retained exports, newest first, as compact rows that scroll inside the panel; the button shows how many exports are still running. On the page only the **latest export** is shown, as one compact progress strip (format, entries, bar with percentage and stage, Download when READY, "View all exports", and Dismiss). The strip appears for an export requested on the page, or for the newest still-running export when the page opens, and stays until dismissed, so a READY or FAILED result is not missed (Carbon notification pattern: inline feedback plus a notification panel).
 - Limits are explained before submitting: an export holds at most 1,000 entries; a larger set asks the user to narrow the filters.
 
 ## 35. Record Detail
