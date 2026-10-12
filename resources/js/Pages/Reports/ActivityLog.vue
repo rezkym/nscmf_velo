@@ -326,7 +326,13 @@ const impacts = (item: unknown) =>
                 </div>
             </div>
 
-            <ActivityLogExports v-if="canExport" ref="exports" v-model:panel-open="exportsPanelOpen" />
+            <ActivityLogExports
+                v-if="canExport"
+                ref="exports"
+                v-model:panel-open="exportsPanelOpen"
+                :new-export-disabled="summary.total === 0 && selectedItems.length === 0"
+                @new-export="exportOpen = true"
+            />
 
             <ResourceTable
                 :columns="columns"

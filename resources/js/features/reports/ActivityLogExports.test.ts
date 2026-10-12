@@ -211,15 +211,21 @@ describe('Activity Log exports panel (07 §34.2)', () => {
 
     it('closes the panel from its footer and asks for a new export', async () => {
         respond({ data: [] });
-        const wrapper = mountExports({ panelOpen: true });
+        // Bound like v-model, so the panel really closes and reopens.
+        const wrapper = mountExports({
+            panelOpen: true,
+            'onUpdate:panelOpen': (open: boolean) => void wrapper.setProps({ panelOpen: open }),
+        });
         await flushPromises();
 
         document.body.querySelector<HTMLButtonElement>('[data-testid="log-exports-new"]')!.click();
         await flushPromises();
         expect(wrapper.emitted('new-export')).toHaveLength(1);
         expect(wrapper.emitted('update:panelOpen')).toEqual([[false]]);
+        expect(panel()).toBeNull();
 
         await wrapper.setProps({ panelOpen: true });
+        await flushPromises();
         document.body.querySelector<HTMLButtonElement>('[data-testid="log-exports-close"]')!.click();
         await flushPromises();
         expect(wrapper.emitted('update:panelOpen')).toEqual([[false], [false]]);

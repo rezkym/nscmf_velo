@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import { X } from '@lucide/vue';
+import { FolderDown, X } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    Sheet,
+    SheetClose,
+    SheetContent,
+    SheetDescription,
+    SheetFooter,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
 import { sendJson } from '@/lib/http';
 
 import ActivityLogExportRow from './ActivityLogExportRow.vue';
@@ -13,12 +21,18 @@ import { isLogExportSettled, type LogExportJob } from './types';
 /**
  * The actor's Activity Log exports (07 §34.2). The page shows only the latest export as one strip,
  * so requesting more exports never pushes the table down; every retained export is listed in a
- * side panel. Percentage and stage come from the server, polled until each job settles.
+ * floating side panel, grouped by what the user can do with them. Percentage and stage come from
+ * the server, polled until each job settles.
  */
-const props = withDefaults(defineProps<{ pollMs?: number; navigate?: (url: string) => void }>(), {
-    pollMs: 2000,
-    navigate: (url: string) => window.location.assign(url),
-});
+const props = withDefaults(
+    defineProps<{ pollMs?: number; navigate?: (url: string) => void; newExportDisabled?: boolean }>(),
+    {
+        pollMs: 2000,
+        navigate: (url: string) => window.location.assign(url),
+        newExportDisabled: false,
+    },
+);
+const emit = defineEmits<{ (e: 'new-export'): void }>();
 const panelOpen = defineModel<boolean>('panelOpen', { default: false });
 
 const jobs = ref<LogExportJob[]>([]);
@@ -26,6 +40,20 @@ const jobs = ref<LogExportJob[]>([]);
 const spotlightId = ref<number | null>(null);
 const spotlight = computed(() => jobs.value.find((job) => job.id === spotlightId.value) ?? null);
 const activeCount = computed(() => jobs.value.filter((job) => !isLogExportSettled(job)).length);
+
+/** Panel sections in a fixed order, newest first inside each; empty sections are omitted. */
+const groups = computed(() =>
+    [
+        { key: 'in-progress', title: 'In progress', jobs: jobs.value.filter((job) => !isLogExportSettled(job)) },
+        { key: 'ready', title: 'Ready to download', jobs: jobs.value.filter((job) => job.status === 'READY') },
+        {
+            key: 'earlier',
+            title: 'Earlier',
+            jobs: jobs.value.filter((job) => job.status === 'FAILED' || job.status === 'EXPIRED'),
+        },
+    ].filter((group) => group.jobs.length > 0),
+);
+const summary = computed(() => `${jobs.value.length} ${jobs.value.length === 1 ? 'export' : 'exports'}`);
 
 let active = true;
 onUnmounted(() => (active = false));
@@ -82,6 +110,11 @@ async function download(job: LogExportJob): Promise<void> {
     put({ ...job, status: 'EXPIRED', stage: 'EXPIRED', download_url: null });
 }
 
+function newExport(): void {
+    panelOpen.value = false;
+    emit('new-export');
+}
+
 defineExpose({ track, activeCount });
 </script>
 
@@ -126,34 +159,88 @@ defineExpose({ track, activeCount });
     <Sheet :open="panelOpen" @update:open="panelOpen = $event">
         <SheetContent
             data-testid="log-exports-panel"
-            class="gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md"
+            :show-close-button="false"
+            class="gap-0 overflow-hidden rounded-2xl border shadow-2xl data-[side=right]:inset-y-3 data-[side=right]:right-3 data-[side=right]:h-auto data-[side=right]:w-[calc(100%-1.5rem)] data-[side=right]:border data-[side=right]:sm:max-w-md"
         >
-            <SheetHeader class="border-b pr-12">
-                <SheetTitle>Exports</SheetTitle>
-                <SheetDescription>Files are kept for 7 days.</SheetDescription>
+            <SheetHeader class="flex-row items-center justify-between gap-4 px-6 pt-6 pb-2">
+                <SheetTitle class="text-2xl font-semibold tracking-tight">Exports</SheetTitle>
+                <SheetClose as-child>
+                    <Button type="button" variant="ghost" size="icon-sm" aria-label="Close">
+                        <X aria-hidden="true" />
+                    </Button>
+                </SheetClose>
             </SheetHeader>
-            <div class="min-h-0 flex-1 overflow-y-auto p-4">
-                <Empty v-if="jobs.length === 0" class="rounded-lg border p-8">
+
+            <div class="min-h-0 flex-1 overflow-y-auto px-6">
+                <div class="flex items-center gap-4 py-5">
+                    <div class="flex size-14 shrink-0 items-center justify-center rounded-full bg-muted text-primary">
+                        <FolderDown class="size-6" aria-hidden="true" />
+                    </div>
+                    <div class="grid gap-0.5">
+                        <SheetDescription>Files are kept for 7 days.</SheetDescription>
+                        <p class="text-2xl font-semibold tracking-tight">
+                            {{ summary }}
+                            <span v-if="activeCount > 0" class="text-base font-normal text-muted-foreground">
+                                · {{ activeCount }} running
+                            </span>
+                        </p>
+                    </div>
+                </div>
+
+                <Empty v-if="jobs.length === 0" class="mb-6 rounded-xl border p-8">
                     <EmptyHeader>
                         <EmptyTitle class="text-base">No exports yet</EmptyTitle>
                         <EmptyDescription>Exports you request appear here.</EmptyDescription>
                     </EmptyHeader>
                 </Empty>
-                <ul v-else class="grid gap-2">
-                    <li
-                        v-for="job in jobs"
-                        :key="job.id"
-                        :data-testid="`log-export-${job.id}`"
-                        :data-export-id="job.id"
-                    >
-                        <ActivityLogExportRow
-                            :job="job"
-                            :download-test-id="`log-export-download-${job.id}`"
-                            @download="download(job)"
-                        />
-                    </li>
-                </ul>
+                <section
+                    v-for="group in groups"
+                    :key="group.key"
+                    :data-testid="`log-exports-${group.key}`"
+                    :aria-labelledby="`log-exports-${group.key}-title`"
+                    class="border-t py-5"
+                >
+                    <h3 :id="`log-exports-${group.key}-title`" class="mb-2 text-base font-semibold">
+                        {{ group.title }}
+                    </h3>
+                    <ul class="grid divide-y">
+                        <li
+                            v-for="job in group.jobs"
+                            :key="job.id"
+                            :data-testid="`log-export-${job.id}`"
+                            :data-export-id="job.id"
+                        >
+                            <ActivityLogExportRow
+                                plain
+                                :job="job"
+                                :download-test-id="`log-export-download-${job.id}`"
+                                @download="download(job)"
+                            />
+                        </li>
+                    </ul>
+                </section>
             </div>
+
+            <SheetFooter class="flex-row items-center justify-end gap-4 border-t px-6 py-4">
+                <Button
+                    type="button"
+                    variant="link"
+                    class="text-foreground underline underline-offset-4"
+                    data-testid="log-exports-close"
+                    @click="panelOpen = false"
+                >
+                    Close
+                </Button>
+                <Button
+                    type="button"
+                    class="rounded-full px-6"
+                    data-testid="log-exports-new"
+                    :disabled="newExportDisabled"
+                    @click="newExport"
+                >
+                    New export
+                </Button>
+            </SheetFooter>
         </SheetContent>
     </Sheet>
 </template>

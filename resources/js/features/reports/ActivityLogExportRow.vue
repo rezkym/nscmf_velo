@@ -1,19 +1,25 @@
 <script setup lang="ts">
+import { FileSpreadsheet, FileText } from '@lucide/vue';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Item, ItemActions, ItemContent, ItemTitle } from '@/components/ui/item';
+import { Item, ItemActions, ItemContent, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Progress } from '@/components/ui/progress';
 import { formatJakarta } from '@/lib/datetime';
 
 import { STAGE_LABELS, entryCount, type LogExportJob } from './types';
 
 /** One Activity Log export: stage, percentage, retention and Download (07 §34.2). */
-defineProps<{ job: LogExportJob; downloadTestId: string }>();
+withDefaults(defineProps<{ job: LogExportJob; downloadTestId: string; plain?: boolean }>(), { plain: false });
 defineEmits<{ (e: 'download'): void }>();
 </script>
 
 <template>
-    <Item variant="outline" size="sm">
+    <Item :variant="plain ? 'default' : 'outline'" size="sm" :class="plain ? 'px-0' : undefined">
+        <ItemMedia class="size-10 self-start rounded-full bg-muted text-primary">
+            <FileText v-if="job.format === 'PDF'" class="size-5" aria-hidden="true" />
+            <FileSpreadsheet v-else class="size-5" aria-hidden="true" />
+        </ItemMedia>
         <ItemContent class="min-w-0 grow basis-60 gap-2">
             <ItemTitle>
                 {{ job.format }} · {{ entryCount(job.entry_count) }}
