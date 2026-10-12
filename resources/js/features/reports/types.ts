@@ -103,3 +103,6 @@ export const SERVICE_IMPACT_DISPLAY: Record<string, string> = {
 
 export const isLogExportSettled = (job: LogExportJob): boolean =>
     job.status === 'READY' || job.status === 'FAILED' || job.status === 'EXPIRED';
+
+/** "1 entry", "27 entries". */
+export const entryCount = (count: number): string => `${count} ${count === 1 ? 'entry' : 'entries'}`;

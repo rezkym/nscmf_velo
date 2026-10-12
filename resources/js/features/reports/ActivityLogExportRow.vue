@@ -5,7 +5,7 @@ import { Item, ItemActions, ItemContent, ItemTitle } from '@/components/ui/item'
 import { Progress } from '@/components/ui/progress';
 import { formatJakarta } from '@/lib/datetime';
 
-import { STAGE_LABELS, type LogExportJob } from './types';
+import { STAGE_LABELS, entryCount, type LogExportJob } from './types';
 
 /** One Activity Log export: stage, percentage, retention and Download (07 §34.2). */
 defineProps<{ job: LogExportJob; downloadTestId: string }>();
@@ -14,9 +14,9 @@ defineEmits<{ (e: 'download'): void }>();
 
 <template>
     <Item variant="outline" size="sm">
-        <ItemContent class="min-w-0 gap-2">
+        <ItemContent class="min-w-0 grow basis-60 gap-2">
             <ItemTitle>
-                {{ job.format }} · {{ job.entry_count }} entries
+                {{ job.format }} · {{ entryCount(job.entry_count) }}
                 <Badge
                     :variant="
                         job.status === 'READY' ? 'success' : job.status === 'FAILED' ? 'destructive' : 'secondary'

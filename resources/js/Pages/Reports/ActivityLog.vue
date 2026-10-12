@@ -29,6 +29,7 @@ import {
     ARCHIVE_VIEW_LABELS,
     SERVICE_IMPACT_DISPLAY,
     SUBMITTED_STATUSES,
+    entryCount,
     type ActivityLogPageProps,
     type ArchiveView,
     type LogExportJob,
@@ -283,7 +284,9 @@ const impacts = (item: unknown) =>
             </Card>
 
             <div class="flex flex-wrap items-center justify-between gap-3">
-                <p data-testid="log-summary" class="text-muted-foreground">{{ summary.total }} entries{{ period }}</p>
+                <p data-testid="log-summary" class="text-muted-foreground">
+                    {{ entryCount(summary.total) }}{{ period }}
+                </p>
                 <div class="flex flex-wrap items-center gap-2">
                     <template v-if="selectedItems.length">
                         <span data-testid="selection-count">{{ selectedItems.length }} selected</span>
