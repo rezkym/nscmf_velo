@@ -9,7 +9,7 @@
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`  
 > **Organization Model:** Single organization / single application installation  
 > **Primary Business Reference:** NSCMF Form 3.0  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-10-12 (Activity Log report export, §61A, G26)  
 
 ---
 
@@ -618,6 +618,10 @@ Current MVP does not require third-party S3/object storage. Future storage migra
 ## 61. Seven-Day Binary Lifetime
 
 READY binary authorized re-download 168h/7d then binary cleanup. Cleanup does not delete source/history/audits/approval/issuance metadata.
+
+## 61A. Activity Log Report Export (G26)
+
+Request, poll and download recheck `nscmf.view.history` + `nscmf.export`, ownership of the export, and record visibility for every entry when the snapshot is bound. A selected id that is missing or invisible is refused with the same message, so existence never leaks. The report binary is private, Access Audited on request and download, kept 168 h, and never signed or treated as an issuance. The log template binary is private and hash-verified like the official NSCMF template.
 
 ---
 

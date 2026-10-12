@@ -8,7 +8,7 @@
 > **Repository:** `rezkym/nscmf_velo`  
 > **Primary Business Reference:** NSCMF Form 3.0 (Excel)  
 > **Product Flow Reference:** NSCMF FigJam proposal  
-> **Last Updated:** 2026-09-24 (Dashboard analytics decision, `07 §17.1`)  
+> **Last Updated:** 2026-10-12 (Activity Log report, G26; earlier: Dashboard analytics decision, `07 §17.1`)  
 
 ---
 
@@ -241,6 +241,7 @@ MVP includes:
 54. Docker compatibility is maintained as a secondary portability target; containerized development/production is not mandatory.
 55. CI remains part of development quality gates; automated CD/deployment pipeline is not current MVP scope.
 56. Future default server deployment is a simple single native Linux server with required runtime components co-located unless a real later requirement explicitly changes the topology.
+57. Activity Log report (decided 2026-10-12, G26): the digital NSCMF Activity Logging Form as a filterable list of visible NSCMF entries, exportable asynchronously as the official log workbook (XLSX) or its rendered, unsigned PDF, for every matching entry or a selection, with visible progress (`02 §20A`, `07 §34.2`, `12 §47.2`).
 
 Notification hook remains future capability and not MVP blocker.
 

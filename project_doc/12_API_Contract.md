@@ -10,7 +10,7 @@
 > **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `14_Environment_Specification.md`  
 > **Application Style:** Laravel 13 modular monolith + Inertia 3 + Vue 3 + session authentication  
 > **Canonical Application Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-24 (G22 Dashboard analytics §44.1; earlier: G06 byte-limit decision; G01/G03/G07/G09/G12/G14/G19 decisions)
+> **Last Updated:** 2026-10-12 (G26 Activity Log report §47.2; earlier: G22 Dashboard analytics §44.1; G06 byte-limit decision; G01/G03/G07/G09/G12/G14/G19 decisions)
 
 ---
 
@@ -481,6 +481,8 @@ MALWARE_SCAN_FAILED
 ### Export/signing
 
 ```text
+REPORT_EMPTY
+REPORT_TOO_LARGE
 EXPORT_NOT_READY
 EXPORT_FAILED
 EXPORT_EXPIRED
@@ -1152,6 +1154,7 @@ GET /approval
 GET /approval/{record}
 GET /history
 GET /my-applications
+GET /reports/activity-log
 ```
 
 `GET /nscmf/{record}/edit` serves both the Draft/Revision editor and the Change Result-only editor (§29).
@@ -1207,6 +1210,108 @@ GET /my-applications
 - archived records are never listed;
 - parameters: `q` (Request No), `business_status`, sort (§14, §16) and pagination (§13); other §15 filters are not applied, and a client-sent `owner_user_id`, `team_id` or `archived` never changes the owner or the archive rule;
 - props: `items`, `meta` and `query`, in the same shape as History.
+
+## 47.2 Activity Log Report — decided 2026-10-12 (G26)
+
+The digital **NSCMF Activity Logging Form**: a list of NSCMF entries in log order, exportable as the
+official log workbook (XLSX) or its rendered PDF.
+
+```http
+GET  /reports/activity-log
+POST /reports/activity-log/exports
+GET  /reports/activity-log/exports
+GET  /reports/activity-log/exports/{export}
+GET  /reports/activity-log/exports/{export}/download
+```
+
+**Permissions.** The page needs `nscmf.view.history`. Requesting, listing, polling and downloading an export
+need `nscmf.view.history` **and** `nscmf.export` (`04 §12`). No new permission exists. Every entry follows
+record visibility (§17.1): another user's never-submitted Draft/Cancelled record is never listed or exported.
+Team never participates.
+
+**Page query** (Inertia; any other key → `422`):
+
+```text
+page, per_page            §13 (default 25, max 100)
+q                         Request No contains (max 64)
+family, subtype           §15
+statuses[]                business statuses; omitted → PENDING_REVIEW, REVISION_REQUIRED,
+                          PENDING_APPROVAL, REJECTED, APPROVED (every submitted status)
+archived                  all (default) | active | archived
+request_date_from/_to     YYYY-MM-DD, inclusive; to >= from
+```
+
+Order is fixed: `request_date` ascending (empty dates last), then `request_no`, then `id`.
+
+Props: `items`, `meta` (§13), `query` (the accepted query echoed), `summary`, `pdf_available`, `max_entries`.
+
+```json
+{
+  "items": [{
+    "id": 572, "request_no": "NSCMF-202608-00001", "request_date": "2026-08-03",
+    "family": "CHANGE", "subtype": "MAINTENANCE",
+    "customer_name": "Migration subnet IP 216",
+    "noc_infrastructure": ["NOC15", "NOC23"],
+    "business_status": "APPROVED", "is_archived": false
+  }],
+  "summary": {
+    "total": 29, "period_from": "2026-08-01", "period_until": "2026-08-31",
+    "site_defaults": { "noc15": true, "noc23": true }
+  },
+  "pdf_available": true,
+  "max_entries": 1000
+}
+```
+
+Column sources (`02` BR-RPT-002): `customer_name` is the Activation `customer_name`, or for a Change the
+first line of `maintenance_purpose`; `noc_infrastructure` is the Change Service Impact codes in catalog
+order (empty for Activation). `summary.period_*` are the filter dates, else the earliest/latest request date
+of all matching entries; `site_defaults` is true for NOC15/NOC23 when any matching entry has that Service
+Impact.
+
+**Request an export** (same-origin JSON). Body keys exactly:
+
+```json
+{
+  "format": "XLSX",
+  "scope": "FILTERED",
+  "filters": { "q": null, "family": null, "subtype": null, "statuses": ["APPROVED"],
+               "archived": "all", "request_date_from": "2026-08-01", "request_date_to": "2026-08-31" },
+  "record_ids": [],
+  "site_location": { "noc15": true, "noc23": false },
+  "prepared_by": { "name": "Demo Requester A", "date": "2026-09-01" },
+  "acknowledged_by": { "name": null, "date": null }
+}
+```
+
+- `format`: `XLSX | PDF`. `scope`: `FILTERED` (every entry matching `filters`, same rules as the page query)
+  or `SELECTED` (`record_ids`: 1–1000 distinct ids).
+- `prepared_by.name` 1–150 characters and `prepared_by.date` are required; the page prefills the actor's name
+  and today (`Asia/Jakarta`) but both stay editable. `acknowledged_by` name (max 150) and date are optional.
+- An export holds 1–1000 entries: none → `422 REPORT_EMPTY`; more → `422 REPORT_TOO_LARGE`. A selected id that
+  does not exist or is not visible → `422 VALIDATION_FAILED` on `record_ids`, with the same message either way.
+- Missing active log template → `409 EXPORT_NOT_READY`; `PDF` without an available renderer → `409 EXPORT_NOT_READY`.
+- Success → `202` with the projection below. The server binds an immutable snapshot (`11 §44A`) in one short
+  transaction and queues the worker after commit; later record edits never change the file.
+
+**Projection** (`POST` result, `GET …/exports/{export}`, and each item of `GET …/exports`):
+
+```json
+{ "id": 7, "format": "PDF", "status": "PROCESSING", "progress_percent": 45, "stage": "FILLING",
+  "entry_count": 29, "requested_at": "…", "ready_at": null, "expires_at": null,
+  "failure_code": null, "download_url": null }
+```
+
+`status` is the technical export status (§66). `progress_percent` 0–100 rises as the worker advances; `stage`
+is derived from status, format and progress: `QUEUED`, `PREPARING` (<10), `FILLING` (<70), `RENDERING` (PDF,
+<90), `SAVING`, `READY`, `FAILED`, `EXPIRED`. `GET …/exports` lists the actor's own exports requested within
+the retention window (168 h), newest first. Exports of other users answer `404`.
+
+**Download** follows §69: own export, `READY` and unexpired; `409 EXPORT_NOT_READY`, `409 EXPORT_FAILED`,
+`410 EXPORT_EXPIRED` otherwise. File name `nscmf-activity-log-{from}-{until}.{xlsx|pdf}`. `Cache-Control:
+no-store, private`. Request and download are Access Audited (`ACTIVITY_LOG_EXPORT_REQUESTED`,
+`ACTIVITY_LOG_EXPORT_DOWNLOADED`). The report PDF is **not** signed and is not an issuance: `/ispdfvalid`
+answers `UNKNOWN` for it.
 
 ## 48. Business Timeline
 
@@ -2105,6 +2210,7 @@ GET /approval
 GET /approval/{record}
 GET /history
 GET /my-applications
+GET /reports/activity-log
 GET /nscmf/{record}/timeline
 ```
 
@@ -2131,6 +2237,11 @@ GET  /nscmf/exports/{export}/download
 POST /nscmf/exports/bulk
 GET  /nscmf/export-batches/{batch}
 GET  /nscmf/export-batches/{batch}/download
+
+POST /reports/activity-log/exports
+GET  /reports/activity-log/exports
+GET  /reports/activity-log/exports/{export}
+GET  /reports/activity-log/exports/{export}/download
 
 GET  /ispdfvalid
 POST /ispdfvalid/verify

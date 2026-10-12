@@ -8,7 +8,7 @@
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md` through `18_Definition_of_Done.md`  
 > **Canonical Application / Planning Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-10-12 (T82 Activity Log report, G26)  
 
 ---
 
@@ -1241,6 +1241,10 @@ Real non-production cryptographic signing/verification integration.
 Real renderer/golden verification after renderer qualification.
 
 Public disclosure tests ensure no human actor/Team/form/attachment/audit/private-key leakage.
+
+### T82 — Activity Log report (added 2026-10-12, G26)
+
+Prerequisites: T37 History, T47–T53 export foundation, T54 renderer. Delivers `12 §47.2`: page, filters, cross-page selection, asynchronous XLSX/PDF export of the log workbook with progress, retention and Access Audit. Subtasks: T82A schema + template kind; T82B workbook mapping + patcher; T82C page query; T82D export request/worker/download; T82E frontend; T82F browser journey.
 
 ### Phase 8 Checkpoint
 

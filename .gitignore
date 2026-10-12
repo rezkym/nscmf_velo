@@ -35,3 +35,8 @@ Thumbs.db
 
 # Private official workbook: register it with nscmf:template:register, never commit it.
 /NSCMF-Form-3.0.xlsx
+
+# Activity Log template and the filled example it was derived from (real data): never commit.
+/NSCMF-Log-Template.xlsx
+/NSCMF-Log-Example.xlsx
+/report_nscmf.png

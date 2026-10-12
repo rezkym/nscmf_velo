@@ -8,7 +8,7 @@
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `project_doc/01_PRD.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-10-12 (Activity Log report, §20A, G26)  
 
 ---
 
@@ -452,6 +452,36 @@ Public no-login Approved PDF verification required; genuine older PDF may be VAL
 
 ### BR-EXP-020 — Official Template Provisioning
 Official template binary is immutable/versioned/private with SHA-256 + mapping-version binding. New official template creates a new version rather than overwriting the old binary. Environment readiness must verify the active template hash before use.
+
+## 20A. Activity Log Report — decided 2026-10-12 (G26)
+
+### BR-RPT-001 — Purpose
+The Activity Log report replaces the hand-filled NSCMF Activity Logging Form. It is a read-only view of NSCMF records; it never changes business status, records or audits other than Access Audit.
+
+### BR-RPT-002 — Column Sources
+| Log column | Source |
+|---|---|
+| No | running number in report order |
+| Date | `request_date` |
+| NSCMF No | `request_no` |
+| Purpose | subtype label (Activation, Upgrade/Downgrade, Deactivation, Maintenance, Upgrade, Emergency) |
+| Customer Name | Activation: `customer_name`; Change: first line of `maintenance_purpose` (the Change form has no customer field); shortened to fit one line of the workbook |
+| NOC Infrastructure | Change: its Service Impact codes; Activation: empty |
+| Site Location NOC15 / NOC23 | checked when any exported Change entry has that Service Impact; the exporter may change both |
+| Period from / until | the date filter, else the earliest / latest request date of the exported entries |
+| Prepared By | name and date default to the exporter and the export date; editable |
+| Acknowledge By | optional name and date typed by the exporter; signatures stay blank for paper signing |
+
+Order: request date ascending (empty dates last), then Request No.
+
+### BR-RPT-003 — Visibility and Permission
+Viewing needs `nscmf.view.history`; exporting also needs `nscmf.export`. Every entry follows record visibility (`12 §17.1`); Team is irrelevant.
+
+### BR-RPT-004 — Export
+XLSX/PDF only, asynchronous, bound to an immutable snapshot of the entries and header at request time, 1–1,000 entries per export, private READY binary for 168 h. Each page of the workbook holds 40 numbered rows; more entries continue on new pages with the column headings repeated and the signature block on the last page.
+
+### BR-RPT-005 — Not an Issuance
+The report PDF is not cryptographically signed and is not an NSCMF issuance; it never affects `/ispdfvalid` results for NSCMF PDFs.
 
 ---
 

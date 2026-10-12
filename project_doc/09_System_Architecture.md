@@ -12,7 +12,7 @@
 > **Organization Model:** Single organization / single application installation  
 > **Engineering Capacity Baseline:** 50 application users  
 > **Canonical Application Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-10-12 (Activity Log report export, §63A, G26)  
 
 ---
 
@@ -539,6 +539,21 @@ XLSX/PDF only; exact template; no generic rewrite; XLSX not signed; Approved PDF
 ## 63. Retention
 
 READY binary 168h; source/audit/issuance preserved.
+
+## 63A. Activity Log Report Export (G26)
+
+```text
+Controller → ActivityLogReportService
+→ authorize (nscmf.view.history + nscmf.export) + per-entry visibility + 1–1,000 entries
+→ short transaction: export row + immutable snapshot (entries + header) + ACTIVITY_LOG template version
+→ commit → dispatch GenerateActivityLogExport after commit
+
+Job → ActivityLogExportGenerationService
+→ verify snapshot hash → targeted OOXML patch of the log workbook (rows added beyond 40)
+→ renderer for PDF (no signing) → private artifact → READY, 168 h
+```
+
+The worker updates `progress_percent` in short transactions between steps and holds no lock during file work. Renderer failure fails the export; there is no HTML fallback.
 
 ## 64. Signer Identity / Key Custody
 

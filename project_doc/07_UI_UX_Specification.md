@@ -10,7 +10,7 @@
 > **Primary Business Reference:** NSCMF Form 3.0  
 > **Visual/Flow Reference:** NSCMF FigJam proposal  
 > **UI Implementation Reference:** Vue 3 + TypeScript + Inertia 3 + shadcn-vue + Tailwind CSS 4  
-> **Last Updated:** 2026-09-24 (Dashboard analytics and shared visual system, §7.1, §17.1)  
+> **Last Updated:** 2026-10-12 (Activity Log report, §10, §12, §34.2; earlier: Dashboard analytics and shared visual system, §7.1, §17.1)  
 
 ---
 
@@ -157,10 +157,11 @@ My Applications
 Review
 Approval
 History
+Activity Log
 Administration
 ```
 
-`My Applications` (decided 2026-09-30, G25) is shown with `nscmf.view` (§34.1).
+`My Applications` (decided 2026-09-30, G25) is shown with `nscmf.view` (§34.1). `Activity Log` (decided 2026-10-12, G26) is shown with `nscmf.view.history` (§34.2).
 
 No tenant switcher. No Team switcher for authorization. Hidden menu is UX convenience only.
 
@@ -202,7 +203,8 @@ Displaying Team does not imply record scope or permission.
 24. Team Administration;
 25. Sensitive-Action Password Re-authentication;
 26. Core Settings;
-27. Technical Log Cleanup Settings within Core Settings.
+27. Technical Log Cleanup Settings within Core Settings;
+28. Activity Log report with its export dialog and progress (§34.2, G26).
 
 There is no Unit/Division & Scope Administration screen.
 
@@ -493,6 +495,18 @@ A data table of the records the signed-in user owns (`12 §47.1`), including nev
 - columns: Request No (link to the record), Type, Request date, Status;
 - controls: search by Request No, a Status filter, sort, rows per page and page navigation;
 - permission: `nscmf.view`; no new permission.
+
+## 34.2 Activity Log Report — decided 2026-10-12 (G26)
+
+The digital NSCMF Activity Logging Form (`12 §47.2`). The page is a data table (§57.1), not a spreadsheet replica; only the exported XLSX/PDF reproduces the official log workbook.
+
+- **Filters** in a card above the table: Request date from / to (Date Picker, §22.1), Status as a checkbox list with two quick choices — **All submitted** (the default: Pending Review, Revision Required, Pending Approval, Rejected, Approved) and **Approved only** — plus every other status one by one; Family, Subtype, View (**Active and archived** by default, Active only, Archived only) and a Request No search in the table control bar.
+- **Summary** line: "N entries · Period d MMM yyyy – d MMM yyyy".
+- **Columns**: Select, No (running number across pages), Date (request date, `d MMM yyyy`), NSCMF No (link to the record), Purpose (subtype label), Customer Name, NOC Infrastructure, Status (badge, plus the separate Archived badge). The order is fixed (request date, then Request No), so columns are not sortable.
+- **Selection** persists while the user pages through the table; the bar shows "K selected" with **Clear selection**. This differs from History (§34) on purpose: a log export often spans pages.
+- **Export dialog** (needs `nscmf.export`): scope **All N matching entries** or **Only the K selected entries**; format XLSX or PDF (PDF disabled with an explanation when the server reports no renderer); Site Location NOC15 / NOC23 checkboxes prefilled from the entries' Service Impact and editable; Prepared By name and date prefilled with the actor's name and today, both editable; Acknowledge By name and date optional. The dialog states that the PDF is not digitally signed.
+- **Progress**: after submitting, a progress bar shows the server's `progress_percent` as a number ("45 %") and the stage in words (Queued, Preparing, Filling the workbook, Rendering the PDF, Saving, Ready, Failed, Expired); it is a `progressbar` with `aria-valuenow`. READY shows Download and "Available until". FAILED shows a safe message and lets the user request a new export. The actor's recent report exports stay listed on the page, so leaving the page never loses a READY file.
+- Limits are explained before submitting: an export holds at most 1,000 entries; a larger set asks the user to narrow the filters.
 
 ## 35. Record Detail
 

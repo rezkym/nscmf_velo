@@ -10,7 +10,7 @@
 > **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md` and `14_Environment_Specification.md`  
 > **Database:** MySQL 8.4 LTS / InnoDB / `utf8mb4`  
 > **Canonical Application Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-10-12 (G26 Activity Log report: §5.3, §36, §41, §44A)  
 
 ---
 
@@ -122,6 +122,8 @@ It MUST NOT contain plaintext passwords, password hashes of supplied credentials
 `nscmf_export_snapshots.snapshot_json` is an explicit separate exception.
 
 It is allowed because it is a **DERIVED immutable serialization** of an already-authoritative relational record at export-request time. It is not editable live business data and MUST NOT be used to update the NSCMF record.
+
+The same exception covers `nscmf_activity_log_exports.snapshot_json` (§44A, decided 2026-10-12, G26): a derived immutable serialization of the log entries and header values bound at report-export request time.
 
 ### 5.4 Framework Runtime Payloads
 
@@ -951,9 +953,10 @@ Business Audit rows are append-oriented. Normal application code MUST NOT update
 | `nscmf_record_id` | BIGINT UNSIGNED FK | Yes |
 | `attachment_id` | BIGINT UNSIGNED FK | Yes |
 | `export_request_id` | BIGINT UNSIGNED FK | Yes |
+| `activity_log_export_id` | BIGINT UNSIGNED FK → `nscmf_activity_log_exports.id` | Yes |
 | `occurred_at` | DATETIME(6) | No |
 
-Typical: `RECORD_VIEWED`, `ATTACHMENT_VIEWED`, `ATTACHMENT_DOWNLOADED`, `EXPORT_REQUESTED`, `EXPORT_DOWNLOADED`, `PRIVILEGED_AUDIT_VIEWED`.
+Typical: `RECORD_VIEWED`, `ATTACHMENT_VIEWED`, `ATTACHMENT_DOWNLOADED`, `EXPORT_REQUESTED`, `EXPORT_DOWNLOADED`, `ACTIVITY_LOG_EXPORT_REQUESTED`, `ACTIVITY_LOG_EXPORT_DOWNLOADED` (G26, with `activity_log_export_id`), `PRIVILEGED_AUDIT_VIEWED`.
 
 No routine Access Audit event becomes a Business Timeline row.
 
@@ -1071,6 +1074,7 @@ A future storage backend change must not require schema/business semantic change
 | `private_object_key` | VARCHAR(1024) | No |
 | `template_sha256` | CHAR(64) | No |
 | `mapping_version` | VARCHAR(100) | No |
+| `template_kind` | VARCHAR(32) | No |
 | `is_active` | BOOLEAN | No |
 | `created_at` | DATETIME/TIMESTAMP | No |
 
@@ -1083,6 +1087,7 @@ Constraints:
 - targeted OOXML mapping lives in version-controlled code/config and `mapping_version` identifies its contract;
 - replacing the official template means creating/registering a **new version**, not overwriting old binary/metadata;
 - configured binary must be hash-verified against `template_sha256` before use/readiness.
+- `template_kind` (added 2026-10-12, G26): `NSCMF_FORM` (default; the official NSCMF Form workbook) or `ACTIVITY_LOG` (the NSCMF Activity Logging Form workbook); at most one active version per kind; the mapping version must belong to the same kind.
 
 `private_object_key` remains a private Laravel Storage key and does not imply an external object-storage provider.
 
@@ -1149,6 +1154,45 @@ Constraints:
 - `snapshot_sha256` computed over canonical serialized snapshot representation;
 - worker reads snapshot, not live NSCMF child tables;
 - snapshot is DERIVED evidence, not editable business source of truth.
+
+## 44A. `nscmf_activity_log_exports` — Activity Log report export (G26)
+
+One row = one requested Activity Log report file (`12 §47.2`). Request, immutable snapshot and artifact metadata share one row because the report has no signing, issuance or batch.
+
+| Column | Type | Null |
+|---|---|---:|
+| `id` | BIGINT UNSIGNED PK | No |
+| `requested_by_user_id` | BIGINT UNSIGNED FK → `users.id` | No |
+| `format` | VARCHAR(8) | No |
+| `status` | VARCHAR(16) | No |
+| `progress_percent` | TINYINT UNSIGNED | No |
+| `template_version_id` | BIGINT UNSIGNED FK → `nscmf_template_versions.id` | No |
+| `snapshot_schema_version` | VARCHAR(50) | No |
+| `snapshot_json` | JSON | No |
+| `snapshot_sha256` | CHAR(64) | No |
+| `entry_count` | INT UNSIGNED | No |
+| `requested_at` | DATETIME(6) | No |
+| `started_at` | DATETIME(6) | Yes |
+| `ready_at` | DATETIME(6) | Yes |
+| `failed_at` | DATETIME(6) | Yes |
+| `expires_at` | DATETIME(6) | Yes |
+| `failure_code` | VARCHAR(100) | Yes |
+| `failure_summary` | VARCHAR(1000) | Yes |
+| `private_object_key` | VARCHAR(1024) | Yes |
+| `mime_type` | VARCHAR(100) | Yes |
+| `size_bytes` | BIGINT UNSIGNED | Yes |
+| `artifact_sha256` | CHAR(64) | Yes |
+| `binary_purged_at` | DATETIME(6) | Yes |
+
+Constraints/indexes:
+
+- `format` `XLSX|PDF`; `status` uses the export technical statuses of §43; `progress_percent` CHECK `0..100`; `entry_count` `1..1000`;
+- the template version must have `template_kind = ACTIVITY_LOG`;
+- `snapshot_json`/`snapshot_sha256`/`entry_count`/`template_version_id` are immutable after creation; the worker reads the snapshot, never live records;
+- READY binary kept 168 hours, then the binary is removed and `binary_purged_at` set; the row stays;
+- indexes `(requested_by_user_id, requested_at)`, `(status, requested_at)`, `(expires_at, binary_purged_at)`.
+
+The file is a report, not an NSCMF export or issuance: it never creates `nscmf_export_requests`, `nscmf_pdf_issuances` or a business status.
 
 ## 45. Snapshot Creation Transaction
 
