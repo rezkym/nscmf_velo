@@ -9,25 +9,34 @@ use App\Domain\Reports\ActivityLogMappingV1;
  */
 
 /**
- * @param  list<array<string, mixed>>  $entries
- * @param  array<string, mixed>  $header
- * @return array<string, mixed>
+ * @param  list<array{request_no: string, request_date: string|null, subtype: string, customer_name: string|null, noc_infrastructure: list<string>}>  $entries
+ * @return array{header: array{period_from: string|null, period_until: string|null, site: array{noc15: bool, noc23: bool}, prepared_by: array{name: string|null, date: string|null}, acknowledged_by: array{name: string|null, date: string|null}}, entries: list<array{request_no: string, request_date: string|null, subtype: string, customer_name: string|null, noc_infrastructure: list<string>}>}
  */
-function logSnapshot(array $entries, array $header = []): array
-{
+function logSnapshot(
+    array $entries,
+    ?string $from = '2026-08-01',
+    ?string $until = '2026-08-31',
+    bool $noc15 = false,
+    bool $noc23 = false,
+    ?string $ackName = null,
+    ?string $ackDate = null,
+): array {
     return [
-        'header' => array_replace([
-            'period_from' => '2026-08-01',
-            'period_until' => '2026-08-31',
-            'site' => ['noc15' => false, 'noc23' => false],
+        'header' => [
+            'period_from' => $from,
+            'period_until' => $until,
+            'site' => ['noc15' => $noc15, 'noc23' => $noc23],
             'prepared_by' => ['name' => 'Prepared Person', 'date' => '2026-08-31'],
-            'acknowledged_by' => ['name' => null, 'date' => null],
-        ], $header),
+            'acknowledged_by' => ['name' => $ackName, 'date' => $ackDate],
+        ],
         'entries' => $entries,
     ];
 }
 
-/** @return array<string, mixed> */
+/**
+ * @param  list<string>  $impacts
+ * @return array{request_no: string, request_date: string|null, subtype: string, customer_name: string|null, noc_infrastructure: list<string>}
+ */
 function logEntry(string $requestNo, string $subtype = 'ACTIVATION', ?string $customer = 'Demo Customer', array $impacts = [], ?string $date = '2026-08-03'): array
 {
     return ['request_no' => $requestNo, 'request_date' => $date, 'subtype' => $subtype, 'customer_name' => $customer, 'noc_infrastructure' => $impacts];
@@ -64,7 +73,7 @@ it('labels every subtype the way the paper log does', function (string $subtype,
     ['EMERGENCY', 'Emergency'],
 ]);
 
-it('keeps Customer Name and NOC Infrastructure on one line of at most 50 characters', function (): void {
+it('keeps Customer Name and NOC Infrastructure on one line of at most 42 characters', function (): void {
     $long = str_repeat('Demo very long purpose ', 5);
     $fill = ActivityLogMappingV1::fill(logSnapshot([
         logEntry('X-1', 'MAINTENANCE', "First line of the purpose\nsecond line never shown"),
@@ -73,16 +82,13 @@ it('keeps Customer Name and NOC Infrastructure on one line of at most 50 charact
     ]));
 
     expect($fill['text']['U9'])->toBe('First line of the purpose')
-        ->and(mb_strlen($fill['text']['U10']))->toBe(50)
+        ->and(mb_strlen($fill['text']['U10']))->toBe(42)
         ->and($fill['text']['U10'])->toEndWith('…')
         ->and($fill['text'])->not->toHaveKey('U11');
 });
 
 it('ticks the Site Location boxes the header asks for and writes the Acknowledge By block when given', function (): void {
-    $fill = ActivityLogMappingV1::fill(logSnapshot([logEntry('X-1')], [
-        'site' => ['noc15' => true, 'noc23' => true],
-        'acknowledged_by' => ['name' => 'Acknowledging Person', 'date' => '2026-09-01'],
-    ]));
+    $fill = ActivityLogMappingV1::fill(logSnapshot([logEntry('X-1')], noc15: true, noc23: true, ackName: 'Acknowledging Person', ackDate: '2026-09-01'));
 
     expect($fill['controls'])->toBe([['ctrl_prop' => 1, 'shape' => 1025], ['ctrl_prop' => 2, 'shape' => 1026]])
         ->and($fill['text']['V52'])->toBe('Acknowledging Person')
@@ -102,7 +108,7 @@ it('continues past 40 entries on whole pages, numbering rows and moving the sign
 });
 
 it('leaves the period and an entry date empty when they are unknown', function (): void {
-    $fill = ActivityLogMappingV1::fill(logSnapshot([logEntry('X-1', date: null)], ['period_from' => null, 'period_until' => null]));
+    $fill = ActivityLogMappingV1::fill(logSnapshot([logEntry('X-1', date: null)], from: null, until: null));
 
     expect($fill['numbers'])->not->toHaveKeys(['AG5', 'AL5', 'C9']);
 });

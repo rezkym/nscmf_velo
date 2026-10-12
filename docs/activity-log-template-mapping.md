@@ -30,8 +30,14 @@ is never committed (`.gitignore`), and neither is the example, which holds real 
 | Acknowledge By name / date | `V52` / `V54` (date serial) |
 
 Entry rows are 9–48 (merges `A:B`, `C:F`, `G:K`, `L:T`, `U:AE`, `AF:AO`). Customer Name and NOC
-Infrastructure are cut to 50 characters with `…` so they stay on one line; the web page shows the
-whole first line.
+Infrastructure are cut to 42 characters with `…` so they stay inside their merged cell: a real
+LibreOffice render on 2026-10-12 showed about 44 characters of Aptos Narrow fitting the column, so
+50 was clipped. The web page shows the whole first line.
+
+Dates are written as numbers in cells formatted `d-mmm-yy` (built-in format 15), so the XLSX keeps
+real dates. That built-in format follows the renderer's locale; the renderer therefore runs with
+the fixed locale `en-US` (its throw-away profile), so the PDF shows `3-Aug-26` like the paper form
+on any host.
 
 ## More than 40 entries
 

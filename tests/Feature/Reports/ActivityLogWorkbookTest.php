@@ -45,7 +45,9 @@ function logMerges(string $xlsx): array
     return $matches[1];
 }
 
-/** @return array<string, mixed> */
+/**
+ * @return array{header: array{period_from: string|null, period_until: string|null, site: array{noc15: bool, noc23: bool}, prepared_by: array{name: string|null, date: string|null}, acknowledged_by: array{name: string|null, date: string|null}}, entries: list<array{request_no: string, request_date: string|null, subtype: string, customer_name: string|null, noc_infrastructure: list<string>}>}
+ */
 function workbookSnapshot(int $entries, bool $noc15 = true): array
 {
     return [
@@ -58,7 +60,7 @@ function workbookSnapshot(int $entries, bool $noc15 = true): array
         'entries' => array_map(fn (int $n): array => [
             'request_no' => sprintf('DEMO-LOG-%03d', $n), 'request_date' => '2026-08-03', 'subtype' => 'MAINTENANCE',
             'customer_name' => "Demo entry {$n}", 'noc_infrastructure' => ['NOC15'],
-        ], range(1, $entries)),
+        ], range(1, max(1, $entries))),
     ];
 }
 
@@ -92,8 +94,9 @@ it('adds whole pages beyond 40 entries, moving the signature block and repeating
     $sheet = logMember($output, 'xl/worksheets/sheet1.xml');
     $merges = logMerges($output);
 
-    expect($cells)->toMatchArray(['A49' => '41', 'G49' => 'DEMO-LOG-041', 'A88' => '80', 'A92' => 'Prepared Person', 'A94' => '46265', 'V92' => 'Acknowledging Person'])
-        ->and($cells)->not->toHaveKeys(['G50', 'A52'])
+    // Row 52 is now entry row 44 (blank but numbered); the signature block sits at rows 90–94.
+    expect($cells)->toMatchArray(['A49' => '41', 'G49' => 'DEMO-LOG-041', 'A52' => '44', 'A88' => '80', 'A92' => 'Prepared Person', 'A94' => '46265', 'V92' => 'Acknowledging Person'])
+        ->and($cells)->not->toHaveKey('G50')
         ->and($merges)->toContain('A49:B49', 'AF49:AO49', 'U88:AE88', 'A90:U90', 'V90:AO90', 'A92:I92', 'V94:AD94')
         ->and($merges)->not->toContain('A52:I52', 'A50:U50')
         ->and($sheet)->toContain('<dimension ref="A1:AP94"/>')
@@ -120,3 +123,15 @@ it('renders 41 entries of the real template as two A4 pages', function (): void 
 
     expect(preg_match_all('#/Type\s*/Page[^s]#', (string) file_get_contents($pdf)))->toBe(2);
 })->skip(fn (): bool => ! is_file(logTemplate()) || ! app(SpreadsheetRenderer::class)->isAvailable(), 'The private template or the renderer is not present.');
+
+it('prints dates the way the paper form does, whatever the host locale', function (): void {
+    $output = patchLog(logTemplate(), 1);
+    $workspace = sys_get_temp_dir().'/log-locale-'.uniqid();
+    mkdir($workspace);
+    $pdf = app(SpreadsheetRenderer::class)->render($output, $workspace);
+    $text = (string) shell_exec('pdftotext '.escapeshellarg($pdf).' -');
+
+    expect($text)->toContain('3-Aug-26')
+        ->and($text)->toContain('1-Aug-26')
+        ->and($text)->not->toContain('Agu');
+})->skip(fn (): bool => ! is_file(logTemplate()) || ! app(SpreadsheetRenderer::class)->isAvailable() || trim((string) shell_exec('command -v pdftotext')) === '', 'The private template, the renderer or pdftotext is not present.');

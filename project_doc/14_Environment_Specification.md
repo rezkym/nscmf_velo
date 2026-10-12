@@ -1066,7 +1066,7 @@ Hash mismatch is a critical export readiness failure.
 
 ## 70A. Activity Log Template (G26)
 
-The NSCMF Activity Logging Form workbook is provisioned like the official template: private, immutable, registered with `php artisan nscmf:template:register <path> --kind=activity-log --activate`, stored under `templates/`, SHA-256 verified before use, never committed. Its only font is Aptos Narrow (already part of the qualified inventory, §74). Report artifacts use the `exports/` prefix and the same 168 h retention.
+The NSCMF Activity Logging Form workbook is provisioned like the official template: private, immutable, registered with `php artisan nscmf:template:register <path> --kind=activity-log --activate`, stored under `templates/`, SHA-256 verified before use, never committed. Its only font is Aptos Narrow (already part of the qualified inventory, §74). The renderer runs with the fixed locale `en-US` in its throw-away profile, so locale-dependent built-in formats such as `d-mmm-yy` render the same on every host (`3-Aug-26`). Report artifacts use the `exports/` prefix and the same 168 h retention.
 
 ---
 
