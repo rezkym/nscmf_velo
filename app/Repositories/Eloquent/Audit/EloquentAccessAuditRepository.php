@@ -23,7 +23,7 @@ final class EloquentAccessAuditRepository implements AccessAuditRepository
             ->leftJoin('nscmf_records as records', 'records.id', '=', 'events.nscmf_record_id')
             ->paginate($filters['per_page'], [
                 'events.id', 'events.event_type', 'events.occurred_at', 'events.actor_user_id', 'actors.name as actor_name',
-                'events.nscmf_record_id', 'records.request_no', 'events.attachment_id', 'events.export_request_id',
+                'events.nscmf_record_id', 'records.request_no', 'events.attachment_id', 'events.export_request_id', 'events.activity_log_export_id',
             ], 'page', $filters['page']);
     }
 }

@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Repositories\Eloquent\Reports;
 
+use App\Domain\Export\ExportStatus;
 use App\Domain\Nscmf\Enums\NscmfStatus;
 use App\Models\Nscmf\NscmfRecord;
+use App\Models\Reports\ActivityLogExport;
 use App\Repositories\Contracts\Reports\ActivityLogRepository;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -72,6 +75,51 @@ final class EloquentActivityLogRepository implements ActivityLogRepository
         }
 
         return $impacts;
+    }
+
+    public function createExport(array $attributes): ActivityLogExport
+    {
+        return ActivityLogExport::query()->create($attributes);
+    }
+
+    public function findExport(int $exportId): ?ActivityLogExport
+    {
+        return ActivityLogExport::query()->with('templateVersion')->find($exportId);
+    }
+
+    public function lockExport(int $exportId): ActivityLogExport
+    {
+        return ActivityLogExport::query()->lockForUpdate()->findOrFail($exportId);
+    }
+
+    public function updateExport(ActivityLogExport $export, array $attributes): void
+    {
+        $export->forceFill($attributes)->save();
+    }
+
+    public function recentOwnExports(int $userId, CarbonImmutable $since, CarbonImmutable $now): array
+    {
+        return array_values(ActivityLogExport::query()
+            ->where('requested_by_user_id', $userId)
+            ->where('requested_at', '>', $since)
+            ->where('status', '!=', ExportStatus::EXPIRED->value)
+            ->where(fn (Builder $builder) => $builder->whereNull('expires_at')->orWhere('expires_at', '>', $now))
+            ->orderByDesc('requested_at')
+            ->orderByDesc('id')
+            ->get()
+            ->all());
+    }
+
+    public function expiredExports(CarbonImmutable $now, int $limit): array
+    {
+        return array_values(ActivityLogExport::query()
+            ->where('status', ExportStatus::READY->value)
+            ->where('expires_at', '<=', $now)
+            ->whereNull('binary_purged_at')
+            ->orderBy('id')
+            ->limit($limit)
+            ->get()
+            ->all());
     }
 
     /**

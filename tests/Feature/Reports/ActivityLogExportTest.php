@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Infrastructure\Pdf\SpreadsheetRenderer;
 use App\Jobs\GenerateActivityLogExport;
+use App\Models\Reports\ActivityLogExport;
 use App\Models\User;
 use App\Services\Maintenance\CleanupService;
 use App\Services\Reports\ActivityLogExportGenerationService;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\Actors;
 use Tests\Support\Records;
 use Tests\Support\StandInRenderer;
@@ -30,7 +32,11 @@ beforeEach(function (): void {
     Artisan::call('nscmf:template:register', ['path' => SyntheticLogWorkbook::path(), '--label' => 'NSCMF-Log-1.0', '--kind' => 'activity-log', '--activate' => true]);
 });
 
-/** An Approved Change with a request date, a Maintenance Purpose and Service Impacts. */
+/**
+ * An Approved Change with a request date, a Maintenance Purpose and Service Impacts.
+ *
+ * @param  list<string>  $impacts
+ */
 function exportedRecord(User $owner, string $date = '2026-08-03', string $purpose = 'Demo migration', array $impacts = ['NOC15']): int
 {
     $id = Records::create($owner);
@@ -61,17 +67,41 @@ function exportBody(array $overrides = []): array
     ], $overrides);
 }
 
-/** @return array<string, mixed> */
+/** @return array<mixed> */
 function boundSnapshot(): array
 {
-    $json = DB::table('nscmf_activity_log_exports')->value('snapshot_json');
-
-    return is_string($json) ? (array) json_decode($json, true, flags: JSON_THROW_ON_ERROR) : [];
+    return ActivityLogExport::query()->latest('id')->firstOrFail()->snapshot_json;
 }
 
+/** @return array<mixed> */
+function snapshotPart(string $key): array
+{
+    $part = boundSnapshot()[$key] ?? null;
+
+    return is_array($part) ? $part : throw new RuntimeException("The snapshot has no {$key}.");
+}
+
+/** @return list<array<mixed>> */
+function snapshotEntries(): array
+{
+    return array_values(array_filter(snapshotPart('entries'), 'is_array'));
+}
+
+/**
+ * @param  array<string, mixed>  $body
+ * @return TestResponse<Response>
+ */
 function requestExport(User $actor, array $body): TestResponse
 {
     return signIn($actor)->postJson('/reports/activity-log/exports', $body);
+}
+
+/** @param array<string, mixed> $body */
+function requestedExportId(User $actor, array $body): int
+{
+    $id = requestExport($actor, $body)->assertStatus(202)->json('data.id');
+
+    return is_int($id) ? $id : throw new RuntimeException('No export id.');
 }
 
 it('needs both the History and the Export permission', function (): void {
@@ -96,16 +126,17 @@ it('binds the matching entries and the header as an immutable snapshot, audits t
         ->assertJsonPath('data.entry_count', 2)
         ->assertJsonPath('data.download_url', null);
 
-    $snapshot = boundSnapshot();
-    expect($snapshot['header'])->toBe([
+    $entries = snapshotEntries();
+    // MySQL normalizes JSON key order, so compare by key, not by position.
+    expect(snapshotPart('header'))->toEqual([
         'period_from' => '2026-08-01', 'period_until' => '2026-08-31',
         'site' => ['noc15' => true, 'noc23' => false],
         'prepared_by' => ['name' => 'Prepared Person', 'date' => '2026-08-31'],
         'acknowledged_by' => ['name' => null, 'date' => null],
     ])
-        ->and(array_column($snapshot['entries'], 'record_id'))->toBe([$early, $late])
-        ->and($snapshot['entries'][1]['customer_name'])->toBe('Second migration')
-        ->and($snapshot['entries'][1]['noc_infrastructure'])->toBe(['NOC23', 'POP'])
+        ->and(array_column($entries, 'record_id'))->toBe([$early, $late])
+        ->and($entries[1]['customer_name'] ?? null)->toBe('Second migration')
+        ->and($entries[1]['noc_infrastructure'] ?? null)->toBe(['NOC23', 'POP'])
         ->and(DB::table('nscmf_activity_log_exports')->value('snapshot_sha256'))->toHaveLength(64);
 
     $exportId = DB::table('nscmf_activity_log_exports')->value('id');
@@ -121,10 +152,9 @@ it('exports only the selected visible entries and refuses an invisible one witho
     $foreignDraft = Records::create(Actors::requester());
 
     requestExport($owner, exportBody(['scope' => 'SELECTED', 'filters' => null, 'record_ids' => [$first, $second]]))->assertStatus(202);
-    $snapshot = boundSnapshot();
-    expect(array_column($snapshot['entries'], 'record_id'))->toBe([$second, $first])
-        ->and($snapshot['header']['period_from'])->toBe('2026-08-01')
-        ->and($snapshot['header']['period_until'])->toBe('2026-08-05');
+    expect(array_column(snapshotEntries(), 'record_id'))->toBe([$second, $first])
+        ->and(snapshotPart('header')['period_from'] ?? null)->toBe('2026-08-01')
+        ->and(snapshotPart('header')['period_until'] ?? null)->toBe('2026-08-05');
 
     $invisible = requestExport($owner, exportBody(['scope' => 'SELECTED', 'filters' => null, 'record_ids' => [$first, $foreignDraft]]))->assertUnprocessable()->json('errors.record_ids.0');
     $missing = requestExport($owner, exportBody(['scope' => 'SELECTED', 'filters' => null, 'record_ids' => [$first, 999999]]))->assertUnprocessable()->json('errors.record_ids.0');
@@ -178,7 +208,7 @@ it('refuses without an active log template and refuses a PDF while no renderer i
 it('builds the XLSX from the snapshot only, reports 100 % and serves it to its requester', function (): void {
     $owner = Actors::requester();
     $recordId = exportedRecord($owner, '2026-08-03', 'Demo migration before edit');
-    $exportId = requestExport($owner, exportBody())->json('data.id');
+    $exportId = requestedExportId($owner, exportBody());
     DB::table('nscmf_change_details')->where('nscmf_record_id', $recordId)->update(['maintenance_purpose' => 'Edited after the request']);
 
     app(ActivityLogExportGenerationService::class)->generate($exportId);
@@ -211,7 +241,7 @@ it('shows the rendering stage while the PDF is being rendered', function (): voi
     $owner = Actors::requester();
     exportedRecord($owner);
     app()->instance(SpreadsheetRenderer::class, new StandInRenderer);
-    $exportId = requestExport($owner, exportBody(['format' => 'PDF']))->json('data.id');
+    $exportId = requestedExportId($owner, exportBody(['format' => 'PDF']));
 
     /** @var ArrayObject<string, mixed> $seen */
     $seen = new ArrayObject;
@@ -243,7 +273,7 @@ it('shows the rendering stage while the PDF is being rendered', function (): voi
 it('lists the actor\'s own recent exports and expires their files after 168 hours', function (): void {
     $owner = Actors::requester();
     exportedRecord($owner);
-    $exportId = requestExport($owner, exportBody())->json('data.id');
+    $exportId = requestedExportId($owner, exportBody());
     requestExport(Actors::requester(), exportBody())->assertStatus(202);
     app(ActivityLogExportGenerationService::class)->generate($exportId);
 
@@ -259,18 +289,18 @@ it('lists the actor\'s own recent exports and expires their files after 168 hour
     expect(DB::table('nscmf_activity_log_exports')->where('id', $exportId)->value('status'))->toBe('EXPIRED')
         ->and(DB::table('nscmf_activity_log_exports')->where('id', $exportId)->value('binary_purged_at'))->not->toBeNull()
         ->and(is_string($key) && Storage::disk('nscmf_private')->exists($key))->toBeFalse();
-    signIn($owner)->get("/reports/activity-log/exports/{$exportId}/download")->assertStatus(410);
+    signIn($owner)->getJson("/reports/activity-log/exports/{$exportId}/download")->assertStatus(410);
     signIn($owner)->getJson('/reports/activity-log/exports')->assertJsonCount(0, 'data');
 });
 
 it('fails safely when the snapshot no longer matches its hash or the job runs out of attempts', function (): void {
     $owner = Actors::requester();
     exportedRecord($owner);
-    $tampered = requestExport($owner, exportBody())->json('data.id');
+    $tampered = requestedExportId($owner, exportBody());
     DB::table('nscmf_activity_log_exports')->where('id', $tampered)->update(['snapshot_json' => '{"header":{},"entries":[]}']);
     app(ActivityLogExportGenerationService::class)->generate($tampered);
 
-    $abandoned = requestExport($owner, exportBody())->json('data.id');
+    $abandoned = requestedExportId($owner, exportBody());
     (new GenerateActivityLogExport($abandoned))->failed(new RuntimeException('Worker died.'));
 
     expect(DB::table('nscmf_activity_log_exports')->where('id', $tampered)->value('failure_code'))->toBe('REPORT_SNAPSHOT_INTEGRITY')

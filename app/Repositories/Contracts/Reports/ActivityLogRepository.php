@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Repositories\Contracts\Reports;
 
 use App\Models\Nscmf\NscmfRecord;
+use App\Models\Reports\ActivityLogExport;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
@@ -53,4 +55,28 @@ interface ActivityLogRepository
      * @return array<int, list<string>>
      */
     public function serviceImpacts(array $recordIds): array;
+
+    /** @param array<string, mixed> $attributes */
+    public function createExport(array $attributes): ActivityLogExport;
+
+    public function findExport(int $exportId): ?ActivityLogExport;
+
+    public function lockExport(int $exportId): ActivityLogExport;
+
+    /** @param array<string, mixed> $attributes */
+    public function updateExport(ActivityLogExport $export, array $attributes): void;
+
+    /**
+     * The requester's exports requested after $since and not expired, newest first.
+     *
+     * @return list<ActivityLogExport>
+     */
+    public function recentOwnExports(int $userId, CarbonImmutable $since, CarbonImmutable $now): array;
+
+    /**
+     * READY exports whose 168h window has passed and whose binary still exists.
+     *
+     * @return list<ActivityLogExport>
+     */
+    public function expiredExports(CarbonImmutable $now, int $limit): array;
 }
