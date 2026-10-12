@@ -99,6 +99,10 @@ describe('Activity Log exports panel (07 §34.2)', () => {
         expect(strip.text()).toContain('Queued');
         expect(exposed.activeCount).toBe(2);
         expect(panel()).toBeNull();
+
+        exposed.track(job('QUEUED', { id: 10, format: 'XLSX', entry_count: 1 }));
+        await flushPromises();
+        expect(wrapper.get('[data-testid="log-export-latest"]').text()).toContain('XLSX · 1 entry ');
     });
 
     it('spotlights the newest running export when the page opens, but never a settled one', async () => {

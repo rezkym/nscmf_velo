@@ -93,6 +93,13 @@ describe('Activity Log page (07 §34.2)', () => {
         expect(wrapper.get('[data-testid="log-summary"]').text()).toBe('27 entries · Period 1 Aug 2026 – 31 Aug 2026');
     });
 
+    it('counts a single entry in the singular', () => {
+        const wrapper = mountLog({
+            summary: { total: 1, period_from: null, period_until: null, site_defaults: { noc15: false, noc23: false } },
+        });
+        expect(wrapper.get('[data-testid="log-summary"]').text()).toBe('1 entry');
+    });
+
     it('checks every submitted status by default and offers the two quick choices', async () => {
         const wrapper = mountLog();
         expect(wrapper.get('[data-testid="status-APPROVED"]').attributes('data-state')).toBe('checked');
