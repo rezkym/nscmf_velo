@@ -72,6 +72,16 @@ Satu test lama perlu disinkronkan dengan spesifikasi baru: `SchemaT0511Test` kin
 - 2026-10-12: pemilik menyatakan sudah me-review dan menyetujui pekerjaan ini, termasuk cetakan kosong. `feat/activity-log-report` lalu digabung (fast-forward) ke `staging` lokal atas permintaan pemilik.
 - Migrasi `2026_10_12_000001_create_activity_log_report_tables` dijalankan di database lokal `nscmf`, dan cetakan didaftarkan sebagai versi aktif kind `ACTIVITY_LOG`.
 
+## Revisi UI: panel Exports (2026-10-12, G26 butir 11)
+
+Masukan pemilik: kartu "Exports" makin panjang setiap kali ekspor diminta dan mendorong tabel ke bawah. Pemilik memilih pola **tombol + panel samping**, mengacu pada Carbon Design System (inline feedback + notification panel) dan Atlassian Flag. Branch: `feat/activity-log-exports-panel`, dibuat dari `staging`.
+
+- Tombol **Exports** di samping Export membuka panel samping kanan (Sheet). Panel berisi semua ekspor yang disimpan 7 hari, dengan yang terbaru di atas, dan bisa di-scroll. Tombol menampilkan jumlah ekspor yang masih berjalan.
+- Halaman hanya menampilkan satu strip untuk ekspor terbaru, berisi persentase, tahap, Download, "View all exports", dan tombol tutup. Strip baru hilang setelah ditutup.
+- Teks jumlah entri kini memakai bentuk tunggal ("1 entry"), dan strip menyesuaikan diri di layar HP.
+- Commit: docs `0868943`; RED `231d611` → GREEN `558f5f8`; RED `0c7b546` → GREEN `aee90a5`.
+- Gate: ESLint, Prettier, vue-tsc lulus; Vitest 785/785 lulus dengan coverage baris 92,62%; build lulus; Playwright Chromium 39/39 lulus. Backend tidak berubah, jadi Pest/PHPStan tidak dijalankan ulang. Screenshot desktop dan HP diperiksa manual.
+
 ## Belum selesai
 
 - Push, PR ke `main`, dan CI GitHub belum dilakukan (sesuai keputusan "lokal saja"). Merge ke `main` tetap oleh manusia.
