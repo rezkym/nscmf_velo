@@ -82,6 +82,13 @@ Masukan pemilik: kartu "Exports" makin panjang setiap kali ekspor diminta dan me
 - Commit: docs `0868943`; RED `231d611` → GREEN `558f5f8`; RED `0c7b546` → GREEN `aee90a5`.
 - Gate: ESLint, Prettier, vue-tsc lulus; Vitest 785/785 lulus dengan coverage baris 92,62%; build lulus; Playwright Chromium 39/39 lulus. Backend tidak berubah, jadi Pest/PHPStan tidak dijalankan ulang. Screenshot desktop dan HP diperiksa manual.
 
+### Revisi kedua: panel melayang (referensi gambar pemilik)
+
+- Panel kini melayang 12 px dari tepi layar dengan sudut membulat. Isinya: judul besar "Exports"; ringkasan berupa ikon, retensi 7 hari, jumlah ekspor, dan jumlah yang berjalan; lalu bagian **In progress**, **Ready to download**, dan **Earlier** yang dipisah garis (bagian kosong tidak ditampilkan). Footer berisi **Close** dan **New export**, yang membuka dialog ekspor.
+- Baris yang sudah Ready di panel tidak lagi memakai bar 100%; diganti link "Download ↓". Strip di halaman tetap menampilkan bar.
+- Commit: docs `8408bb8`; RED `d98a107` → GREEN `f4a42e1`; RED `b76af13` → GREEN `9344899`. Di GREEN terakhir, satu asersi lama ("100%" di baris Ready panel) disesuaikan dengan keputusan baru.
+- Gate: ESLint, Prettier, vue-tsc lulus; build lulus; Playwright Chromium 39/39 lulus. Vitest 790/790 lulus dengan coverage baris 92,83% pada dua run berurutan. Satu run sebelumnya mencatat 4 kegagalan yang tidak terulang dan tidak sempat diidentifikasi; saat itu mesin juga menjalankan `composer dev`.
+
 ## Belum selesai
 
 - Push, PR ke `main`, dan CI GitHub belum dilakukan (sesuai keputusan "lokal saja"). Merge ke `main` tetap oleh manusia.
