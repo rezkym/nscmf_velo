@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Nscmf\NscmfRecord;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -77,7 +78,7 @@ it('filters by request date range, status, archive view, family, subtype and Req
     signIn($viewer)->get("{$august}&archived=archived")->assertInertia(fn (AssertableInertia $page) => $page->where('items', listsExactly([$archived])));
     signIn($viewer)->get("{$august}&family=ACTIVATION&subtype=ACTIVATION")->assertInertia(fn (AssertableInertia $page) => $page->where('items', listsExactly([$approved])));
 
-    $requestNo = (string) DB::table('nscmf_records')->where('id', $september)->value('request_no');
+    $requestNo = NscmfRecord::query()->findOrFail($september)->request_no;
     signIn($viewer)->get('/reports/activity-log?q='.strtolower(substr($requestNo, 5)))
         ->assertInertia(fn (AssertableInertia $page) => $page->where('items', listsExactly([$september])));
 });

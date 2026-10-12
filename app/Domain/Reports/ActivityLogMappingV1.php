@@ -102,6 +102,17 @@ final class ActivityLogMappingV1
         return ['rows' => $rows, 'text' => $text, 'numbers' => $numbers, 'controls' => $controls];
     }
 
+    /**
+     * The log's Customer Name (02 BR-RPT-002): the Activation customer, or the first line of a
+     * Change's Maintenance Purpose, since the Change form has no customer field.
+     */
+    public static function customerName(string $family, ?string $customerName, ?string $maintenancePurpose): ?string
+    {
+        $line = trim(strtok((string) ($family === 'CHANGE' ? $maintenancePurpose : $customerName), "\r\n") ?: '');
+
+        return $line === '' ? null : $line;
+    }
+
     /** The first line, cut to $max characters with an ellipsis when longer. */
     public static function oneLine(?string $value, int $max = self::MAX_TEXT): string
     {

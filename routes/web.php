@@ -33,6 +33,7 @@ use App\Http\Controllers\Nscmf\Workflow\ReviewRejectController;
 use App\Http\Controllers\Nscmf\Workflow\ReviewReturnController;
 use App\Http\Controllers\Nscmf\Workflow\SubmitRecordController;
 use App\Http\Controllers\PublicValidatorController;
+use App\Http\Controllers\Reports\ActivityLogController;
 use App\Http\Controllers\Review\ReviewDetailController;
 use App\Http\Controllers\Review\ReviewQueueController;
 use Illuminate\Support\Facades\Route;
@@ -67,6 +68,7 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('/history', HistoryController::class)->name('history.index');
     Route::get('/my-applications', MyApplicationsController::class)->name('my-applications.index');
+    Route::get('/reports/activity-log', ActivityLogController::class)->name('reports.activity-log');
 
     Route::get('/nscmf/create', [CreateNscmfController::class, 'create'])->name('nscmf.create');
     Route::post('/nscmf', [CreateNscmfController::class, 'store'])->name('nscmf.store');
