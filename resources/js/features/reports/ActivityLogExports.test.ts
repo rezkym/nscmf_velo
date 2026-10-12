@@ -51,7 +51,9 @@ beforeEach(() => {
 
 describe('Activity Log exports panel (07 §34.2)', () => {
     it('lists every retained export in the side panel, newest first, and follows a running one to READY', async () => {
-        respond({ data: [job('PROCESSING', { progress_percent: 45 }), job('READY', { id: 6, progress_percent: 100 })] });
+        respond({
+            data: [job('PROCESSING', { progress_percent: 45 }), job('READY', { id: 6, progress_percent: 100 })],
+        });
         respond({ data: job('PROCESSING', { progress_percent: 70, stage: 'RENDERING' }) });
         respond({ data: job('READY', { progress_percent: 100, expires_at: '2026-09-08T03:00:00+00:00' }) });
 
@@ -107,7 +109,9 @@ describe('Activity Log exports panel (07 §34.2)', () => {
         expect((settled.vm as unknown as Exposed).activeCount).toBe(0);
         settled.unmount();
 
-        respond({ data: [job('PROCESSING', { progress_percent: 10 }), job('READY', { id: 6, progress_percent: 100 })] });
+        respond({
+            data: [job('PROCESSING', { progress_percent: 10 }), job('READY', { id: 6, progress_percent: 100 })],
+        });
         const running = mountExports({ pollMs: 60_000 });
         await flushPromises();
         expect(running.get('[data-testid="log-export-latest"]').attributes('data-export-id')).toBe('7');

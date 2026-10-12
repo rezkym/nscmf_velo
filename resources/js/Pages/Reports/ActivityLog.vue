@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
-import { Download } from '@lucide/vue';
+import { Download, FolderDown } from '@lucide/vue';
 import { computed, ref } from 'vue';
 
 import DatePicker from '@/components/DatePicker.vue';
@@ -65,8 +65,10 @@ const loading = ref(false);
 const selected = ref<Record<number, LogItem>>({});
 const selectedItems = computed(() => Object.values(selected.value));
 const exportOpen = ref(false);
-/** The exports panel; a requested job is handed to it to follow. */
-const exports = ref<{ track: (job: LogExportJob) => void } | null>(null);
+/** The exports strip and panel; a requested job is handed to it to follow. */
+const exports = ref<{ track: (job: LogExportJob) => void; activeCount: number } | null>(null);
+const exportsPanelOpen = ref(false);
+const running = computed(() => exports.value?.activeCount ?? 0);
 
 const subtypes = computed(() => (props.query.family ? SUBTYPES_BY_FAMILY[props.query.family] : []));
 const filters = computed<LogFilters>(() => ({
@@ -297,6 +299,20 @@ const impacts = (item: unknown) =>
                     <Button
                         v-if="canExport"
                         type="button"
+                        variant="outline"
+                        data-testid="open-exports"
+                        :aria-label="running > 0 ? `Exports, ${running} running` : 'Exports'"
+                        @click="exportsPanelOpen = true"
+                    >
+                        <FolderDown aria-hidden="true" />
+                        Exports
+                        <Badge v-if="running > 0" variant="secondary" data-testid="exports-running">{{
+                            running
+                        }}</Badge>
+                    </Button>
+                    <Button
+                        v-if="canExport"
+                        type="button"
                         data-testid="open-export"
                         :disabled="summary.total === 0 && selectedItems.length === 0"
                         @click="exportOpen = true"
@@ -307,7 +323,7 @@ const impacts = (item: unknown) =>
                 </div>
             </div>
 
-            <ActivityLogExports v-if="canExport" ref="exports" />
+            <ActivityLogExports v-if="canExport" ref="exports" v-model:panel-open="exportsPanelOpen" />
 
             <ResourceTable
                 :columns="columns"

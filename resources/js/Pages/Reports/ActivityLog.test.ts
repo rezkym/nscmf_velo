@@ -159,12 +159,13 @@ describe('Activity Log page (07 §34.2)', () => {
         });
         vi.stubGlobal(
             'fetch',
-            vi.fn(
-                async () =>
+            vi.fn(() =>
+                Promise.resolve(
                     new Response(JSON.stringify({ data: [job(3, 'QUEUED'), job(2, 'PROCESSING'), job(1, 'READY')] }), {
                         status: 200,
                         headers: { 'Content-Type': 'application/json' },
                     }),
+                ),
             ),
         );
         const wrapper = mountLog();
