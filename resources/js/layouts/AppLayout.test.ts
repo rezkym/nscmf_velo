@@ -184,6 +184,21 @@ describe('AppLayout.vue', () => {
         expect(hrefs.indexOf('/my-applications')).toBe(hrefs.indexOf('/nscmf/create') + 1);
     });
 
+    it('T82E: links the Activity Log with nscmf.view.history, right after History (07 §10)', () => {
+        const hrefsFor = (permissions: string[]) => {
+            mockPageProps.value = {
+                auth: { user: { id: 8, username: 'log', name: 'Log' }, permissions, roles: [] },
+            };
+            return mount(AppLayout, { props: { title: 'x' } })
+                .findAllComponents(Link)
+                .map((link) => link.props('href'));
+        };
+
+        expect(hrefsFor(['nscmf.view'])).not.toContain('/reports/activity-log');
+        const hrefs = hrefsFor(['nscmf.view.history']);
+        expect(hrefs.indexOf('/reports/activity-log')).toBe(hrefs.indexOf('/history') + 1);
+    });
+
     // Administration links go to the real pages (12 §114); there is no /administration landing route,
     // and audit pages are not part of FE-01..30, so an audit-only user gets no dead link.
     it('links each administration page by its own view permission and never a dead landing page', () => {
