@@ -8,7 +8,7 @@
 > **Repository:** `rezkym/nscmf_velo`  
 > **Primary Business Reference:** NSCMF Form 3.0 (Excel)  
 > **Product Flow Reference:** NSCMF FigJam proposal  
-> **Last Updated:** 2026-10-12 (Activity Log report, G26; earlier: Dashboard analytics decision, `07 §17.1`)  
+> **Last Updated:** 2026-10-22 (sinkronisasi deskripsi produk dengan implementasi lokal; Activity Log G26 dan My Applications G25)
 
 ---
 
@@ -51,7 +51,7 @@ NSCMF Digital Form & Workflow System adalah aplikasi web internal **single-organ
 
 Aplikasi mempertahankan makna bisnis NSCMF Form 3.0. UI operasional tidak wajib pixel-perfect spreadsheet. **Khusus output XLSX/PDF, official NSCMF XLSX template menjadi visual/export source of truth dan hasil export harus mempertahankan template tersebut secara exact; sistem hanya mengisi/mengganti mapped fields/native control states.**
 
-User dapat memilih XLSX/PDF. Export asynchronous dan bound ke immutable deterministic export snapshot. READY binary private tersedia 168 jam/7 hari kemudian dibersihkan. XLSX tidak melalui PDF-signing flow. PDF yang merepresentasikan snapshot APPROVED wajib cryptographically signed dengan logical signer identity **System/Organization**.
+User dapat memilih XLSX/PDF. Export asynchronous dan bound ke immutable deterministic export snapshot. READY binary private tersedia 168 jam/7 hari kemudian dibersihkan. XLSX tidak melalui PDF-signing flow. PDF form NSCMF yang merepresentasikan snapshot APPROVED wajib cryptographically signed dengan logical signer identity **System/Organization**. PDF laporan Activity Log merupakan rekap unsigned, termasuk bila memuat entri APPROVED; rekap tersebut bukan Approved PDF individual.
 
 Official export template current MVP diperlakukan sebagai **immutable versioned private template** dengan SHA-256 + mapping-version binding; replacement menjadi versi baru, bukan overwrite.
 
@@ -65,7 +65,7 @@ Core journey:
 ```text
 Login
 → Dashboard
-→ Create New Form
+→ Create NSCMF
 → family/subtype
 → DRAFT
 → PENDING_REVIEW
@@ -74,7 +74,7 @@ Login
 → History / Export
 ```
 
-Branches include Cancel Draft, Return/Revision, unlimited resubmission, Reject, authorized Reopen, Archive/Unarchive, detailed audits, shared Reviewer/Approver pools, resumable private attachment upload, and public issued-PDF validation.
+Branches include Cancel Draft, Return/Revision, unlimited resubmission, Reject, authorized Reopen, Archive/Unarchive, detailed audits, shared Reviewer/Approver pools, resumable private attachment upload, and public issued-PDF validation. My Applications menyediakan daftar record milik aktor; History menyediakan penelusuran record yang boleh dilihat; Activity Log menyediakan rekap dari record yang terlihat. Bulk export form mendukung unduhan file individual dan paket ZIP.
 
 Current implementation posture is **local-first**: the application is developed and validated on the developer machine first, keeps Docker compatibility as a secondary portability target, and moves to an actual server only when the application is ready and a real deployment target exists. This posture is synchronized by `19A_Local_First_MVP_Synchronization.md` and made authoritative for deployment placement by `20_Deployment_Architecture.md`.
 
@@ -150,7 +150,7 @@ Current development prioritizes a correct local application before server deploy
 ## 6. Product Users
 
 ### Protected Superadmin
-Seeded protected authority, global operational visibility, initial setup, default admin authority. Cannot delete/disable/downgrade/lose protected role. Sole actor for protected Core System Settings current MVP.
+Protected authority yang dibuat melalui bootstrap eksplisit oleh operator, menjalankan initial setup dan administrasi sesuai permission. Cannot delete/disable/downgrade/lose protected role. Sole actor for protected Core System Settings current MVP. Visibilitas record tetap mengikuti aturan resource: DRAFT/CANCELLED pengguna lain tidak terlihat, tanpa pengecualian Superadmin.
 
 ### Requester
 Creates/manages own NSCMF; default owner for narrow Change Result flow.
@@ -168,7 +168,9 @@ May hold multiple roles; no mandatory segregation of duties.
 
 ## 7. Initial Setup Scope
 
-First run uses protected Superadmin + Setup Wizard:
+First run uses operator-controlled Protected Superadmin bootstrap + Setup Wizard. Reference seeding tidak otomatis membuat akun bootstrap atau mengisi Team master produksi. Password bootstrap dibuat server, ditampilkan sekali, dan wajib diganti pada login awal.
+
+Setup Wizard mencakup:
 
 1. Role setup: template/manual;
 2. Team setup;
@@ -186,7 +188,7 @@ Core system settings remain Protected Superadmin-only. Confirmed current applica
 MVP includes:
 
 1. Login/logout; no self-registration.
-2. Protected seeded Superadmin.
+2. Protected Superadmin melalui bootstrap eksplisit oleh operator.
 3. Setup Wizard.
 4. User administration.
 5. Role template/manual configuration.
@@ -195,14 +197,14 @@ MVP includes:
 8. Spatie Permission 8.x + Policies/Gates/domain checks.
 9. Spatie Teams disabled.
 10. Dashboard, including read-only activity/status analytics of the actor's own records and, with `nscmf.analytics.view` + `nscmf.view.history`, organization-wide aggregates (decided 2026-09-24; `04 §12.1`, `07 §17.1`, `12 §44.1`).
-11. Create New Form.
-12. History.
+11. Create NSCMF.
+12. History dengan search, filter family/subtype/status/tanggal request/archive, sort, dan pagination; filter owner/Team bersifat informasional, bukan batas otorisasi.
 13. Activation/Change forms + subtypes.
 14. Auto/manual numbering.
 15. Draft + autosave + Save Draft.
 16. Optional attachments.
 17. Resumable upload fixed 5 MiB chunks + 24h inactivity recovery window.
-18. Final attachment max20MB, max10 active/record, whole-file ClamAV CLEAN only.
+18. Final attachment max20MB (**20,000,000 bytes inclusive**), max10 active/record, whole-file ClamAV CLEAN only.
 19. Cancel Draft before first Submit.
 20. Shared/non-exclusive Review; multiple Reviewer contributors.
 21. Return/Revision/unlimited resubmission.
@@ -233,7 +235,7 @@ MVP includes:
 46. Generated binary retention 168h/7d.
 47. Approved PDF mandatory System/Organization signature.
 48. Signing private key protected runtime provisioned; never GitHub/source/ordinary DB/browser/log.
-49. Public `/ispdfvalid` verifies signature + exact final SHA-256 + issuance/currentness, max upload **20 MB**.
+49. Public `/ispdfvalid` verifies signature + exact final SHA-256 + issuance/currentness, max upload **20 MB / 20,000,000 bytes inclusive**.
 50. TSA not required current MVP.
 51. Canonical application/business timezone **`Asia/Jakarta`**.
 52. Runtime environment classes are local/development, testing, CI, staging, production; local/development is the primary active implementation target now.
@@ -242,6 +244,8 @@ MVP includes:
 55. CI remains part of development quality gates; automated CD/deployment pipeline is not current MVP scope.
 56. Future default server deployment is a simple single native Linux server with required runtime components co-located unless a real later requirement explicitly changes the topology.
 57. Activity Log report (decided 2026-10-12, G26): the digital NSCMF Activity Logging Form as a filterable list of visible NSCMF entries, exportable asynchronously as the official log workbook (XLSX) or its rendered, unsigned PDF, for every matching entry or a selection, with visible progress (`02 §20A`, `07 §34.2`, `12 §47.2`).
+58. My Applications (`/my-applications`, G25): daftar record milik aktor, termasuk DRAFT/CANCELLED, dengan search Request No, filter status, sort, per-page, dan pagination. Archived records diakses melalui History, bukan daftar ini.
+59. Bulk export form XLSX/PDF: setiap record diperiksa secara independen; file READY yang belum kedaluwarsa dan masih boleh diunduh dapat diambil individual atau sebagai satu ZIP setelah batch selesai diproses (G04, `12 §71`).
 
 Notification hook remains future capability and not MVP blocker.
 
@@ -263,7 +267,9 @@ Installation/provisioning. Subtypes Activation, Upgrade/Downgrade, Deactivation.
 ### 10.2 Change
 Maintenance/existing-service. Subtypes Maintenance, Upgrade, Emergency.
 
-Purpose of Changes is a section. Service Impact multi-select from NOC15/NOC23/NOC361/Regional/POP/Customer/Other; the description is optional. Result of Changes is separate and optional at every stage, with no Result gate at Forward; owner may narrow-edit Result in PENDING_REVIEW with permission. Every NSCMF form field is optional except the request date at Submit (06 §5, G24, 2026-09-30).
+Purpose of Changes is a section. Service Impact multi-select from NOC15/NOC23/NOC361/Regional/POP/Customer/Other; the description is optional. Result of Changes is separate and optional at every stage, with no Result gate at Forward; owner may narrow-edit Result in PENDING_REVIEW with permission. Business form fields dapat kosong kecuali request date pada Submit (06 §5, G24, 2026-09-30); field yang diisi tetap mengikuti validasi format, pasangan nilai/unit, dan aturan tanggal yang relevan.
+
+Pilihan awal family/subtype/numbering mode tetap wajib ketika membuat record. Manual numbering mewajibkan request number yang valid dan unik; pembuatan record juga memerlukan Team aktif milik aktor. Ketentuan ini berlaku untuk kedua form family dan tidak menjadikan Team sebagai scope Review/Approval.
 
 ### 10.3 Upgrade Classification
 Installation/provisioning → Activation; maintenance/existing-service → Change. Never keyword-only.
@@ -278,11 +284,11 @@ Installation/provisioning → Activation; maintenance/existing-service → Chang
 **FR-AUTH-002** no self-registration.  
 **FR-AUTH-003** no MFA.  
 **FR-AUTH-004** min6/no composition.  
-**FR-AUTH-005** server-side throttling/progressive delay.  
+**FR-AUTH-005** server-side throttling login berdasarkan batas kegagalan per kombinasi username + IP dalam window waktu.\
 **FR-AUTH-006** session idle30m/absolute8h/max2; third valid login revokes oldest.  
 **FR-AUTH-007** sensitive re-auth proof lifetime 15 minutes.
 
-**FR-ADM-001** protected Superadmin seeded.  
+**FR-ADM-001** protected Superadmin dibuat melalui bootstrap eksplisit oleh operator; ordinary reference seeding tidak membuat/reset akun tersebut.\
 **FR-ADM-002** initial setup wizard.  
 **FR-ADM-003** permission-based normal user/Team/role administration.  
 **FR-ADM-004** protected Superadmin cannot delete/disable/downgrade/lose role.  
@@ -297,12 +303,19 @@ Existing locked Draft/Submit/Review/Revision/Approval requirements remain exactl
 
 ### Reopen / Archive / History
 
-Reopen only Rejected/Approved, permission+reason, destination Revision/Review, new iteration. No hard-delete. Archive separate flag on Approved/Rejected/Cancelled. History/Timeline/authoritative audits preserved.
+Reopen only Rejected/Approved yang tidak archived, permission+reason, destination Revision/Review, new iteration. No hard-delete. Archive separate flag on Approved/Rejected/Cancelled. History/Timeline/authoritative audits preserved.
+
+My Applications menggunakan `nscmf.view`, memaksa owner = aktor, dan tidak menampilkan archived records. History menggunakan `nscmf.view.history` serta aturan visibilitas record. Search/filter/sort/pagination tidak memperluas akses record.
+
+### Activity Log Report
+
+Activity Log menggunakan `nscmf.view.history` dan aturan visibilitas record yang sama. User dapat memfilter tanggal request, family, subtype, satu atau lebih status, archive, serta search. Export memerlukan tambahan `nscmf.export`, mengambil semua entri yang cocok atau pilihan eksplisit, dan dibatasi 1.000 entri per request. Snapshot entri/header dibekukan ketika request diterima. Panel Exports menampilkan progres/status, riwayat export milik aktor yang masih tersedia, dan unduhan READY. PDF Activity Log unsigned dan tidak membuat issuance Approved PDF.
 
 ### Export / Attachment / Verification
 
 - exact official template XLSX/PDF;
 - async immutable snapshot;
+- bulk form export dengan hasil/error per record dan ZIP berisi artifact READY yang masih eligible; file gagal, ditolak, kedaluwarsa, atau tidak lagi terlihat tidak dimasukkan;
 - private READY binary 168h;
 - Approved PDF mandatory System/Organization signing;
 - signing failure no unsigned fallback;
@@ -341,8 +354,10 @@ Reopen Rejected/Approved → Revision Required or Pending Review + next iteratio
 | Requester | own mutation where explicit + permission/resource rules |
 | Reviewer | permission + eligible state, no Team scope |
 | Approver | permission + eligible state, no Team scope |
-| Protected Superadmin | global operational visibility + protected Core Settings, while domain invariants remain |
+| Protected Superadmin | administrasi sesuai permission + protected Core Settings; tetap mengikuti ownership, visibilitas, state, dan domain invariants |
 | Multi-role | union of role permissions + normal prerequisites |
+
+DRAFT dan CANCELLED hanya terlihat oleh owner, termasuk terhadap Protected Superadmin. Record yang pernah disubmit mengikuti permission baca yang sesuai tanpa batas Team. Aksi yang mensyaratkan owner, misalnya edit Draft/Revision dan narrow Change Result, tetap mensyaratkan owner meskipun aktor memiliki role Superadmin. Tidak ada universal Superadmin bypass.
 
 ---
 
@@ -371,7 +386,7 @@ No current MVP NFR is defined for application uptime SLA, HA, DR, RPO/RTO, backu
 
 ## 15. Success Criteria
 
-Stakeholder can setup users/Teams/roles; prove Team-neutral authorization; create/save/submit/review/revise/approve/reopen/archive NSCMF; narrow-edit Change Result; view History/Timeline; resume interrupted attachments; only use CLEAN files; exact export XLSX/PDF; obtain signed Approved PDF; validate issued PDF publicly; ensure no hard-delete/stale action; retain authoritative audits forever by age; manage Technical Log cleanup without touching authoritative evidence; generate/reset one-time temporary credentials; enforce 15-minute re-auth; and keep runtime decisions consistent with `Asia/Jakarta`, local-first implementation, MySQL 8.4, database session/cache/queue, private local storage semantics, and the simple future native-server deployment contract in `20`.
+Stakeholder can setup users/Teams/roles; prove Team-neutral authorization; create/save/submit/review/revise/approve/reopen/archive NSCMF; narrow-edit Change Result; view My Applications/History/Timeline; generate Activity Log reports with export progress; resume interrupted attachments; only use CLEAN files; exact export XLSX/PDF; download eligible bulk form exports as ZIP; obtain signed Approved PDF; validate issued PDF publicly; ensure no hard-delete/stale action; retain authoritative audits forever by age; manage Technical Log cleanup without touching authoritative evidence; generate/reset one-time temporary credentials; enforce 15-minute re-auth; and keep runtime decisions consistent with `Asia/Jakarta`, local-first implementation, MySQL 8.4, database session/cache/queue, private local storage semantics, and the simple future native-server deployment contract in `20`.
 
 ---
 
@@ -379,7 +394,14 @@ Stakeholder can setup users/Teams/roles; prove Team-neutral authorization; creat
 
 ### Confirmed
 
-All locked decisions above, including Team-only organization, permission-centric Spatie RBAC, seven statuses, workflow iterations, immutable exports, resumable CLEAN attachments, server-generated one-time temp passwords, 15-minute re-auth proof, third-login oldest-session revocation, public validator 20MB, `Asia/Jakarta`, Laravel private local storage, immutable/versioned template, configurable Technical Log cleanup, local-first development, Docker compatibility as secondary target, CI retained, CD deferred, ClamAV retained for MVP, LibreOffice Headless as first renderer candidate subject to qualification, `/ispdfvalid` application trust without public-CA/Adobe trust requirement, and simple single-native-server future deployment as defined by `20`.
+All locked decisions above, including Team-only organization, permission-centric Spatie RBAC, seven statuses, workflow iterations, immutable exports, resumable CLEAN attachments, server-generated one-time temp passwords, 15-minute re-auth proof, third-login oldest-session revocation, public validator 20MB, `Asia/Jakarta`, Laravel private local storage, immutable/versioned template, configurable Technical Log cleanup, local-first development, Docker compatibility as secondary target, CI retained, CD deferred, ClamAV retained for MVP, LibreOffice Headless sebagai renderer implementasi saat ini dengan kewajiban fidelity qualification, `/ispdfvalid` application trust without public-CA/Adobe trust requirement, and simple single-native-server future deployment as defined by `20`.
+
+### Keputusan Implementasi yang Sudah Tersedia
+
+- **Renderer:** adapter `LibreOfficeRenderer` menggunakan LibreOffice Headless dan font template yang diprovisikan privat. Pemilihan adapter sudah diimplementasikan; kesiapan executable saja bukan bukti kelulusan fidelity/font/layout di setiap environment. Qualification tetap memerlukan output official workbook dan bukti pengujian yang sesuai.
+- **Signing:** `ddn/sapp`, container PKCS#12 privat, passphrase dari environment, registry sertifikat publik, serta aktivasi/rotasi sertifikat sudah diimplementasikan (G17). Provisioning kunci produksi tetap tanggung jawab operator saat release.
+- **Scanner:** adapter whole-file `clamd` sudah diimplementasikan dengan deadline scan default 30 detik, gagal tertutup jika tidak memperoleh CLEAN (G15). Nilai operasional perlu dievaluasi kembali pada environment tujuan.
+- **Bulk packaging:** ZIP untuk bulk form export sudah diimplementasikan (G04); bukan lagi keputusan yang menunggu Phase 8.
 
 ### Provisional
 
@@ -390,17 +412,25 @@ Until official company SOP:
 - manual number rules;
 - Header Date not-future rule at first Submit.
 
+Angka rate limit MVP saat ini sudah ditetapkan dalam `config/security.php` (G05), dengan tuning lanjutan mengikuti bukti operasional:
+
+| Operation | Current default |
+|---|---|
+| Login | 5 kegagalan / 60 detik per username + IP |
+| Re-authentication | 5 kegagalan / 60 detik per user |
+| Upload | 120 request / menit per user |
+| Upload finalize | 20 request / menit per user |
+| Public PDF verification | 10 request / menit per IP |
+
 ### Deferred / Implementation-Time Decisions
 
 - exact Team master data;
 - official numbering SOP;
-- search/filter refinements;
-- bulk packaging;
+- refinements di luar search/filter yang sudah tersedia;
 - notification implementation;
-- numeric rate-limit tuning;
-- exact signing library/key-container/secret-injection/rotation implementation when Phase 8 is reached;
-- exact scanner timeout selected from real integration behavior;
-- renderer qualification outcome after LibreOffice Headless is tested against the official workbook;
+- tuning lanjutan rate limit/timeout berdasarkan pengukuran environment tujuan, bukan ketiadaan nilai default;
+- provisioning kunci signing produksi dan verifikasi operasional pada environment release;
+- bukti fidelity renderer/font/layout pada environment tujuan sebelum mengklaim kesiapan export PDF di environment tersebut;
 - actual server provider/hostname/Linux distribution/filesystem path when a real server is provisioned.
 
 The following are **not deferred TBDs for current agents to solve**: HA, application SLA, DR, RPO/RTO, backup architecture, load-balancer topology, multi-server scaling, Kubernetes/orchestration, application load targets, or external observability-platform selection. They are out of current MVP scope unless explicitly reintroduced later.
@@ -419,12 +449,11 @@ If requirement changes, all affected docs must synchronize; change must not live
 
 - [ ] Exact Team template/master data.
 - [ ] Official numbering SOP/sample.
-- [ ] Search/filter refinements if needed.
-- [ ] Bulk packaging beyond XLSX/PDF artifacts.
+- [ ] Refinements di luar search/filter dan bulk ZIP yang sudah tersedia, bila kebutuhan baru disetujui.
 - [ ] Notification implementation.
-- [ ] Numeric operational abuse/rate-limit tuning.
+- [ ] Tuning lanjutan angka rate limit berdasarkan bukti operasional, bila diperlukan.
 
-Renderer qualification and concrete signing/scanner implementation are capability implementation decisions owned by their relevant phases/specifications, not product-level infrastructure requirements.
+Adapter renderer, signing, scanner, dan bulk ZIP sudah tersedia dalam codebase. Kualifikasi runtime, provisioning, dan bukti release tetap mengikuti spesifikasi capability masing-masing; keberadaan implementasi tidak otomatis membuktikan kesiapan produksi.
 
 Application SLA/HA/DR/RPO/RTO/backup architecture/performance-load targets are intentionally **not current MVP open product decisions**.
 
@@ -432,7 +461,7 @@ Unit/Division, Reviewer/Approval Scope, Team authorization, S3/object-storage in
 
 ---
 
-## 19. Current Documentation Progress
+## 19. Current Documentation and Implementation Status
 
 The fixed-order authoritative documentation set is complete and approved for implementation:
 
@@ -461,4 +490,20 @@ The fixed-order authoritative documentation set is complete and approved for imp
 
 Current synchronization addenda include `11A`, `12A`, historical `14A`/`15A`, and authoritative `19A_Local_First_MVP_Synchronization.md` for the local-first cross-document concern.
 
-The next project step is **implementation according to `19_Task_Implementation_Plan.md`**, beginning with Phase 0 / T00 only after explicit user instruction.
+**Baseline audit statis 2026-10-22:** source code lokal pada commit `572be4f8bfa6f3bef0c63473b56c7ddee843307d`, branch `staging`. Aplikasi sudah memiliki implementasi berikut; pernyataan historis bahwa implementasi belum dimulai/masih akan masuk Phase 0 tidak menggambarkan kondisi codebase ini.
+
+| Area yang tersedia dalam source | Rujukan implementasi |
+|---|---|
+| Login/session/re-authentication dan bootstrap Superadmin | `app/Services/Security/`, `app/Services/Administration/ProtectedSuperadminBootstrapService.php` |
+| User/role/Team/setup/protected settings | `app/Services/Administration/`, `app/Services/Settings/`, `resources/js/Pages/Administration/` |
+| Creation, Draft/Result, workflow, Reopen, Archive | `app/Services/Nscmf/`, `app/Domain/Nscmf/`, `resources/js/Pages/Nscmf/` |
+| Dashboard, queues, My Applications, History | `app/Services/Nscmf/NscmfQueryService.php`, `resources/js/Pages/` |
+| Resumable attachment upload dan whole-file scan | `app/Services/Attachment/`, `app/Infrastructure/Malware/` |
+| Immutable export, bulk ZIP, template patching, renderer/signing | `app/Services/Export/`, `app/Infrastructure/Workbook/`, `app/Infrastructure/Pdf/` |
+| Activity Log dan panel Exports | `app/Services/Reports/`, `resources/js/Pages/Reports/ActivityLog.vue`, `resources/js/features/reports/` |
+| Public PDF validation | `app/Services/Export/PdfValidatorService.php`, `resources/js/Pages/Public/PdfValidator.vue` |
+| Business/Access/Security Audit dan technical cleanup terpisah | `app/Services/Audit/`, `app/Services/Maintenance/CleanupService.php` |
+
+Endpoint aktual berada di `routes/web.php`; runtime bindings dan default operasional berada di `app/Providers/` dan `config/`. Keputusan turunan tersedia dalam `microtask_be/06_GAP_DAN_KEPUTUSAN.md`; handoff bertanggal merekam pekerjaan dan evidence historis.
+
+Sinkronisasi PRD ini memperbaiki deskripsi produk berdasarkan pembacaan source, konfigurasi, UI, dan test yang relevan. Tidak ada perubahan source code aplikasi dan tidak ada suite runtime yang dijalankan ulang dalam audit dokumentasi ini. Status **Approved for Implementation** adalah status spesifikasi; tabel di atas bukan klaim semua gate PASS, human review selesai, Feature/Module Done, ataupun Release/Production-Ready. Evidence tersebut tetap harus diperiksa terhadap revision dan environment yang sesuai menurut `16`/`18`.
