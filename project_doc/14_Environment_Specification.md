@@ -9,7 +9,7 @@
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`, `11_ERD_Database_Schema.md`, `12_API_Contract.md`, `13_Project_Structure.md`  
 > **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`  
 > **Canonical Application / Business Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-10-12 (Activity Log template, §70A, G26)  
 
 ---
 
@@ -1063,6 +1063,10 @@ Before staging/production export is considered ready:
 - workbook integrity/golden tests for that mapping/template pair pass.
 
 Hash mismatch is a critical export readiness failure.
+
+## 70A. Activity Log Template (G26)
+
+The NSCMF Activity Logging Form workbook is provisioned like the official template: private, immutable, registered with `php artisan nscmf:template:register <path> --kind=activity-log --activate`, stored under `templates/`, SHA-256 verified before use, never committed. Its only font is Aptos Narrow (already part of the qualified inventory, §74). The renderer runs with the fixed locale `en-US` in its throw-away profile, so locale-dependent built-in formats such as `d-mmm-yy` render the same on every host (`3-Aug-26`). Report artifacts use the `exports/` prefix and the same 168 h retention.
 
 ---
 

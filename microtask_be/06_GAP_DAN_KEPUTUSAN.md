@@ -275,4 +275,25 @@ Semua item **OPEN** kecuali yang berstatus CLOSED di bawah (keputusan pemilik pr
   6. Turunan: Roles dan Teams dipaginasi di server dengan `page`/`per_page`/`q` seperti Users. Audit tidak mendapat search karena kontraknya tidak punya `q`. Select all di History hanya mencakup halaman yang tampil.
 - Bukti: `handoff/2026-09-30-tables-my-applications.md`.
 
+<a id="g26"></a>
+
+## G26 — Laporan Activity Log (NSCMF Activity Logging Form) dan ekspor XLSX/PDF
+
+- Sumber: permintaan pemilik 2026-10-12; contoh `NSCMF-Log-Example.xlsx` dan foto formulir kertas; `01 §8 (57)`, `02 §20A`, `03 §44A`, `04 §12`, `07 §34.2`, `09 §63A`, `10 §61A`, `11 §5.3/§36/§41/§44A`, `12 §47.2`, `13 §49A`, `14 §70A`, `16 §60A`, `19 T82`, `docs/activity-log-template-mapping.md`.
+- Dampak/task owner: T82; [BE-156](BE-156.md)..[BE-159](BE-159.md); FE-68..FE-70.
+- Pihak berwenang: Pemilik proyek.
+- Status: **CLOSED 2026-10-12** oleh pemilik proyek (implementasi: [handoff](../handoff/2026-10-12-activity-log-report.md)):
+  1. Kolom Customer Name: Activation = `customer_name`; Change = baris pertama `maintenance_purpose` (form Change tidak punya nama pelanggan), dipendekkan agar muat satu baris.
+  2. Site Location NOC15/NOC23 otomatis dari Service Impact entri Change yang diekspor, bisa diubah saat ekspor; kolom NOC Infrastructure = Service Impact (Change), kosong (Activation).
+  3. Prepared By default pengekspor + tanggal ekspor; Acknowledge By opsional; keduanya bisa diketik manual.
+  4. Lebih dari 40 entri berlanjut ke halaman baru (40 baris per halaman, judul kolom diulang, tanda tangan di halaman terakhir).
+  5. Tanggal laporan dan filter = Request date.
+  6. Cetakan kosong diturunkan dari contoh dengan menghapus seluruh data asli; file privat, tidak di-commit.
+  7. Ekspor asinkron (DB queue) dengan progres persen, retensi 168 jam, snapshot tak berubah; PDF tidak ditandatangani.
+  8. Izin yang ada: `nscmf.view.history` (lihat) + `nscmf.export` (ekspor); tanpa izin baru.
+  9. Status default = semua status tersubmit; pilihan cepat Approved only; status lain bisa dipilih.
+  10. Asumsi yang disetujui bersama rencana: maks. 1.000 entri per ekspor; View default aktif + arsip; pilihan bertahan lintas halaman; route `/reports/activity-log`.
+  11. (2026-10-12, setelah review pemilik) Daftar ekspor tidak lagi menumpuk di halaman: tombol **Exports** membuka panel samping (Sheet) berisi semua ekspor yang bisa di-scroll, dan halaman hanya menampilkan satu strip progres untuk ekspor terbaru (`07 §34.2`). Panel melayang dengan sudut membulat sesuai referensi pemilik: ringkasan, bagian In progress / Ready to download / Earlier, dan footer Close + New export.
+- Wajib human security review sebelum merge (ekspor banyak record, Access Audit, storage privat; 18 §17).
+
 Removed concerns dari19A/20 tidak menjadi gap: HA/Redis/DR/backup/load/SLA architecture/automatedCD/publicCA/multi-server. Actual hostname/provider/Linux/path baru dicatat ketika deployment sungguhan diperintahkan; tidak memilih server sekarang.

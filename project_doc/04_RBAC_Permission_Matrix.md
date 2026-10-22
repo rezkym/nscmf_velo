@@ -7,7 +7,7 @@
 > **Status:** Approved for Implementation  
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
-> **Last Updated:** 2026-09-24 (`nscmf.analytics.view`, §12.1)  
+> **Last Updated:** 2026-10-12 (Activity Log report mapping, §12, G26; earlier: `nscmf.analytics.view`, §12.1)  
 
 ---
 
@@ -210,6 +210,8 @@ Requester mutation ownership remains explicit where upstream says own record.
 
 `nscmf.view` also opens My Applications, which lists only the actor's own records (`12 §47.1`; decided 2026-09-30, G25).
 
+The Activity Log report (`12 §47.2`; decided 2026-10-12, G26) uses existing permissions only: `nscmf.view.history` opens it; exporting also needs `nscmf.export`. Every entry still follows record visibility; no report permission exists.
+
 ## 12.1 Dashboard Analytics — decided 2026-09-24
 
 | Permission | Description |
@@ -389,6 +391,7 @@ Legend: ✅ default; 🔒 protected/inherent; `Own` explicit ownership; — not 
 | Reopen Approved/Rejected | ✅ | — | — | — |
 | Archive/Unarchive | ✅ | — | — | — |
 | Single/Bulk Export authorized | ✅ | ✅ | ✅ | ✅ |
+| Activity Log report view/export (§12) | ✅ | ✅ | ✅ | ✅ |
 | Organization Dashboard analytics (§12.1) | ✅ | — | — | — |
 | Hard Delete | ❌ | ❌ | ❌ | ❌ |
 

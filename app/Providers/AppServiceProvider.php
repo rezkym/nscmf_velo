@@ -14,6 +14,8 @@ use App\Infrastructure\Session\AnchoredDatabaseSessionHandler;
 use App\Infrastructure\Storage\LocalPrivateStorage;
 use App\Infrastructure\Storage\PrivateStorage;
 use App\Infrastructure\Storage\RuntimeWorkspace;
+use App\Infrastructure\Workbook\ActivityLogWorkbookPatcher;
+use App\Infrastructure\Workbook\OoxmlActivityLogPatcher;
 use App\Infrastructure\Workbook\OoxmlWorkbookPatcher;
 use App\Infrastructure\Workbook\WorkbookPatcher;
 use App\Repositories\Contracts\Export\SigningCertificateRepository;
@@ -38,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
             $app->make(FilesystemFactory::class)->disk('nscmf_runtime_tmp'),
         ));
         $this->app->bind(WorkbookPatcher::class, OoxmlWorkbookPatcher::class);
+        $this->app->bind(ActivityLogWorkbookPatcher::class, OoxmlActivityLogPatcher::class);
         $this->app->singleton(SpreadsheetRenderer::class, fn (): SpreadsheetRenderer => new LibreOfficeRenderer(
             config()->string('nscmf.renderer.executable'),
             config()->integer('nscmf.renderer.timeout_seconds'),

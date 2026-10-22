@@ -3800,5 +3800,139 @@
         "status": "PLANNED",
         "evidence": "NOT RUN",
         "kind": "EVIDENCE / REVIEW"
+    },
+    {
+        "key": "chunk_db_failure_compensation",
+        "phase": 6,
+        "parents": ["T40", "T41", "T46"],
+        "title": "Kompensasi objek chunk ketika pencatatan database gagal",
+        "refs": ["11A §21–22", "12 §55", "16 §33–34", "19 T40, T41, T46"],
+        "deps": ["upload_chunk", "upload_cancel", "upload_races"],
+        "files": ["app/Services/Attachment/AttachmentUploadService.php"],
+        "test": "tests/Feature/Attachment/AttachmentUploadTest.php",
+        "contract": "Kegagalan DB setelah private write tidak mengakui progress dan orphan chunk dikompensasi atau benar-benar cleanup-eligible; race winner bytes aman.",
+        "acceptance": [
+            "Storage write sukses lalu transaksi gagal tidak meninggalkan accepted progress palsu",
+            "Objek sementara tanpa metadata dikompensasi atau dapat ditemukan cleanup nyata",
+            "Replay/race tidak menghapus chunk authoritative request lain"
+        ],
+        "infrastructure": "Real MySQL 8.4 dan private storage dalam disposable test environment",
+        "fe": ["FE-41", "FE-42", "FE-58"],
+        "gaps": [],
+        "id": "BE-150",
+        "status": "PLANNED",
+        "evidence": "NOT RUN",
+        "kind": "BUG FIX"
+    },
+    {
+        "key": "clamav_whole_scan_deadline",
+        "phase": 6,
+        "parents": ["T43", "T46"],
+        "title": "Batas 30 detik untuk seluruh pemindaian ClamAV",
+        "refs": ["14 §48, §63", "16 §54–56", "19 T43, T46"],
+        "deps": ["clamav_adapter", "upload_rate_limit", "upload_races"],
+        "files": ["app/Infrastructure/Malware/ClamdScanner.php"],
+        "test": "tests/Integration/Malware/ClamdScannerTest.php",
+        "contract": "Satu deadline 30 detik meliputi connect, send, dan balasan clamd lengkap; timeout gagal tertutup.",
+        "acceptance": [
+            "Tidak ada anggaran 30 detik baru per fase scan",
+            "Timeout pada connect/send/reply tidak menghasilkan CLEAN",
+            "Explicit OK/FOUND, real clamd, dan worker time budget tetap benar"
+        ],
+        "infrastructure": "Controlled fake clamd for slow phases plus real ClamAV integration",
+        "fe": ["FE-43", "FE-58"],
+        "gaps": [],
+        "id": "BE-151",
+        "status": "PLANNED",
+        "evidence": "NOT RUN",
+        "kind": "BUG FIX"
+    },
+    {
+        "key": "activity_log_template_kind",
+        "phase": 7,
+        "parents": ["T82A"],
+        "title": "Jenis cetakan per kind dan skema ekspor Activity Log",
+        "refs": ["11 §36, §41, §44A", "14 §70A"],
+        "deps": [],
+        "files": [
+            "database/migrations/2026_10_12_000001_create_activity_log_report_tables.php",
+            "app/Domain/Export/TemplateKind.php"
+        ],
+        "test": "tests/Integration/Database/SchemaT82ATest.php",
+        "contract": "Satu versi aktif per kind; tabel ekspor Activity Log dan link Access Audit.",
+        "acceptance": ["Satu versi aktif per kind; tabel ekspor Activity Log dan link Access Audit."],
+        "infrastructure": "MySQL 8.4; LibreOffice for the real render",
+        "fe": ["FE-68", "FE-69", "FE-70"],
+        "gaps": ["G26"],
+        "status": "IMPLEMENTED",
+        "evidence": "PASS local 2026-10-12",
+        "kind": "FEATURE",
+        "id": "BE-156"
+    },
+    {
+        "key": "activity_log_workbook",
+        "phase": 7,
+        "parents": ["T82B"],
+        "title": "Pemetaan dan patch workbook Activity Log",
+        "refs": ["docs/activity-log-template-mapping.md", "02 §20A"],
+        "deps": ["activity_log_template_kind"],
+        "files": [
+            "app/Domain/Reports/ActivityLogMappingV1.php",
+            "app/Infrastructure/Workbook/OoxmlActivityLogPatcher.php"
+        ],
+        "test": "tests/Feature/Reports/ActivityLogWorkbookTest.php",
+        "contract": "Isi sel log, halaman 40 baris, tanda tangan bergeser, PDF en-US.",
+        "acceptance": ["Isi sel log, halaman 40 baris, tanda tangan bergeser, PDF en-US."],
+        "infrastructure": "MySQL 8.4; LibreOffice for the real render",
+        "fe": ["FE-68", "FE-69", "FE-70"],
+        "gaps": ["G26"],
+        "status": "IMPLEMENTED",
+        "evidence": "PASS local 2026-10-12",
+        "kind": "FEATURE",
+        "id": "BE-157"
+    },
+    {
+        "key": "activity_log_page",
+        "phase": 7,
+        "parents": ["T82C"],
+        "title": "Halaman Activity Log: filter, visibilitas, sumber kolom",
+        "refs": ["12 §47.2", "04 §12"],
+        "deps": ["activity_log_template_kind"],
+        "files": [
+            "app/Services/Reports/ActivityLogReportService.php",
+            "app/Repositories/Eloquent/Reports/EloquentActivityLogRepository.php"
+        ],
+        "test": "tests/Feature/Reports/ActivityLogPageTest.php",
+        "contract": "Entri terlihat urut tanggal request dengan filter dan ringkasan.",
+        "acceptance": ["Entri terlihat urut tanggal request dengan filter dan ringkasan."],
+        "infrastructure": "MySQL 8.4; LibreOffice for the real render",
+        "fe": ["FE-68", "FE-69", "FE-70"],
+        "gaps": ["G26"],
+        "status": "IMPLEMENTED",
+        "evidence": "PASS local 2026-10-12",
+        "kind": "FEATURE",
+        "id": "BE-158"
+    },
+    {
+        "key": "activity_log_export",
+        "phase": 8,
+        "parents": ["T82D"],
+        "title": "Ekspor Activity Log asinkron dengan progres",
+        "refs": ["12 §47.2", "09 §63A", "10 §61A"],
+        "deps": ["activity_log_workbook", "activity_log_page"],
+        "files": [
+            "app/Services/Reports/ActivityLogExportGenerationService.php",
+            "app/Jobs/GenerateActivityLogExport.php"
+        ],
+        "test": "tests/Feature/Reports/ActivityLogExportTest.php",
+        "contract": "Snapshot tak berubah, progres, unduh milik sendiri, retensi 168 jam.",
+        "acceptance": ["Snapshot tak berubah, progres, unduh milik sendiri, retensi 168 jam."],
+        "infrastructure": "MySQL 8.4; LibreOffice for the real render",
+        "fe": ["FE-68", "FE-69", "FE-70"],
+        "gaps": ["G26"],
+        "status": "IMPLEMENTED",
+        "evidence": "PASS local 2026-10-12",
+        "kind": "FEATURE",
+        "id": "BE-159"
     }
 ]

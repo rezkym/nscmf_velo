@@ -2,6 +2,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     ClipboardCheck,
+    ClipboardList,
     FilePlus2,
     FolderOpen,
     History,
@@ -59,6 +60,12 @@ const workspaceItems = computed<NavItem[]>(() =>
         { label: 'Review', href: '/review', icon: ClipboardCheck, visible: can('nscmf.review') },
         { label: 'Approval', href: '/approval', icon: Stamp, visible: can('nscmf.approve') },
         { label: 'History', href: '/history', icon: History, visible: can('nscmf.view.history') },
+        {
+            label: 'Activity Log',
+            href: '/reports/activity-log',
+            icon: ClipboardList,
+            visible: can('nscmf.view.history'),
+        },
     ].filter((item) => item.visible),
 );
 

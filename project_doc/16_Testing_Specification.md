@@ -9,7 +9,7 @@
 > **Depends On:** `01_PRD.md` through `15_Coding_Rules_AGENTS.md`  
 > **Integrates:** `15A_Pre_Testing_Specification_Synchronization.md`  
 > **Canonical Application / Test Timezone:** `Asia/Jakarta`  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-10-12 (Activity Log report, §60A, G26)  
 
 ---
 
@@ -901,6 +901,10 @@ Tests MUST prove:
 - READY export binary lifecycle is 168 hours / 7 days;
 - expiry cleanup removes eligible generated binary;
 - cleanup does not delete NSCMF source record, workflow history, audit history, PDF issuance metadata, or verification evidence.
+
+## 60A. Activity Log Report (G26)
+
+Tests MUST prove: permission and per-entry visibility (another user's Draft never appears or exports); default and explicit status/date/archive filters and the fixed order; column sources of BR-RPT-002; FILTERED vs SELECTED scope; the 1–1,000 limit; snapshot immutability; progress reaching 100 at READY; own-export-only polling/download and 168 h expiry; Access Audit events; the workbook patch (cells, date serials, checkboxes, rows beyond 40 with footer and merges moved, unowned members byte-identical) against a synthetic workbook in CI and the real template where present; and a real LibreOffice render where available.
 
 ---
 

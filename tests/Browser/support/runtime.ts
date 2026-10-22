@@ -75,6 +75,16 @@ export function provisionExports(): void {
     runArtisan(['nscmf:signing:activate', '--generate']);
 }
 
+/** Registers the private Activity Log template (14 §70A), as an operator would. */
+export function provisionActivityLog(): void {
+    runArtisan([
+        'nscmf:template:register',
+        path.join(root, 'NSCMF-Log-Template.xlsx'),
+        '--kind=activity-log',
+        '--activate',
+    ]);
+}
+
 export interface BrowserUser {
     id: number;
     username: string;

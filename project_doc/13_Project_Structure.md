@@ -9,7 +9,7 @@
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `03_User_Flow.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`, `11_ERD_Database_Schema.md`, `12_API_Contract.md`  
 > **Synchronized With:** `11A_Resumable_Attachment_Upload_Synchronization.md`, `12A_Repository_Service_Architecture_Synchronization.md`, `14_Environment_Specification.md`  
 > **Application Style:** Laravel 13 modular monolith + pragmatic Repository–Service Architecture + Inertia 3 + Vue 3 / TypeScript  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-10-12 (Activity Log report placement, §49A, G26)  
 
 ---
 
@@ -627,6 +627,25 @@ app/Services/Export/PdfVerificationService.php
 ```
 
 `VerifyPdfRequest`/Service must enforce PDF + max20MB before deep verification while preserving server authority.
+
+## 49A. Activity Log Report (G26)
+
+```text
+app/Http/Controllers/Reports/ActivityLogController.php
+app/Http/Controllers/Reports/ActivityLogExportController.php
+app/Http/Requests/Reports/ActivityLogQueryRequest.php
+app/Http/Requests/Reports/RequestActivityLogExportRequest.php
+app/Services/Reports/ActivityLogReportService.php
+app/Services/Reports/ActivityLogExportGenerationService.php
+app/Repositories/Contracts/Reports/ActivityLogRepository.php
+app/Repositories/Eloquent/Reports/EloquentActivityLogRepository.php
+app/Domain/Reports/ActivityLogMappingV1.php
+app/Infrastructure/Workbook/ActivityLogWorkbookPatcher.php (+ OoxmlActivityLogPatcher)
+app/Jobs/GenerateActivityLogExport.php
+app/Models/Reports/ActivityLogExport.php
+resources/js/Pages/Reports/ActivityLog.vue
+resources/js/features/reports/
+```
 
 ---
 

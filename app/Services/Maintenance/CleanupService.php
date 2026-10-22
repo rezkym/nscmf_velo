@@ -12,6 +12,7 @@ use App\Infrastructure\Storage\RuntimeWorkspace;
 use App\Models\Attachment\UploadSession;
 use App\Repositories\Contracts\Attachment\AttachmentRepository;
 use App\Repositories\Contracts\Export\ExportRepository;
+use App\Repositories\Contracts\Reports\ActivityLogRepository;
 use App\Repositories\Contracts\Settings\SystemSettingsRepository;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Filesystem\Factory;
@@ -30,6 +31,7 @@ final readonly class CleanupService
         private SystemSettingsRepository $settings,
         private AttachmentRepository $attachments,
         private ExportRepository $exports,
+        private ActivityLogRepository $activityLogs,
         private PrivateStorage $storage,
         private RuntimeWorkspace $workspace,
         private Factory $filesystems,
@@ -115,6 +117,24 @@ final readonly class CleanupService
                 if ($request->status === ExportStatus::READY) {
                     $this->exports->updateRequest($request, ['status' => ExportStatus::EXPIRED]);
                 }
+            });
+            $purged++;
+        }
+
+        return $purged + $this->activityLogExports($now);
+    }
+
+    /** Activity Log report binaries after 168h: the bytes go, the row and its snapshot stay (11 §44A). */
+    private function activityLogExports(CarbonImmutable $now): int
+    {
+        $purged = 0;
+        foreach ($this->activityLogs->expiredExports($now, self::BATCH) as $export) {
+            if ($export->private_object_key !== null) {
+                $this->storage->delete($export->private_object_key);
+            }
+            $this->database->connection()->transaction(function () use ($export, $now): void {
+                $locked = $this->activityLogs->lockExport($export->id);
+                $this->activityLogs->updateExport($locked, ['binary_purged_at' => $now, 'status' => ExportStatus::EXPIRED]);
             });
             $purged++;
         }

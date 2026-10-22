@@ -48,11 +48,26 @@ final readonly class LibreOfficeRenderer implements SpreadsheetRenderer
         return $this->convert($xlsxPath, $workspace, 'pdf:calc_pdf_Export:'.json_encode(['PageRange' => ['type' => 'string', 'value' => "{$first}-{$last}"]]));
     }
 
+    /**
+     * Locale-dependent built-in formats (such as d-mmm-yy) must not follow the host's language,
+     * so every throw-away profile is pinned to en-US.
+     */
+    private const string PROFILE_SETTINGS = '<?xml version="1.0" encoding="UTF-8"?>'
+        .'<oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+        .'<item oor:path="/org.openoffice.Setup/L10N"><prop oor:name="ooSetupSystemLocale" oor:op="fuse"><value>en-US</value></prop></item>'
+        .'</oor:items>';
+
     private function convert(string $xlsxPath, string $workspace, string $target): string
     {
-        $profileFonts = $workspace.'/profile/user/fonts';
+        $profileUser = $workspace.'/profile/user';
+        if (! is_dir($profileUser)) {
+            @mkdir($profileUser, 0700, true);
+        }
+        if (! is_file($profileUser.'/registrymodifications.xcu')) {
+            file_put_contents($profileUser.'/registrymodifications.xcu', self::PROFILE_SETTINGS);
+        }
+        $profileFonts = $profileUser.'/fonts';
         if ($this->fontsPath !== '' && ! file_exists($profileFonts)) {
-            @mkdir(dirname($profileFonts), 0700, true);
             symlink($this->fontsPath, $profileFonts);
         }
 

@@ -43,6 +43,7 @@ final readonly class AuditReadService
             'record' => $row->nscmf_record_id === null ? null : ['id' => $row->nscmf_record_id, 'request_no' => $row->request_no],
             'attachment_id' => $row->attachment_id,
             'export_request_id' => $row->export_request_id,
+            'activity_log_export_id' => $row->activity_log_export_id,
         ]);
     }
 

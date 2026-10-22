@@ -8,7 +8,7 @@
 > **Repository:** `rezkym/nscmf_velo`  
 > **Depends On:** `01_PRD.md`, `02_Business_Rules.md`, `04_RBAC_Permission_Matrix.md`, `05_State_Status_Flow.md`, `06_Validation_Rules.md`, `07_UI_UX_Specification.md`, `08_Tech_Stack_Specification.md`, `09_System_Architecture.md`, `10_Security_Rules.md`  
 > **Primary Business Reference:** NSCMF Form 3.0  
-> **Last Updated:** 2026-09-02  
+> **Last Updated:** 2026-10-12 (Activity Log report, §44A, G26)  
 
 ---
 
@@ -375,6 +375,14 @@ Recheck authorization; re-download until expiry; cleanup binary only; preserve s
 8. canonical outcome;
 9. minimum disclosure;
 10. temp delete.
+
+## 44A. UF-REPORT-001/002 — Activity Log Report (G26)
+
+1. Actor with `nscmf.view.history` opens Activity Log; the default view lists every submitted, visible entry, active and archived.
+2. Actor narrows by request date range, statuses (All submitted / Approved only / any status), family/subtype, archive view or Request No, and may select entries across pages.
+3. Actor with `nscmf.export` opens Export: chooses all matching or only selected entries, XLSX or PDF, Site Location, Prepared By and optional Acknowledge By.
+4. Server checks permissions, visibility and the 1–1,000 entry limit, binds an immutable snapshot, queues the worker and answers immediately.
+5. Page shows the progress percentage and stage until READY or FAILED; READY offers Download until it expires (168 h).
 
 ---
 

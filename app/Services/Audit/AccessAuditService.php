@@ -13,7 +13,7 @@ final readonly class AccessAuditService
 {
     public function __construct(private AccessAuditRepository $events) {}
 
-    public function record(int $actorUserId, AccessAuditEvent $event, ?int $recordId = null, ?int $attachmentId = null, ?int $exportRequestId = null): int
+    public function record(int $actorUserId, AccessAuditEvent $event, ?int $recordId = null, ?int $attachmentId = null, ?int $exportRequestId = null, ?int $activityLogExportId = null): int
     {
         return $this->events->appendEvent([
             'actor_user_id' => $actorUserId,
@@ -21,6 +21,7 @@ final readonly class AccessAuditService
             'nscmf_record_id' => $recordId,
             'attachment_id' => $attachmentId,
             'export_request_id' => $exportRequestId,
+            'activity_log_export_id' => $activityLogExportId,
             'occurred_at' => CarbonImmutable::now(),
         ]);
     }

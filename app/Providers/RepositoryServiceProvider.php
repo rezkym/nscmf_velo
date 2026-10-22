@@ -18,6 +18,7 @@ use App\Repositories\Contracts\Nscmf\NscmfRepository;
 use App\Repositories\Contracts\Nscmf\NumberSequenceRepository;
 use App\Repositories\Contracts\Nscmf\RecordEvidenceRepository;
 use App\Repositories\Contracts\Nscmf\WorkflowRepository;
+use App\Repositories\Contracts\Reports\ActivityLogRepository;
 use App\Repositories\Contracts\Security\SessionRepository;
 use App\Repositories\Contracts\Settings\SystemSettingsRepository;
 use App\Repositories\Eloquent\Administration\EloquentTeamRepository;
@@ -34,6 +35,7 @@ use App\Repositories\Eloquent\Nscmf\EloquentNscmfRepository;
 use App\Repositories\Eloquent\Nscmf\EloquentRecordEvidenceRepository;
 use App\Repositories\Eloquent\Nscmf\EloquentWorkflowRepository;
 use App\Repositories\Eloquent\Nscmf\MySqlNumberSequenceRepository;
+use App\Repositories\Eloquent\Reports\EloquentActivityLogRepository;
 use App\Repositories\Eloquent\Security\DatabaseSessionRepository;
 use App\Repositories\Eloquent\Settings\EloquentSystemSettingsRepository;
 use Illuminate\Support\ServiceProvider;
@@ -59,5 +61,6 @@ class RepositoryServiceProvider extends ServiceProvider
         AttachmentRepository::class => EloquentAttachmentRepository::class,
         ExportRepository::class => EloquentExportRepository::class,
         SystemSettingsRepository::class => EloquentSystemSettingsRepository::class,
+        ActivityLogRepository::class => EloquentActivityLogRepository::class,
     ];
 }

@@ -20,7 +20,8 @@ it('keeps the three authoritative audits physically separate and append-shaped',
         ])
         ->and(Schema::columns('business_audit_changes')['old_value_text']['type'])->toBe('longtext')
         ->and(array_keys(Schema::columns('access_audit_events')))->toEqualCanonicalizing([
-            'id', 'actor_user_id', 'event_type', 'nscmf_record_id', 'attachment_id', 'export_request_id', 'occurred_at',
+            // activity_log_export_id: 11 §36, added with the Activity Log report (G26).
+            'id', 'actor_user_id', 'event_type', 'nscmf_record_id', 'attachment_id', 'export_request_id', 'activity_log_export_id', 'occurred_at',
         ])
         ->and(array_keys(Schema::columns('security_audit_events')))->toEqualCanonicalizing([
             'id', 'actor_user_id', 'target_user_id', 'subject_username', 'event_type', 'outcome', 'session_id',
