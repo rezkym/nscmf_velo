@@ -1,0 +1,1620 @@
+<mxfile host="app.diagrams.net" compressed="false" pages="4" source_revision="f418b7014331b0bdaeec5e0c89bfe4629dbdf3e2" source_branch="staging" source_checked_at="2026-10-29" source_basis="Git staging source; no deployed-server validation claimed">
+  <diagram id="page-fitur" name="1. Alur fitur utama" sources="routes/web.php&#10;resources/js/layouts/AppLayout.vue&#10;app/Services/Reports/ActivityLogReportService.php">
+    <mxGraphModel dx="2000" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="3600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <object id="fitur-n1" label="NSCMF — Alur fitur utama" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=38;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="50" y="35" width="1650" height="58" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n2" label="Panduan fitur aplikasi • branch staging f418b70 • 29 Oktober 2026." qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=22;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="50" y="107" width="1750" height="40" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n3" label="Lihat diagram urutan →" qa_role="content" link="data:page/id,page-sequence">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="1920" y="45" width="400" height="62" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n4" label="Alur pengajuan yang lancar" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=22;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="50" y="176" width="1100" height="32" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n5" label="Pemohon membuat&lt;br&gt;dan mengirim pengajuan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="50" y="223" width="500" height="83" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n6" label="Reviewer memeriksa&lt;br&gt;dan meneruskan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="645" y="223" width="500" height="83" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n7" label="Approver memberi&lt;br&gt;persetujuan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="1240" y="223" width="500" height="83" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n8" label="Pengguna berizin dapat&lt;br&gt;mengunduh dokumen" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="1835" y="223" width="500" height="83" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e9" value="" edge="1" parent="1" source="fitur-n5" target="fitur-n6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e10" value="" edge="1" parent="1" source="fitur-n6" target="fitur-n7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e11" value="" edge="1" parent="1" source="fitur-n7" target="fitur-n8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object id="fitur-n12" label="Setiap fitur mengikuti hak akses. Reviewer dan Approver tidak dibatasi oleh Team." qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="50" y="320" width="2270" height="30" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n13" label="" qa_role="decoration" source_files="app/Services/Security/LoginService.php&#10;app/Http/Middleware/EnsurePasswordChanged.php&#10;app/Http/Controllers/Dashboard/DashboardController.php" source_sha256="{&quot;app/Services/Security/LoginService.php&quot;: &quot;1ca3fe9534c991ea3d793aef88927389a62a2826d9fdbaec885508d61dc277f0&quot;, &quot;app/Http/Middleware/EnsurePasswordChanged.php&quot;: &quot;03ab700bf476db1068153a376151f0609bbd37a24b2562100005528d02a5447e&quot;, &quot;app/Http/Controllers/Dashboard/DashboardController.php&quot;: &quot;678371166402270aaa957f475f6f4e921c389b22ba5fcdaf7f3d9db5288a2bc3&quot;}">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFFFFF;strokeColor=#D7E1EB;strokeWidth=1.3;">
+            <mxGeometry x="50" y="365" width="1120" height="580" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n14" label="A. Masuk ke aplikasi" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=25;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="75" y="383" width="1070" height="38" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n15" label="Untuk semua pengguna internal." qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="75" y="423" width="1070" height="28" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n16" label="Buka Login" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;ellipse;fillColor=#EDF7EC;strokeColor=#81A37B;">
+            <mxGeometry x="75" y="485" width="180" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n17" label="Masukkan username&lt;br&gt;dan kata sandi" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="305" y="470" width="280" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n18" label="Akun aktif dan&lt;br&gt;kata sandi benar?" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rhombus;fillColor=#FFF4D5;strokeColor=#BE9A3D;">
+            <mxGeometry x="655" y="460" width="220" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n19" label="Periksa isian;&lt;br&gt;coba lagi" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFF0F0;strokeColor=#C68E8E;">
+            <mxGeometry x="935" y="470" width="210" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e20" value="" edge="1" parent="1" source="fitur-n16" target="fitur-n17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e21" value="" edge="1" parent="1" source="fitur-n17" target="fitur-n18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e22" value="Tidak" edge="1" parent="1" source="fitur-n18" target="fitur-n19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object id="fitur-n23" label="Ganti kata sandi sementara&lt;br&gt;jika diminta" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="625" y="645" width="300" height="88" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n24" label="Dashboard" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;ellipse;fillColor=#EDF7EC;strokeColor=#81A37B;">
+            <mxGeometry x="255" y="660" width="280" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e25" value="Ya" edge="1" parent="1" source="fitur-n18" target="fitur-n23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e26" value="" edge="1" parent="1" source="fitur-n23" target="fitur-n24" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object id="fitur-n27" label="Akun baru / hasil reset memakai kata sandi sementara. Protected Superadmin diarahkan ke Setup bila pengaturan awal belum selesai. Logout mengakhiri sesi." qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="75" y="831" width="1070" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n28" label="" qa_role="decoration" source_files="app/Services/Nscmf/NscmfCreationService.php&#10;app/Services/Nscmf/NscmfDraftService.php&#10;app/Services/Nscmf/NscmfWorkflowService.php&#10;app/Services/Nscmf/NscmfChangeResultService.php" source_sha256="{&quot;app/Services/Nscmf/NscmfCreationService.php&quot;: &quot;03ce79b0352c73c181e8d4c8b693b58c9d7fcb3ddb5cc5c67da46a688c8b7c8b&quot;, &quot;app/Services/Nscmf/NscmfDraftService.php&quot;: &quot;4f9a03356f94695118e035b378b8f8c7aeea653ed52988ab962fbf43ae795579&quot;, &quot;app/Services/Nscmf/NscmfWorkflowService.php&quot;: &quot;c607910a850c5d9e992db1b77219f545ab9874831be222bb0098e8ffcdbb1851&quot;, &quot;app/Services/Nscmf/NscmfChangeResultService.php&quot;: &quot;6f1c47565ef6c7eb7ffa2f8a14d011308884fceb62f608e84b6b493ab114d424&quot;}">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFFFFF;strokeColor=#D7E1EB;strokeWidth=1.3;">
+            <mxGeometry x="1210" y="365" width="1120" height="580" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n29" label="B. Membuat dan mengirim pengajuan" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=25;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="1235" y="383" width="1070" height="38" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n30" label="Pemohon yang memiliki izin; Team harus sudah dipilih pada akun." qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="1235" y="423" width="1070" height="28" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n31" label="Pilih Activation atau Change&lt;br&gt;dan jenis pengajuannya" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="1235" y="477" width="310" height="85" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n32" label="Isi formulir&lt;br&gt;sesuai kebutuhan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="1617" y="477" width="280" height="85" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n33" label="Simpan draf" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="1985" y="492" width="290" height="56" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e34" value="" edge="1" parent="1" source="fitur-n31" target="fitur-n32" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e35" value="" edge="1" parent="1" source="fitur-n32" target="fitur-n33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object id="fitur-n36" label="Klik Kirim&lt;br&gt;setelah data tersimpan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="1985" y="625" width="290" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n37" label="Data yang diisi&lt;br&gt;sudah sesuai?" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rhombus;fillColor=#FFF4D5;strokeColor=#BE9A3D;">
+            <mxGeometry x="1650" y="600" width="230" height="116" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n38" label="Perbaiki isian&lt;br&gt;dan simpan kembali" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFF0F0;strokeColor=#C68E8E;">
+            <mxGeometry x="1235" y="625" width="310" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n39" label="Menunggu Review" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;ellipse;fillColor=#EDF7EC;strokeColor=#81A37B;">
+            <mxGeometry x="1615" y="765" width="310" height="56" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e40" value="" edge="1" parent="1" source="fitur-n33" target="fitur-n36" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e41" value="" edge="1" parent="1" source="fitur-n36" target="fitur-n37" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e42" value="Tidak" edge="1" parent="1" source="fitur-n37" target="fitur-n38" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e43" value="Ya" edge="1" parent="1" source="fitur-n37" target="fitur-n39" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object id="fitur-n44" label="Tanggal pengajuan wajib saat Kirim. Lampiran opsional. Setelah dikembalikan, pemohon memperbaiki dan mengirim ulang. Untuk Change, hasil pekerjaan dapat diisi saat menunggu Review." qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="1235" y="864" width="1070" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n45" label="" qa_role="decoration" source_files="app/Services/Nscmf/NscmfWorkflowService.php&#10;resources/js/Pages/Review/Show.vue" source_sha256="{&quot;app/Services/Nscmf/NscmfWorkflowService.php&quot;: &quot;c607910a850c5d9e992db1b77219f545ab9874831be222bb0098e8ffcdbb1851&quot;, &quot;resources/js/Pages/Review/Show.vue&quot;: &quot;3417785628eccfe11f104379ceba65b0c478a5dadda9d10429c651309f2032b8&quot;}">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFFFFF;strokeColor=#D7E1EB;strokeWidth=1.3;">
+            <mxGeometry x="50" y="975" width="1120" height="580" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n46" label="C. Pemeriksaan pengajuan (Review)" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=25;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="75" y="993" width="1070" height="38" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n47" label="Reviewer yang memiliki izin memilih dari antrean bersama." qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="75" y="1033" width="1070" height="28" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n48" label="Buka antrean Review&lt;br&gt;dan periksa pengajuan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="420" y="1083" width="380" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n49" label="Keputusan&lt;br&gt;Reviewer?" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rhombus;fillColor=#FFF4D5;strokeColor=#BE9A3D;">
+            <mxGeometry x="475" y="1203" width="270" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n50" label="Perlu perbaikan&lt;br&gt;Pemohon memperbaiki&lt;br&gt;dan mengirim ulang" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="85" y="1386" width="300" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n51" label="Menunggu persetujuan&lt;br&gt;Lanjut ke Approver" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;ellipse;fillColor=#EDF7EC;strokeColor=#81A37B;">
+            <mxGeometry x="460" y="1386" width="300" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n52" label="Ditolak&lt;br&gt;Proses berakhir" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFF0F0;strokeColor=#C68E8E;">
+            <mxGeometry x="835" y="1386" width="300" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e53" value="" edge="1" parent="1" source="fitur-n48" target="fitur-n49" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e54" value="Kembalikan" edge="1" parent="1" source="fitur-n49" target="fitur-n50" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="610" y="1357" />
+              <mxPoint x="235.0" y="1357" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e55" value="Teruskan" edge="1" parent="1" source="fitur-n49" target="fitur-n51" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="610" y="1357" />
+              <mxPoint x="610.0" y="1357" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e56" value="Tolak" edge="1" parent="1" source="fitur-n49" target="fitur-n52" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="610" y="1357" />
+              <mxPoint x="985.0" y="1357" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <object id="fitur-n57" label="Kembalikan" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="175.0" y="1345" width="120" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n58" label="Teruskan" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="560.0" y="1345" width="100" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n59" label="Tolak" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="950.0" y="1345" width="70" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n60" label="Kembalikan dan Tolak perlu alasan. Hasil pekerjaan Change tidak wajib diisi sebelum diteruskan." qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="75" y="1488" width="1070" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n61" label="" qa_role="decoration" source_files="app/Services/Nscmf/NscmfWorkflowService.php&#10;resources/js/Pages/Approval/Show.vue" source_sha256="{&quot;app/Services/Nscmf/NscmfWorkflowService.php&quot;: &quot;c607910a850c5d9e992db1b77219f545ab9874831be222bb0098e8ffcdbb1851&quot;, &quot;resources/js/Pages/Approval/Show.vue&quot;: &quot;d63b3c4726152a5facf8f72da022dc3c5c70f79c36813a70de673f23875d309c&quot;}">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFFFFF;strokeColor=#D7E1EB;strokeWidth=1.3;">
+            <mxGeometry x="1210" y="975" width="1120" height="580" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n62" label="D. Persetujuan pengajuan (Approval)" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=25;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="1235" y="993" width="1070" height="38" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n63" label="Approver yang memiliki izin mengambil keputusan setelah Review." qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="1235" y="1033" width="1070" height="28" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n64" label="Buka antrean Approval&lt;br&gt;dan periksa pengajuan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="1580" y="1083" width="380" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n65" label="Keputusan&lt;br&gt;Approver?" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rhombus;fillColor=#FFF4D5;strokeColor=#BE9A3D;">
+            <mxGeometry x="1635" y="1203" width="270" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n66" label="Disetujui&lt;br&gt;Proses selesai" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;ellipse;fillColor=#EDF7EC;strokeColor=#81A37B;">
+            <mxGeometry x="1230" y="1386" width="245" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n67" label="Menunggu Review&lt;br&gt;Reviewer memeriksa lagi" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="1505" y="1386" width="245" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n68" label="Perlu perbaikan&lt;br&gt;Pemohon memperbaiki" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="1780" y="1386" width="245" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n69" label="Ditolak&lt;br&gt;Proses berakhir" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFF0F0;strokeColor=#C68E8E;">
+            <mxGeometry x="2055" y="1386" width="245" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e70" value="" edge="1" parent="1" source="fitur-n64" target="fitur-n65" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e71" value="Setuju" edge="1" parent="1" source="fitur-n65" target="fitur-n66" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1770" y="1357" />
+              <mxPoint x="1352.5" y="1357" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e72" value="Ke Reviewer" edge="1" parent="1" source="fitur-n65" target="fitur-n67" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1770" y="1357" />
+              <mxPoint x="1627.5" y="1357" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e73" value="Ke Pemohon" edge="1" parent="1" source="fitur-n65" target="fitur-n68" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1770" y="1357" />
+              <mxPoint x="1902.5" y="1357" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e74" value="Tolak" edge="1" parent="1" source="fitur-n65" target="fitur-n69" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1770" y="1357" />
+              <mxPoint x="2177.5" y="1357" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <object id="fitur-n75" label="Setuju" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="1312.5" y="1345" width="80" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n76" label="Ke Reviewer" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="1562.5" y="1345" width="130" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n77" label="Ke Pemohon" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="1842.5" y="1345" width="120" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n78" label="Tolak" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="2142.5" y="1345" width="70" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n79" label="Satu persetujuan yang sah sudah cukup. Mengembalikan atau menolak perlu alasan. Emergency Change tetap mengikuti alur ini." qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="1235" y="1488" width="1070" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n80" label="" qa_role="decoration" source_files="app/Services/Attachment/AttachmentUploadService.php&#10;app/Services/Attachment/AttachmentFinalizationService.php&#10;app/Services/Attachment/AttachmentService.php&#10;resources/js/features/attachments/useChunkUpload.ts" source_sha256="{&quot;app/Services/Attachment/AttachmentUploadService.php&quot;: &quot;90837319c87646af6c9fbd716510e10406d266650d7426aa9c14eff208e6f455&quot;, &quot;app/Services/Attachment/AttachmentFinalizationService.php&quot;: &quot;7ff7ad7f69a10a8a6bd670aae88a4cda5a69b70f13c80bc3de119b51430d7e55&quot;, &quot;app/Services/Attachment/AttachmentService.php&quot;: &quot;fd3e1afe8652f6f828170b721a03913a664139322a18f02a05a96ccb7f241d70&quot;, &quot;resources/js/features/attachments/useChunkUpload.ts&quot;: &quot;185b315c39a1bd8c6e639147bcaf1b3170b417e47663ea4530c882e596b87e85&quot;}">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFFFFF;strokeColor=#D7E1EB;strokeWidth=1.3;">
+            <mxGeometry x="50" y="1585" width="1120" height="580" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n81" label="E. Menambahkan lampiran" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=25;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="75" y="1603" width="1070" height="38" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n82" label="Pemohon menambahkan berkas pada draf atau pengajuan yang perlu perbaikan." qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="75" y="1643" width="1070" height="28" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n83" label="Pilih berkas&lt;br&gt;(opsional)" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="75" y="1697" width="280" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n84" label="Unggah berkas" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="445" y="1697" width="280" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n85" label="Aplikasi memeriksa&lt;br&gt;keamanan berkas" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="815" y="1697" width="330" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e86" value="" edge="1" parent="1" source="fitur-n83" target="fitur-n84" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e87" value="" edge="1" parent="1" source="fitur-n84" target="fitur-n85" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object id="fitur-n88" label="Lolos pemeriksaan&lt;br&gt;dan masih boleh&lt;br&gt;ditambahkan?" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rhombus;fillColor=#FFF4D5;strokeColor=#BE9A3D;">
+            <mxGeometry x="460" y="1850" width="300" height="135" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n89" label="Lampiran bisa&lt;br&gt;dilihat / diunduh" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=document;fillColor=#F3EEFA;strokeColor=#9E88BA;">
+            <mxGeometry x="75" y="1877" width="300" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n90" label="Berkas tidak dapat&lt;br&gt;digunakan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFF0F0;strokeColor=#C68E8E;">
+            <mxGeometry x="835" y="1877" width="300" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e91" value="" edge="1" parent="1" source="fitur-n85" target="fitur-n88" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="980" y="1805" />
+              <mxPoint x="610" y="1805" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e92" value="Ya" edge="1" parent="1" source="fitur-n88" target="fitur-n89" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e93" value="Tidak" edge="1" parent="1" source="fitur-n88" target="fitur-n90" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object id="fitur-n94" label="Unggahan terputus dapat dilanjutkan dengan memilih berkas yang sama. Berkas hanya bisa dipakai setelah dinyatakan aman. Pemohon dapat menghapus lampiran saat pengajuan masih bisa diedit." qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="75" y="2084" width="1070" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n95" label="" qa_role="decoration" source_files="app/Services/Export/ExportService.php&#10;app/Services/Export/ExportGenerationService.php&#10;resources/js/features/exports/ExportPanel.vue" source_sha256="{&quot;app/Services/Export/ExportService.php&quot;: &quot;0ff8bdb9e82ed438f4f6968265b2b5af086378833c57bbf4f0b573db78a3eff7&quot;, &quot;app/Services/Export/ExportGenerationService.php&quot;: &quot;49231882ddfe6b5c8379bd311ff071a9949fb06be0d5783f97a681296eed2acf&quot;, &quot;resources/js/features/exports/ExportPanel.vue&quot;: &quot;87e119253ecfca1e654122dda857647aaeb30b44b31b226898a2ae272c32cfc0&quot;}">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFFFFF;strokeColor=#D7E1EB;strokeWidth=1.3;">
+            <mxGeometry x="1210" y="1585" width="1120" height="580" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n96" label="F. Mengunduh XLSX atau PDF" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=25;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="1235" y="1603" width="1070" height="38" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n97" label="Pengguna yang memiliki izin ekspor dan akses ke pengajuan." qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="1235" y="1643" width="1070" height="28" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n98" label="Pilih pengajuan&lt;br&gt;dan format XLSX / PDF" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="1235" y="1697" width="300" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n99" label="Minta ekspor" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="1615" y="1697" width="280" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n100" label="Tunggu dokumen&lt;br&gt;selesai dibuat" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="1975" y="1697" width="330" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e101" value="" edge="1" parent="1" source="fitur-n98" target="fitur-n99" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e102" value="" edge="1" parent="1" source="fitur-n99" target="fitur-n100" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object id="fitur-n103" label="Hasil pembuatan&lt;br&gt;dokumen?" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rhombus;fillColor=#FFF4D5;strokeColor=#BE9A3D;">
+            <mxGeometry x="1650" y="1850" width="240" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n104" label="Unduh dokumen" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=document;fillColor=#F3EEFA;strokeColor=#9E88BA;">
+            <mxGeometry x="1235" y="1872" width="300" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n105" label="Jika gagal, baca&lt;br&gt;pesan kegagalannya" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFF0F0;strokeColor=#C68E8E;">
+            <mxGeometry x="1995" y="1872" width="300" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e106" value="" edge="1" parent="1" source="fitur-n100" target="fitur-n103" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2140" y="1805" />
+              <mxPoint x="1770" y="1805" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e107" value="Siap" edge="1" parent="1" source="fitur-n103" target="fitur-n104" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e108" value="Gagal" edge="1" parent="1" source="fitur-n103" target="fitur-n105" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object id="fitur-n109" label="PDF untuk pengajuan Disetujui wajib bertanda tangan digital organisasi. Jika gagal ditandatangani, PDF tidak diterbitkan. Ekspor beberapa pengajuan sekaligus dapat diunduh sebagai ZIP." qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="1235" y="2084" width="1070" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n110" label="" qa_role="decoration" source_files="app/Services/Nscmf/NscmfQueryService.php&#10;resources/js/Pages/Dashboard/Index.vue&#10;resources/js/Pages/History/Index.vue&#10;resources/js/Pages/MyApplications/Index.vue&#10;app/Services/Nscmf/RecordEvidenceService.php" source_sha256="{&quot;app/Services/Nscmf/NscmfQueryService.php&quot;: &quot;1903ecbb3c1025165f6ec8599b8c957e961285c4cfb1bfa0577285eb221eda85&quot;, &quot;resources/js/Pages/Dashboard/Index.vue&quot;: &quot;820279a6023dcd7c7e05a72d4bf7e8ec6b1118fb007f153eac8537b62533161d&quot;, &quot;resources/js/Pages/History/Index.vue&quot;: &quot;7706a68e9e19a75dc95d487b4cedc95bed00df8864b02c2ba62558fb54ed9a38&quot;, &quot;resources/js/Pages/MyApplications/Index.vue&quot;: &quot;0da1b4fbec39703831cb0d70017639c89f13c9667376da3593fd0463e6db1a2e&quot;, &quot;app/Services/Nscmf/RecordEvidenceService.php&quot;: &quot;4910583eed995d7911b7d3c8cf3d28c334aac58e548e2c24148c74f68647f166&quot;}">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFFFFF;strokeColor=#D7E1EB;strokeWidth=1.3;">
+            <mxGeometry x="50" y="2195" width="1120" height="580" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n111" label="G. Memantau pengajuan dan riwayat" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=25;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="75" y="2213" width="1070" height="38" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n112" label="Setiap pengguna melihat data sesuai hak aksesnya." qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="75" y="2253" width="1070" height="28" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n113" label="Buka Dashboard" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;ellipse;fillColor=#EDF7EC;strokeColor=#81A37B;">
+            <mxGeometry x="75" y="2313" width="280" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n114" label="Lihat tugas dan&lt;br&gt;ringkasan pengajuan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="455" y="2307" width="280" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n115" label="Buka My Applications,&lt;br&gt;History / Activity Log" qa_role="content" link="data:page/id,page-report-fitur">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="815" y="2307" width="330" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e116" value="" edge="1" parent="1" source="fitur-n113" target="fitur-n114" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e117" value="" edge="1" parent="1" source="fitur-n114" target="fitur-n115" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object id="fitur-n118" label="Cari / saring data,&lt;br&gt;lalu pilih pengajuan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="815" y="2495" width="330" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n119" label="Baca isi, status,&lt;br&gt;dan Timeline" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="400" y="2495" width="330" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e120" value="" edge="1" parent="1" source="fitur-n115" target="fitur-n118" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e121" value="" edge="1" parent="1" source="fitur-n118" target="fitur-n119" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <object id="fitur-n122" label="My Applications: pengajuan sendiri. History: data yang boleh dilihat. Timeline: perubahan dan keputusan. Activity Log: rekap dan ekspor laporan (halaman 3). Draf orang lain privat." qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="75" y="2694" width="1070" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n123" label="" qa_role="decoration" source_files="app/Services/Nscmf/NscmfLifecycleService.php" source_sha256="{&quot;app/Services/Nscmf/NscmfLifecycleService.php&quot;: &quot;9433f8a641bd4103f629a8a4f8bd26b5c45535307aea45f5eb9739ddd3a275bf&quot;}">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFFFFF;strokeColor=#D7E1EB;strokeWidth=1.3;">
+            <mxGeometry x="1210" y="2195" width="1120" height="580" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n124" label="H. Membatalkan, membuka, dan mengarsipkan" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=25;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="1235" y="2213" width="1070" height="38" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n125" label="Tindakan yang tersedia bergantung pada izin dan kondisi pengajuan." qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="1235" y="2253" width="1070" height="28" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n126" label="Buka detail pengajuan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="1580" y="2303" width="380" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n127" label="Tindakan&lt;br&gt;yang dipilih?" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rhombus;fillColor=#FFF4D5;strokeColor=#BE9A3D;">
+            <mxGeometry x="1635" y="2423" width="270" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n128" label="Batalkan draf sendiri&lt;br&gt;yang belum pernah dikirim&lt;br&gt;→ Dibatalkan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;ellipse;fillColor=#EDF7EC;strokeColor=#81A37B;">
+            <mxGeometry x="1240" y="2606" width="310" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n129" label="Buka ulang yang&lt;br&gt;Disetujui / Ditolak&lt;br&gt;→ Perbaikan atau Review" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="1615" y="2606" width="310" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n130" label="Arsipkan yang Disetujui,&lt;br&gt;Ditolak, atau Dibatalkan&lt;br&gt;→ Status tetap" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="1990" y="2606" width="310" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e131" value="" edge="1" parent="1" source="fitur-n126" target="fitur-n127" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e132" value="Batalkan" edge="1" parent="1" source="fitur-n127" target="fitur-n128" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1770" y="2577" />
+              <mxPoint x="1395.0" y="2577" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e133" value="Buka ulang" edge="1" parent="1" source="fitur-n127" target="fitur-n129" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1770" y="2577" />
+              <mxPoint x="1770.0" y="2577" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e134" value="Arsipkan" edge="1" parent="1" source="fitur-n127" target="fitur-n130" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1770" y="2577" />
+              <mxPoint x="2145.0" y="2577" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <object id="fitur-n135" label="Batalkan" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="1345.0" y="2565" width="100" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n136" label="Buka ulang" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="1710.0" y="2565" width="120" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n137" label="Arsipkan" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="2095.0" y="2565" width="100" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n138" label="Arsip tidak menghapus pengajuan. Keluarkan dari arsip bila perlu; pengajuan yang diarsipkan harus dikeluarkan lebih dulu sebelum dibuka ulang." qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="1235" y="2708" width="1070" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n139" label="" qa_role="decoration" source_files="app/Services/Administration/SetupService.php&#10;app/Services/Administration/UserAdministrationService.php&#10;app/Services/Administration/TeamAdministrationService.php&#10;app/Services/Administration/RolePermissionAdministrationService.php&#10;app/Services/Settings/SystemSettingsService.php&#10;app/Services/Audit/AuditReadService.php" source_sha256="{&quot;app/Services/Administration/SetupService.php&quot;: &quot;f548d1df566358f5eee675c11ad581aa7247572abd37731bb4fd656d1c7c0597&quot;, &quot;app/Services/Administration/UserAdministrationService.php&quot;: &quot;916a36160e2ff143d54ee416480f61574c23165f2bfa90f9279c17351e24ab99&quot;, &quot;app/Services/Administration/TeamAdministrationService.php&quot;: &quot;985145679648645acb265eacfff1005ddc3f758d80e5d302a6f95c1fa07671de&quot;, &quot;app/Services/Administration/RolePermissionAdministrationService.php&quot;: &quot;f039b74c0e1d9a462a4ff6569257aeea099cd54160ff8dcd65e4fa3c56e05c7e&quot;, &quot;app/Services/Settings/SystemSettingsService.php&quot;: &quot;c1091f33795fbb568da830b4c70dc860195c3b63a904b9b79573961afb4d3307&quot;, &quot;app/Services/Audit/AuditReadService.php&quot;: &quot;07f882abe4eff9d0aec540dce0f397dce89a3e864f46dfa499bde78b4ee2c1cb&quot;}">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFFFFF;strokeColor=#D7E1EB;strokeWidth=1.3;">
+            <mxGeometry x="50" y="2805" width="1120" height="580" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n140" label="I. Administrasi" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=25;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="75" y="2823" width="1070" height="38" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n141" label="Untuk pengguna yang memiliki izin administrasi." qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="75" y="2863" width="1070" height="28" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n142" label="Buka Administration" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="420" y="2913" width="380" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n143" label="Menu yang&lt;br&gt;dibutuhkan?" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rhombus;fillColor=#FFF4D5;strokeColor=#BE9A3D;">
+            <mxGeometry x="475" y="3033" width="270" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n144" label="Siapkan Role, Team,&lt;br&gt;dan pengguna awal" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="80" y="3216" width="310" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n145" label="Kelola pengguna, Team,&lt;br&gt;Role, dan hak akses" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="455" y="3216" width="310" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n146" label="Lihat audit / atur&lt;br&gt;pembersihan log teknis" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="830" y="3216" width="310" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e147" value="" edge="1" parent="1" source="fitur-n142" target="fitur-n143" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e148" value="Setup" edge="1" parent="1" source="fitur-n143" target="fitur-n144" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="610" y="3187" />
+              <mxPoint x="235.0" y="3187" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e149" value="Kelola akun" edge="1" parent="1" source="fitur-n143" target="fitur-n145" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="610" y="3187" />
+              <mxPoint x="610.0" y="3187" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e150" value="Audit / Log" edge="1" parent="1" source="fitur-n143" target="fitur-n146" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="610" y="3187" />
+              <mxPoint x="985.0" y="3187" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <object id="fitur-n151" label="Setup" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="200.0" y="3175" width="70" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n152" label="Kelola akun" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="545.0" y="3175" width="130" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n153" label="Audit / Log" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="920.0" y="3175" width="130" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n154" label="Tindakan sensitif meminta konfirmasi kata sandi. Pengaturan log hanya untuk Protected Superadmin yang berizin. Team adalah informasi organisasi; bukan penentu siapa yang boleh Review / Approval." qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="75" y="3318" width="1070" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n155" label="" qa_role="decoration" source_files="app/Services/Export/PdfValidatorService.php&#10;resources/js/Pages/Public/PdfValidator.vue" source_sha256="{&quot;app/Services/Export/PdfValidatorService.php&quot;: &quot;c8ee9f9ba386f6e97c6e44264d93cb59c1eef537a00812d83a781d6eab0cb525&quot;, &quot;resources/js/Pages/Public/PdfValidator.vue&quot;: &quot;8ac1787ec1c052cfeb732485361047a1ea487bdf23c4d334890b9810fcb94473&quot;}">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFFFFF;strokeColor=#D7E1EB;strokeWidth=1.3;">
+            <mxGeometry x="1210" y="2805" width="1120" height="580" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n156" label="J. Memeriksa keaslian PDF" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=25;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="1235" y="2823" width="1070" height="38" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n157" label="Dapat diakses tanpa login melalui /ispdfvalid." qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="1235" y="2863" width="1070" height="28" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n158" label="Pilih PDF&lt;br&gt;dan klik Periksa" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="1580" y="2913" width="380" height="76" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n159" label="Periksa keamanan,&lt;br&gt;tanda tangan,&lt;br&gt;dan status pengajuan" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="1615" y="3033" width="310" height="120" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n160" label="Asli dan masih&lt;br&gt;menjadi versi aktif" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;ellipse;fillColor=#EDF7EC;strokeColor=#81A37B;">
+            <mxGeometry x="1230" y="3216" width="245" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n161" label="Asli, tetapi bukan&lt;br&gt;versi aktif lagi" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;ellipse;fillColor=#EDF7EC;strokeColor=#81A37B;">
+            <mxGeometry x="1505" y="3216" width="245" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n162" label="Berkas berubah /&lt;br&gt;tanda tangan rusak" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFF0F0;strokeColor=#C68E8E;">
+            <mxGeometry x="1780" y="3216" width="245" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n163" label="Tidak dikenali&lt;br&gt;sebagai PDF resmi" qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="2055" y="3216" width="245" height="86" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="fitur-e164" value="" edge="1" parent="1" source="fitur-n158" target="fitur-n159" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fitur-e165" value="Versi aktif" edge="1" parent="1" source="fitur-n159" target="fitur-n160" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1770" y="3187" />
+              <mxPoint x="1352.5" y="3187" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e166" value="Versi lama" edge="1" parent="1" source="fitur-n159" target="fitur-n161" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1770" y="3187" />
+              <mxPoint x="1627.5" y="3187" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e167" value="Berubah" edge="1" parent="1" source="fitur-n159" target="fitur-n162" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1770" y="3187" />
+              <mxPoint x="1902.5" y="3187" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fitur-e168" value="Tidak dikenali" edge="1" parent="1" source="fitur-n159" target="fitur-n163" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;noLabel=1;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1770" y="3187" />
+              <mxPoint x="2177.5" y="3187" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <object id="fitur-n169" label="Versi aktif" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="1287.5" y="3175" width="130" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n170" label="Versi lama" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="1567.5" y="3175" width="120" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n171" label="Berubah" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="1857.5" y="3175" width="90" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n172" label="Tidak dikenali" qa_role="edge-label">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=#FFFFFF;align=center;spacing=0;spacing=0;">
+            <mxGeometry x="2097.5" y="3175" width="160" height="24" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n173" label="Jika berkas ditolak atau layanan pemeriksaan sedang gagal, aplikasi menampilkan pesan gagal; belum ada hasil keaslian. Halaman publik hanya menampilkan informasi dokumen yang terbatas." qa_role="content">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="1235" y="3318" width="1070" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n174" label="Cara membaca" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="50" y="3445" width="240" height="30" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n175" label="Mulai / akhir" qa_role="legend">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;ellipse;fillColor=#EDF7EC;strokeColor=#81A37B;">
+            <mxGeometry x="300" y="3435" width="200" height="65" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n176" label="Langkah" qa_role="legend">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;">
+            <mxGeometry x="600" y="3435" width="180" height="65" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n177" label="Isian / hasil" qa_role="legend">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;shape=parallelogram;perimeter=parallelogramPerimeter;fillColor=#E8F5F1;strokeColor=#619D91;">
+            <mxGeometry x="880" y="3435" width="220" height="65" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n178" label="Pilihan?" qa_role="legend">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rhombus;fillColor=#FFF4D5;strokeColor=#BE9A3D;">
+            <mxGeometry x="1200" y="3435" width="170" height="65" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n179" label="Simbol flowchart" qa_role="legend" link="https://www.drawio.com/docs/best-practice/process-map-flowchart/">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;">
+            <mxGeometry x="1500" y="3440" width="325" height="52" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="fitur-n180" label="Halaman 1 dari 4 • staging f418b70 • 29 Oktober 2026 • Potret kode aplikasi; bukan bukti server staging" qa_role="heading">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=16;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;">
+            <mxGeometry x="50" y="3520" width="2300" height="60" as="geometry" />
+          </mxCell>
+        </object>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-sequence" name="2. Urutan interaksi pengguna" sources="routes/web.php&#10;app/Services/Nscmf/NscmfWorkflowService.php&#10;app/Services/Export/ExportService.php">
+    <mxGraphModel dx="2157" dy="1105" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="2790" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <object label="NSCMF — Urutan interaksi pengguna" qa_role="heading" id="sequence-n1">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=38;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" vertex="1">
+            <mxGeometry height="58" width="1700" x="50" y="35" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Baca dari atas ke bawah. Alur utama di bawah menunjukkan pengajuan yang diteruskan dan disetujui." qa_role="heading" id="sequence-n2">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=21;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" vertex="1">
+            <mxGeometry height="40" width="2200" x="50" y="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="← Kembali ke alur fitur" qa_role="content" link="data:page/id,page-fitur" id="sequence-n3">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;" vertex="1">
+            <mxGeometry height="62" width="400" x="1930" y="38" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Panah penuh = tindakan / permintaan. Panah putus-putus = balasan aplikasi. Kotak “opsional” boleh dilewati." qa_role="heading" id="sequence-n4">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" vertex="1">
+            <mxGeometry height="40" width="2200" x="50" y="167" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Pemohon" qa_role="content" id="sequence-n5">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=23;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="68" width="340" x="90" y="229" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Aplikasi NSCMF" qa_role="content" id="sequence-n6">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=23;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="68" width="370" x="680" y="229" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Reviewer" qa_role="content" id="sequence-n7">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=23;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="68" width="340" x="1420" y="229" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Approver" qa_role="content" id="sequence-n8">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=23;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="68" width="340" x="1970" y="229" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e9" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=none;endFill=1;dashed=1;endArrow=none;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="297" as="sourcePoint" />
+            <mxPoint x="260" y="1845" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e10" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=none;endFill=1;dashed=1;endArrow=none;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="865" y="297" as="sourcePoint" />
+            <mxPoint x="865" y="1845" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e11" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=none;endFill=1;dashed=1;endArrow=none;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1590" y="297" as="sourcePoint" />
+            <mxPoint x="1590" y="1845" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e12" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=none;endFill=1;dashed=1;endArrow=none;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2140" y="297" as="sourcePoint" />
+            <mxPoint x="2140" y="1845" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="decoration" id="sequence-n13">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=none;strokeColor=#8FA1B3;dashed=1;" vertex="1">
+            <mxGeometry height="181" width="2240" x="70" y="573" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="opsional [pemohon menambahkan lampiran; berkas lolos pemeriksaan]" qa_role="heading" id="sequence-n14">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" vertex="1">
+            <mxGeometry height="28" width="2130" x="90" y="583" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="" qa_role="decoration" id="sequence-n15">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=none;strokeColor=#8FA1B3;dashed=1;" vertex="1">
+            <mxGeometry height="160" width="2240" x="70" y="930" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="opsional [Change: pemohon mengisi hasil pekerjaan saat menunggu Review]" qa_role="heading" id="sequence-n16">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" vertex="1">
+            <mxGeometry height="28" width="2100" x="90" y="940" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e17" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Masuk dengan username dan kata sandi">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="345" as="sourcePoint" />
+            <mxPoint x="865" y="345" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="activation" id="sequence-n18">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#E2ECF6;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="64" width="14" x="858" y="345" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e19" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Tampilkan Dashboard¹">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="865" y="409" as="sourcePoint" />
+            <mxPoint x="260" y="409" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e20" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Buat pengajuan, isi, dan simpan">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="473" as="sourcePoint" />
+            <mxPoint x="865" y="473" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="activation" id="sequence-n21">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#E2ECF6;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="64" width="14" x="858" y="473" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e22" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Draf tersimpan">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="865" y="537" as="sourcePoint" />
+            <mxPoint x="260" y="537" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e23" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Unggah lampiran">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="638" as="sourcePoint" />
+            <mxPoint x="865" y="638" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="activation" id="sequence-n24">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#E2ECF6;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="70" width="14" x="858" y="638" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e25" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Lampiran aman dan dapat digunakan">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="865" y="710" as="sourcePoint" />
+            <mxPoint x="260" y="710" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e26" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Kirim pengajuan">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="795" as="sourcePoint" />
+            <mxPoint x="865" y="795" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="activation" id="sequence-n27">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#E2ECF6;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="64" width="14" x="858" y="795" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e28" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Status: Menunggu Review">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="865" y="859" as="sourcePoint" />
+            <mxPoint x="260" y="859" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e29" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Simpan hasil pekerjaan">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="985" as="sourcePoint" />
+            <mxPoint x="865" y="985" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="activation" id="sequence-n30">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#E2ECF6;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="64" width="14" x="858" y="985" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e31" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Hasil pekerjaan tersimpan">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="865" y="1049" as="sourcePoint" />
+            <mxPoint x="260" y="1049" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e32" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Buka antrean dan detail pengajuan">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1590" y="1117" as="sourcePoint" />
+            <mxPoint x="865" y="1117" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="activation" id="sequence-n33">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#E2ECF6;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="64" width="14" x="858" y="1117" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e34" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Tampilkan isi pengajuan terbaru">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="865" y="1181" as="sourcePoint" />
+            <mxPoint x="1590" y="1181" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e35" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Teruskan ke Approver">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1590" y="1245" as="sourcePoint" />
+            <mxPoint x="865" y="1245" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="activation" id="sequence-n36">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#E2ECF6;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="64" width="14" x="858" y="1245" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e37" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Status: Menunggu persetujuan">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="865" y="1309" as="sourcePoint" />
+            <mxPoint x="1590" y="1309" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e38" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Buka antrean dan detail pengajuan">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2140" y="1373" as="sourcePoint" />
+            <mxPoint x="865" y="1373" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="activation" id="sequence-n39">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#E2ECF6;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="64" width="14" x="858" y="1373" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e40" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Tampilkan pengajuan hasil Review">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="865" y="1437" as="sourcePoint" />
+            <mxPoint x="2140" y="1437" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e41" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Setujui pengajuan">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2140" y="1501" as="sourcePoint" />
+            <mxPoint x="865" y="1501" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="activation" id="sequence-n42">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#E2ECF6;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="64" width="14" x="858" y="1501" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e43" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Status: Disetujui">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="865" y="1565" as="sourcePoint" />
+            <mxPoint x="2140" y="1565" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e44" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Buka pengajuan dan minta ekspor PDF">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="1629" as="sourcePoint" />
+            <mxPoint x="865" y="1629" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="activation" id="sequence-n45">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#E2ECF6;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="64" width="14" x="858" y="1629" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e46" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="PDF sedang disiapkan²">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="865" y="1693" as="sourcePoint" />
+            <mxPoint x="260" y="1693" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e47" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Periksa hasil; unduh bila sudah siap">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="1757" as="sourcePoint" />
+            <mxPoint x="865" y="1757" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="activation" id="sequence-n48">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#E2ECF6;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="64" width="14" x="858" y="1757" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e49" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="PDF resmi bertanda tangan organisasi">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="865" y="1821" as="sourcePoint" />
+            <mxPoint x="260" y="1821" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="Jika dikembalikan: pemohon memperbaiki lalu mengirim ulang; atau Reviewer memeriksa lagi. Jika ditolak: proses berakhir. Cabang keputusan lengkap ada pada halaman 1." qa_role="content" id="sequence-n50">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;" vertex="1">
+            <mxGeometry height="90" width="2300" x="50" y="1870" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="¹ Ganti kata sandi sementara lebih dulu jika diminta; akun Protected Superadmin menjalankan Setup bila belum selesai.&lt;br&gt;² Jika pembuatan atau penandatanganan gagal, PDF tidak tersedia untuk diunduh. Ekspor juga bisa diminta untuk pengajuan lain yang boleh diakses." qa_role="content" id="sequence-n51">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;" vertex="1">
+            <mxGeometry height="90" width="2300" x="50" y="1975" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="" qa_role="decoration" source_files="app/Services/Administration/UserAdministrationService.php&#10;app/Services/Security/CredentialService.php" source_sha256="{&quot;app/Services/Administration/UserAdministrationService.php&quot;: &quot;916a36160e2ff143d54ee416480f61574c23165f2bfa90f9279c17351e24ab99&quot;, &quot;app/Services/Security/CredentialService.php&quot;: &quot;2d23dd2720ca5a330c9dd4a685f423118a7d3111b8ec2f45d7029db09880ea7d&quot;}" id="sequence-n52">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFFFFF;strokeColor=#D7E1EB;strokeWidth=1.3;" vertex="1">
+            <mxGeometry height="455" width="1115" x="50" y="2100" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Administrasi — contoh mengelola akun" qa_role="heading" id="sequence-n53">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=23;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" vertex="1">
+            <mxGeometry height="35" width="1065" x="75" y="2117" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Admin berizin" qa_role="content" id="sequence-n54">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="58" width="290" x="105" y="2170" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Aplikasi NSCMF" qa_role="content" id="sequence-n55">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="58" width="290" x="810" y="2170" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e56" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=none;endFill=1;dashed=1;endArrow=none;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="250" y="2228" as="sourcePoint" />
+            <mxPoint x="250" y="2528" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e57" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=none;endFill=1;dashed=1;endArrow=none;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="955" y="2228" as="sourcePoint" />
+            <mxPoint x="955" y="2528" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e58" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Pilih tindakan, misalnya buat pengguna">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="250" y="2275" as="sourcePoint" />
+            <mxPoint x="955" y="2275" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e59" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Minta konfirmasi kata sandi bila perlu">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="955" y="2337" as="sourcePoint" />
+            <mxPoint x="250" y="2337" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e60" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Konfirmasi dan kirim tindakan">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="250" y="2399" as="sourcePoint" />
+            <mxPoint x="955" y="2399" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e61" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Simpan; tampilkan hasil tindakan">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="955" y="2461" as="sourcePoint" />
+            <mxPoint x="250" y="2461" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="" qa_role="decoration" source_files="app/Services/Export/PdfValidatorService.php" source_sha256="{&quot;app/Services/Export/PdfValidatorService.php&quot;: &quot;c8ee9f9ba386f6e97c6e44264d93cb59c1eef537a00812d83a781d6eab0cb525&quot;}" id="sequence-n62">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#FFFFFF;strokeColor=#D7E1EB;strokeWidth=1.3;" vertex="1">
+            <mxGeometry height="455" width="1115" x="1235" y="2100" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Validasi PDF — tanpa login" qa_role="heading" id="sequence-n63">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=23;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" vertex="1">
+            <mxGeometry height="35" width="1065" x="1260" y="2117" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Pengunjung" qa_role="content" id="sequence-n64">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="58" width="290" x="1290" y="2170" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Aplikasi NSCMF" qa_role="content" id="sequence-n65">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#EEF5FC;strokeColor=#7293B3;" vertex="1">
+            <mxGeometry height="58" width="290" x="1995" y="2170" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="sequence-e66" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=none;endFill=1;dashed=1;endArrow=none;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1435" y="2228" as="sourcePoint" />
+            <mxPoint x="1435" y="2528" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e67" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=19;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=none;endFill=1;dashed=1;endArrow=none;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2140" y="2228" as="sourcePoint" />
+            <mxPoint x="2140" y="2528" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e68" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Buka /ispdfvalid dan pilih PDF">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1435" y="2275" as="sourcePoint" />
+            <mxPoint x="2140" y="2275" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e69" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Tampilkan berkas yang dipilih">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2140" y="2337" as="sourcePoint" />
+            <mxPoint x="1435" y="2337" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e70" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;" value="Klik Periksa">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1435" y="2399" as="sourcePoint" />
+            <mxPoint x="2140" y="2399" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sequence-e71" edge="1" parent="1" style="html=1;whiteSpace=nowrap;strokeColor=#607A91;strokeWidth=1.5;fontSize=18;fontFamily=Arial;fontColor=#243B50;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;dashed=1;endArrow=open;endFill=0;" value="Tampilkan hasil keaslian / pesan gagal">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2140" y="2461" as="sourcePoint" />
+            <mxPoint x="1435" y="2461" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object label="Reviewer dan Approver adalah fungsi pengguna; orang yang sama bisa memiliki kedua izin. Semua tindakan tetap mengikuti hak akses." qa_role="heading" id="sequence-n72">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" vertex="1">
+            <mxGeometry height="55" width="2300" x="50" y="2580" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="Simbol sequence diagram" qa_role="legend" link="https://www.drawio.com/docs/diagram-types/uml/sequence-diagrams/" id="sequence-n73">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=17;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;rounded=0;fillColor=#F8FAFC;strokeColor=#D7E1EB;dashed=1;align=left;" vertex="1">
+            <mxGeometry height="52" width="455" x="50" y="2650" as="geometry" />
+          </mxCell>
+        </object>
+        <object label="" qa_role="evidence" source_files="app/Http/Controllers/Dashboard/DashboardController.php&#10;app/Http/Middleware/EnsurePasswordChanged.php&#10;app/Services/Administration/RolePermissionAdministrationService.php&#10;app/Services/Administration/SetupService.php&#10;app/Services/Administration/TeamAdministrationService.php&#10;app/Services/Administration/UserAdministrationService.php&#10;app/Services/Attachment/AttachmentFinalizationService.php&#10;app/Services/Attachment/AttachmentService.php&#10;app/Services/Attachment/AttachmentUploadService.php&#10;app/Services/Audit/AuditReadService.php&#10;app/Services/Export/ExportGenerationService.php&#10;app/Services/Export/ExportService.php&#10;app/Services/Export/PdfValidatorService.php&#10;app/Services/Nscmf/NscmfChangeResultService.php&#10;app/Services/Nscmf/NscmfCreationService.php&#10;app/Services/Nscmf/NscmfDraftService.php&#10;app/Services/Nscmf/NscmfLifecycleService.php&#10;app/Services/Nscmf/NscmfQueryService.php&#10;app/Services/Nscmf/NscmfWorkflowService.php&#10;app/Services/Nscmf/RecordEvidenceService.php&#10;app/Services/Security/CredentialService.php&#10;app/Services/Security/LoginService.php&#10;app/Services/Settings/SystemSettingsService.php&#10;resources/js/Pages/Approval/Show.vue&#10;resources/js/Pages/Dashboard/Index.vue&#10;resources/js/Pages/History/Index.vue&#10;resources/js/Pages/MyApplications/Index.vue&#10;resources/js/Pages/Public/PdfValidator.vue&#10;resources/js/Pages/Review/Show.vue&#10;resources/js/features/attachments/useChunkUpload.ts&#10;resources/js/features/exports/ExportPanel.vue&#10;app/Services/Nscmf/NscmfWorkflowService.php&#10;routes/web.php" source_sha256="{&quot;app/Http/Controllers/Dashboard/DashboardController.php&quot;: &quot;678371166402270aaa957f475f6f4e921c389b22ba5fcdaf7f3d9db5288a2bc3&quot;, &quot;app/Http/Middleware/EnsurePasswordChanged.php&quot;: &quot;03ab700bf476db1068153a376151f0609bbd37a24b2562100005528d02a5447e&quot;, &quot;app/Services/Administration/RolePermissionAdministrationService.php&quot;: &quot;f039b74c0e1d9a462a4ff6569257aeea099cd54160ff8dcd65e4fa3c56e05c7e&quot;, &quot;app/Services/Administration/SetupService.php&quot;: &quot;f548d1df566358f5eee675c11ad581aa7247572abd37731bb4fd656d1c7c0597&quot;, &quot;app/Services/Administration/TeamAdministrationService.php&quot;: &quot;985145679648645acb265eacfff1005ddc3f758d80e5d302a6f95c1fa07671de&quot;, &quot;app/Services/Administration/UserAdministrationService.php&quot;: &quot;916a36160e2ff143d54ee416480f61574c23165f2bfa90f9279c17351e24ab99&quot;, &quot;app/Services/Attachment/AttachmentFinalizationService.php&quot;: &quot;7ff7ad7f69a10a8a6bd670aae88a4cda5a69b70f13c80bc3de119b51430d7e55&quot;, &quot;app/Services/Attachment/AttachmentService.php&quot;: &quot;fd3e1afe8652f6f828170b721a03913a664139322a18f02a05a96ccb7f241d70&quot;, &quot;app/Services/Attachment/AttachmentUploadService.php&quot;: &quot;90837319c87646af6c9fbd716510e10406d266650d7426aa9c14eff208e6f455&quot;, &quot;app/Services/Audit/AuditReadService.php&quot;: &quot;07f882abe4eff9d0aec540dce0f397dce89a3e864f46dfa499bde78b4ee2c1cb&quot;, &quot;app/Services/Export/ExportGenerationService.php&quot;: &quot;49231882ddfe6b5c8379bd311ff071a9949fb06be0d5783f97a681296eed2acf&quot;, &quot;app/Services/Export/ExportService.php&quot;: &quot;0ff8bdb9e82ed438f4f6968265b2b5af086378833c57bbf4f0b573db78a3eff7&quot;, &quot;app/Services/Export/PdfValidatorService.php&quot;: &quot;c8ee9f9ba386f6e97c6e44264d93cb59c1eef537a00812d83a781d6eab0cb525&quot;, &quot;app/Services/Nscmf/NscmfChangeResultService.php&quot;: &quot;6f1c47565ef6c7eb7ffa2f8a14d011308884fceb62f608e84b6b493ab114d424&quot;, &quot;app/Services/Nscmf/NscmfCreationService.php&quot;: &quot;03ce79b0352c73c181e8d4c8b693b58c9d7fcb3ddb5cc5c67da46a688c8b7c8b&quot;, &quot;app/Services/Nscmf/NscmfDraftService.php&quot;: &quot;4f9a03356f94695118e035b378b8f8c7aeea653ed52988ab962fbf43ae795579&quot;, &quot;app/Services/Nscmf/NscmfLifecycleService.php&quot;: &quot;9433f8a641bd4103f629a8a4f8bd26b5c45535307aea45f5eb9739ddd3a275bf&quot;, &quot;app/Services/Nscmf/NscmfQueryService.php&quot;: &quot;1903ecbb3c1025165f6ec8599b8c957e961285c4cfb1bfa0577285eb221eda85&quot;, &quot;app/Services/Nscmf/NscmfWorkflowService.php&quot;: &quot;c607910a850c5d9e992db1b77219f545ab9874831be222bb0098e8ffcdbb1851&quot;, &quot;app/Services/Nscmf/RecordEvidenceService.php&quot;: &quot;4910583eed995d7911b7d3c8cf3d28c334aac58e548e2c24148c74f68647f166&quot;, &quot;app/Services/Security/CredentialService.php&quot;: &quot;2d23dd2720ca5a330c9dd4a685f423118a7d3111b8ec2f45d7029db09880ea7d&quot;, &quot;app/Services/Security/LoginService.php&quot;: &quot;1ca3fe9534c991ea3d793aef88927389a62a2826d9fdbaec885508d61dc277f0&quot;, &quot;app/Services/Settings/SystemSettingsService.php&quot;: &quot;c1091f33795fbb568da830b4c70dc860195c3b63a904b9b79573961afb4d3307&quot;, &quot;resources/js/Pages/Approval/Show.vue&quot;: &quot;d63b3c4726152a5facf8f72da022dc3c5c70f79c36813a70de673f23875d309c&quot;, &quot;resources/js/Pages/Dashboard/Index.vue&quot;: &quot;820279a6023dcd7c7e05a72d4bf7e8ec6b1118fb007f153eac8537b62533161d&quot;, &quot;resources/js/Pages/History/Index.vue&quot;: &quot;7706a68e9e19a75dc95d487b4cedc95bed00df8864b02c2ba62558fb54ed9a38&quot;, &quot;resources/js/Pages/MyApplications/Index.vue&quot;: &quot;0da1b4fbec39703831cb0d70017639c89f13c9667376da3593fd0463e6db1a2e&quot;, &quot;resources/js/Pages/Public/PdfValidator.vue&quot;: &quot;8ac1787ec1c052cfeb732485361047a1ea487bdf23c4d334890b9810fcb94473&quot;, &quot;resources/js/Pages/Review/Show.vue&quot;: &quot;3417785628eccfe11f104379ceba65b0c478a5dadda9d10429c651309f2032b8&quot;, &quot;resources/js/features/attachments/useChunkUpload.ts&quot;: &quot;185b315c39a1bd8c6e639147bcaf1b3170b417e47663ea4530c882e596b87e85&quot;, &quot;resources/js/features/exports/ExportPanel.vue&quot;: &quot;87e119253ecfca1e654122dda857647aaeb30b44b31b226898a2ae272c32cfc0&quot;, &quot;routes/web.php&quot;: &quot;95484a8d2fa540c47dd3234b9e801f7461e8c93918ed14e9a36341157d295e32&quot;}" id="sequence-n75">
+          <mxCell parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=1;fontColor=#243B50;spacing=9;verticalAlign=middle;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacing=0;" vertex="1">
+            <mxGeometry height="1" width="1" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="sequence-report-link" label="Activity Log: lihat alur (3) dan urutan interaksi (4) →" link="data:page/id,page-report-sequence">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=1;fillColor=#EDF4FA;strokeColor=#607A91;fontColor=#245D87;fontSize=18;">
+            <mxGeometry x="600" y="2650" width="1100" height="60" as="geometry" />
+          </mxCell>
+        </object>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-report-fitur" name="3. Activity Log — alur fitur" sources="resources/js/Pages/Reports/ActivityLog.vue&#10;resources/js/features/reports/ActivityLogExportDialog.vue&#10;resources/js/features/reports/ActivityLogExports.vue&#10;app/Services/Reports/ActivityLogReportService.php">
+    <mxGraphModel dx="1800" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="2450" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <object id="page-report-fitur-title" label="3. Activity Log — alur fitur">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;fontSize=32;fontStyle=1;spacing=0;">
+            <mxGeometry x="60" y="35" width="1780" height="55" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="page-report-fitur-subtitle" label="Pengguna dengan izin History dapat membuka laporan; izin Export diperlukan untuk membuat dan mengunduh laporan.">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;spacing=0;fontSize=18;">
+            <mxGeometry x="60" y="105" width="1780" height="70" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="page-report-fitur-back" label="← Alur fitur" link="data:page/id,page-fitur">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=1;fillColor=#EDF4FA;strokeColor=#607A91;fontColor=#245D87;fontSize=18;">
+            <mxGeometry x="60" y="190" width="260" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="page-report-fitur-sources" label="Sumber: resources/js/Pages/Reports/ActivityLog.vue&lt;br&gt;resources/js/features/reports/ActivityLogExportDialog.vue&lt;br&gt;resources/js/features/reports/ActivityLogExports.vue&lt;br&gt;app/Services/Reports/ActivityLogReportService.php" source_files="resources/js/Pages/Reports/ActivityLog.vue&#10;resources/js/features/reports/ActivityLogExportDialog.vue&#10;resources/js/features/reports/ActivityLogExports.vue&#10;app/Services/Reports/ActivityLogReportService.php">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;dashed=1;fillColor=#FAFBFC;strokeColor=#B7C2CC;align=left;fontSize=17;">
+            <mxGeometry x="60" y="2200" width="1780" height="170" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="page-report-fitur-footer" label="NSCMF / Alya • branch staging f418b70 • 29 Oktober 2026 • Potret kode; bukan bukti validasi server staging">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;spacing=0;fontSize=18;">
+            <mxGeometry x="60" y="2390" width="1780" height="40" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gf-sequence-link" label="Urutan interaksi laporan →" link="data:page/id,page-report-sequence">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=1;fillColor=#EDF4FA;strokeColor=#607A91;fontColor=#245D87;fontSize=18;">
+            <mxGeometry x="1360" y="190" width="480" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gf-open" label="Buka menu Activity Log&lt;br&gt;(setelah History)">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=1;arcSize=50;fillColor=#EAF3EB;strokeColor=#63816A;">
+            <mxGeometry x="650" y="300" width="540" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gf-filter" label="Cari / saring Request No, jenis, status, arsip dan Request date; lihat rekap dan total">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;fillColor=#EDF4FA;strokeColor=#607A91;">
+            <mxGeometry x="650" y="470" width="540" height="115" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gf-choose" label="Opsional: pilih entri lintas halaman&lt;br&gt;atau gunakan semua hasil filter">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;fillColor=#EDF4FA;strokeColor=#607A91;">
+            <mxGeometry x="650" y="650" width="540" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gf-dialog" label="Klik Export; pilih XLSX / PDF; konfirmasi Site Location, Prepared By dan Acknowledge By opsional">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;fillColor=#EDF4FA;strokeColor=#607A91;">
+            <mxGeometry x="650" y="820" width="540" height="125" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gf-valid" label="Permintaan valid&lt;br&gt;dan 1–1.000 entri?">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rhombus;fillColor=#FFF5DE;strokeColor=#BA9657;">
+            <mxGeometry x="780" y="1010" width="280" height="150" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gf-bad" label="Perbaiki isian, filter atau pilihan;&lt;br&gt;coba kirim lagi">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;fillColor=#EDF4FA;strokeColor=#607A91;">
+            <mxGeometry x="1270" y="1030" width="500" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gf-wait" label="Laporan dibuat di belakang;&lt;br&gt;strip terbaru menampilkan tahap dan persen">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;fillColor=#EDF4FA;strokeColor=#607A91;">
+            <mxGeometry x="650" y="1230" width="540" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gf-panel" label="Buka Exports / View all exports;&lt;br&gt;In progress, Ready to download, Earlier">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;fillColor=#EDF4FA;strokeColor=#607A91;">
+            <mxGeometry x="650" y="1410" width="540" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gf-ready" label="Hasil pembuatan&lt;br&gt;laporan?">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rhombus;fillColor=#FFF5DE;strokeColor=#BA9657;">
+            <mxGeometry x="780" y="1585" width="280" height="150" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gf-retry" label="Jika gagal / kedaluwarsa:&lt;br&gt;New export untuk meminta ulang">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;fillColor=#EDF4FA;strokeColor=#607A91;">
+            <mxGeometry x="1270" y="1605" width="500" height="110" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gf-download" label="Klik Download&lt;br&gt;File privat tersedia selama 7 hari">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=1;arcSize=50;fillColor=#EAF3EB;strokeColor=#63816A;">
+            <mxGeometry x="650" y="1800" width="540" height="100" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="gf-e-open" edge="1" parent="1" source="gf-open" target="gf-filter" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gf-e-filter" edge="1" parent="1" source="gf-filter" target="gf-choose" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gf-e-choose" edge="1" parent="1" source="gf-choose" target="gf-dialog" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gf-e-dialog" edge="1" parent="1" source="gf-dialog" target="gf-valid" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gf-e-valid" edge="1" parent="1" source="gf-valid" target="gf-wait" value="Ya" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gf-e-wait" edge="1" parent="1" source="gf-wait" target="gf-panel" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gf-e-panel" edge="1" parent="1" source="gf-panel" target="gf-ready" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gf-e-ready" edge="1" parent="1" source="gf-ready" target="gf-download" value="READY" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gf-e-bad" edge="1" parent="1" source="gf-valid" target="gf-bad" value="Tidak" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gf-e-retry" edge="1" parent="1" source="gf-ready" target="gf-retry" value="FAILED / EXPIRED" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gf-e-progress" edge="1" parent="1" source="gf-ready" target="gf-wait" value="Masih diproses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="540" y="1660" />
+              <mxPoint x="540" y="1285" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gf-e-correct" edge="1" parent="1" source="gf-bad" target="gf-dialog" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1830" y="1085" />
+              <mxPoint x="1830" y="882" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gf-e-new" edge="1" parent="1" source="gf-retry" target="gf-dialog" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#607A91;strokeWidth=1.5;fontFamily=Arial;fontSize=17;fontColor=#243B50;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1860" y="1660" />
+              <mxPoint x="1860" y="882" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <object id="gf-note" label="Laporan memakai data yang boleh dilihat; Team tidak membatasi. Default mencakup status submitted, aktif + arsip. PDF Activity Log tidak ditandatangani dan bukan PDF form APPROVED. Panel READY memakai link Download, tanpa bar progres; Close menutup panel dan New export membuka dialog.">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;dashed=1;fillColor=#FAFBFC;strokeColor=#B7C2CC;align=left;fontSize=17;">
+            <mxGeometry x="60" y="1990" width="1780" height="160" as="geometry" />
+          </mxCell>
+        </object>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page-report-sequence" name="4. Activity Log — urutan interaksi" sources="resources/js/Pages/Reports/ActivityLog.vue&#10;app/Services/Reports/ActivityLogReportService.php&#10;app/Services/Reports/ActivityLogExportGenerationService.php&#10;resources/js/features/reports/ActivityLogExports.vue">
+    <mxGraphModel dx="1800" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2100" pageHeight="2200" math="0" shadow="0" background="#FFFFFF">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <object id="page-report-sequence-title" label="4. Activity Log — urutan interaksi">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;fontSize=32;fontStyle=1;spacing=0;">
+            <mxGeometry x="60" y="35" width="1980" height="55" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="page-report-sequence-subtitle" label="Baca dari atas ke bawah. Panah penuh = permintaan; putus-putus = balasan. Contoh ekspor yang berhasil; cabang gagal ada di halaman 3.">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;spacing=0;fontSize=18;">
+            <mxGeometry x="60" y="105" width="1980" height="70" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="page-report-sequence-back" label="← Alur fitur" link="data:page/id,page-fitur">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=1;fillColor=#EDF4FA;strokeColor=#607A91;fontColor=#245D87;fontSize=18;">
+            <mxGeometry x="60" y="190" width="260" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="page-report-sequence-sources" label="Sumber: resources/js/Pages/Reports/ActivityLog.vue&lt;br&gt;app/Services/Reports/ActivityLogReportService.php&lt;br&gt;app/Services/Reports/ActivityLogExportGenerationService.php&lt;br&gt;resources/js/features/reports/ActivityLogExports.vue" source_files="resources/js/Pages/Reports/ActivityLog.vue&#10;app/Services/Reports/ActivityLogReportService.php&#10;app/Services/Reports/ActivityLogExportGenerationService.php&#10;resources/js/features/reports/ActivityLogExports.vue">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;dashed=1;fillColor=#FAFBFC;strokeColor=#B7C2CC;align=left;fontSize=17;">
+            <mxGeometry x="60" y="1950" width="1980" height="170" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="page-report-sequence-footer" label="NSCMF / Alya • branch staging f418b70 • 29 Oktober 2026 • Potret kode; bukan bukti validasi server staging">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;text;strokeColor=none;fillColor=none;align=left;spacing=0;fontSize=18;">
+            <mxGeometry x="60" y="2140" width="1980" height="40" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gs-flow-link" label="← Alur Activity Log" link="data:page/id,page-report-fitur">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=1;fillColor=#EDF4FA;strokeColor=#607A91;fontColor=#245D87;fontSize=18;">
+            <mxGeometry x="1550" y="190" width="490" height="60" as="geometry" />
+          </mxCell>
+        </object>
+        <object id="gs-user" label="Pengguna berizin">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;fillColor=#EDF4FA;strokeColor=#607A91;">
+            <mxGeometry x="60" y="300" width="300" height="70" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="gs-life-user" edge="1" parent="1" style="endArrow=none;dashed=1;strokeColor=#607A91;strokeWidth=1.5;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="210" y="370" as="sourcePoint" />
+            <mxPoint x="210" y="1740" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object id="gs-app" label="Aplikasi NSCMF">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;fillColor=#EDF4FA;strokeColor=#607A91;">
+            <mxGeometry x="880" y="300" width="300" height="70" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="gs-life-app" edge="1" parent="1" style="endArrow=none;dashed=1;strokeColor=#607A91;strokeWidth=1.5;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1030" y="370" as="sourcePoint" />
+            <mxPoint x="1030" y="1740" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object id="gs-worker" label="Worker laporan">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;fillColor=#EDF4FA;strokeColor=#607A91;">
+            <mxGeometry x="1700" y="300" width="300" height="70" as="geometry" />
+          </mxCell>
+        </object>
+        <mxCell id="gs-life-worker" edge="1" parent="1" style="endArrow=none;dashed=1;strokeColor=#607A91;strokeWidth=1.5;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1850" y="370" as="sourcePoint" />
+            <mxPoint x="1850" y="1740" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gs-msg-0" edge="1" parent="1" value="Buka Activity Log; kirim filter" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;strokeColor=#607A91;strokeWidth=1.5;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="210" y="445" as="sourcePoint" />
+            <mxPoint x="1030" y="445" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gs-msg-1" edge="1" parent="1" value="Tabel visible, total dan periode" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;strokeColor=#607A91;strokeWidth=1.5;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1030" y="557" as="sourcePoint" />
+            <mxPoint x="210" y="557" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gs-msg-2" edge="1" parent="1" value="Export: scope, format dan header laporan" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;strokeColor=#607A91;strokeWidth=1.5;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="210" y="669" as="sourcePoint" />
+            <mxPoint x="1030" y="669" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gs-msg-3" edge="1" parent="1" value="Setelah commit: antrekan pembuatan laporan" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;strokeColor=#607A91;strokeWidth=1.5;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1030" y="781" as="sourcePoint" />
+            <mxPoint x="1850" y="781" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gs-msg-4" edge="1" parent="1" value="202: snapshot tersimpan; QUEUED (0%)" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;strokeColor=#607A91;strokeWidth=1.5;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1030" y="893" as="sourcePoint" />
+            <mxPoint x="210" y="893" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gs-msg-5" edge="1" parent="1" value="Poll status tiap 2 detik sampai selesai" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;strokeColor=#607A91;strokeWidth=1.5;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="210" y="1005" as="sourcePoint" />
+            <mxPoint x="1030" y="1005" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gs-msg-6" edge="1" parent="1" value="PROCESSING; progres 5 → 10 → 70%" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;strokeColor=#607A91;strokeWidth=1.5;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1850" y="1117" as="sourcePoint" />
+            <mxPoint x="1030" y="1117" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gs-msg-7" edge="1" parent="1" value="PDF: render (90%); simpan privat; READY 100%" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;strokeColor=#607A91;strokeWidth=1.5;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1850" y="1229" as="sourcePoint" />
+            <mxPoint x="1030" y="1229" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gs-msg-8" edge="1" parent="1" value="Tahap, persen dan waktu kedaluwarsa" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;strokeColor=#607A91;strokeWidth=1.5;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1030" y="1341" as="sourcePoint" />
+            <mxPoint x="210" y="1341" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gs-msg-9" edge="1" parent="1" value="Buka panel Exports; pilih Download" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;strokeColor=#607A91;strokeWidth=1.5;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="210" y="1453" as="sourcePoint" />
+            <mxPoint x="1030" y="1453" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gs-msg-10" edge="1" parent="1" value="Cek ulang pemilik/izin/retensi; file privat" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=18;fontColor=#243B50;strokeColor=#607A91;strokeWidth=1.5;labelBackgroundColor=#FFFFFF;dashed=1;endArrow=open;endFill=0;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1030" y="1565" as="sourcePoint" />
+            <mxPoint x="210" y="1565" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <object id="gs-note" label="Worker mengisi workbook dari snapshot; PDF laporan tidak ditandatangani. Diagram ini merangkum interaksi: polling dapat berlangsung bersamaan dengan pemrosesan worker. Gagal / kedaluwarsa → pesan dan permintaan ekspor baru; bukan perubahan status bisnis NSCMF.">
+          <mxCell vertex="1" parent="1" style="html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=19;fontColor=#243B50;spacing=12;verticalAlign=middle;align=center;strokeWidth=1.5;rounded=0;dashed=1;fillColor=#FAFBFC;strokeColor=#B7C2CC;align=left;fontSize=17;">
+            <mxGeometry x="60" y="1780" width="1980" height="140" as="geometry" />
+          </mxCell>
+        </object>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
