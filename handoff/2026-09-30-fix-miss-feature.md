@@ -13,7 +13,7 @@ Branch `feat/fix_miss_feature`, lanjutan `e625864`. Semua commit masih lokal: be
 
 ## Keputusan pemilik (2026-09-30)
 
-1. **BE-150:** tanpa mekanisme sweep baru. Objek yang tersisa bila DB **dan** penghapusan sama-sama gagal adalah batas yang diketahui dan tercatat di log ([G23](../microtask_be/06_GAP_DAN_KEPUTUSAN.md#g23)).
+1. **BE-150:** tanpa mekanisme sweep baru. Objek yang tersisa bila DB **dan** penghapusan sama-sama gagal adalah batas yang diketahui dan tercatat di log (G23 (`microtask_be/06_GAP_DAN_KEPUTUSAN.md`)).
 2. **Label lampiran:** daftar lampiran tersimpan ikut memakai label 07 §28.
 3. **Record terkunci saat scan:** `ATTACHMENT_PARENT_LOCKED` tampil dengan label 07 apa adanya, "Security scan failed — file not available".
 4. **FE-59:** diperluas ke detail record; tanpa izin History, tautan kembali menuju `/dashboard`.

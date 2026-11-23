@@ -12,6 +12,7 @@
 /coverage
 /docs/lokal/penilaian.md
 /microtask_fe
+/microtask_be
 /node_modules
 /playwright-report
 /public/build

@@ -4,7 +4,7 @@ Aplikasi internal Laravel 13 / Vue 3 yang menggantikan proses NSCMF Form 3.0 ber
 
 - Spesifikasi (otoritas): [`project_doc/`](project_doc/)
 - Aturan developer dan coding agent: [`AGENTS.md`](AGENTS.md)
-- Keputusan dan gap yang masih terbuka: [`microtask_be/06_GAP_DAN_KEPUTUSAN.md`](microtask_be/06_GAP_DAN_KEPUTUSAN.md)
+- Keputusan dan gap yang masih terbuka: `microtask_be/06_GAP_DAN_KEPUTUSAN.md` (dokumen lokal). Git mengabaikan folder `microtask_be/` dan `microtask_fe/`.
 
 README ini hanya menjelaskan cara menjalankan proyek. Aturan produk ada di `project_doc`.
 
