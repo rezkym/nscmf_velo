@@ -1,0 +1,58 @@
+<mxfile host="app.diagrams.net" compressed="false" pages="1">
+  <diagram id="gambar-3-1-as-is" name="Gambar 3.1 Alur Proses NSCMF Saat Ini">
+    <mxGraphModel dx="827" dy="1169" grid="1" gridSize="5" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="judul" value="Gambar 3.1 Alur Proses NSCMF Saat Ini" style="text;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=21;fontStyle=1;fontColor=#333333;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="55" y="45" width="717" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="mulai" value="Mulai" style="rounded=1;arcSize=100;absoluteArcSize=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=18;fontColor=#333333;strokeColor=#4B5563;strokeWidth=1.5;fillColor=#EAF3FB;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="205" y="135" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="isi-formulir" value="Mengisi formulir NSCMF&lt;br&gt;berbasis spreadsheet" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=18;fontColor=#333333;strokeColor=#4B5563;strokeWidth=1.5;fillColor=#EAF3FB;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="105" y="270" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="nomor-formulir" value="Menentukan nomor formulir&lt;br&gt;secara mandiri" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=18;fontColor=#333333;strokeColor=#4B5563;strokeWidth=1.5;fillColor=#EAF3FB;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="105" y="405" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="pengajuan-fisik" value="Pengajuan diproses&lt;br&gt;melalui dokumen fisik" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=18;fontColor=#333333;strokeColor=#4B5563;strokeWidth=1.5;fillColor=#EAF3FB;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="105" y="540" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="review-fisik" value="Proses Review&lt;br&gt;menggunakan dokumen fisik" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=18;fontColor=#333333;strokeColor=#4B5563;strokeWidth=1.5;fillColor=#EAF3FB;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="105" y="675" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="approval-fisik" value="Proses Approval&lt;br&gt;menggunakan dokumen fisik" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=18;fontColor=#333333;strokeColor=#4B5563;strokeWidth=1.5;fillColor=#EAF3FB;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="105" y="810" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="selesai" value="Selesai" style="rounded=1;arcSize=100;absoluteArcSize=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=18;fontColor=#333333;strokeColor=#4B5563;strokeWidth=1.5;fillColor=#EAF3FB;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="205" y="945" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="catatan-penomoran" value="Penomoran belum terpusat." style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=16;fontColor=#333333;strokeColor=#4B5563;strokeWidth=1.2;dashed=1;dashPattern=5 4;fillColor=#EAF3FB;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="555" y="405" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="catatan-status" value="Status dan rekapitulasi pengajuan belum terintegrasi." style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=16;fontColor=#333333;strokeColor=#4B5563;strokeWidth=1.2;dashed=1;dashPattern=5 4;fillColor=#EAF3FB;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="555" y="675" width="220" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="alur-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#4B5563;strokeWidth=1.5;endArrow=block;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="mulai" target="isi-formulir">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="alur-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#4B5563;strokeWidth=1.5;endArrow=block;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="isi-formulir" target="nomor-formulir">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="alur-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#4B5563;strokeWidth=1.5;endArrow=block;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="nomor-formulir" target="pengajuan-fisik">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="alur-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#4B5563;strokeWidth=1.5;endArrow=block;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="pengajuan-fisik" target="review-fisik">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="alur-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#4B5563;strokeWidth=1.5;endArrow=block;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="review-fisik" target="approval-fisik">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="alur-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#4B5563;strokeWidth=1.5;endArrow=block;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="approval-fisik" target="selesai">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
